@@ -56,10 +56,22 @@ feat(transfer): 增加按备注匹配收款人
 3. 在 GitHub 把 `main` 设为 protected branch：要求 PR、要求 CODEOWNERS 批准。
 4. 通知全员从远端重新 clone 或重设 upstream。
 
-## 4. 飞书同步边界
+## 4. 飞书同步
 
 项目文档会同步到飞书供团队阅读，本地仓库始终是唯一事实源。
 
-- `tools/` 下的飞书同步脚本入库；同步用的授权产物与状态文件不入库（见 `.gitignore`）。
-- 同步方向是本地 → 飞书。飞书上被改过的内容不回流，改动在本地提交后重新同步。
-- 图包的校验截图不入库，可由图源 `.json` 重新生成。
+- 发布用 `python tools/feishu_sync.py publish`：读 `PUBLISH` 列表，用**用户身份**建/改文档。
+  必须全程用户身份——应用身份建的文档，用户没有编辑权（实测报 `4030004`）。
+- 同步方向是本地 → 飞书。飞书上被改过的内容不回流，改动在本地提交后重新发布。
+- 授权产物与状态文件不入库（见 `.gitignore` 的 `.feishu_state*.json`）；发布用的临时
+  markdown 落在 `_feishu_push/`，同样不入库，每次重新生成。
+
+### 改图要重新生成，别手改产物
+
+架构图分两层：`*.json` 是图源规格（唯一事实源），`*.mmd` 是从规格派生的 Mermaid。
+**改图改规格，再跑 `python tools/spec_to_mermaid.py <spec.json>` 重新生成 `.mmd`。**
+
+飞书画板不支持 Mermaid 的 `block`/`end` 语法——含它的序列图会整张解析失败，连画板块都不会建。
+`spec_to_mermaid.py` 因此用 `Note over` 表达分段。新增图表时避开这个语法。
+
+发布后核对：`python tools/dump_feishu_doc.py <doc_id>` 看块结构，确认画板数与链接数符合预期。

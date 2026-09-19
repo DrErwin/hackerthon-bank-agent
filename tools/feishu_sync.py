@@ -766,6 +766,178 @@ def cmd_tasks():
     print(f"已重建 {len(TASK_RECORDS)} 条任务记录")
 
 
+# ---------- 用户身份发布（当前采用的路径） ----------
+#
+# 为什么不走 setup/resync：应用身份（tenant）建的文档，用户身份没有编辑权，
+# 实测报 4030004 No permission。发布必须「谁建谁改」，全程 --as user。
+# 另一个实测结论：飞书画板不支持 Mermaid 的 block/end，含它的序列图整张解析失败，
+# 因此 spec_to_mermaid.py 用 Note over 表达分段。
+
+PUBLISH = [
+    ("docs/00-项目文档索引.md", "00 项目文档索引"),
+    ("docs/01-项目跟踪.md", "01 项目跟踪"),
+    ("官方资料/参赛规则与提交要求.md", "02 参赛规则与提交要求"),
+    ("docs/architecture/system-framework-v0.5.md", "03 系统架构 v0.5"),
+    ("docs/architecture/review-v0.5/system-overview.mmd", "04 系统架构总览图"),
+    ("docs/architecture/review-v0.5/transfer-interaction.mmd", "05 模拟转账交互图"),
+    ("官方资料/模板/source-code-readme-template.md", "06 源码 README 模板"),
+]
+
+# 图与正文分离发布；正文里插入指向图的链接，链接在第一轮发布拿到 doc_id 后回填。
+FIGURE_LINKS = {
+    "03 系统架构 v0.5": [
+        ("### 1. 系统总览", "04 系统架构总览图", "七部分组成、主链路与确认回环"),
+        ("### 11. 强行中断后的任务恢复", "05 模拟转账交互图", "暂停、确认与沿原任务续办"),
+    ],
+}
+
+
+def _run_cli(cmd):
+    """执行 lark-cli 并解析 JSON 输出。"""
+    env = dict(os.environ, MSYS_NO_PATHCONV="1")
+    exe = shutil.which("lark-cli")
+    if exe and exe.lower().endswith((".cmd", ".bat")):
+        proc = subprocess.run(subprocess.list2cmdline(cmd), capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", env=env, shell=True)
+    else:
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", env=env, shell=False)
+    out = (proc.stdout or "").strip()
+    if not out.startswith("{"):
+        return {"ok": False, "raw": out[:400], "stderr": (proc.stderr or "")[:400]}
+    return json.loads(out)
+
+
+def _doc_id_from(res):
+    """从 lark-cli 响应里取文档 id。
+
+    建文档返回 document.document_id；改文档（+update overwrite）只返回
+    revision_id 和 url，因此必须从 url 兜底解析，否则更新会被误判为失败。
+    """
+    doc = (res.get("data") or {}).get("document") or {}
+    did = doc.get("document_id") or doc.get("block_id")
+    if did:
+        return did
+    url = doc.get("url") or ""
+    m = re.search(r"/(?:docx|docs|wiki)/([A-Za-z0-9]+)", url)
+    return m.group(1) if m else None
+
+
+def _render_doc(local, title, links=None):
+    """把本地 md 渲染成可推送文本；.mmd 包成画板，正文按需插入图的链接。"""
+    src = (ROOT / local).read_text(encoding="utf-8")
+    if local.endswith(".mmd"):
+        # 必须包成 ```mermaid 代码块，否则下面的白板替换匹配不到，图会变成纯文本。
+        body = f"# {title}\n\n```mermaid\n{src.strip()}\n```\n"
+    else:
+        body = src
+    for anchor, fig_title, why in (links or []):
+        fid = (links_state.get(fig_title) or {}).get("doc_id")
+        if not fid or anchor not in body or fig_title in body:
+            continue
+        note = f"> 配图：[{fig_title}](https://feishu.cn/docx/{fid}) —— {why}\n"
+        body = body.replace(anchor, anchor + "\n\n" + note, 1)
+    return re.sub(r"```mermaid\n(.*?)```",
+                  lambda m: '<whiteboard type="mermaid">\n' + m.group(1).strip() + "\n</whiteboard>",
+                  body, flags=re.S)
+
+
+links_state = {}
+
+
+def cmd_publish():
+    """先建图与正文，再回填正文里的图链接。用法：python tools/feishu_sync.py publish
+
+    状态写在 FEISHU_STATE 指定的文件（默认 .feishu_state.json）。
+    """
+    global links_state
+    state = load_state()
+    state.setdefault("docs", {})
+    links_state = state["docs"]
+    push_dir = ROOT / "_feishu_push"
+    push_dir.mkdir(exist_ok=True)
+
+    for round_no in (1, 2):
+        print(f"—— 第 {round_no} 轮 ——")
+        for local, title in PUBLISH:
+            links = FIGURE_LINKS.get(title) if round_no == 1 else None
+            text = _render_doc(local, title, links)
+            tmp = push_dir / (re.sub(r"[^\w.-]", "_", title) + ".md")
+            tmp.write_text(text, encoding="utf-8")
+            rel = str(tmp.relative_to(ROOT)).replace("\\", "/")
+
+            meta = state["docs"].get(title)
+            if meta:
+                res = _run_cli(["lark-cli", "docs", "+update", "--doc", meta["doc_id"],
+                                "--command", "overwrite", "--doc-format", "markdown",
+                                "--content", "@./" + rel, "--as", "user", "--json"])
+                action = "更新"
+            else:
+                res = _run_cli(["lark-cli", "docs", "+create", "--title", title,
+                                "--doc-format", "markdown", "--content", "@./" + rel,
+                                "--as", "user", "--json"])
+                action = "新建"
+
+            did = _doc_id_from(res)
+            if res.get("ok") and did:
+                state["docs"][title] = {"doc_id": did, "local": local}
+                boards = sum(1 for b in (res["data"]["document"].get("new_blocks") or [])
+                             if isinstance(b, dict) and b.get("block_type") == "whiteboard")
+                print(f"  {action} {title}" + (f"（画板 {boards}）" if boards else ""))
+            else:
+                print(f"  失败 {title}: {str(res.get('error') or res)[:200]}")
+            save_state(state)
+
+    print_links()
+
+
+def cmd_delete_old():
+    """删除已废弃的飞书文档（本地源已不存在的旧页）。"""
+    for token in OLD_DOCS:
+        res = _run_cli(["lark-cli", "drive", "+delete", "--file-token", token,
+                        "--type", "docx", "--as", "user", "--yes", "--json"])
+        print(f"  {token}: {'已删除' if res.get('ok') else str(res.get('error'))[:120]}")
+
+
+def cmd_relink():
+    """只重推一份带配图链接的正文（改过图或链接后单独补跑用）。
+
+    用法：python tools/feishu_sync.py relink "03 系统架构 v0.5"
+    必须先 publish 过，否则状态里没有 doc_id。
+    """
+    global links_state
+    state = load_state()
+    links_state = state.get("docs", {})
+    title = sys.argv[2] if len(sys.argv) > 2 else "03 系统架构 v0.5"
+    meta = links_state.get(title)
+    if not meta:
+        print(f"状态里没有《{title}》，先跑 publish")
+        return 1
+    local = meta["local"]
+    text = _render_doc(local, title, FIGURE_LINKS.get(title))
+    push_dir = ROOT / "_feishu_push"
+    push_dir.mkdir(exist_ok=True)
+    tmp = push_dir / (re.sub(r"[^\w.-]", "_", title) + ".md")
+    tmp.write_text(text, encoding="utf-8")
+    rel = str(tmp.relative_to(ROOT)).replace("\\", "/")
+    res = _run_cli(["lark-cli", "docs", "+update", "--doc", meta["doc_id"],
+                    "--command", "overwrite", "--doc-format", "markdown",
+                    "--content", "@./" + rel, "--as", "user", "--json"])
+    n = text.count("配图")
+    print(f"{'更新' if res.get('ok') else '失败'} {title}（配图链接 {n} 处）")
+    if not res.get("ok"):
+        print(f"  {str(res.get('error') or res)[:200]}")
+    return 0
+
+
+OLD_DOCS = [
+    # 本地源已删除的废弃页：03 产品全景（源 business-architecture.md）、
+    # 04 技术架构（源 technical-architecture.md）。
+    "IeAodL4P8ocR3IxgMTScxjHXnTe",
+    "GOuldWR6Poa3ZgxMF2JcTDNen5c",
+]
+
+
 def print_links():
     state = load_state()
     print("\n===== 访问链接 =====")
@@ -818,5 +990,6 @@ def cmd_owner():
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
     {"check": cmd_check, "setup": cmd_setup, "resync": cmd_resync,
-     "tasks": cmd_tasks, "transfer": cmd_transfer,
+     "tasks": cmd_tasks, "transfer": cmd_transfer, "publish": cmd_publish,
+     "delete_old": cmd_delete_old, "relink": cmd_relink,
      "move": cmd_move, "owner": cmd_owner, "relocate": cmd_relocate}[cmd]()

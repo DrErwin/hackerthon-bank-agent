@@ -24,3 +24,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.log
+
+# 发布到飞书时的临时 markdown（每次同步重新生成）
+_feishu_push/
