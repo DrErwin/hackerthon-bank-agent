@@ -1,0 +1,26 @@
+# 密钥与环境变量
+.env
+.env.*
+
+# 飞书同步工具的本地状态与授权产物（含内部文档 token，不入库）
+.feishu_state*.json
+.lark-auth/
+_push.md
+
+# 本地记忆工作区（会话态与运行时数据，机器本地，不入库）
+.mnemon/
+
+# 依赖与构建产物
+node_modules/
+dist/
+coverage/
+__pycache__/
+*.pyc
+
+# 图包生成物中的截图（可由 .json 图源重新生成；图源与交付 HTML 保留入库）
+*.visual-check.*.png
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+*.log

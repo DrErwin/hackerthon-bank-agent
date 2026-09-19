@@ -1,0 +1,308 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "title": "Agent 内部架构 · v0.4 设计评审",
+    "viewBox": [
+      1080,
+      660
+    ]
+  },
+  "components": [
+    {
+      "id": "trusted-task",
+      "type": "external",
+      "label": "可信任务入口",
+      "sublabel": "来自 API · 身份与任务编号",
+      "pos": [
+        25,
+        265
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "main-harness",
+      "type": "backend",
+      "label": "主 Agent / Harness",
+      "sublabel": "Deep Agents · 对话与选能力",
+      "pos": [
+        200,
+        265
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "graph-engine",
+      "type": "backend",
+      "label": "流程运行引擎",
+      "sublabel": "LangGraph · 分支 / 暂停",
+      "pos": [
+        375,
+        265
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "capability-contract",
+      "type": "security",
+      "label": "能力目录与适配",
+      "sublabel": "模块准入 / 可信上下文",
+      "pos": [
+        550,
+        265
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "capability-module",
+      "type": "backend",
+      "label": "业务模块",
+      "sublabel": "函数 或 LangGraph 子流程",
+      "pos": [
+        725,
+        265
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "guarded-tools",
+      "type": "security",
+      "label": "统一工具执行器",
+      "sublabel": "鉴权与确认 → 私有工具",
+      "pos": [
+        900,
+        265
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "context-memory",
+      "type": "database",
+      "label": "上下文与受控记忆",
+      "sublabel": "压缩 / 用户隔离 / 受控写入",
+      "pos": [
+        200,
+        70
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "model-adapter",
+      "type": "backend",
+      "label": "统一模型入口",
+      "sublabel": "配置 / 超时 / 供应商适配",
+      "pos": [
+        375,
+        70
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "resume-control",
+      "type": "backend",
+      "label": "中断恢复协调",
+      "sublabel": "先核对，再续办原任务",
+      "pos": [
+        375,
+        485
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "graph-checkpoints",
+      "type": "database",
+      "label": "运行检查点",
+      "sublabel": "保存执行位置与任务状态",
+      "pos": [
+        550,
+        485
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "operation-ledger",
+      "type": "database",
+      "label": "工具操作记录",
+      "sublabel": "稳定操作编号 / 实际结果",
+      "pos": [
+        725,
+        485
+      ],
+      "size": [
+        130,
+        68
+      ]
+    },
+    {
+      "id": "audit-events",
+      "type": "security",
+      "label": "审计事件与证据",
+      "sublabel": "调用链 / 判定 / 缺口标注",
+      "pos": [
+        900,
+        485
+      ],
+      "size": [
+        130,
+        68
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "accept-task",
+      "from": "trusted-task",
+      "to": "main-harness",
+      "label": "任务请求",
+      "variant": "emphasis"
+    },
+    {
+      "id": "run-on-graph",
+      "from": "main-harness",
+      "to": "graph-engine",
+      "label": "运行承载",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dispatch-capability",
+      "from": "graph-engine",
+      "to": "capability-contract",
+      "label": "推进调用",
+      "variant": "emphasis"
+    },
+    {
+      "id": "invoke-module",
+      "from": "capability-contract",
+      "to": "capability-module",
+      "label": "统一契约",
+      "variant": "security"
+    },
+    {
+      "id": "guard-private-tools",
+      "from": "capability-module",
+      "to": "guarded-tools",
+      "label": "工具调用",
+      "variant": "security"
+    },
+    {
+      "id": "manage-context",
+      "from": "main-harness",
+      "to": "context-memory",
+      "label": "受控读写",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        265,
+        180
+      ]
+    },
+    {
+      "id": "call-model",
+      "from": "main-harness",
+      "to": "model-adapter",
+      "label": "模型调用",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "persist-state",
+      "from": "graph-engine",
+      "to": "graph-checkpoints",
+      "label": "状态落盘",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "resume-task",
+      "from": "resume-control",
+      "to": "graph-engine",
+      "label": "继续原任务",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "read-checkpoint",
+      "from": "resume-control",
+      "to": "graph-checkpoints",
+      "label": "读取位置"
+    },
+    {
+      "id": "record-operation",
+      "from": "guarded-tools",
+      "to": "operation-ledger",
+      "label": "记录操作",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "record-audit",
+      "from": "guarded-tools",
+      "to": "audit-events",
+      "label": "记录证据",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        965,
+        455
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "内部职责 · 尚未实现验证",
+      "items": [
+        "Harness 选能力；LangGraph 承载主流程与业务子流程。",
+        "API、业务服务和外部供应商的位置见系统总览。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "唯一受控工具入口",
+      "items": [
+        "模块准入不替代逐次鉴权；私有工具获准后调用应用服务。",
+        "模块不得直连供应商；局部 Agent 仅保留扩展位置。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "恢复与审计分开",
+      "items": [
+        "恢复同时核对检查点、操作记录及当前授权；未知则停。",
+        "Harness、运行引擎、工具与恢复均上报审计；审计只读。"
+      ]
+    }
+  ]
+}

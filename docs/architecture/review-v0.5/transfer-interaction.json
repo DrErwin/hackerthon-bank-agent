@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "模拟转账 · 用户交互流程（v0.5）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1300, 650]
+  },
+  "participants": [
+    { "id": "frontend", "type": "frontend", "label": "用户前端" },
+    { "id": "api", "type": "backend", "label": "后端服务入口" },
+    { "id": "agent", "type": "backend", "label": "Agent 平台" },
+    { "id": "transfer", "type": "backend", "label": "转账业务模块" },
+    { "id": "guard", "type": "security", "label": "安全执行入口" },
+    { "id": "adapter", "type": "backend", "label": "银行接入层" },
+    { "id": "bank", "type": "backend", "label": "模拟银行" }
+  ],
+  "segments": [
+    { "from": 152, "to": 226, "label": "① 用户发起" },
+    { "from": 236, "to": 376, "label": "② 等待确认并继续原任务" },
+    { "from": 386, "to": 580, "label": "③ 银行执行与结果反馈" }
+  ],
+  "messages": [
+    { "id": "submit", "from": "frontend", "to": "api", "y": 160, "label": "用户发起：转 100 元" },
+    { "id": "new-task", "from": "api", "to": "agent", "y": 188, "label": "核身份与归属后受理" },
+    { "id": "select-capability", "from": "agent", "to": "transfer", "y": 216, "label": "调用转账能力" },
+    { "id": "ask-confirmation", "from": "transfer", "to": "agent", "y": 248, "label": "申请本次敏感确认", "variant": "return" },
+    { "id": "suspend", "from": "agent", "to": "api", "y": 276, "label": "保存暂停点，发待确认事件", "variant": "return" },
+    { "id": "confirmation-event", "from": "api", "to": "frontend", "y": 304, "label": "SSE 确认卡：收款人与金额", "variant": "return" },
+    { "id": "post-decision", "from": "frontend", "to": "api", "y": 336, "label": "用户核对后点击确认", "variant": "security" },
+    { "id": "resume", "from": "api", "to": "agent", "y": 364, "label": "校验身份，恢复原任务", "variant": "security" },
+    { "id": "execute-check", "from": "transfer", "to": "guard", "y": 396, "label": "续办并重验权限与确认", "variant": "security" },
+    { "id": "allow-bank-call", "from": "guard", "to": "adapter", "y": 424, "label": "保存操作编号后放行", "variant": "security" },
+    { "id": "bank-submit", "from": "adapter", "to": "bank", "y": 452, "label": "可信身份与原操作编号", "variant": "security" },
+    { "id": "bank-result", "from": "bank", "to": "adapter", "y": 480, "label": "返回实际状态与结果", "variant": "return" },
+    { "id": "return-result", "from": "adapter", "to": "transfer", "y": 508, "label": "经安全入口回传银行结果", "variant": "return" },
+    { "id": "result-event", "from": "agent", "to": "api", "y": 536, "label": "任务结果事件", "variant": "return" },
+    { "id": "push-result", "from": "api", "to": "frontend", "y": 564, "label": "SSE 展示银行实际状态", "variant": "return" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "确认、银行执行与结果归属",
+      "items": [
+        "用户在前端核对收款人和金额；确认后续办原任务。安全入口按本次参数重验，银行再核账户权限、规则与去重。",
+        "银行实际状态是结果依据；图中合并逐层回包，结果未知时沿原操作编号核对。"
+      ]
+    }
+  ]
+}

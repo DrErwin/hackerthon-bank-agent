@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "模拟转账 · 用户交互与安全执行",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [
+      1080,
+      680
+    ]
+  },
+  "participants": [
+    {
+      "id": "customer",
+      "type": "external",
+      "label": "用户",
+      "sublabel": "发起、补充、确认"
+    },
+    {
+      "id": "chat-ui",
+      "type": "frontend",
+      "label": "交互界面",
+      "sublabel": "Vue3"
+    },
+    {
+      "id": "task-platform",
+      "type": "backend",
+      "label": "任务底座",
+      "sublabel": "API + Harness"
+    },
+    {
+      "id": "transfer-flow",
+      "type": "backend",
+      "label": "转账演示模块",
+      "sublabel": "LangGraph 子流程"
+    },
+    {
+      "id": "safe-tools",
+      "type": "security",
+      "label": "安全执行入口",
+      "sublabel": "鉴权与确认"
+    },
+    {
+      "id": "mock-service",
+      "type": "database",
+      "label": "模拟业务服务",
+      "sublabel": "业务事实与操作记录"
+    }
+  ],
+  "segments": [
+    {
+      "from": 145,
+      "label": "① 需求与补充",
+      "to": 285
+    },
+    {
+      "from": 292,
+      "label": "② 核对与确认",
+      "to": 449
+    },
+    {
+      "from": 455,
+      "label": "③ 执行与反馈",
+      "to": 595
+    }
+  ],
+  "messages": [
+    {
+      "id": "intent",
+      "from": "customer",
+      "to": "chat-ui",
+      "y": 160,
+      "label": "给小王转 100 元"
+    },
+    {
+      "id": "start-task",
+      "from": "chat-ui",
+      "to": "task-platform",
+      "y": 188,
+      "label": "HTTP 发起；校验归属"
+    },
+    {
+      "id": "select-transfer",
+      "from": "task-platform",
+      "to": "transfer-flow",
+      "y": 216,
+      "label": "能力调用与可信上下文"
+    },
+    {
+      "id": "ask-details",
+      "from": "transfer-flow",
+      "to": "chat-ui",
+      "y": 244,
+      "label": "保存原任务；SSE 请求补充收款人信息",
+      "variant": "return"
+    },
+    {
+      "id": "provide-details",
+      "from": "customer",
+      "to": "transfer-flow",
+      "y": 272,
+      "label": "经界面与 API 补充信息；继续同一 task_id"
+    },
+    {
+      "id": "preflight",
+      "from": "transfer-flow",
+      "to": "safe-tools",
+      "y": 300,
+      "label": "查询与条件校验",
+      "variant": "security"
+    },
+    {
+      "id": "read-facts",
+      "from": "safe-tools",
+      "to": "mock-service",
+      "y": 328,
+      "label": "受控查询事实",
+      "variant": "security"
+    },
+    {
+      "id": "approval-card",
+      "from": "transfer-flow",
+      "to": "chat-ui",
+      "y": 356,
+      "label": "经 API 展示确认卡；保存状态等待批准",
+      "variant": "return"
+    },
+    {
+      "id": "view-approval",
+      "from": "chat-ui",
+      "to": "customer",
+      "y": 384,
+      "label": "核对收款人和金额",
+      "variant": "return"
+    },
+    {
+      "id": "approve",
+      "from": "customer",
+      "to": "task-platform",
+      "y": 412,
+      "label": "点击确认；绑定本次调用与具体参数",
+      "variant": "security"
+    },
+    {
+      "id": "resume-approved",
+      "from": "task-platform",
+      "to": "transfer-flow",
+      "y": 440,
+      "label": "验证确认；恢复原任务",
+      "variant": "security"
+    },
+    {
+      "id": "write-request",
+      "from": "transfer-flow",
+      "to": "safe-tools",
+      "y": 468,
+      "label": "重验权限与确认",
+      "variant": "security"
+    },
+    {
+      "id": "commit",
+      "from": "safe-tools",
+      "to": "mock-service",
+      "y": 496,
+      "label": "按操作编号事务提交",
+      "variant": "security"
+    },
+    {
+      "id": "fact-result",
+      "from": "mock-service",
+      "to": "transfer-flow",
+      "y": 524,
+      "label": "经执行器返回真实结果；更新检查点",
+      "variant": "return"
+    },
+    {
+      "id": "present-result",
+      "from": "transfer-flow",
+      "to": "chat-ui",
+      "y": 552,
+      "label": "经 API / SSE 返回结构化结果",
+      "variant": "return"
+    },
+    {
+      "id": "show-receipt",
+      "from": "chat-ui",
+      "to": "customer",
+      "y": 580,
+      "label": "展示结果凭据",
+      "variant": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "演示假设",
+      "items": [
+        "仅用模拟转账解释 v0.4；金额不代表额度规则。",
+        "图中跨层返回经 API 或执行器转接；未列出每次回包。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "用户的决定必须有效",
+      "items": [
+        "补充与确认继续原任务；参数变化须重新确认。",
+        "拒绝权限即停止；取消须核对在途结果；网页断线不等于取消。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "执行中断时的替代路径",
+      "items": [
+        "重连续办原任务：核对检查点与原操作编号；已完成则复用。",
+        "结果未知停止自动重试；未执行重验权限；审计始终只读。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "D:\\hackerthon-bank-agent\\docs\\architecture\\review-v0.4\\agent-internal-architecture.json",
+  "output": "D:\\hackerthon-bank-agent\\docs\\architecture\\review-v0.4\\agent-internal-architecture.html",
+  "specification": {
+    "sha256": "ca4ed9472f025b4634892792f501e4f8e9b129d781427be36e5ccd13ab96a5f0",
+    "bytes": 6366
+  },
+  "artifact": {
+    "sha256": "62b705b859b2978509a93b3dc580b4c81c0666ae3e91ca60066e92300203fd5d",
+    "bytes": 815251
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}
