@@ -1,0 +1,23 @@
+flowchart TB
+    subgraph ____________________["模块化后端"]
+    api["后端服务入口<br/>身份、会话、事件推送"]
+    agent["Agent 平台<br/>理解需求、暂停与恢复"]
+    business["业务能力模块<br/>业务流程、分支与工具"]
+    bank_adapter["银行系统接入层<br/>统一接口、身份与操作编号"]
+    bank["银行系统 · 模拟银行<br/>账户授权、规则、去重与结果"]
+    app_records[("应用数据与运行记录<br/>任务、记忆、检查点、调用与审计")]
+    bank_records[("银行自有数据<br/>账户、账本与银行操作结果")]
+    end
+    subgraph external["外部"]
+    frontend["用户前端<br/>对话、进度、确认、结果"]
+    end
+    frontend -->|请求 / 用户回答| api
+    api -->|进度 / 确认 / 结果| frontend
+    api -->|受理任务| agent
+    agent -->|暂停 / 交互请求| api
+    agent -->|能力调用| business
+    business -->|银行请求| bank_adapter
+    bank_adapter -->|可信身份 / 操作编号| bank
+    bank -->|实际状态 / 结果| bank_adapter
+    agent -->|任务与运行状态| app_records
+    bank -->|账户与实际结果| bank_records

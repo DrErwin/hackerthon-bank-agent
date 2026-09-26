@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "系统架构 · 2026-09-19 总览",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1340, 730]
+  },
+  "components": [
+    { "id": "frontend", "type": "frontend", "label": "用户前端", "sublabel": "对话、进度、确认、结果", "pos": [20, 215], "size": [160, 84] },
+    { "id": "api", "type": "backend", "label": "后端服务入口", "sublabel": "身份、会话、事件推送", "pos": [240, 215], "size": [160, 84] },
+    { "id": "agent", "type": "backend", "label": "Agent 平台", "sublabel": "理解需求、暂停与恢复", "pos": [460, 215], "size": [160, 84] },
+    { "id": "business", "type": "backend", "label": "业务能力模块", "sublabel": "业务流程、分支与工具", "pos": [680, 215], "size": [160, 84] },
+    { "id": "bank-adapter", "type": "backend", "label": "银行系统接入层", "sublabel": "统一接口、身份与操作编号", "pos": [900, 215], "size": [160, 84] },
+    { "id": "bank", "type": "backend", "label": "银行系统 · 模拟银行", "sublabel": "账户授权、规则、去重与结果", "pos": [1120, 215], "size": [160, 84] },
+    { "id": "app-records", "type": "database", "label": "应用数据与运行记录", "sublabel": "任务、记忆、检查点、调用与审计", "pos": [680, 455], "size": [190, 84] },
+    { "id": "bank-records", "type": "database", "label": "银行自有数据", "sublabel": "账户、账本与银行操作结果", "pos": [1105, 455], "size": [190, 84] }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "模块化后端 · 安全与权限控制贯穿各边界",
+      "wraps": ["api", "agent", "business", "bank-adapter", "bank", "app-records", "bank-records"],
+      "pad": 22
+    }
+  ],
+  "connections": [
+    { "id": "request-answer", "from": "frontend", "to": "api", "label": "请求 / 用户回答", "variant": "emphasis", "labelAt": [210, 190] },
+    { "id": "front-events", "from": "api", "to": "frontend", "label": "进度 / 确认 / 结果", "labelAt": [210, 324] },
+    { "id": "task-entry", "from": "api", "to": "agent", "label": "受理任务", "variant": "emphasis", "labelAt": [430, 190] },
+    { "id": "interaction-request", "from": "agent", "to": "api", "label": "暂停 / 交互请求", "labelAt": [430, 324] },
+    { "id": "capability-call", "from": "agent", "to": "business", "label": "能力调用", "variant": "emphasis" },
+    { "id": "bank-request", "from": "business", "to": "bank-adapter", "label": "银行请求", "variant": "emphasis" },
+    { "id": "bank-submit", "from": "bank-adapter", "to": "bank", "label": "可信身份 / 操作编号", "variant": "emphasis", "labelAt": [1090, 190] },
+    { "id": "bank-result", "from": "bank", "to": "bank-adapter", "label": "实际状态 / 结果", "labelAt": [1090, 324] },
+    { "id": "application-state", "from": "agent", "to": "app-records", "label": "任务与运行状态" },
+    { "id": "bank-state", "from": "bank", "to": "bank-records", "label": "账户与实际结果", "labelAt": [1200, 348] }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "主链路与用户确认",
+      "items": [
+        "前端 → 服务入口 → Agent → 业务模块 → 银行接入层 → 模拟银行。",
+        "需要确认时，原任务暂停；用户回答经前端和服务入口返回后继续。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "安全贯穿各边界",
+      "items": [
+        "服务入口核身份，工具入口核权限与确认，银行再核账户和操作。",
+        "数据按归属隔离；安全是共同约束，不是额外的独立服务。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "银行边界与数据归属",
+      "items": [
+        "业务模块只经接入层调用银行；银行返回实际状态和结果。",
+        "应用记录与银行数据分别管理；首版为同一模块化后端内的模拟银行。"
+      ]
+    }
+  ]
+}
