@@ -5,9 +5,12 @@
 
 ## 1. 仓库当前状态
 
-**本地仓库已建立，`main` 分支，尚无远端。** GitHub 远端是下一步，不是现状。
+**2026-09-27：私有远端已建立**：[DrErwin/hackerthon-bank-agent](https://github.com/DrErwin/hackerthon-bank-agent)，本地 `main` 跟踪 `origin/main`。
 
-- 远端建立后，`main` 转为受保护分支：禁止直推，唯一合入路径是 PR（见 03）。
+- GitHub Actions 已在 PR 和推送 `main` 时检查文档链接、改动文件空白错误和现有 Python 工具语法；首次远端运行通过。
+- 仓库仅允许 squash merge，合并后自动删除远端功能分支。
+- **`main` 尚未受 GitHub 强制保护**：当前个人账号方案下，私有仓库的分支保护和 Rulesets API 均返回需升级 GitHub Pro 或设为公开。团队现在须按约定使用 PR；平台暂不能拦住直推或未通过检查的合并。
+- 团队 GitHub 账号暂未收集，CODEOWNERS 和强制负责人审批尚未启用。
 - 团队分工按 `AGENTS.md` 的目录边界表；每个目录只有一个 owner。
 - 首次提交已完成，这是仓库的基线。
 
@@ -46,15 +49,14 @@ feat(transfer): 增加按备注匹配收款人
 直接模糊匹配会把「房租」这类备注错认成人名。
 ```
 
-## 3. 远端建立后的动作
+## 3. 远端协作待办
 
-远端建立后按顺序补齐，每一步完成前不要开始下一步：
+远端仓库、`origin`、首批项目资料和自动检查已经就位。剩余事项：
 
-1. 收集五人 GitHub 用户名，替换
-   [03 的 CODEOWNERS 占位账号](../principles/03-review-and-merge.md#5-谁必须批准codeowners-规则)。
-2. `git remote add origin <url>` 并推送 `main`。
-3. 在 GitHub 把 `main` 设为 protected branch：要求 PR、要求 CODEOWNERS 批准。
-4. 通知全员从远端重新 clone 或重设 upstream。
+1. 09-28 全员会确认 02 账单目录由六水改由 Ethan 负责后，再收集团队真实 GitHub 用户名并邀请成员；不要把占位账号写进 CODEOWNERS。
+2. 保持私有仓库时，账号升级到支持分支保护的方案后，启用 `main` 保护：必须通过 PR、自动检查通过、负责人批准，禁止强推和删除。若考虑改为公开，先由项目负责人决定是否适合公开项目资料。
+3. 规则生效后补入真实 CODEOWNERS，并核对 01、02、06、安全、底座、前端及评测目录归属。
+4. 通知全员从远端 clone 或重设 upstream；在保护规则生效前，任何人都不要直接推送 `main`。
 
 ## 4. 飞书同步
 

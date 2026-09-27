@@ -2,7 +2,7 @@
 
 适用对象：Erwin（架构、底座、最终合入），以及所有提交 PR 的人。
 
-**当前状态：仓库已在本地初始化（`main` 分支），GitHub 远端待建立。** 远端建立后 `main` 转为受保护分支：禁止直推，唯一合入路径是 PR。远端建立步骤与提交信息格式见 [Git 与提交约定](../agents/git-workflow.md)。
+**当前状态：私有 GitHub 远端已建立，自动检查已启用。** 团队约定只通过 PR 合入 `main`；当前 GitHub 账号方案不支持对这个私有仓库强制启用分支保护，故直推与检查门槛暂时只能靠协作约定。限制与待办见 [Git 与提交约定](../agents/git-workflow.md)。
 
 > 目录基线见 [系统框架（2026-09-19）](../architecture/system-framework-2026-09-19.md) §9 的 `backend/app/` 建议结构。
 > 各目录负责人见 `AGENTS.md`；前端由梁爽负责、六水协助。公共契约 v1 已冻结，变更按[契约第 8 章](../contracts/公共契约-2026-09-23.md#8-变更管理防拉通机制④)处理。
@@ -17,7 +17,7 @@
 
 ## 1. 仓库与分支总则
 
-- 全员同一个仓库（现为本地 `main`，GitHub 远端建立后改为同一远端），`main` 始终可运行已合入模块的测试。
+- 全员同一个私有 GitHub 仓库，`main` 始终可运行已合入模块的测试。
 - 合入方式团队统一为 squash merge（主线每个 PR 一条记录）。
 - 独立 PR 的作者在合入前保持 `rebase origin/main`；依赖未合 PR 的后继 Draft PR 先以其前序分支为目标，前序合入后再由 Erwin 协助更新到 `main`。冲突在功能分支解决，不在 `main` 上手工拼接。
 - 推送已 rebase 的功能分支使用 `git push --force-with-lease`，禁止无 lease 强推。
@@ -83,8 +83,7 @@
 ## 5. 谁必须批准（CODEOWNERS 规则）
 
 CODEOWNERS 只认 GitHub 账号（`@username`）或团队（`@org/team`），**不支持中文昵称**。
-GitHub 远端建立前先收集 5 人真实用户名替换下面的占位账号（见
-[Git 与提交约定](../agents/git-workflow.md#3-远端建立后的动作)）：
+GitHub 远端已建立；真实账号和 02 账单最终目录归属待确认，下面仅是早期分工示意，不能直接作为 CODEOWNERS 文件提交（见[远端协作待办](../agents/git-workflow.md#3-远端协作待办)）：
 
 ```
 backend/app/contracts/         @erwin
@@ -98,7 +97,7 @@ backend/app/modules/bills/     @liushui
 backend/app/modules/cross/     @zhouenyu
 ```
 
-远端建立、取得真实 GitHub 账号后补入 CODEOWNERS：
+取得真实 GitHub 账号、确认目录归属并具备分支保护能力后补入 CODEOWNERS：
 
 - 银行接入层 / 模拟银行目录：owner = Erwin，目录为 `backend/app/services/bank_gateway/`、`backend/app/services/mock_bank/`、`backend/app/storage/mock_bank/`。
 - 前端目录：owner = 梁爽，六水协助（09-25 Erwin 确认）。
@@ -134,6 +133,6 @@ backend/app/modules/cross/     @zhouenyu
 
 ## 8. 合入后的责任
 
-- 合并人确认 CI 绿、依赖 PR 已合、CODEOWNERS 已批。
+- 合并人确认 CI 绿、依赖 PR 已合；CODEOWNERS 启用后还须确认对应负责人已批准。
 - 合入后冒烟失败：先回滚或立即热修，不继续往 main 堆新功能。
 - 每个合入的能力应能在模块测试中独立复现；没有测试的回归不算修完。

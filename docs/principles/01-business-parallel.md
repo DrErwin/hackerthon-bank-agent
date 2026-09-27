@@ -1,7 +1,7 @@
 # 业务流线并行开发原则
 
 适用对象：梁爽（转账）、六水（账单）、周恩宇（跨场景联动）及后续业务模块负责人。
-仓库：全员同一仓库（现为本地 `main`，GitHub 远端待建立）。每人在自己的分支 / worktree 开发，经 PR 合入 `main`。
+仓库：全员同一个[私有 GitHub 仓库](https://github.com/DrErwin/hackerthon-bank-agent)。每人在自己的分支 / worktree 开发，经 PR 合入 `main`；当前 GitHub 方案暂不能强制保护 `main`，状态见[Git 与提交约定](../agents/git-workflow.md)。
 提交信息格式见 [Git 与提交约定](../agents/git-workflow.md)。
 
 > 技术背景：后端为 Python（`backend/app/`，FastAPI + Pydantic），前端 Vue3。业务模块只改
