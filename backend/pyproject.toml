@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-banking-agent-backend"
+version = "0.3.0"
+description = "AI Banking Agent backend"
+requires-python = ">=3.11"
+dependencies = [
+    "deepagents==0.7.19",
+    "fastapi==0.141.1",
+    "langgraph==1.2.12",
+    "pydantic==2.13.5",
+    "uvicorn==0.54.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+namespaces = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
