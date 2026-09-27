@@ -2,7 +2,7 @@
 
 AI Banking Agent：为银发人群打造的银行智能助理，用自然语言理解金融意图并代理执行转账、账单、跨场景联动等业务，配权限分级、敏感确认与注入防御。
 
-架构真相源：[docs/architecture/system-framework-v0.5.md](docs/architecture/system-framework-v0.5.md)。技术栈：Python 后端（FastAPI + Pydantic + Deep Agents/LangGraph），前端 Vue3。
+架构真相源：[docs/architecture/system-framework-2026-09-19.md](docs/architecture/system-framework-2026-09-19.md)。技术栈：Python 后端（FastAPI + Pydantic + Deep Agents/LangGraph），前端 Vue3。
 
 ## 目录边界
 
@@ -11,12 +11,15 @@ AI Banking Agent：为银发人群打造的银行智能助理，用自然语言�
 | 目录 | 归属 |
 |---|---|
 | `backend/app/contracts/` `api/` `agent_platform/` | 底座（Erwin） |
-| `backend/app/security/` `memory/` | 安全（Ringo） |
+| `backend/app/audit/` | 底座（Erwin）：运行日志写入与只读回放；审计规则由安全侧定 |
+| `backend/app/security/` | 安全（Ringo）：策略、执行器、确认；审计与记忆的安全规则 |
+| `backend/app/memory/` | 底座（Erwin）：Agent 长期记忆与上下文后端，随 harness 走；安全规则由安全侧定 |
 | `backend/app/modules/transfer/` | 转账（梁爽） |
 | `backend/app/modules/bills/` | 账单（六水） |
 | `backend/app/modules/cross/` | 联动（周恩宇） |
 | `backend/app/services/` `storage/` | 底座共享 |
-| 前端 / 适老化 | 待指定 |
+| `frontend/` | 前端 / 适老化（梁爽负责，六水协助；2026-09-25 确认） |
+| `evals/` | 评测集，按子目录归属：transfer 梁爽 · bills 六水 · cross 周恩宇 · security Ringo · mockbank Erwin |
 
 ## 开工先读
 
@@ -37,6 +40,18 @@ AI Banking Agent：为银发人群打造的银行智能助理，用自然语言�
 - 测试覆盖：正常、关键分支、暂停恢复、权限拒绝、异常兜底。
 - 引用公共契约，不复制一份。
 - PR 说明：场景编号、依赖、是否触及安全或契约。
+
+## 飞书同步工具
+
+`docs/` 是唯一事实源，飞书是阅读端，方向只出不回。同步由人决定何时执行，命令如下：
+
+```bash
+python tools/feishu_sync.py plan      # 只看会推哪些文档，不碰飞书
+python tools/feishu_sync.py publish   # 推内容：缺失的新建、已存在的原地覆盖
+python tools/feishu_sync.py mount     # 把还没进知识库的挂进对应分区（幂等）
+```
+
+范围自动扫描 `docs/`（外加 `官方资料/` 已发布的两份），新增文档不用改脚本；排除规则、标题与分区规则都在 `tools/feishu_publish_all.py`。三条都可重复跑。一条要知道的：**飞书按标题认文档**，已发布文档的标题固定在 `TITLE_OVERRIDES` 里——标题一变，飞书会新建一篇而不是更新它。
 
 ## Agent skills
 

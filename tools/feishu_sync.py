@@ -2,12 +2,15 @@
 """飞书文档系统同步工具
 
 用法：
+    python tools/feishu_sync.py plan           # 列出会同步哪些文档（不碰飞书）
+    python tools/feishu_sync.py publish        # 把 docs/ 下全部文档同步到飞书
     python tools/feishu_sync.py check          # 校验凭证与权限
     python tools/feishu_sync.py setup          # 建文件夹、上传文档、建任务看板，输出链接
     python tools/feishu_sync.py resync         # 按本地 md 重新覆盖飞书文档内容
     python tools/feishu_sync.py tasks          # 仅重建任务看板记录
 
-状态保存在 .feishu_state.json（记录已创建的 folder/doc/app token）。
+同步范围不再手写：`publish` / `plan` 会自动扫描 `docs/` 下的全部 .md 与 .mmd，
+规则见 `tools/feishu_publish_all.py`。状态保存在 .feishu_state.json。
 """
 
 import json
@@ -697,7 +700,7 @@ TASK_RECORDS = [
     {"任务名称": "里程碑 · PRD 各模块初稿汇总截止（周五例会）", "负责人": "全员",
      "板块": "PRD", "优先级": "P0", "状态": "未开始", "开始日期": ts("2026-09-18"),
      "截止日期": ts("2026-09-18"), "交付内容": "五人分模块初稿交齐，周五晚例会"},
-    {"任务名称": "PRD 整合为项目总 PRD v1.0", "负责人": "Erwin",
+    {"任务名称": "PRD 整合为项目总 PRD", "负责人": "Erwin",
      "板块": "PRD", "优先级": "P0", "状态": "未开始", "开始日期": ts("2026-09-19"),
      "截止日期": ts("2026-09-21"), "交付内容": "总 PRD（含产品概述/场景章/评测验收总纲）"},
     {"任务名称": "官方 · 人工智能赛道线上答疑", "负责人": "Erwin",
@@ -773,19 +776,46 @@ def cmd_tasks():
 # 另一个实测结论：飞书画板不支持 Mermaid 的 block/end，含它的序列图整张解析失败，
 # 因此 spec_to_mermaid.py 用 Note over 表达分段。
 
-PUBLISH = [
-    ("docs/00-项目文档索引.md", "00 项目文档索引"),
-    ("docs/01-项目跟踪.md", "01 项目跟踪"),
-    ("官方资料/参赛规则与提交要求.md", "02 参赛规则与提交要求"),
-    ("docs/architecture/system-framework-v0.5.md", "03 系统架构 v0.5"),
-    ("docs/architecture/review-v0.5/system-overview.mmd", "04 系统架构总览图"),
-    ("docs/architecture/review-v0.5/transfer-interaction.mmd", "05 模拟转账交互图"),
-    ("官方资料/模板/source-code-readme-template.md", "06 源码 README 模板"),
-]
+PUBLISH = None
+"""同步范围已改为**自动扫描 docs/**，清单不再手写。
+
+原来这里是一张手写的 14 条清单，每加一份文档都要回来改——现在由
+`tools/feishu_publish_all.py` 自动发现 docs/ 下的全部 .md/.mmd，
+标题与分区规则、排除规则也都在那个文件里。`publish` / `plan` 两个命令
+已改为委托给它。要看会同步什么，先跑：
+
+    python tools/feishu_sync.py plan
+"""
+
+# 知识库空间：发布后把文档挂进对应分区（node 挂载见 wiki_move 映射）。
+WIKI_SPACE_ID = "7688008700736310482"
+WIKI_SECTIONS = {
+    "00 索引与跟踪": "Pdk6wtGsOicHZJk5aE2cmQU3n4e",
+    "01 PRD 与评审": "ZuSdwInBTiOb0KkAYDqcFY0pnRd",
+    "02 架构": "MQhrwQ1h4i9eO6kFraOcuhzsnLd",
+    "03 规则与模板": "LCTIwkKCLiYbAOkqpJLc4XaznWh",
+}
+# 发布标题 -> 所属分区
+WIKI_MOVE = {
+    "00 项目文档索引": "00 索引与跟踪",
+    "01 项目跟踪": "00 索引与跟踪",
+    "PRD 01 智能转账": "01 PRD 与评审",
+    "PRD 02 账单分析": "01 PRD 与评审",
+    "PRD 06 跨场景联动": "01 PRD 与评审",
+    "PRD 安全底座": "01 PRD 与评审",
+    "PRD Mock Bank": "01 PRD 与评审",
+    "PRD 预审会安排": "01 PRD 与评审",
+    "安全回填表": "01 PRD 与评审",
+    "03 系统架构（2026-09-19）": "02 架构",
+    "04 系统架构总览图": "02 架构",
+    "05 模拟转账交互图": "02 架构",
+    "02 参赛规则与提交要求": "03 规则与模板",
+    "06 源码 README 模板": "03 规则与模板",
+}
 
 # 图与正文分离发布；正文里插入指向图的链接，链接在第一轮发布拿到 doc_id 后回填。
 FIGURE_LINKS = {
-    "03 系统架构 v0.5": [
+    "03 系统架构（2026-09-19）": [
         ("### 1. 系统总览", "04 系统架构总览图", "七部分组成、主链路与确认回环"),
         ("### 11. 强行中断后的任务恢复", "05 模拟转账交互图", "暂停、确认与沿原任务续办"),
     ],
@@ -846,49 +876,25 @@ links_state = {}
 
 
 def cmd_publish():
-    """先建图与正文，再回填正文里的图链接。用法：python tools/feishu_sync.py publish
+    """把 docs/ 下全部文档同步到飞书。用法：python tools/feishu_sync.py publish
 
-    状态写在 FEISHU_STATE 指定的文件（默认 .feishu_state.json）。
+    同步范围、标题与分区规则见 `tools/feishu_publish_all.py`（自动扫描 docs/，
+    新文档不用再回来改脚本）。想看会同步什么，先跑 `plan`。
     """
-    global links_state
-    state = load_state()
-    state.setdefault("docs", {})
-    links_state = state["docs"]
-    push_dir = ROOT / "_feishu_push"
-    push_dir.mkdir(exist_ok=True)
+    import feishu_publish_all as all_sync
+    return all_sync.cmd_sync()
 
-    for round_no in (1, 2):
-        print(f"—— 第 {round_no} 轮 ——")
-        for local, title in PUBLISH:
-            links = FIGURE_LINKS.get(title) if round_no == 1 else None
-            text = _render_doc(local, title, links)
-            tmp = push_dir / (re.sub(r"[^\w.-]", "_", title) + ".md")
-            tmp.write_text(text, encoding="utf-8")
-            rel = str(tmp.relative_to(ROOT)).replace("\\", "/")
 
-            meta = state["docs"].get(title)
-            if meta:
-                res = _run_cli(["lark-cli", "docs", "+update", "--doc", meta["doc_id"],
-                                "--command", "overwrite", "--doc-format", "markdown",
-                                "--content", "@./" + rel, "--as", "user", "--json"])
-                action = "更新"
-            else:
-                res = _run_cli(["lark-cli", "docs", "+create", "--title", title,
-                                "--doc-format", "markdown", "--content", "@./" + rel,
-                                "--as", "user", "--json"])
-                action = "新建"
+def cmd_plan():
+    """列出会同步哪些文档、标题与目标分区，不碰飞书。"""
+    import feishu_publish_all as all_sync
+    return all_sync.cmd_plan()
 
-            did = _doc_id_from(res)
-            if res.get("ok") and did:
-                state["docs"][title] = {"doc_id": did, "local": local}
-                boards = sum(1 for b in (res["data"]["document"].get("new_blocks") or [])
-                             if isinstance(b, dict) and b.get("block_type") == "whiteboard")
-                print(f"  {action} {title}" + (f"（画板 {boards}）" if boards else ""))
-            else:
-                print(f"  失败 {title}: {str(res.get('error') or res)[:200]}")
-            save_state(state)
 
-    print_links()
+def cmd_mount():
+    """把已发布的文档挂进知识库对应分区（幂等）。"""
+    import feishu_publish_all as all_sync
+    return all_sync.cmd_mount()
 
 
 def cmd_delete_old():
@@ -902,13 +908,13 @@ def cmd_delete_old():
 def cmd_relink():
     """只重推一份带配图链接的正文（改过图或链接后单独补跑用）。
 
-    用法：python tools/feishu_sync.py relink "03 系统架构 v0.5"
+    用法：python tools/feishu_sync.py relink "03 系统架构（2026-09-19）"
     必须先 publish 过，否则状态里没有 doc_id。
     """
     global links_state
     state = load_state()
     links_state = state.get("docs", {})
-    title = sys.argv[2] if len(sys.argv) > 2 else "03 系统架构 v0.5"
+    title = sys.argv[2] if len(sys.argv) > 2 else "03 系统架构（2026-09-19）"
     meta = links_state.get(title)
     if not meta:
         print(f"状态里没有《{title}》，先跑 publish")
@@ -991,5 +997,6 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
     {"check": cmd_check, "setup": cmd_setup, "resync": cmd_resync,
      "tasks": cmd_tasks, "transfer": cmd_transfer, "publish": cmd_publish,
+     "plan": cmd_plan, "mount": cmd_mount,
      "delete_old": cmd_delete_old, "relink": cmd_relink,
      "move": cmd_move, "owner": cmd_owner, "relocate": cmd_relocate}[cmd]()

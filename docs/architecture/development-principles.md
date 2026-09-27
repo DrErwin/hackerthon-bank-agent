@@ -1,8 +1,8 @@
 # 框架开发核心原则（Development Core Principles）—— AI Banking Agent
 
-> 版本：v0.1（2026-09-17）
+> 最后更新：2026-09-17
 > 用途：所有架构与开发决策的判定标准。每个「加不加依赖、怎么拆、怎么实现」的决策，先对照这十一条。
-> 说明：本文只写原则（题目/判据），不写具体方案与工具选型（答案）；方案见 [system-framework-v0.5.md](system-framework-v0.5.md) 与调研文档；并行协作规则见 [principles/](../principles/01-business-parallel.md) 三份。
+> 说明：本文只写原则（题目/判据），不写具体方案与工具选型（答案）；方案见 [system-framework-2026-09-19.md](system-framework-2026-09-19.md) 与调研文档；并行协作规则见 [principles/](../principles/01-business-parallel.md) 三份。
 
 ---
 

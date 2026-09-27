@@ -37,5 +37,5 @@ If your output contradicts an existing ADR, surface it explicitly rather than si
 ## Repo context
 
 - 领域：面向银发人群的银行 AI 智能助理（国内人工智能赛道，银行 AI 智能体方向）
-- 架构真相源：`docs/architecture/system-framework-v0.5.md`
+- 架构真相源：`docs/architecture/system-framework-2026-09-19.md`
 - 并行开发原则（探索代码前值得一并读）：`docs/principles/01-business-parallel.md`、`02-security-platform.md`、`03-review-and-merge.md`

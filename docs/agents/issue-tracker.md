@@ -35,6 +35,6 @@ Team task assignment and progress live elsewhere and are not part of this conven
 
 - `docs/01-项目跟踪.md` — 协作流程、官方节点与开放问题
 - 飞书多维表格（文档内嵌） — 任务负责人与状态的实际维护处
-- `docs/ROADMAP.md` — 六阶段规划与硬依赖
+- `docs/pm/ROADMAP.md` — 六阶段规划与硬依赖
 
 `.scratch/` holds engineering tickets and specs for agent-driven work; it does not replace the above.
