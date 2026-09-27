@@ -1,0 +1,33 @@
+name: Repository checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  repository-checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check changed files for whitespace errors
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git diff --check "origin/${{ github.base_ref }}...HEAD"
+          else
+            git diff --check HEAD^ HEAD
+          fi
+      - name: Check local documentation links
+        run: python .github/scripts/check_links.py
+      - name: Check Python syntax
+        run: python -m compileall -q tools backend .github/scripts
