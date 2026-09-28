@@ -80,14 +80,23 @@ class ApplicationStore:
                     )
                 """)
                 connection.execute("""
+                    CREATE TABLE owned_refs (
+                        kind TEXT NOT NULL CHECK(kind IN ('confirmation', 'verification', 'memory')),
+                        record_id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        demo_round_id TEXT NOT NULL,
+                        PRIMARY KEY(kind, record_id)
+                    )
+                """)
+                connection.execute("""
                     CREATE TABLE task_refs (
                         task_id TEXT NOT NULL REFERENCES tasks(task_id),
                         user_id TEXT NOT NULL,
                         demo_round_id TEXT NOT NULL,
                         kind TEXT NOT NULL CHECK(kind IN ('confirmation', 'verification', 'memory')),
                         record_id TEXT NOT NULL,
-                        PRIMARY KEY(kind, record_id),
-                        UNIQUE(task_id, kind, record_id)
+                        PRIMARY KEY(task_id, kind, record_id),
+                        FOREIGN KEY(kind, record_id) REFERENCES owned_refs(kind, record_id)
                     )
                 """)
                 connection.execute("""
@@ -216,8 +225,21 @@ class ApplicationStore:
             ).fetchone()
             if task is None:
                 raise ValueError("task is not in scope")
+            owner = connection.execute(
+                "SELECT user_id, demo_round_id FROM owned_refs WHERE kind = ? AND record_id = ?",
+                (kind, record_id),
+            ).fetchone()
+            if owner is not None and (owner["user_id"], owner["demo_round_id"]) != (
+                user_id, demo_round_id,
+            ):
+                raise ValueError("record reference belongs to another user or round")
+            if owner is None:
+                connection.execute(
+                    "INSERT INTO owned_refs VALUES (?, ?, ?, ?)",
+                    (kind, record_id, user_id, demo_round_id),
+                )
             connection.execute(
-                "INSERT INTO task_refs VALUES (?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO task_refs VALUES (?, ?, ?, ?, ?)",
                 (task_id, user_id, demo_round_id, kind, record_id),
             )
 

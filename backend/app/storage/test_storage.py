@@ -32,6 +32,15 @@ def test_application_scope_and_operation_identity_survive_restart(tmp_path):
     store.bind_ref("U1", "D1", "T1", "confirmation", "C1")
     store.bind_ref("U1", "D1", "T1", "verification", "V1")
     store.bind_ref("U1", "D1", "T1", "memory", "M1")
+    store.create_task("T2", "U1", "S1", "D1", "R2", "running", {})
+    store.bind_ref("U1", "D1", "T2", "verification", "V1")
+    store.bind_ref("U1", "D1", "T2", "memory", "M1")
+    store.create_session("S2", "U2", "D1", NOW, "2026-09-28T12:00:00+08:00")
+    store.create_task("T3", "U2", "S2", "D1", "R3", "running", {})
+    with pytest.raises(ValueError):
+        store.bind_ref("U2", "D1", "T3", "verification", "V1")
+    with pytest.raises(ValueError):
+        store.bind_ref("U2", "D1", "T3", "memory", "M1")
     operation_id = str(uuid4())
     first = store.reserve_operation("U1", "D1", "T1", operation_id, "bank.submit_transfer", {"amount_fen": 50000})
     assert first.state == "reserved"
@@ -52,6 +61,8 @@ def test_application_scope_and_operation_identity_survive_restart(tmp_path):
         assert store.has_ref("U1", "D1", "T1", kind, record_id)
         assert not store.has_ref("U2", "D1", "T1", kind, record_id)
         assert not store.has_ref("U1", "D2", "T1", kind, record_id)
+    assert store.has_ref("U1", "D1", "T2", "verification", "V1")
+    assert store.has_ref("U1", "D1", "T2", "memory", "M1")
     with pytest.raises(ValueError):
         store.checkpoint_saver("U2", "D1", "T1")
     with pytest.raises(ValueError):
