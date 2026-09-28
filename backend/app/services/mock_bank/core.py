@@ -15,7 +15,8 @@ from app.contracts.bank import (
     PayeeCandidate, PayeeDisplay, PayeeList, PayeeVerification, QueryFailure, QueryOk,
     SavedPayee, TransferLimits, TransferPrecheck, TransferQuote, TransferReceipt,
 )
-from app.storage.database import connect, parameter_digest
+from app.contracts.platform import TrustedContext
+from app.storage.database import connect, parameter_digest, transaction
 from app.storage.mock_bank.repository import BankAccount, MockBankStore
 
 from .verification import MockBankVerification
@@ -51,13 +52,27 @@ def _error(code: str, **details) -> QueryFailure:
 class MockBankService:
     """Bank-owned rules; ordinary modules use BankGateway instead."""
 
-    def __init__(self, store: MockBankStore, *, slow_seconds: float = 6.0):
+    def __init__(self, store: MockBankStore, *, demo_secret: bytes, slow_seconds: float = 6.0):
         self.store = store
         self.slow_seconds = slow_seconds
         self._slow_once: set[str] = set()
         self._slow_lock = threading.Lock()
         self.seed_demo()
-        self.verification = MockBankVerification(store.path)
+        with transaction(self.store.path) as connection:
+            connection.execute("""CREATE TABLE IF NOT EXISTS bank_operation_scopes (
+                operation_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                demo_round_id TEXT NOT NULL
+            )""")
+            unscoped = connection.execute("""SELECT COUNT(*) FROM bank_operations AS b
+                LEFT JOIN bank_operation_scopes AS s ON s.operation_id = b.operation_id
+                WHERE s.operation_id IS NULL""").fetchone()[0]
+            if unscoped:
+                raise RuntimeError(
+                    "legacy bank operations have no demo round; retain the old database for "
+                    "reference and start a fresh demo bank database explicitly"
+                )
+        self.verification = MockBankVerification(store.path, demo_secret)
 
     def seed_demo(self) -> None:
         self.store.seed_account(BankAccount("A1", "U1", "class_i", "active", 6_000_000, 0, 0))
@@ -263,9 +278,29 @@ class MockBankService:
             return _error("OPERATION_CONFLICT")
         return OperationResult[TransferReceipt].model_validate(operation.result)
 
-    def submit_transfer(self, user_id: str, operation_id: UUID, payer_account_id: str, payee, amount_fen: int):
+    def _reserve_scope(self, context: TrustedContext, operation_id: UUID) -> bool:
+        with transaction(self.store.path) as connection:
+            row = connection.execute(
+                "SELECT user_id, demo_round_id FROM bank_operation_scopes WHERE operation_id = ?",
+                (str(operation_id),),
+            ).fetchone()
+            if row is None:
+                connection.execute(
+                    "INSERT INTO bank_operation_scopes VALUES (?, ?, ?)",
+                    (str(operation_id), context.user_id, context.demo_round_id),
+                )
+                return True
+            return (row["user_id"], row["demo_round_id"]) == (
+                context.user_id, context.demo_round_id,
+            )
+
+    def submit_transfer(self, context: TrustedContext, operation_id: UUID,
+                        payer_account_id: str, payee, amount_fen: int):
+        user_id = context.user_id
         if operation_id.version != 4:
             return _error("INVALID_ARGUMENT", field="operation_id", reason="UUID v4 required")
+        if not self._reserve_scope(context, operation_id):
+            return _error("OPERATION_CONFLICT")
         parameters = {"payer_account_id": payer_account_id,
                       "payee": payee.model_dump(mode="json"), "amount_fen": amount_fen}
         prior = self._stored_result(user_id, operation_id, parameters)
@@ -279,75 +314,90 @@ class MockBankService:
         if slow:
             processing = self._result(operation_id, "processing", at)
             try:
-                self.store.commit_operation(
+                saved = self.store.commit_operation(
                     user_id, str(operation_id), "bank.submit_transfer", parameters,
                     "processing", processing.model_dump(mode="json"), at.isoformat(), [], [],
                 )
             except ValueError:
                 return _error("OPERATION_CONFLICT")
+            if saved.status != "processing":
+                return OperationResult[TransferReceipt].model_validate(saved.result)
             time.sleep(self.slow_seconds)
+        while True:
             preliminary = self.precheck_transfer(user_id, payer_account_id, payee, amount_fen)
             if preliminary.kind == "error":
-                return preliminary
-        if preliminary.data.can_proceed:
-            account = self.store.get_account(user_id, payer_account_id)
-            resolved, own_target = self._resolve_payee(user_id, payee)
-            changes = [(account.account_id, account.version,
-                        account.book_balance_fen - amount_fen, account.frozen_balance_fen)]
-            ledger = [(str(uuid4()), account.account_id, amount_fen, "outflow", "transfer",
-                       "transfer", _now().isoformat())]
-            if own_target:
-                target = self.store.get_account(user_id, own_target)
-                changes.append((target.account_id, target.version,
-                                target.book_balance_fen + amount_fen, target.frozen_balance_fen))
-                ledger.append((str(uuid4()), target.account_id, amount_fen, "inflow", "transfer",
-                               "transfer", ledger[0][-1]))
-            completed_at = _now()
-            balance = BalanceSnapshot(
-                account_id=account.account_id, book_balance_fen=account.book_balance_fen - amount_fen,
-                frozen_balance_fen=account.frozen_balance_fen,
-                available_balance_fen=account.book_balance_fen - amount_fen - account.frozen_balance_fen,
-                as_of=completed_at,
-            )
-            receipt = TransferReceipt(
-                transaction_id=ledger[0][0], payer_account_id=account.account_id,
-                payee=resolved, amount_fen=amount_fen, fee_fen=0, arrival_mode="instant",
-                completed_at=completed_at, balance=balance,
-            )
-            result = self._result(operation_id, "succeeded", at,
-                                  updated_at=completed_at, receipt=receipt)
-        else:
-            changes, ledger = [], []
-            result = self._result(operation_id, "failed", at,
-                                  updated_at=_now(), failure=preliminary.data.failure)
-        try:
-            if slow:
-                saved = self.store.finalize_operation(
-                    user_id, str(operation_id), "bank.submit_transfer", parameters,
-                    result.operation_status.value, result.model_dump(mode="json"),
-                    _now().isoformat(), changes, ledger,
-                )
+                failure = preliminary.error
             else:
-                saved = self.store.commit_operation(
-                    user_id, str(operation_id), "bank.submit_transfer", parameters,
-                    result.operation_status.value, result.model_dump(mode="json"),
-                    at.isoformat(), changes, ledger,
+                failure = preliminary.data.failure
+            if failure is None:
+                account = self.store.get_account(user_id, payer_account_id)
+                resolved, own_target = self._resolve_payee(user_id, payee)
+                changes = [(account.account_id, account.version,
+                            account.book_balance_fen - amount_fen, account.frozen_balance_fen)]
+                ledger = [(str(uuid4()), account.account_id, amount_fen, "outflow", "transfer",
+                           "transfer", _now().isoformat())]
+                if own_target:
+                    target = self.store.get_account(user_id, own_target)
+                    changes.append((target.account_id, target.version,
+                                    target.book_balance_fen + amount_fen, target.frozen_balance_fen))
+                    ledger.append((str(uuid4()), target.account_id, amount_fen, "inflow", "transfer",
+                                   "transfer", ledger[0][-1]))
+                completed_at = _now()
+                balance = BalanceSnapshot(
+                    account_id=account.account_id, book_balance_fen=account.book_balance_fen - amount_fen,
+                    frozen_balance_fen=account.frozen_balance_fen,
+                    available_balance_fen=account.book_balance_fen - amount_fen - account.frozen_balance_fen,
+                    as_of=completed_at,
                 )
-        except ValueError:
-            prior = self._stored_result(user_id, operation_id, parameters)
-            return prior if prior is not None else _error("BANK_UNAVAILABLE")
-        except sqlite3.Error:
-            return _error("BANK_UNAVAILABLE")
-        return OperationResult[TransferReceipt].model_validate(saved.result)
+                receipt = TransferReceipt(
+                    transaction_id=ledger[0][0], payer_account_id=account.account_id,
+                    payee=resolved, amount_fen=amount_fen, fee_fen=0, arrival_mode="instant",
+                    completed_at=completed_at, balance=balance,
+                )
+                result = self._result(operation_id, "succeeded", at,
+                                      updated_at=completed_at, receipt=receipt)
+            else:
+                changes, ledger = [], []
+                result = self._result(operation_id, "failed", at,
+                                      updated_at=_now(), failure=failure)
+            try:
+                if slow:
+                    saved = self.store.finalize_operation(
+                        user_id, str(operation_id), "bank.submit_transfer", parameters,
+                        result.operation_status.value, result.model_dump(mode="json"),
+                        _now().isoformat(), changes, ledger,
+                    )
+                else:
+                    saved = self.store.commit_operation(
+                        user_id, str(operation_id), "bank.submit_transfer", parameters,
+                        result.operation_status.value, result.model_dump(mode="json"),
+                        at.isoformat(), changes, ledger,
+                    )
+                return OperationResult[TransferReceipt].model_validate(saved.result)
+            except ValueError:
+                prior = self._stored_result(user_id, operation_id, parameters)
+                if isinstance(prior, QueryFailure):
+                    return prior
+                if prior is not None and prior.operation_status != "processing":
+                    return prior
+                if prior is not None and not slow:
+                    return prior
+            except sqlite3.Error:
+                return _error("BANK_UNAVAILABLE")
 
-    def get_operation(self, user_id: str, operation_id: UUID):
+    def get_operation(self, context: TrustedContext, operation_id: UUID):
+        user_id = context.user_id
         with closing(connect(self.store.path)) as connection:
             owner = connection.execute(
-                "SELECT user_id FROM bank_operations WHERE operation_id = ?", (str(operation_id),),
+                """SELECT b.user_id, s.demo_round_id FROM bank_operations AS b
+                   LEFT JOIN bank_operation_scopes AS s ON s.operation_id = b.operation_id
+                   WHERE b.operation_id = ?""", (str(operation_id),),
             ).fetchone()
         if owner is None:
             return OperationNotFound(lookup="not_found", operation=None)
-        if owner["user_id"] != user_id:
+        if (owner["user_id"], owner["demo_round_id"]) != (
+            user_id, context.demo_round_id,
+        ):
             return _error("ACCESS_DENIED")
         operation = self.store.get_operation(user_id, str(operation_id))
         return OperationFound[TransferReceipt](

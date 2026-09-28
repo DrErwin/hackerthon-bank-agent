@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
 import secrets
 from typing import Literal
 from uuid import UUID, uuid4
@@ -37,14 +39,24 @@ class VerificationOutcome(ContractModel):
 
 
 class MockBankVerification:
-    def __init__(self, bank_path, *, clock=_now):
+    def __init__(self, bank_path, demo_secret: bytes, *, clock=_now):
+        if len(demo_secret) < 32:
+            raise ValueError("demo_secret must contain at least 32 bytes")
         self.path = bank_path
+        self._demo_secret = demo_secret
         self.clock = clock
         with transaction(self.path) as connection:
+            columns = {row["name"] for row in connection.execute(
+                "PRAGMA table_info(bank_verification_challenges)",
+            )}
+            if "demo_code" in columns:
+                raise RuntimeError(
+                    "legacy demo codes were stored in the bank database; retain the old "
+                    "database for reference and start a fresh demo bank database explicitly"
+                )
             connection.execute("""CREATE TABLE IF NOT EXISTS bank_verification_challenges (
                 challenge_id TEXT PRIMARY KEY,
-                challenge_json TEXT NOT NULL,
-                demo_code TEXT NOT NULL
+                challenge_json TEXT NOT NULL
             )""")
             connection.execute("""CREATE TABLE IF NOT EXISTS bank_verification_submissions (
                 submission_id TEXT PRIMARY KEY,
@@ -59,9 +71,14 @@ class MockBankVerification:
                 record_json TEXT NOT NULL
             )""")
 
-    @staticmethod
-    def _code() -> str:
-        return f"{secrets.randbelow(900000) + 100000:06d}"
+    def _code(self, challenge_id: str) -> str:
+        value = hmac.digest(self._demo_secret, f"code:{challenge_id}".encode(), "sha256")
+        return f"{int.from_bytes(value, 'big') % 900000 + 100000:06d}"
+
+    def _submission_digest(self, challenge_id: str, code: str) -> str:
+        return hmac.new(
+            self._demo_secret, f"submission:{challenge_id}:{code}".encode(), hashlib.sha256,
+        ).hexdigest()
 
     @staticmethod
     def _save(connection, challenge: VerificationChallenge) -> None:
@@ -106,13 +123,21 @@ class MockBankVerification:
         summary: VerificationSummary | None = None,
     ) -> VerificationChallenge:
         with transaction(self.path) as connection:
-            rows = connection.execute("SELECT challenge_json FROM bank_verification_challenges").fetchall()
+            rows = connection.execute(
+                "SELECT challenge_json FROM bank_verification_challenges ORDER BY rowid",
+            ).fetchall()
+            previous_failures = 0
             for row in rows:
                 old = self._expire(connection, VerificationChallenge.model_validate_json(row["challenge_json"]))
-                if (old.user_id, old.session_id, old.task_id, old.demo_round_id) == (
-                    context.user_id, context.session_id, context.task_id, context.demo_round_id,
-                ) and (old.challenge_status == "failed" or
-                       (old.purpose == "action_step_up" and old.challenge_status == "expired")):
+                same_task = (old.user_id, old.task_id, old.demo_round_id) == (
+                    context.user_id, context.task_id, context.demo_round_id,
+                )
+                if same_task and old.purpose == "basic_identity":
+                    previous_failures = (
+                        0 if old.challenge_status == "passed" else old.consecutive_code_failures
+                    )
+                if same_task and (old.challenge_status == "failed" or
+                        (old.purpose == "action_step_up" and old.challenge_status == "expired")):
                     raise ValueError("TASK_TERMINATED")
                 if (old.user_id, old.session_id, old.task_id, old.demo_round_id, old.purpose,
                     old.operation_id, old.action_revision) == (
@@ -132,11 +157,11 @@ class MockBankVerification:
                 created_at=now, code_created_at=now, code_expires_at=now + timedelta(minutes=5),
                 face_started_at=None, face_expires_at=None, challenge_status="pending",
                 code_result="pending", face_result="not_required" if purpose == "basic_identity" else "pending",
-                consecutive_code_failures=0,
+                consecutive_code_failures=previous_failures if purpose == "basic_identity" else 0,
             )
             connection.execute(
-                "INSERT INTO bank_verification_challenges VALUES (?, ?, ?)",
-                (challenge.challenge_id, challenge.model_dump_json(), self._code()),
+                "INSERT INTO bank_verification_challenges VALUES (?, ?)",
+                (challenge.challenge_id, challenge.model_dump_json()),
             )
             return challenge
 
@@ -156,10 +181,7 @@ class MockBankVerification:
             challenge = self._expire(connection, challenge)
             if challenge.challenge_status != "pending":
                 raise ValueError("CHALLENGE_EXPIRED")
-            return connection.execute(
-                "SELECT demo_code FROM bank_verification_challenges WHERE challenge_id = ?",
-                (challenge_id,),
-            ).fetchone()["demo_code"]
+            return self._code(challenge_id)
 
     def resend_code(self, context: TrustedContext, challenge_id: str,
                     submission_id: UUID) -> VerificationChallenge:
@@ -184,6 +206,8 @@ class MockBankVerification:
             now = self.clock()
             new = old.model_copy(deep=True)
             new.challenge_id = str(uuid4())
+            while self._code(new.challenge_id) == self._code(old.challenge_id):
+                new.challenge_id = str(uuid4())
             new.created_at = now
             new.code_created_at = now
             new.code_expires_at = (
@@ -192,8 +216,8 @@ class MockBankVerification:
             old.challenge_status = "superseded"
             self._save(connection, old)
             connection.execute(
-                "INSERT INTO bank_verification_challenges VALUES (?, ?, ?)",
-                (new.challenge_id, new.model_dump_json(), self._code()),
+                "INSERT INTO bank_verification_challenges VALUES (?, ?)",
+                (new.challenge_id, new.model_dump_json()),
             )
             connection.execute(
                 "INSERT INTO bank_verification_submissions VALUES (?, ?, ?, ?, ?)",
@@ -243,7 +267,7 @@ class MockBankVerification:
 
     def verify_code(self, context: TrustedContext, challenge_id: str,
                     submission_id: UUID, code: str) -> VerificationOutcome:
-        digest = parameter_digest({"code": code})
+        digest = self._submission_digest(challenge_id, code)
         with transaction(self.path) as connection:
             challenge = self._load(connection, challenge_id)
             if challenge is None or not self._in_scope(challenge, context):
@@ -254,11 +278,7 @@ class MockBankVerification:
             challenge = self._expire(connection, challenge)
             if challenge.challenge_status != "pending" or challenge.code_result != "pending":
                 raise ValueError("TASK_TERMINATED")
-            saved_code = connection.execute(
-                "SELECT demo_code FROM bank_verification_challenges WHERE challenge_id = ?",
-                (challenge_id,),
-            ).fetchone()["demo_code"]
-            if code == saved_code:
+            if secrets.compare_digest(code, self._code(challenge_id)):
                 challenge.code_result = "passed"
                 verification_id = self._complete(connection, challenge) if (
                     challenge.face_result in {"passed", "not_required"}

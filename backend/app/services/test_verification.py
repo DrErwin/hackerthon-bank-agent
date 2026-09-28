@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import sqlite3
 from uuid import uuid4
 
 import pytest
@@ -16,6 +17,8 @@ from app.services.mock_bank.core import MockBankService
 from app.services.mock_bank.verification import AdminContext
 from app.storage import StoragePaths
 from app.storage.mock_bank.repository import MockBankStore
+
+DEMO_SECRET = b"mock-bank-test-secret-32-bytes-minimum"
 
 
 class Clock:
@@ -37,10 +40,10 @@ def context(user="U1", session="S1", task="T1", round_id="D1"):
 
 
 def ready(tmp_path):
-    bank = MockBankService(MockBankStore(StoragePaths(tmp_path).bank))
+    bank = MockBankService(MockBankStore(StoragePaths(tmp_path).bank), demo_secret=DEMO_SECRET)
     clock = Clock()
     bank.verification.clock = clock
-    return bank, BankGateway(bank), clock
+    return bank, BankGateway(bank, authorize_face=lambda *args: True), clock
 
 
 def action_summary(operation_id):
@@ -80,7 +83,7 @@ def test_basic_code_scope_retries_and_persistent_record(tmp_path):
         gateway.get_verification_record(context(session="S2"), passed.verification_id)
     gateway.close()
 
-    reopened = MockBankService(MockBankStore(StoragePaths(tmp_path).bank))
+    reopened = MockBankService(MockBankStore(StoragePaths(tmp_path).bank), demo_secret=DEMO_SECRET)
     assert reopened.verification.get_record(user, passed.verification_id).source_challenge_id == challenge.challenge_id
 
 
@@ -190,3 +193,56 @@ def test_failed_face_never_creates_action_verification(tmp_path):
     with pytest.raises(ValueError):
         gateway.create_verification(user, "action_step_up", operation_id, 1, action_summary(operation_id))
     gateway.close()
+
+
+def test_code_is_not_persisted_and_failures_survive_expiry(tmp_path):
+    bank, gateway, clock = ready(tmp_path)
+    user = context()
+    challenge = gateway.create_verification(user, "basic_identity")
+    code = gateway.get_demo_code_for_api(user, challenge.challenge_id)
+    with sqlite3.connect(bank.store.path) as connection:
+        schema = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE name = 'bank_verification_challenges'",
+        ).fetchone()[0]
+    assert "demo_code" not in schema
+    assert code.encode() not in bank.store.path.read_bytes()
+    gateway.verify_code(user, challenge.challenge_id, uuid4(), "000000")
+    clock.advance(301)
+    renewed = gateway.create_verification(user, "basic_identity")
+    assert renewed.consecutive_code_failures == 1
+    gateway.verify_code(user, renewed.challenge_id, uuid4(), "000000")
+    last = gateway.verify_code(user, renewed.challenge_id, uuid4(), "000000")
+    assert last.challenge.challenge_status == "failed"
+    with pytest.raises(ValueError, match="TASK_TERMINATED"):
+        gateway.create_verification(context(session="S2"), "basic_identity")
+    gateway.close()
+
+
+def test_face_is_denied_without_server_admin_authorization(tmp_path):
+    bank, gateway, _ = ready(tmp_path)
+    user = context()
+    operation_id = uuid4()
+    challenge = gateway.create_verification(
+        user, "action_step_up", operation_id, 1, action_summary(operation_id),
+    )
+    gateway.start_face(user, challenge.challenge_id, uuid4())
+    denied_gateway = BankGateway(bank)
+    with pytest.raises(ValueError, match="ACCESS_DENIED"):
+        denied_gateway.verify_face(
+            AdminContext("admin", True, "D1", "U1"), challenge.challenge_id,
+            uuid4(), "passed",
+        )
+    assert gateway.get_verification(user, challenge.challenge_id).face_result == "pending"
+    denied_gateway.close()
+    gateway.close()
+
+
+def test_legacy_plaintext_code_store_fails_closed(tmp_path):
+    path = StoragePaths(tmp_path).bank
+    MockBankStore(path)
+    with sqlite3.connect(path) as connection:
+        connection.execute("""CREATE TABLE bank_verification_challenges (
+            challenge_id TEXT PRIMARY KEY, challenge_json TEXT NOT NULL, demo_code TEXT NOT NULL
+        )""")
+    with pytest.raises(RuntimeError, match="legacy demo codes"):
+        MockBankService(MockBankStore(path), demo_secret=DEMO_SECRET)

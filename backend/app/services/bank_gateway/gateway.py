@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from typing import Callable
 from uuid import UUID
 
 from app.contracts.bank import BankError, QueryFailure
@@ -12,9 +13,15 @@ from app.services.mock_bank.verification import AdminContext
 
 
 class BankGateway:
-    def __init__(self, bank: MockBankService, *, transfer_timeout_seconds: float = 4.0):
+    def __init__(
+        self, bank: MockBankService, *, transfer_timeout_seconds: float = 4.0,
+        authorize_transfer: Callable[..., bool] | None = None,
+        authorize_face: Callable[..., bool] | None = None,
+    ):
         self._bank = bank
         self._transfer_timeout_seconds = transfer_timeout_seconds
+        self._authorize_transfer = authorize_transfer
+        self._authorize_face = authorize_face
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mock-bank")
 
     def close(self) -> None:
@@ -45,8 +52,12 @@ class BankGateway:
         self, context: TrustedContext, operation_id: UUID,
         payer_account_id: str, payee, amount_fen: int,
     ):
+        if self._authorize_transfer is None or not self._authorize_transfer(
+            context, operation_id, payer_account_id, payee, amount_fen,
+        ):
+            return QueryFailure(kind="error", error=BankError(code="ACCESS_DENIED", details={}))
         future = self._executor.submit(
-            self._bank.submit_transfer, context.user_id, operation_id,
+            self._bank.submit_transfer, context, operation_id,
             payer_account_id, payee, amount_fen,
         )
         try:
@@ -55,7 +66,7 @@ class BankGateway:
             return QueryFailure(kind="error", error=BankError(code="CALL_TIMEOUT", details={}))
 
     def get_operation(self, context: TrustedContext, operation_id: UUID):
-        return self._bank.get_operation(context.user_id, operation_id)
+        return self._bank.get_operation(context, operation_id)
 
     def create_verification(self, context: TrustedContext, purpose: str,
                             operation_id=None, action_revision=None, summary=None):
@@ -83,6 +94,10 @@ class BankGateway:
 
     def verify_face(self, admin: AdminContext, challenge_id: str,
                     submission_id: UUID, result: str):
+        if self._authorize_face is None or not self._authorize_face(
+            admin, challenge_id, submission_id, result,
+        ):
+            raise ValueError("ACCESS_DENIED")
         return self._bank.verification.verify_face(admin, challenge_id, submission_id, result)
 
     def get_verification_record(self, context: TrustedContext, verification_id: str):
