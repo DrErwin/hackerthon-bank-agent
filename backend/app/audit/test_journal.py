@@ -9,7 +9,10 @@ from uuid import uuid4
 import pytest
 
 from app.audit.journal import AuditJournal, AuditReader, AuditViewer
-from app.contracts.audit import AuditEvent, ChatMessagePayload, ToolStartedPayload
+from app.contracts.audit import (
+    AuditEvent, AuthorizationSnapshot, ChatMessagePayload, ModelStartedPayload,
+    SecurityDecidedPayload, ToolStartedPayload,
+)
 from app.storage import StoragePaths
 from app.storage.database import connect, transaction
 
@@ -112,3 +115,119 @@ def test_event_and_application_update_share_rollback(tmp_path):
         count = connection.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
     assert value == "original"
     assert count == 1
+
+
+def test_secret_variants_never_reach_persistent_evidence(tmp_path):
+    path = StoragePaths(tmp_path).application
+    journal = AuditJournal(path)
+    journal.append(event(), evidence={
+        "cookie": "session=secret123", "credential": "abc123", "refreshToken": "refresh123",
+        "text": "验证码是123456；我的口令为abc123", "message": "AB12CD",
+        "code": "AB12CD", "display_fields": [
+            {"name": "recipient_address", "value_text": "演示市演示区1号",
+             "credential": "nested-secret"},
+        ],
+    })
+    persisted = path.read_bytes()
+    for secret in (b"secret123", b"abc123", b"refresh123", b"123456", b"AB12CD",
+                   b"nested-secret"):
+        assert secret not in persisted
+    assert "演示市演示区1号" not in path.read_text(errors="ignore")
+
+
+def test_multiple_payload_snapshots_are_exported_and_missing_refs_marked(tmp_path):
+    journal = AuditJournal(StoragePaths(tmp_path).application)
+    started = event(sequence=0)
+    started = AuditEvent.model_validate({
+        **started.model_dump(mode="json"), "event_type": "model.started",
+        "payload": ModelStartedPayload(
+            model_call_id="CALL1", provider="provider", model="model",
+            config_version="v1", request_ref="REQ1",
+        ).model_dump(mode="json"),
+    })
+    journal.append(started, evidence={"text": "response"}, snapshots={"REQ1": {"text": "prompt"}})
+    missing = event(sequence=1, evidence_ref=None, evidence_status="missing")
+    missing.payload.content_ref = "MISSING1"
+    journal.append(missing)
+    reader = AuditReader(journal, authorize=lambda *_: True)
+    package = json.loads(reader.export_json(AuditViewer("admin", "AS1", "D1"), "D1", "T1"))
+    assert set(package["evidence"]) == {"E1", "REQ1"}
+    assert package["evidence"]["REQ1"]["content"] == {"text": "prompt"}
+    assert any(item.get("evidence_ref") == "MISSING1" for item in package["missing"])
+
+
+def test_damaged_evidence_is_marked_missing_instead_of_exported(tmp_path):
+    path = StoragePaths(tmp_path).application
+    journal = AuditJournal(path)
+    journal.append(event(), evidence={"text": "safe"})
+    with transaction(path) as connection:
+        connection.execute("UPDATE audit_evidence SET content = 'damaged' WHERE evidence_id = 'E1'")
+    reader = AuditReader(journal, authorize=lambda *_: True)
+    package = json.loads(reader.export_json(AuditViewer("admin", "AS1", "D1"), "D1", "T1"))
+    assert package["evidence"] == {}
+    assert package["missing"][0]["evidence_ref"] == "E1"
+    assert package["events"][0]["evidence_status"] == "missing"
+
+
+def test_sensitive_allow_requires_matching_persisted_authorization(tmp_path):
+    journal = AuditJournal(StoragePaths(tmp_path).application)
+    operation_id = str(uuid4())
+    base = event(sequence=0, evidence_ref=None, evidence_status="missing")
+    decision = {
+        "decision_id": "DEC1", "task_id": "T1", "run_id": "R1",
+        "action_name": "bank.submit_transfer", "parameters_ref": "PARAM1",
+        "operation_id": operation_id, "action_revision": 1, "phase": "execution",
+        "operation_level": "sensitive", "risk_level": "medium", "decision": "allow",
+        "reason_codes": [], "rule_ids": ["RULE1"], "policy_version": "v1",
+        "authorization_snapshot_ref": "AUTH1", "evidence_refs": [],
+        "interaction": None, "checked_at": datetime.now(timezone.utc).isoformat(),
+        "message": "allowed",
+    }
+    allow = AuditEvent.model_validate({
+        **base.model_dump(mode="json"), "event_type": "security.decided",
+        "payload": SecurityDecidedPayload.model_validate({"decision": decision}).model_dump(mode="json"),
+    })
+    with pytest.raises(ValueError, match="authorization snapshot"):
+        journal.append(allow, snapshots={"PARAM1": {"amount_fen": 50000}})
+    wrong = {
+        "user_id": "OTHER", "session_id": "S1", "demo_round_id": "D1", "task_id": "T1",
+        "operation_id": operation_id, "action_revision": 1,
+        "confirmation": {
+            "confirmation_id": "CONF1", "version": 1, "decision": "approved",
+            "decided_at": datetime.now(timezone.utc).isoformat(),
+            "display_fields": [{"name": "amount", "label": "金额", "value_text": "500元"}],
+        },
+        "verifications": [], "release_authorization_id": None,
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with pytest.raises(ValueError, match="does not match"):
+        journal.append(allow, snapshots={"PARAM1": {"amount_fen": 50000}, "AUTH1": wrong})
+    with connect(journal.path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM audit_evidence").fetchone()[0] == 0
+    snapshot = AuthorizationSnapshot.model_validate(wrong | {"user_id": "U1"})
+    journal.append(allow, snapshots={"PARAM1": {"amount_fen": 50000}, "AUTH1": snapshot})
+    tool = event("tool.started", sequence=1, evidence_ref=None, evidence_status="missing")
+    tool.payload.operation_id = operation_id
+    tool.payload.arguments_ref = "ARG1"
+    with pytest.raises(ValueError, match="persisted arguments"):
+        journal.append(tool)
+    journal.append(tool, snapshots={"ARG1": {"amount_fen": 50000}})
+    reader = AuditReader(journal, authorize=lambda *_: True)
+    package = json.loads(reader.export_json(AuditViewer("admin", "AS1", "D1"), "D1", "T1"))
+    assert package["evidence"]["AUTH1"]["content"]["user_id"] == "U1"
+    assert package["evidence"]["ARG1"]["content"]["amount_fen"] == 50000
+
+
+def test_sequence_and_unpaired_calls_are_isolated_by_round_run_and_type(tmp_path):
+    journal = AuditJournal(StoragePaths(tmp_path).application)
+    first = event("tool.started", evidence_ref=None, evidence_status="missing")
+    journal.append(first)
+    later_round = event(sequence=0, evidence_ref=None, evidence_status="missing")
+    later_round.demo_round_id = "D2"
+    journal.append(later_round)
+    other_run = event("tool.started", sequence=0, evidence_ref=None,
+                      evidence_status="missing", run_id="R2")
+    journal.append(other_run)
+    reader = AuditReader(journal, authorize=lambda *_: True)
+    package = json.loads(reader.export_json(AuditViewer("admin", "AS1", "D1"), "D1", "T1"))
+    assert set(package["unpaired_starts"]) == {first.event_id, other_run.event_id}
