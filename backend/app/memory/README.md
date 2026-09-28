@@ -6,6 +6,6 @@
 
 Harness 为可信用户会话取得 `MemoryContext` 后，使用 `agent_backend(context)` 作为 Deep Agents `backend`，使用 `middleware(context)` 作为附加中间件；主对话用 `conversation_checkpointer(context)` 与 `conversation_thread_id(context)`，具体任务用 `checkpointer(context, task_id)`。记忆通过 Deep Agents `StoreBackend` 读写；任务文件使用 `StateBackend` 与现有检查点。中间件每次从 Store 重载记忆，避免旧检查点把已删记忆重新放进提示。
 
-模型写入只允许单行记忆线索或用户偏好；含认证秘密、执行授权、旧银行事实、一次性转账要求及常见注入语句的内容会被拒绝。模型不能直接删除或覆盖既有记忆。`list` 与 `delete` 读取同一 Store；删除检查整批归属和版本，在同一事务中完成并按 `request_id` 去重。删除的内容在本轮设墓碑，阻止旧上下文按原路径或相同内容写回。演示重置清理该用户旧轮次记忆，并原子恢复预置。真实 API、工具权限登记与审计事件在后续 07/09/10 集成时接线。
+模型写入只接受受控格式：有限的沟通偏好、银行种子称呼线索、分配比例、带月份的预算，以及固定的虚构配送样本。任意自由文本、认证秘密、执行授权、银行事实和指令都会被拒绝；NFKC 规范化用于检测全角绕过，记录只能删除，不能由模型追加或覆盖。`list` 与 `delete` 读取同一 Store；删除检查整批归属和版本，在同一事务中完成并按 `request_id` 去重。删除的内容在本轮设墓碑，阻止旧上下文按原路径或相同内容写回。演示重置清理该用户旧轮次记忆，并原子恢复预置。真实 API、工具权限登记与审计事件在后续 07/09/10 集成时接线。
 
 从 `backend/` 验证：`python -m pytest -q app/memory/test_memory.py`。安全侧需复核受控写入词表及可查看范围；该模块未代替 Ringo 的批准。
