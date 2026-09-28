@@ -56,6 +56,20 @@ class ReloadingMemoryMiddleware(MemoryMiddleware):
         )
 
 
+class ScopedCheckpointSaver(SqliteCheckpointSaver):
+    def __init__(self, path, thread_id: str, check_scope: Callable[[], object]):
+        super().__init__(path, thread_id)
+        self.check_scope = check_scope
+
+    def _scope(self, config: dict | None) -> tuple[str, str]:
+        self.check_scope()
+        return super()._scope(config)
+
+    def delete_thread(self, thread_id: str) -> None:
+        self.check_scope()
+        super().delete_thread(thread_id)
+
+
 class MemoryAdapter:
     def __init__(self, application: ApplicationStore, active_round: Callable[[], str]):
         self.application = application
@@ -88,12 +102,18 @@ class MemoryAdapter:
             backend=self.backend(context), sources=[MEMORY_INDEX],
         )
 
-    def checkpointer(self, context: MemoryContext, task_id: str):
+    def _task_scope(self, context: MemoryContext, task_id: str) -> None:
         self._scope(context)
         task = self.application.get_task(context.user_id, context.demo_round_id, task_id)
         if task is None or task.session_id != context.session_id:
             raise PermissionError("ACCESS_DENIED")
-        return self.application.checkpoint_saver(context.user_id, context.demo_round_id, task_id)
+
+    def checkpointer(self, context: MemoryContext, task_id: str) -> SqliteCheckpointSaver:
+        self._task_scope(context, task_id)
+        saver = self.application.checkpoint_saver(context.user_id, context.demo_round_id, task_id)
+        return ScopedCheckpointSaver(
+            saver.path, saver.thread_id, lambda: self._task_scope(context, task_id),
+        )
 
     def conversation_thread_id(self, context: MemoryContext) -> str:
         self._scope(context)
@@ -103,7 +123,10 @@ class MemoryAdapter:
         )
 
     def conversation_checkpointer(self, context: MemoryContext) -> SqliteCheckpointSaver:
-        return SqliteCheckpointSaver(self.application.path, self.conversation_thread_id(context))
+        thread_id = self.conversation_thread_id(context)
+        return ScopedCheckpointSaver(
+            self.application.path, thread_id, lambda: self._scope(context),
+        )
 
     def list(self, context: MemoryContext) -> list[MemoryItem]:
         namespace = self._scope(context)

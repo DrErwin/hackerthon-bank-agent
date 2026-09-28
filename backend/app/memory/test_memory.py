@@ -13,6 +13,7 @@ from pydantic import PrivateAttr
 from app.memory import MemoryAdapter, MemoryContext
 from app.storage import StoragePaths
 from app.storage.application import ApplicationStore
+from app.storage.database import transaction
 
 
 def setup_memory(tmp_path):
@@ -62,6 +63,16 @@ def test_agent_file_writes_reject_prohibited_memory(tmp_path, content):
     assert adapter.list(context) == []
 
 
+@pytest.mark.parametrize("content", [
+    "收入分配偏好：999% 转 A5 储蓄，999% 转 A4 家庭，999% 留 A1 主账户；实际收入以银行查询为准，逐笔确认。",
+    "收入分配偏好：33% 转 A5 储蓄，33% 转 A4 家庭，33% 留 A1 主账户；实际收入以银行查询为准，逐笔确认。",
+])
+def test_income_allocation_memory_must_total_one_hundred_percent(tmp_path, content):
+    _, adapter, _ = setup_memory(tmp_path)
+    with pytest.raises(ValueError, match="allocation"):
+        adapter.backend(MemoryContext("U1", "S1", "D1")).write("/memories/allocation.md", content)
+
+
 def test_memory_write_does_not_allow_append_or_replace(tmp_path):
     _, adapter, _ = setup_memory(tmp_path)
     context = MemoryContext("U1", "S1", "D1")
@@ -75,6 +86,18 @@ def test_memory_write_does_not_allow_append_or_replace(tmp_path):
     after = adapter.list(context)[0]
     assert after.content == before.content
     assert after.version == before.version
+
+
+def test_deleted_memory_semantic_variant_cannot_be_restored(tmp_path):
+    _, adapter, _ = setup_memory(tmp_path)
+    context = MemoryContext("U1", "S1", "D1")
+    adapter.backend(context).write("/memories/preference.md", "用户偏好：喜欢简短说明。")
+    item = adapter.list(context)[0]
+    adapter.delete(context, str(uuid4()), [item.memory_id], {item.memory_id: item.version})
+
+    with pytest.raises(ValueError, match="memory"):
+        adapter.backend(context).write("/memories/preference-recreated.md", "用户偏好：希望使用简短说明。")
+    assert adapter.list(context) == []
 
 
 def test_backend_does_not_persist_unrecognized_file_metadata(tmp_path):
@@ -143,6 +166,40 @@ def test_checkpointer_requires_the_same_task_session(tmp_path):
             != adapter.conversation_thread_id(MemoryContext("U2", "S2", "D1")))
     with pytest.raises(PermissionError):
         adapter.checkpointer(MemoryContext("U2", "S2", "D1"), "T1")
+
+
+def test_checkpoint_savers_reject_stale_round_and_expired_session(tmp_path):
+    application, adapter, active = setup_memory(tmp_path)
+    application.create_task("T1", "U1", "S1", "D1", "R1", "running", {})
+    context = MemoryContext("U1", "S1", "D1")
+    task_saver = adapter.checkpointer(context, "T1")
+    conversation_saver = adapter.conversation_checkpointer(context)
+    config = {"configurable": {"thread_id": task_saver.thread_id}}
+    assert task_saver.get_tuple(config) is None
+    assert conversation_saver.get_tuple({"configurable": {
+        "thread_id": conversation_saver.thread_id,
+    }}) is None
+
+    active[0] = "D2"
+    with pytest.raises(ValueError, match="STALE_ROUND"):
+        task_saver.get_tuple(config)
+    with pytest.raises(ValueError, match="STALE_ROUND"):
+        conversation_saver.get_tuple({"configurable": {
+            "thread_id": conversation_saver.thread_id,
+        }})
+
+    active[0] = "D1"
+    with transaction(application.path) as connection:
+        connection.execute(
+            "UPDATE sessions SET expires_at = ? WHERE session_id = ?",
+            ((datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(), "S1"),
+        )
+    with pytest.raises(PermissionError, match="AUTH_REQUIRED"):
+        task_saver.get_tuple(config)
+    with pytest.raises(PermissionError, match="AUTH_REQUIRED"):
+        conversation_saver.get_tuple({"configurable": {
+            "thread_id": conversation_saver.thread_id,
+        }})
 
 
 class BoundFakeModel(FakeListChatModel):

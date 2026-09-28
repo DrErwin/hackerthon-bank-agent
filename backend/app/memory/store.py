@@ -35,21 +35,21 @@ INSTRUCTION = re.compile(
     r"(?:系统|开发者|助手|模型|agent|tool).{0,20}(?:指令|规则|角色|必须)",
     re.I,
 )
+ALLOCATION_PATTERN = re.compile(
+    r"收入分配偏好：(\d{1,3})% 转 A5 储蓄，(\d{1,3})% 转 A4 家庭，"
+    r"(\d{1,3})% 留 A1 主账户；实际收入以银行查询为准，逐笔确认。"
+)
 SAFE_MEMORY_PATTERNS = (
     re.compile(
-        r"用户偏好：(?:用户)?(?:喜欢|偏好|希望|习惯)(?:使用|用)?"
-        r"(?:简短说明|简洁说明|详细说明|分步说明|一步一步说明|清楚说明|"
-        r"简体中文|普通话|大号文字|较慢语速|先给结论|少用专业词|少用英文)[。.]?"
+        r"用户偏好：喜欢(?:简短说明|详细说明|分步说明|清楚说明|简体中文|"
+        r"普通话|大号文字|较慢语速|先给结论|少用专业词|少用英文)[。.]?"
     ),
     re.compile(
         r"称呼线索：(?:妈妈 → 银行种子 A2；办理时重新查询并核验收款人。|"
         r"家庭账户 → 银行种子 A4；办理时重新查询账户。|"
         r"储蓄账户 → 银行种子 A5；办理时重新查询账户。)"
     ),
-    re.compile(
-        r"收入分配偏好：(\d{1,3})% 转 A5 储蓄，(\d{1,3})% 转 A4 家庭，"
-        r"(\d{1,3})% 留 A1 主账户；实际收入以银行查询为准，逐笔确认。"
-    ),
+    ALLOCATION_PATTERN,
     re.compile(
         r"月度预算偏好：\d{4}-(?:0[1-9]|1[0-2]) 个人预算 300000 分；"
         r"跨到下月不自动沿用。"
@@ -72,6 +72,9 @@ def validate_memory(content: str) -> None:
             or FORBIDDEN.search(normalized) or INSTRUCTION.search(normalized)
             or not any(pattern.fullmatch(content) for pattern in SAFE_MEMORY_PATTERNS)):
         raise ValueError("memory content is empty, too long, or contains prohibited material")
+    allocation = ALLOCATION_PATTERN.fullmatch(content)
+    if allocation and sum(map(int, allocation.groups())) != 100:
+        raise ValueError("income allocation preferences must total 100 percent")
     if re.search(r"(?<!\d)1[3-9]\d{9}(?!\d)", normalized):
         raise ValueError("real phone numbers cannot be saved as memory")
     if re.search(r"(?<!\d)\d{12,19}(?!\d)", normalized):
