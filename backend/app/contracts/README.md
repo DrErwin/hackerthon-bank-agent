@@ -12,6 +12,8 @@
 
 `CapabilityCall` 的 `trusted_context` 只能由服务端注入，不能直接使用模型参数或前端请求体填充。验证码专用输入模型用 `SecretStr` 避免普通日志和对象表示泄露原文；实际接口也必须遵守冻结文档的秘密处理规则。
 
+普通转账的银行查询使用 `QueryResult[AccountList]`、`QueryResult[PayeeList]` 和 `QueryResult[PayeeVerification]` 等具名结果；收款资料经 F36 的 `SubmitDetailsRequest` 专用表单提交，回传 `DetailsResponse[TransferTaskView]`，不可转入普通聊天输入。
+
 02 票的测试在本目录，按目录边界从 `backend/` 执行：
 
 ```powershell

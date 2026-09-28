@@ -63,6 +63,8 @@ class ToolStartedPayload(ContractModel):
     arguments_ref: ID
     decision_id: ID
     operation_id: OperationId | None
+    release_authorization_id: ID | None = None
+    freeze_id: ID | None = None
 
 
 class ToolFinishedPayload(ContractModel):
@@ -71,10 +73,14 @@ class ToolFinishedPayload(ContractModel):
     result_ref: ID | None
     duration_ms: NonNegativeInt
     error: ModuleError | None
+    release_authorization_id: ID | None = None
+    freeze_id: ID | None = None
 
 
 class SecurityDecidedPayload(ContractModel):
     decision: SecurityDecision
+    release_authorization_id: ID | None = None
+    freeze_id: ID | None = None
 
 
 class ConfirmationChangedPayload(ContractModel):
@@ -105,6 +111,8 @@ class BankObservedPayload(ContractModel):
     transaction_id: ID | None
     receipt_ref: ID | None
     error: BankError | None
+    release_authorization_id: ID | None = None
+    freeze_id: ID | None = None
 
     @model_validator(mode="after")
     def no_invented_operation_result(self) -> "BankObservedPayload":

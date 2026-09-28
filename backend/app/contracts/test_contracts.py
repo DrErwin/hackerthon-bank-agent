@@ -5,11 +5,14 @@ from uuid import uuid4
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
+from app.contracts.audit import (
+    BankObservedPayload, SecurityDecidedPayload, ToolFinishedPayload, ToolStartedPayload,
+)
 from app.contracts import (
-    AccountSummary, AuditEvent, CapabilityDefinition, ConfirmationRecord,
-    OperationResult, QueryResult, SecurityDecision, StartTransferInput,
-    StreamEvent, TaskView, TransferReceipt, TransferTaskView, VerificationChallenge,
-    VerificationCodeRequest,
+    AccountList, AuditEvent, CapabilityDefinition, ConfirmationRecord,
+    DetailsResponse, OperationResult, PayeeList, PayeeVerification, QueryResult,
+    SecurityDecision, StartTransferInput, StreamEvent, SubmitDetailsRequest,
+    TaskView, TransferReceipt, TransferTaskView, VerificationChallenge, VerificationCodeRequest,
 )
 
 
@@ -79,7 +82,7 @@ def test_task_update_event_carries_the_same_snapshot_revision():
 
 
 def test_query_error_is_not_an_empty_success():
-    adapter = TypeAdapter(QueryResult[list[AccountSummary]])
+    adapter = TypeAdapter(QueryResult[AccountList])
     failure = adapter.validate_python({
         "kind": "error", "error": {"code": "DEPENDENCY_UNAVAILABLE", "details": {}},
     })
@@ -87,6 +90,48 @@ def test_query_error_is_not_an_empty_success():
     assert adapter.validate_json(adapter.dump_json(failure)).kind == "error"
     with pytest.raises(ValidationError):
         adapter.validate_python({"kind": "ok", "data": None})
+    assert adapter.validate_python({"kind": "ok", "data": {"accounts": []}}).data.accounts == []
+    with pytest.raises(ValidationError):
+        adapter.validate_python({"kind": "ok", "data": []})
+
+
+def test_payee_queries_keep_named_results_and_match_consistent():
+    payees = TypeAdapter(QueryResult[PayeeList]).validate_python({
+        "kind": "ok", "data": {"payees": [payee() | {"last_transfer_at": None}]},
+    })
+    assert payees.data.payees[0].bank_name == "模拟银行"
+    assert PayeeVerification.model_validate({"matched": False, "payee": None}).payee is None
+    assert PayeeVerification.model_validate({"matched": True, "payee": payee()}).matched
+    for inconsistent in ({"matched": True, "payee": None}, {"matched": False, "payee": payee()}):
+        with pytest.raises(ValidationError):
+            PayeeVerification.model_validate(inconsistent)
+
+
+def test_controlled_details_form_has_kind_specific_fields_and_response():
+    request_id = str(uuid4())
+    search = SubmitDetailsRequest.model_validate({
+        "request_id": request_id, "interaction_id": "I1", "kind": "payee_search",
+        "fields": {"kind": "phone", "value": "13800000000"},
+    })
+    assert search.fields.value == "13800000000"
+    assert "13800000000" not in repr(search)
+    manual = SubmitDetailsRequest.model_validate({
+        "request_id": request_id, "interaction_id": "I1", "kind": "payee",
+        "fields": {"account_number": "62220001", "account_name": "王明"},
+    })
+    assert "62220001" not in repr(manual)
+    with pytest.raises(ValidationError):
+        SubmitDetailsRequest.model_validate({
+            "request_id": request_id, "interaction_id": "I1", "kind": "payee",
+            "fields": {"kind": "phone", "value": "13800000000"},
+        })
+    response = DetailsResponse[TransferTaskView].model_validate({
+        "detail_ref": "DETAIL1", "display_fields": [
+            {"name": "payee", "label": "收款人", "value_text": "王*"},
+        ],
+        "candidates": None, "task": task(),
+    })
+    assert DetailsResponse[TransferTaskView].model_validate_json(response.model_dump_json()) == response
 
 
 @pytest.mark.parametrize("status,receipt_value,failure", [
@@ -207,6 +252,38 @@ def test_audit_event_checks_payload_and_never_invents_bank_failure():
         AuditEvent.model_validate(event | {"payload": event["payload"] | {"operation_status": "failed"}})
     with pytest.raises(ValidationError):
         AuditEvent.model_validate(event | {"event_type": "tool.started"})
+
+
+def test_release_audit_payloads_can_carry_both_controlled_references():
+    operation_id = str(uuid4())
+    release_refs = {"release_authorization_id": "REL1", "freeze_id": "FR1"}
+    cases = (
+        (SecurityDecidedPayload, {"decision": {
+            "decision_id": "DEC1", "task_id": "T1", "run_id": "R1",
+            "action_name": "bank.release_frozen", "parameters_ref": "PARAM1",
+            "operation_id": operation_id, "action_revision": 1, "phase": "execution",
+            "operation_level": "sensitive", "risk_level": "medium", "decision": "allow",
+            "reason_codes": [], "rule_ids": ["RELEASE"], "policy_version": "v1",
+            "authorization_snapshot_ref": "AUTH1", "evidence_refs": [],
+            "interaction": None, "checked_at": NOW, "message": "可以收尾",
+        }}),
+        (ToolStartedPayload, {
+            "tool_call_id": "TC1", "tool_name": "bank.release_frozen",
+            "tool_version": "v1", "arguments_ref": "ARG1",
+            "decision_id": "DEC1", "operation_id": operation_id,
+        }),
+        (ToolFinishedPayload, {
+            "tool_call_id": "TC1", "operation_id": operation_id,
+            "result_ref": "EV1", "duration_ms": 12, "error": None,
+        }),
+        (BankObservedPayload, {
+            "operation_id": operation_id, "lookup": "found", "operation_status": "succeeded",
+            "transaction_id": None, "receipt_ref": "EV1", "error": None,
+        }),
+    )
+    for payload_type, fields in cases:
+        payload = payload_type.model_validate(fields | release_refs)
+        assert payload_type.model_validate_json(payload.model_dump_json()) == payload
 
 
 def test_model_rejects_unexpected_authorization_fields_and_non_uuid4_operation():

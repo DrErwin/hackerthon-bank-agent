@@ -6,7 +6,8 @@ from typing import Generic, Literal, TypeVar
 
 from pydantic import Field, SecretStr, model_validator
 
-from .common import ContractModel, ID, PositiveInt, RequestId, SubmissionId, Timestamp
+from .bank import PayeeCandidate
+from .common import ContractModel, DisplayField, ID, PositiveInt, RequestId, SubmissionId, Timestamp
 from .security import VerificationView
 from .tasks import InteractionRequest, ModuleError, TaskView, TransferTaskView
 
@@ -86,6 +87,47 @@ class ProvideInputRequest(ContractModel):
         if self.text is None and self.selected_option_id is None:
             raise ValueError("text or selected_option_id is required")
         return self
+
+
+class PayeeSearchFields(ContractModel):
+    kind: Literal["name", "phone", "account_number", "remark"]
+    value: str = Field(repr=False)
+
+
+class PayeeDetailsFields(ContractModel):
+    account_number: str = Field(repr=False)
+    account_name: str = Field(repr=False)
+
+
+class DeliveryDetailsFields(ContractModel):
+    recipient_name: str = Field(repr=False)
+    phone: str = Field(repr=False)
+    address: str = Field(repr=False)
+
+
+class SubmitDetailsRequest(ContractModel):
+    request_id: RequestId
+    interaction_id: ID
+    kind: Literal["payee", "payee_search", "delivery"]
+    fields: PayeeDetailsFields | PayeeSearchFields | DeliveryDetailsFields = Field(repr=False)
+
+    @model_validator(mode="after")
+    def fields_match_kind(self) -> "SubmitDetailsRequest":
+        expected = {
+            "payee": PayeeDetailsFields,
+            "payee_search": PayeeSearchFields,
+            "delivery": DeliveryDetailsFields,
+        }[self.kind]
+        if not isinstance(self.fields, expected):
+            raise ValueError("details fields do not match kind")
+        return self
+
+
+class DetailsResponse(ContractModel, Generic[T]):
+    detail_ref: ID
+    display_fields: list[DisplayField]
+    candidates: list[PayeeCandidate] | None
+    task: TaskView[T]
 
 
 class ConfirmationAnswerRequest(ContractModel):

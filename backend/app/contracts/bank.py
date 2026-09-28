@@ -41,6 +41,21 @@ class PayeeCandidate(PayeeDisplay):
     last_transfer_at: Timestamp | None
 
 
+class PayeeList(ContractModel):
+    payees: list[PayeeCandidate]
+
+
+class PayeeVerification(ContractModel):
+    matched: bool
+    payee: PayeeDisplay | None
+
+    @model_validator(mode="after")
+    def match_payee_to_result(self) -> "PayeeVerification":
+        if self.matched != (self.payee is not None):
+            raise ValueError("matched payee requires a display result")
+        return self
+
+
 class BankError(ContractModel):
     code: ID
     details: dict[str, JsonValue]
@@ -107,6 +122,10 @@ class AccountSummary(ContractModel):
     available_balance_fen: Money
     display_name: str
     bank_name: str
+
+
+class AccountList(ContractModel):
+    accounts: list[AccountSummary]
 
 
 class AccountDetail(AccountSummary):
