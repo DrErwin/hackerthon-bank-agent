@@ -52,6 +52,8 @@ def test_application_scope_and_operation_identity_survive_restart(tmp_path):
     with pytest.raises(ValueError):
         store.record_operation_result("U1", "D1", operation_id, "failed", "ERROR1")
     store = ApplicationStore(paths.application)
+    assert store.get_session("U1", "D1", "S1").session_id == "S1"
+    assert store.get_session("U2", "D1", "S1") is None
     assert store.get_task("U1", "D1", "T1").checkpoint_thread_id == task.checkpoint_thread_id
     assert store.get_operation("U1", "D1", operation_id).result_ref == "RECEIPT1"
     assert store.get_operation("U2", "D1", operation_id) is None

@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
-import sqlite3
 from uuid import uuid4
 
 from app.contracts import TaskStatus
@@ -14,6 +13,15 @@ from .database import connect, parameter_digest, transaction
 
 
 SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True)
+class SessionRecord:
+    session_id: str
+    user_id: str
+    demo_round_id: str
+    created_at: str
+    expires_at: str
 
 
 @dataclass(frozen=True)
@@ -160,6 +168,18 @@ class ApplicationStore:
                 "INSERT INTO sessions VALUES (?, ?, ?, ?, ?)",
                 (session_id, user_id, demo_round_id, created_at, expires_at),
             )
+
+    def get_session(self, user_id: str, demo_round_id: str, session_id: str) -> SessionRecord | None:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                """SELECT * FROM sessions WHERE user_id = ? AND demo_round_id = ?
+                   AND session_id = ?""",
+                (user_id, demo_round_id, session_id),
+            ).fetchone()
+            return SessionRecord(**dict(row)) if row else None
+        finally:
+            connection.close()
 
     def create_task(
         self, task_id: str, user_id: str, session_id: str, demo_round_id: str,
