@@ -43,6 +43,7 @@ def test_redacted_evidence_survives_restart_and_is_scoped(tmp_path):
     source = {
         "text": "姓名：李华 手机 13900000002 卡号 6222000000000002 验证码: 123456 地址：演示市示例路1号",
         "password": "do-not-store", "extra": "private-marker",
+        "code": "123456",
         "recipient_name": "王阿姨", "recipient_address": "演示市演示区示例路1号",
     }
     journal.append(event(), evidence=source, known_secrets=["private-marker"])

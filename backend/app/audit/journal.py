@@ -47,7 +47,9 @@ def redact(value: object, known_secrets: Iterable[str] = ()) -> object:
         clean = {}
         for key, item in value.items():
             field = str(key).lower()
-            if SECRET_FIELD.search(field) or field in ADDRESS_FIELD:
+            if field == "code" and isinstance(item, str) and re.fullmatch(r"\d{4,8}", item):
+                clean[key] = "[REDACTED]"
+            elif SECRET_FIELD.search(field) or field in ADDRESS_FIELD:
                 clean[key] = "[REDACTED]"
             elif field in PERSON_NAME_FIELD and isinstance(item, str) and item:
                 clean[key] = item[0] + "*" * (len(item) - 1)
