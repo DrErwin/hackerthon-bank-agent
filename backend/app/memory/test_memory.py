@@ -95,8 +95,13 @@ def test_deleted_memory_semantic_variant_cannot_be_restored(tmp_path):
     item = adapter.list(context)[0]
     adapter.delete(context, str(uuid4()), [item.memory_id], {item.memory_id: item.version})
 
-    with pytest.raises(ValueError, match="memory"):
-        adapter.backend(context).write("/memories/preference-recreated.md", "用户偏好：希望使用简短说明。")
+    for memory_id, content in (
+        ("preference-no-period", "用户偏好：喜欢简短说明"),
+        ("preference-ascii-period", "用户偏好：喜欢简短说明."),
+        ("preference-rephrased", "用户偏好：希望使用简短说明。"),
+    ):
+        with pytest.raises(ValueError, match="memory"):
+            adapter.backend(context).write(f"/memories/{memory_id}.md", content)
     assert adapter.list(context) == []
 
 

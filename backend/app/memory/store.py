@@ -82,7 +82,8 @@ def validate_memory(content: str) -> None:
 
 
 def content_hash(content: str) -> str:
-    return hashlib.sha256(" ".join(content.split()).encode("utf-8")).hexdigest()
+    canonical = " ".join(content.split()).rstrip("。.")
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class SqliteMemoryStore(BaseStore):
