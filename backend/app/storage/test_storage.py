@@ -145,6 +145,82 @@ def test_bank_ledger_and_operation_are_one_transaction(tmp_path):
     assert len(bank.list_ledger("U1", "A1")) == 1
 
 
+def test_processing_bank_operation_settles_once_and_survives_reopen(tmp_path):
+    path = StoragePaths(tmp_path).bank
+    bank = MockBankStore(path)
+    bank.seed_account(BankAccount("A1", "U1", "class_i", "active", 100000, 0, 0))
+    operation_id = str(uuid4())
+    parameters = {"payer_account_id": "A1", "amount_fen": 50000}
+    processing = bank.commit_operation(
+        "U1", operation_id, "bank.submit_transfer", parameters, "processing",
+        {"operation_status": "processing"}, NOW, [], [],
+    )
+    assert processing.status == "processing"
+    assert bank.get_account("U1", "A1").book_balance_fen == 100000
+    with pytest.raises(ValueError):
+        bank.commit_operation(
+            "U1", str(uuid4()), "bank.submit_transfer", parameters, "processing",
+            {}, NOW, [("A1", 0, 50000, 0)], [],
+        )
+
+    bank = MockBankStore(path)
+    changes = [("A1", 0, 50000, 0)]
+    ledger = [("TX1", "A1", 50000, "outflow", "transfer", "transfer", NOW)]
+    with pytest.raises(sqlite3.IntegrityError):
+        bank.finalize_operation(
+            "U1", operation_id, "bank.submit_transfer", parameters, "succeeded",
+            {"operation_status": "succeeded"}, NOW, changes, ledger + ledger,
+        )
+    assert bank.get_operation("U1", operation_id).status == "processing"
+    assert bank.get_account("U1", "A1").book_balance_fen == 100000
+    final = bank.finalize_operation(
+        "U1", operation_id, "bank.submit_transfer", parameters, "succeeded",
+        {"operation_status": "succeeded", "transaction_id": "TX1"}, NOW,
+        changes, ledger,
+    )
+    assert final.status == "succeeded"
+    assert bank.finalize_operation(
+        "U1", operation_id, "bank.submit_transfer", parameters, "succeeded",
+        {"ignored": True}, NOW, changes, ledger,
+    ) == final
+    assert bank.commit_operation(
+        "U1", operation_id, "bank.submit_transfer", parameters, "succeeded",
+        {"ignored": True}, NOW, changes, ledger,
+    ) == final
+    with pytest.raises(ValueError):
+        bank.finalize_operation(
+            "U1", operation_id, "bank.submit_transfer", {"amount_fen": 60000},
+            "succeeded", {}, NOW, [], [],
+        )
+    with pytest.raises(ValueError):
+        bank.finalize_operation(
+            "U1", operation_id, "bank.submit_transfer", parameters,
+            "failed", {}, NOW, [], [],
+        )
+    reopened = MockBankStore(path)
+    assert reopened.get_operation("U1", operation_id) == final
+    assert reopened.get_account("U1", "A1").book_balance_fen == 50000
+    assert len(reopened.list_ledger("U1", "A1")) == 1
+
+
+def test_bank_v1_migration_preserves_operation_result(tmp_path):
+    path = StoragePaths(tmp_path).bank
+    with sqlite3.connect(path) as connection:
+        connection.execute("""CREATE TABLE bank_operations (
+            operation_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, action_name TEXT NOT NULL,
+            parameters_digest TEXT NOT NULL, status TEXT NOT NULL,
+            result_json TEXT NOT NULL, recorded_at TEXT NOT NULL
+        )""")
+        connection.execute(
+            "INSERT INTO bank_operations VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("old", "U1", "bank.submit_transfer", "digest", "processing", "{}", NOW),
+        )
+        connection.execute("PRAGMA user_version = 1")
+    bank = MockBankStore(path)
+    assert bank.get_operation("U1", "old").updated_at == NOW
+    assert MockBankStore(path).get_operation("U1", "old").status == "processing"
+
+
 def test_storage_files_and_migrations_remain_separate(tmp_path):
     paths = StoragePaths(tmp_path)
     app = ApplicationStore(paths.application)
