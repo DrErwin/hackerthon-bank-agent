@@ -240,7 +240,7 @@ class ApplicationStore:
             raise ValueError("unsupported task reference")
         with transaction(self.path) as connection:
             task = connection.execute(
-                "SELECT 1 FROM tasks WHERE task_id = ? AND user_id = ? AND demo_round_id = ?",
+                "SELECT session_id FROM tasks WHERE task_id = ? AND user_id = ? AND demo_round_id = ?",
                 (task_id, user_id, demo_round_id),
             ).fetchone()
             if task is None:
@@ -253,6 +253,21 @@ class ApplicationStore:
                 user_id, demo_round_id,
             ):
                 raise ValueError("record reference belongs to another user or round")
+            if kind in {"confirmation", "verification"}:
+                bindings = connection.execute(
+                    """SELECT tasks.task_id, tasks.session_id FROM task_refs
+                       JOIN tasks ON tasks.task_id = task_refs.task_id
+                       WHERE task_refs.kind = ? AND task_refs.record_id = ?""",
+                    (kind, record_id),
+                ).fetchall()
+                if kind == "confirmation" and any(
+                    bound["task_id"] != task_id for bound in bindings
+                ):
+                    raise ValueError("confirmation reference belongs to another task")
+                if kind == "verification" and any(
+                    bound["session_id"] != task["session_id"] for bound in bindings
+                ):
+                    raise ValueError("verification reference belongs to another session")
             if owner is None:
                 connection.execute(
                     "INSERT INTO owned_refs VALUES (?, ?, ?, ?)",

@@ -35,6 +35,13 @@ def test_application_scope_and_operation_identity_survive_restart(tmp_path):
     store.create_task("T2", "U1", "S1", "D1", "R2", "running", {})
     store.bind_ref("U1", "D1", "T2", "verification", "V1")
     store.bind_ref("U1", "D1", "T2", "memory", "M1")
+    with pytest.raises(ValueError):
+        store.bind_ref("U1", "D1", "T2", "confirmation", "C1")
+    store.create_session("S3", "U1", "D1", NOW, "2026-09-28T12:00:00+08:00")
+    store.create_task("T4", "U1", "S3", "D1", "R4", "running", {})
+    store.bind_ref("U1", "D1", "T4", "memory", "M1")
+    with pytest.raises(ValueError):
+        store.bind_ref("U1", "D1", "T4", "verification", "V1")
     store.create_session("S2", "U2", "D1", NOW, "2026-09-28T12:00:00+08:00")
     store.create_task("T3", "U2", "S2", "D1", "R3", "running", {})
     with pytest.raises(ValueError):
