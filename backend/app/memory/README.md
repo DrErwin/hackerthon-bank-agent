@@ -1,9 +1,11 @@
 # memory —— Agent 长期记忆与上下文后端
 
-归属：底座（Erwin）。**memory 是 harness 标配（09-23 定：随 Deep Agents / LangGraph 那套走），与 `agent_platform/` 一家人。**
+归属：底座（Erwin）。安全规则由 Ringo 审查。这里提供 Deep Agents 的用户记忆 Store 后端与任务上下文接缝；业务权限、确认、验证和银行事实仍由各自服务判定。
 
-放什么：AI 长期记忆（条目类型：称呼映射「王大二 = 妈妈」、常用限额、老规矩；写入时机、演示预置清单、用户可查看可删除——功能清单随契约 6.1 填）；上下文后端（对话历史摘要的持久化）；Store 持久化实现接 `../storage/`（选型为架构 §13 待定项，`InMemoryStore` 仅临时演示）。
+`MemoryAdapter` 使用应用 SQLite 文件保存 LangGraph Store 的 `/memories/` 文件。每份记忆按用户和演示轮次隔离，重启后可读；预置称呼、分配偏好、月度预算和虚构配送资料来自冻结契约 §7.4。预置中的 A2/A4/A5 只是银行种子标识的线索，办理前仍须查银行并核验。
 
-边界：**记忆的安全规则由安全侧（Ringo）在安全底座 PRD / 契约第 4 章制定**——受控写入校验（防外部内容变成长期指令，架构 §10）、用户隔离、脱敏、可查看可删除。与 `audit/` 同构：实现归底座，规则归安全。
+Harness 为可信用户会话取得 `MemoryContext` 后，使用 `agent_backend(context)` 作为 Deep Agents `backend`，使用 `middleware(context)` 作为附加中间件；主对话用 `conversation_checkpointer(context)` 与 `conversation_thread_id(context)`，具体任务用 `checkpointer(context, task_id)`。记忆通过 Deep Agents `StoreBackend` 读写；任务文件使用 `StateBackend` 与现有检查点。中间件每次从 Store 重载记忆，避免旧检查点把已删记忆重新放进提示。
 
-演示提示：06 任务 C「按老规矩分」依赖预置记忆条目（见契约 6.1 待填的演示预置清单）。
+模型写入只接受受控格式：有限的沟通偏好、银行种子称呼线索、分配比例、带月份的预算，以及固定的虚构配送样本。任意自由文本、认证秘密、执行授权、银行事实和指令都会被拒绝；NFKC 规范化用于检测全角绕过，记录只能删除，不能由模型追加或覆盖。`list` 与 `delete` 读取同一 Store；删除检查整批归属和版本，在同一事务中完成并按 `request_id` 去重。删除的内容在本轮设墓碑，阻止旧上下文按原路径或相同内容写回。演示重置清理该用户旧轮次记忆，并原子恢复预置。真实 API、工具权限登记与审计事件在后续 07/09/10 集成时接线。
+
+从 `backend/` 验证：`python -m pytest -q app/memory/test_memory.py`。安全侧需复核受控写入词表及可查看范围；该模块未代替 Ringo 的批准。
