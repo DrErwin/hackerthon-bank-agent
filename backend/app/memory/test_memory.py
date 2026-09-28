@@ -118,6 +118,8 @@ def test_checkpointer_requires_the_same_task_session(tmp_path):
     application, adapter, _ = setup_memory(tmp_path)
     application.create_task("T1", "U1", "S1", "D1", "R1", "running", {})
     assert adapter.checkpointer(MemoryContext("U1", "S1", "D1"), "T1").thread_id
+    assert (adapter.conversation_thread_id(MemoryContext("U1", "S1", "D1"))
+            != adapter.conversation_thread_id(MemoryContext("U2", "S2", "D1")))
     with pytest.raises(PermissionError):
         adapter.checkpointer(MemoryContext("U2", "S2", "D1"), "T1")
 
@@ -135,17 +137,19 @@ class BoundFakeModel(FakeListChatModel):
 
 def test_deep_agent_reads_fresh_memory_from_persistent_store(tmp_path):
     application, adapter, _ = setup_memory(tmp_path)
-    task = application.create_task("T1", "U1", "S1", "D1", "R1", "running", {})
+    application.create_task("T1", "U1", "S1", "D1", "R1", "running", {})
     adapter.seed_demo("U1", "D1", "2026-09")
     context = MemoryContext("U1", "S1", "D1")
     model = BoundFakeModel(responses=["好的", "好的"])
     agent = create_deep_agent(
         model=model, backend=adapter.agent_backend(context),
-        middleware=[adapter.middleware(context)], checkpointer=adapter.checkpointer(context, "T1"),
+        middleware=[adapter.middleware(context)],
+        checkpointer=adapter.conversation_checkpointer(context),
     )
-    config = {"configurable": {"thread_id": task.checkpoint_thread_id}}
+    config = {"configurable": {"thread_id": adapter.conversation_thread_id(context)}}
     agent.invoke({"messages": [{"role": "user", "content": "给妈妈转 500 元"}]}, config=config)
     assert any("妈妈" in str(message.content) for message in model._seen[0])
     adapter.delete(context, str(uuid4()), ["alias-mother"], {"alias-mother": 1})
     agent.invoke({"messages": [{"role": "user", "content": "再看看记忆"}]}, config=config)
     assert all("妈妈" not in str(message.content) for message in model._seen[-1] if message.type == "system")
+    assert any("给妈妈转" in str(message.content) for message in model._seen[-1] if message.type == "human")

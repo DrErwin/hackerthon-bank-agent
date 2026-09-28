@@ -13,6 +13,7 @@ from deepagents.backends import CompositeBackend, StateBackend, StoreBackend
 from deepagents.middleware.memory import MemoryMiddleware
 
 from app.storage.application import ApplicationStore
+from app.storage.checkpoints import SqliteCheckpointSaver
 from app.storage.database import connect, transaction
 
 from .store import (
@@ -93,6 +94,16 @@ class MemoryAdapter:
         if task is None or task.session_id != context.session_id:
             raise PermissionError("ACCESS_DENIED")
         return self.application.checkpoint_saver(context.user_id, context.demo_round_id, task_id)
+
+    def conversation_thread_id(self, context: MemoryContext) -> str:
+        self._scope(context)
+        return json.dumps(
+            ["conversation", context.demo_round_id, context.user_id, context.session_id],
+            ensure_ascii=False, separators=(",", ":"),
+        )
+
+    def conversation_checkpointer(self, context: MemoryContext) -> SqliteCheckpointSaver:
+        return SqliteCheckpointSaver(self.application.path, self.conversation_thread_id(context))
 
     def list(self, context: MemoryContext) -> list[MemoryItem]:
         namespace = self._scope(context)
