@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import time
+from unittest.mock import patch
 from uuid import uuid4
+
+import pytest
 
 from app.contracts.bank import ManualPayee, OwnPayee, SavedPayee
 from app.contracts.platform import TrustedContext
@@ -132,6 +135,30 @@ def test_timeout_returns_unknown_then_original_result_becomes_visible(tmp_path):
     assert gateway.submit_transfer(user, operation_id, "A1", payee, 50_000) == found.operation
     assert len(bank.store.list_ledger("U1", "A1")) == 1
     gateway.close()
+
+
+def test_interrupted_processing_settles_without_moving_money_after_restart(tmp_path):
+    bank, gateway = ready(tmp_path, slow_seconds=0)
+    user = context()
+    payee = SavedPayee(kind="saved", payee_id="A2")
+    operation_id = uuid4()
+    bank.arm_slow_once("U1")
+    with patch("app.services.mock_bank.core.time.sleep", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            bank.submit_transfer(user, operation_id, "A1", payee, 50_000)
+    assert bank.get_operation(user, operation_id).operation.operation_status == "processing"
+    gateway.close()
+
+    reopened = MockBankService(MockBankStore(StoragePaths(tmp_path).bank), demo_secret=DEMO_SECRET)
+    found = reopened.get_operation(user, operation_id).operation
+    assert found.operation_status == "failed"
+    assert found.failure.code == "STATE_CONFLICT"
+    assert reopened.submit_transfer(user, operation_id, "A1", payee, 50_000) == found
+    assert reopened.get_account("U1", "A1").data.book_balance_fen == 6_000_000
+    assert reopened.store.list_ledger("U1", "A1") == []
+    assert MockBankService(MockBankStore(StoragePaths(tmp_path).bank), demo_secret=DEMO_SECRET).get_operation(
+        user, operation_id,
+    ).operation == found
 
 
 def test_transfer_is_denied_without_server_authorization(tmp_path):

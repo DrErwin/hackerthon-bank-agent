@@ -72,6 +72,22 @@ class MockBankService:
                     "legacy bank operations have no demo round; retain the old database for "
                     "reference and start a fresh demo bank database explicitly"
                 )
+            # A processing row has no ledger effect until the final settlement transaction.
+            # After this single-process demo restarts, its former worker cannot finish it.
+            interrupted = connection.execute("""SELECT operation_id, recorded_at FROM bank_operations
+                WHERE action_name = 'bank.submit_transfer' AND status = 'processing'""").fetchall()
+            for row in interrupted:
+                now = _now()
+                result = self._result(
+                    UUID(row["operation_id"]), "failed",
+                    datetime.fromisoformat(row["recorded_at"]), updated_at=now,
+                    failure=BankError(code="STATE_CONFLICT", details={"reason": "processing_interrupted"}),
+                )
+                connection.execute("""UPDATE bank_operations
+                    SET status = 'failed', result_json = ?, updated_at = ?
+                    WHERE operation_id = ?""", (
+                    result.model_dump_json(), now.isoformat(), row["operation_id"],
+                ))
         self.verification = MockBankVerification(store.path, demo_secret)
 
     def seed_demo(self) -> None:
