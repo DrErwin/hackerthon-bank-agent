@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 from pydantic import ValidationError
 
-from app.contracts.common import DisplayField, OperationLevel, RiskLevel, SecurityDecisionCode
+from app.contracts.common import DisplayField, OperationLevel, Phase, RiskLevel, SecurityDecisionCode
 from app.contracts.platform import CapabilityDefinition
 from app.contracts.security import (
     ActionDescriptor,
@@ -21,6 +21,7 @@ from app.contracts.security import (
     SecurityDecision,
     VerificationChallenge,
     VerificationRecord,
+    VerificationSummary,
 )
 from app.contracts.tasks import InteractionOption, InteractionRequest
 from app.security.state import ExecutionClaim, SQLiteSecurityState, SecurityStateError
@@ -38,10 +39,14 @@ VerificationPreparer = Callable[
     [ExecutionSecurityContext, ActionDescriptor, ConfirmationRecord, RiskLevel], VerificationChallenge
 ]
 VerificationResolver = Callable[[ExecutionSecurityContext, str], VerificationRecord]
+ChallengeResolver = Callable[[ExecutionSecurityContext, str], VerificationChallenge]
 DecisionSink = Callable[[SecurityDecision], None]
 ParameterResolver = Callable[[ExecutionSecurityContext, ActionDescriptor], object]
 SnapshotWriter = Callable[
     [ExecutionSecurityContext, ConfirmationRecord, tuple[VerificationRecord, ...], datetime], str
+]
+SummaryValidator = Callable[
+    [ExecutionSecurityContext, ActionDescriptor, ConfirmationRecord, VerificationSummary], bool
 ]
 Clock = Callable[[], datetime]
 
@@ -151,8 +156,10 @@ class SecurityGate:
         confirmation_preparer: ConfirmationPreparer,
         verification_preparer: VerificationPreparer,
         verification_resolver: VerificationResolver,
+        challenge_resolver: ChallengeResolver,
         decision_sink: DecisionSink,
         snapshot_writer: SnapshotWriter,
+        summary_validator: SummaryValidator,
         clock: Clock | None = None,
     ) -> None:
         self.registry = registry
@@ -163,8 +170,10 @@ class SecurityGate:
         self.confirmation_preparer = confirmation_preparer
         self.verification_preparer = verification_preparer
         self.verification_resolver = verification_resolver
+        self.challenge_resolver = challenge_resolver
         self.decision_sink = decision_sink
         self.snapshot_writer = snapshot_writer
+        self.summary_validator = summary_validator
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
     @staticmethod
@@ -234,7 +243,7 @@ class SecurityGate:
             return decision
         except Exception:
             if decision.decision != SecurityDecisionCode.ALLOW:
-                return decision
+                raise SecurityError("AUDIT_UNAVAILABLE")
             return self._decision(
                 context,
                 action,
@@ -304,13 +313,15 @@ class SecurityGate:
             raise SecurityError("POLICY_VIOLATION")
         return record
 
-    @staticmethod
     def _check_challenge(
+        self,
         context: ExecutionSecurityContext,
         action: ActionDescriptor,
         confirmation: ConfirmationRecord,
         risk: RiskLevel,
         challenge: VerificationChallenge,
+        *,
+        expected_status: str = "pending",
     ) -> None:
         if (
             challenge.user_id,
@@ -322,7 +333,7 @@ class SecurityGate:
             context.session_id,
             context.demo_round_id,
             context.task_id,
-        ) or challenge.challenge_status != "pending":
+        ) or challenge.challenge_status != expected_status:
             raise SecurityError("POLICY_VIOLATION")
         if risk == RiskLevel.LOW:
             if challenge.purpose != "basic_identity":
@@ -335,9 +346,16 @@ class SecurityGate:
             or challenge.action_revision != context.action_revision
             or summary is None
             or summary.source_confirmation_id != confirmation.confirmation_id
-            or summary.source_confirmation_version != confirmation.confirmation_version
+            or summary.source_confirmation_version > confirmation.confirmation_version
             or summary.action_name != action.action_name
+            or summary.display_fields != confirmation.display_fields
         ):
+            raise SecurityError("POLICY_VIOLATION")
+        try:
+            valid_summary = self.summary_validator(context, action, confirmation, summary)
+        except Exception as exc:
+            raise SecurityError("DEPENDENCY_UNAVAILABLE") from exc
+        if valid_summary is not True:
             raise SecurityError("POLICY_VIOLATION")
 
     def check_action(
@@ -413,6 +431,18 @@ class SecurityGate:
                 rule="terminated-task-cannot-resume",
                 message="任务已终止，不能继续执行该操作。",
             )
+        try:
+            locally_terminated = self.confirmations.state.is_task_terminated(context)
+        except SecurityStateError:
+            locally_terminated = True
+        if locally_terminated:
+            return self._stop(
+                context, action, declaration,
+                decision=SecurityDecisionCode.BLOCK,
+                reason="TASK_TERMINATED",
+                rule="terminated-task-cannot-resume",
+                message="任务已终止，不能继续执行该操作。",
+            )
 
         if declaration.side_effect and (
             context.operation_id is None or context.action_revision is None
@@ -454,6 +484,10 @@ class SecurityGate:
                 message="暂时无法完成风险核对。",
             )
         if risk == RiskLevel.HIGH:
+            try:
+                self.confirmations.state.terminate_task(context, "HIGH_RISK")
+            except SecurityStateError as exc:
+                raise SecurityError(exc.code) from exc
             return self._stop(
                 context, action, declaration,
                 decision=SecurityDecisionCode.BLOCK,
@@ -496,11 +530,18 @@ class SecurityGate:
                     message="该操作已取消，不能继续执行。",
                     risk=risk,
                 )
-            if mismatch or confirmation is None or confirmation.decision != "approved":
+            if mismatch:
+                return self._stop(
+                    context, action, declaration,
+                    decision=SecurityDecisionCode.BLOCK,
+                    reason="CONFIRMATION_STALE",
+                    rule="current-confirmation-version-required",
+                    message="确认内容已更新，请读取当前确认单。",
+                    risk=risk,
+                )
+            if confirmation is None or confirmation.decision != "approved":
                 reason = "CONFIRMATION_REQUIRED"
-                if mismatch:
-                    reason = "CONFIRMATION_STALE"
-                elif confirmation_error is not None:
+                if confirmation_error is not None:
                     reason = confirmation_error
                 elif confirmation is not None and confirmation.decision == "expired":
                     reason = "CONFIRMATION_EXPIRED"
@@ -592,6 +633,32 @@ class SecurityGate:
                     message="无权使用该验证记录。",
                     risk=risk,
                 )
+            if risk == RiskLevel.MEDIUM and record.scope == "action":
+                try:
+                    source_challenge = self.challenge_resolver(
+                        context, record.source_challenge_id,
+                    )
+                    if source_challenge.challenge_id != record.source_challenge_id:
+                        raise SecurityError("POLICY_VIOLATION")
+                    self._check_challenge(
+                        context, action, confirmation, risk, source_challenge,
+                        expected_status="passed",
+                    )
+                except SecurityError as exc:
+                    if exc.code == "ACCESS_DENIED":
+                        return self._stop(
+                            context, action, declaration,
+                            decision=SecurityDecisionCode.BLOCK,
+                            reason="ACCESS_DENIED",
+                            rule="verification-owner-must-match",
+                            message="无权使用该验证记录。",
+                            risk=risk,
+                        )
+                    verification_dependency_failed = True
+                    continue
+                except Exception:
+                    verification_dependency_failed = True
+                    continue
             verifications.append(record)
         if verification_dependency_failed:
             return self._stop(
@@ -681,7 +748,7 @@ class SecurityGate:
                 operation_level=declaration.operation_level,
                 risk_level=risk,
                 decision=SecurityDecisionCode.ALLOW,
-                reasons=[],
+                reasons=["SECURITY_CHECK_PASSED"],
                 rules=["trusted-scope", "current-confirmation", "required-verification"],
                 snapshot_ref=snapshot_ref,
                 message="当前操作已通过安全检查。",
@@ -897,6 +964,15 @@ class DeterministicExecutor:
         action: ActionDescriptor,
     ) -> ExecutionOutcome:
         registered = self.gate.registry.get(action.action_name)
+        if registered is not None and registered.declaration.side_effect and action.phase != Phase.EXECUTION:
+            decision = self.gate._stop(
+                context, action, registered.declaration,
+                decision=SecurityDecisionCode.BLOCK,
+                reason="POLICY_VIOLATION",
+                rule="funds-handler-requires-execution-phase",
+                message="资金操作只能在执行阶段提交。",
+            )
+            return ExecutionOutcome(decision, False, False, "not_started", None, None)
         if registered is not None and registered.declaration.side_effect:
             try:
                 existing = self.gate.confirmations.state.get_execution(context, action)
@@ -937,19 +1013,36 @@ class DeterministicExecutor:
                 result_ref=None,
             )
 
+        decision = self.gate.check_action(context, action)
+        if decision.decision != SecurityDecisionCode.ALLOW:
+            return ExecutionOutcome(decision, False, False, "not_started", None, None)
+
         try:
             claim, created = self.gate.confirmations.state.claim_execution(
                 context,
                 action,
                 decision,
                 self.gate.clock(),
+                self.gate.task_state_resolver,
             )
         except SecurityStateError as exc:
+            if exc.code == "TASK_TERMINATED":
+                try:
+                    self.gate.confirmations.state.terminate_task(context, exc.code)
+                except SecurityStateError as state_exc:
+                    raise SecurityError(state_exc.code) from state_exc
+                blocked = self.gate._stop(
+                    context, action, registered.declaration,
+                    decision=SecurityDecisionCode.BLOCK,
+                    reason="TASK_TERMINATED",
+                    rule="terminated-task-cannot-resume",
+                    message="任务已终止，不能继续执行该操作。",
+                )
+                return ExecutionOutcome(blocked, False, False, "not_started", None, None)
             if exc.code in {
                 "CONFIRMATION_REQUIRED",
                 "CONFIRMATION_STALE",
                 "CONFIRMATION_EXPIRED",
-                "TASK_TERMINATED",
             }:
                 refreshed = self.gate.check_action(context, action)
                 return ExecutionOutcome(

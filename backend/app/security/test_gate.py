@@ -92,6 +92,7 @@ def verification(
     scope: str = "session",
     operation_id=None,
     action_revision=None,
+    source_challenge_id: str = "CH1",
 ) -> VerificationRecord:
     return VerificationRecord(
         verification_id=str(uuid4()),
@@ -103,7 +104,7 @@ def verification(
         action_revision=action_revision,
         methods=["code"] if scope == "session" else ["code", "mock_face"],
         verified_at=datetime(2026, 9, 29, 8, 0, tzinfo=timezone.utc),
-        source_challenge_id="CH1",
+        source_challenge_id=source_challenge_id,
     )
 
 
@@ -227,8 +228,19 @@ def build_gate(
         confirmation_preparer=prepare_confirmation,
         verification_preparer=prepare_verification,
         verification_resolver=resolve,
+        challenge_resolver=lambda _context, challenge_id: next(
+            challenge.model_copy(update={"challenge_status": "passed"})
+            for challenge, _, _ in created_challenges
+            if challenge.challenge_id == challenge_id
+        ),
         decision_sink=emitted.append,
         snapshot_writer=write_snapshot,
+        summary_validator=lambda _context, _action, confirmation, summary: (
+            summary.display_fields == confirmation.display_fields
+            and summary.amount_fen == 50_000
+            and summary.payee is not None
+            and summary.payee.payee_id == "A2"
+        ),
         clock=clock,
     )
     return (
@@ -333,7 +345,7 @@ def test_confirmation_is_durable_button_only_versioned_and_one_hour(tmp_path):
     approved = confirmations.answer(original, answer)
     assert ConfirmationService(path, clock=clock).answer(original, answer) == approved
 
-    changed = original.model_copy(update={"action_revision": 2})
+    changed = original.model_copy(update={"operation_id": uuid4(), "action_revision": 2})
     replacement = confirmations.create(
         changed,
         action("PARAM-2"),
@@ -410,7 +422,7 @@ def test_gate_uses_real_confirmation_and_verification_record_refs(tmp_path):
     assert waiting_confirmation.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION
     assert waiting_confirmation.interaction.record_ref == stored.confirmation_id
 
-    confirmed_context, _ = approved_confirmation(confirmations, security_context, descriptor)
+    confirmed_context, approved = approved_confirmation(confirmations, security_context, descriptor)
     waiting_verification = gate.check_action(confirmed_context, descriptor)
     assert waiting_verification.decision == SecurityDecisionCode.REQUIRE_VERIFICATION
     assert waiting_verification.interaction.record_ref == challenges[0][0].challenge_id
@@ -421,6 +433,7 @@ def test_gate_uses_real_confirmation_and_verification_record_refs(tmp_path):
     ready = confirmed_context.model_copy(update={"verification_ids": [basic.verification_id]})
     allowed = gate.check_action(ready, descriptor)
     assert allowed.decision == SecurityDecisionCode.ALLOW
+    assert allowed.reason_codes == ["SECURITY_CHECK_PASSED"]
     assert allowed.authorization_snapshot_ref == "AUTH-1"
     assert snapshots[0][1].decision == "approved"
     assert [item.decision for item in decisions] == [
@@ -469,11 +482,12 @@ def test_stale_cancelled_cross_user_and_changed_parameters_never_allow(tmp_path)
     stale = gate.check_action(
         confirmed_context.model_copy(update={
             "verification_ids": [basic.verification_id],
+            "operation_id": uuid4(),
             "action_revision": 2,
         }),
         action("PARAM-2"),
     )
-    assert stale.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION
+    assert stale.decision == SecurityDecisionCode.BLOCK
     assert stale.reason_codes == ["CONFIRMATION_STALE"]
 
     other_user = confirmed_context.model_copy(update={
@@ -484,7 +498,7 @@ def test_stale_cancelled_cross_user_and_changed_parameters_never_allow(tmp_path)
     assert denied.decision == SecurityDecisionCode.BLOCK
     assert denied.reason_codes == ["ACCESS_DENIED"]
 
-    cancelled_context = context(operation_id=uuid4())
+    cancelled_context = context(task_id="T2", operation_id=uuid4())
     cancelled = confirmations.create(
         cancelled_context,
         descriptor,
@@ -515,7 +529,7 @@ def test_risk_verification_rules_and_dependency_fail_closed(tmp_path):
     )
     security_context = context()
     descriptor = action()
-    confirmed_context, _ = approved_confirmation(confirmations, security_context, descriptor)
+    confirmed_context, approved = approved_confirmation(confirmations, security_context, descriptor)
     basic = verification(confirmed_context)
     records[basic.verification_id] = basic
     with_basic = confirmed_context.model_copy(update={"verification_ids": [basic.verification_id]})
@@ -526,6 +540,9 @@ def test_risk_verification_rules_and_dependency_fail_closed(tmp_path):
         scope="action",
         operation_id=confirmed_context.operation_id,
         action_revision=confirmed_context.action_revision,
+        source_challenge_id=gate.verification_preparer(
+            confirmed_context, descriptor, approved, RiskLevel.MEDIUM,
+        ).challenge_id,
     )
     records[action_record.verification_id] = action_record
     with_action = confirmed_context.model_copy(update={"verification_ids": [action_record.verification_id]})
@@ -589,6 +606,8 @@ def test_audit_failure_pauses_before_handler(tmp_path):
     assert paused.decision == SecurityDecisionCode.PAUSE
     assert paused.reason_codes == ["AUDIT_UNAVAILABLE"]
     assert calls == []
+    with pytest.raises(SecurityError, match="AUDIT_UNAVAILABLE"):
+        gate.check_action(ready.model_copy(update={"user_id": "U2"}), action())
 
 
 def test_cancel_before_claim_blocks_and_cancel_after_claim_conflicts(tmp_path):
@@ -620,7 +639,7 @@ def test_cancel_before_claim_blocks_and_cancel_after_claim_conflicts(tmp_path):
     assert blocked.decision.decision == SecurityDecisionCode.BLOCK
     assert calls == []
 
-    second = context(operation_id=uuid4())
+    second = context(task_id="T2", operation_id=uuid4())
     ready_second = ready_context(confirmations, records, second, descriptor)
     run = executor(gate, {}, parameter_resolver=lambda *_: {"amount_fen": 60_000})
     assert run.execute(ready_second, descriptor).executed
@@ -839,6 +858,7 @@ def test_abandoned_claim_not_found_never_redelivers_handler(tmp_path):
         descriptor,
         decision,
         now,
+        lambda _context: False,
     )
 
     restarted_gate, _, restarted_records, _, _, _ = build_gate(
@@ -973,3 +993,122 @@ def test_operation_lookup_rechecks_current_scope(tmp_path):
     assert paused.state == "unknown"
     assert paused.result is None and paused.result_ref is None
     assert lookups == []
+
+
+def test_new_operation_supersedes_old_confirmation_and_same_id_cannot_change_content(tmp_path):
+    clock = Clock()
+    gate, confirmations, records, _, _, _ = build_gate(
+        tmp_path / "application.sqlite3", clock=clock,
+    )
+    original = context()
+    old_context, old_record = approved_confirmation(confirmations, original, action())
+    new_context = original.model_copy(update={"operation_id": uuid4(), "action_revision": 2})
+    replacement = confirmations.create(
+        new_context, action("PARAM-2"),
+        [DisplayField(name="amount", label="金额", value_text="600 元")],
+    )
+    assert replacement.confirmation_id == old_record.confirmation_id
+    assert replacement.confirmation_version == old_record.confirmation_version + 1
+    with pytest.raises(SecurityError, match="CONFIRMATION_STALE"):
+        confirmations.answer(
+            old_context,
+            ConfirmationAnswer(
+                confirmation_id=old_record.confirmation_id,
+                confirmation_version=old_record.confirmation_version,
+                choice="approve",
+            ),
+        )
+    basic = verification(old_context)
+    records[basic.verification_id] = basic
+    denied = gate.check_action(
+        old_context.model_copy(update={"verification_ids": [basic.verification_id]}), action(),
+    )
+    assert denied.decision != SecurityDecisionCode.ALLOW
+    with pytest.raises(SecurityError, match="OPERATION_CONFLICT"):
+        confirmations.create(
+            new_context, action("PARAM-3"),
+            [DisplayField(name="amount", label="金额", value_text="700 元")],
+        )
+
+
+def test_high_risk_termination_is_durable(tmp_path):
+    path = tmp_path / "application.sqlite3"
+    clock = Clock()
+    high_gate, _, _, _, _, _ = build_gate(path, clock=clock, risk=RiskLevel.HIGH)
+    original = context()
+    assert high_gate.check_action(original, action()).reason_codes == ["HIGH_RISK"]
+    low_gate, _, _, _, _, _ = build_gate(path, clock=clock, risk=RiskLevel.LOW)
+    after_restart = low_gate.check_action(original, action())
+    assert after_restart.decision == SecurityDecisionCode.BLOCK
+    assert after_restart.reason_codes == ["TASK_TERMINATED"]
+
+
+def test_executor_requires_execution_phase_and_rechecks_termination_before_claim(tmp_path):
+    clock = Clock()
+    calls = []
+    gate, confirmations, records, _, _, _ = build_gate(
+        tmp_path / "application.sqlite3", clock=clock,
+        handler=lambda *_: calls.append(True),
+    )
+    ready = ready_context(confirmations, records, context(), action())
+    terminated = [False]
+    gate.task_state_resolver = lambda *_: terminated[0]
+
+    def resolve_parameters(*_):
+        terminated[0] = True
+        return {"amount_fen": 50_000}
+
+    run = executor(gate, {}, parameter_resolver=resolve_parameters)
+    admission = run.execute(ready, action().model_copy(update={"phase": Phase.ADMISSION}))
+    assert admission.decision.decision == SecurityDecisionCode.BLOCK
+    assert calls == []
+    stopped = run.execute(ready, action())
+    assert stopped.decision.decision == SecurityDecisionCode.BLOCK
+    assert stopped.decision.reason_codes == ["TASK_TERMINATED"]
+    assert calls == []
+
+    second = ready_context(
+        confirmations, records, context(task_id="T2", operation_id=uuid4()), action(),
+    )
+    checks = [0]
+
+    def terminate_at_claim(*_):
+        checks[0] += 1
+        return checks[0] == 3
+
+    gate.task_state_resolver = terminate_at_claim
+    at_claim = executor(
+        gate, {}, parameter_resolver=lambda *_: {"amount_fen": 50_000},
+    ).execute(second, action())
+    assert checks == [3]
+    assert at_claim.decision.reason_codes == ["TASK_TERMINATED"]
+    assert calls == []
+
+
+def test_mismatched_medium_risk_summary_cannot_authorize(tmp_path):
+    clock = Clock()
+    gate, confirmations, records, _, _, challenges = build_gate(
+        tmp_path / "application.sqlite3", clock=clock, risk=RiskLevel.MEDIUM,
+    )
+    ready, _ = approved_confirmation(confirmations, context(), action())
+    original_preparer = gate.verification_preparer
+
+    def mismatched_summary(*args):
+        challenge = original_preparer(*args)
+        wrong = challenge.summary.model_copy(update={"amount_fen": 60_000})
+        return challenge.model_copy(update={"summary": wrong})
+
+    gate.verification_preparer = mismatched_summary
+    refused = gate.check_action(ready, action())
+    assert refused.decision != SecurityDecisionCode.ALLOW
+    wrong_challenge = mismatched_summary(ready, action(), confirmations.get(ready, ready.confirmation_id), RiskLevel.MEDIUM)
+    challenges[-1] = (wrong_challenge, challenges[-1][1], RiskLevel.MEDIUM)
+    passed = verification(
+        ready, scope="action", operation_id=ready.operation_id,
+        action_revision=ready.action_revision, source_challenge_id=wrong_challenge.challenge_id,
+    )
+    records[passed.verification_id] = passed
+    after_verification = gate.check_action(
+        ready.model_copy(update={"verification_ids": [passed.verification_id]}), action(),
+    )
+    assert after_verification.decision != SecurityDecisionCode.ALLOW

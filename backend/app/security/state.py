@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 from uuid import uuid4
 
 from app.contracts.security import (
@@ -71,6 +71,45 @@ class SQLiteSecurityState:
                     result_ref TEXT
                 )
             """)
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS security_terminated_tasks (
+                    task_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    reason_code TEXT NOT NULL
+                )
+            """)
+
+    def is_task_terminated(self, context: ExecutionSecurityContext) -> bool:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                "SELECT * FROM security_terminated_tasks WHERE task_id = ?", (context.task_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            if (row["user_id"], row["demo_round_id"]) != (
+                context.user_id, context.demo_round_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            return True
+        finally:
+            connection.close()
+
+    def terminate_task(self, context: ExecutionSecurityContext, reason_code: str) -> None:
+        with transaction(self.path) as connection:
+            row = connection.execute(
+                "SELECT * FROM security_terminated_tasks WHERE task_id = ?", (context.task_id,),
+            ).fetchone()
+            if row is not None and (row["user_id"], row["demo_round_id"]) != (
+                context.user_id, context.demo_round_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            connection.execute(
+                """INSERT OR IGNORE INTO security_terminated_tasks
+                   (task_id, user_id, demo_round_id, reason_code) VALUES (?, ?, ?, ?)""",
+                (context.task_id, context.user_id, context.demo_round_id, reason_code),
+            )
 
     @staticmethod
     def _record(row) -> ConfirmationRecord:
@@ -119,8 +158,8 @@ class SQLiteSecurityState:
         with transaction(self.path) as connection:
             row = connection.execute(
                 """SELECT * FROM security_confirmations
-                   WHERE task_id = ? AND action_name = ? AND operation_id = ?""",
-                (context.task_id, action.action_name, str(context.operation_id)),
+                   WHERE task_id = ? AND action_name = ? ORDER BY rowid DESC LIMIT 1""",
+                (context.task_id, action.action_name),
             ).fetchone()
             if row is not None:
                 current = self._record(row)
@@ -132,8 +171,20 @@ class SQLiteSecurityState:
                     raise SecurityStateError("OPERATION_UNKNOWN")
                 if current.decision == "cancelled":
                     raise SecurityStateError("TASK_TERMINATED")
+                if current.operation_id == context.operation_id and (
+                    current.action_revision != context.action_revision
+                    or current.parameters_ref != action.parameters_ref
+                    or current.display_fields != display_fields
+                ):
+                    raise SecurityStateError("OPERATION_CONFLICT")
                 if (
-                    current.session_id == context.session_id
+                    current.operation_id != context.operation_id
+                    and context.action_revision <= current.action_revision
+                ):
+                    raise SecurityStateError("OPERATION_CONFLICT")
+                if (
+                    current.operation_id == context.operation_id
+                    and current.session_id == context.session_id
                     and current.action_revision == context.action_revision
                     and current.parameters_ref == action.parameters_ref
                     and current.decision in {"pending", "approved"}
@@ -293,6 +344,7 @@ class SQLiteSecurityState:
         action: ActionDescriptor,
         decision: SecurityDecision,
         now: datetime,
+        task_state_resolver: Callable[[ExecutionSecurityContext], bool],
     ) -> tuple[ExecutionClaim, bool]:
         if (
             context.operation_id is None
@@ -302,6 +354,19 @@ class SQLiteSecurityState:
         ):
             raise SecurityStateError("CONFIRMATION_REQUIRED")
         with transaction(self.path) as connection:
+            terminated = connection.execute(
+                "SELECT * FROM security_terminated_tasks WHERE task_id = ?", (context.task_id,),
+            ).fetchone()
+            if terminated is not None:
+                raise SecurityStateError("TASK_TERMINATED")
+            try:
+                task_result = task_state_resolver(context)
+            except Exception as exc:
+                raise SecurityStateError("DEPENDENCY_UNAVAILABLE") from exc
+            if not isinstance(task_result, bool):
+                raise SecurityStateError("DEPENDENCY_UNAVAILABLE")
+            if task_result:
+                raise SecurityStateError("TASK_TERMINATED")
             existing = connection.execute(
                 "SELECT * FROM security_executions WHERE operation_id = ?",
                 (str(context.operation_id),),
