@@ -36,6 +36,9 @@ SECRET_LABEL = re.compile(
 )
 PHONE = re.compile(r"(?<!\d)(1[3-9]\d)\d{4}(\d{4})(?!\d)")
 ACCOUNT = re.compile(r"(?<!\d)\d{12,19}(?!\d)")
+OPAQUE_UUID = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I,
+)
 NAME = re.compile(r"((?:姓名|户名|收件人)\s*[:：]\s*)([\u4e00-\u9fff]{2,4})")
 ADDRESS = re.compile(r"((?:地址|住址)\s*[:：]\s*)([^\s,，;；]+)")
 
@@ -83,6 +86,8 @@ def redact(value: object, known_secrets: Iterable[str] = (), *, free_text: bool 
     result = SECRET_LABEL.sub(r"\1[REDACTED]", result)
     if free_text and re.fullmatch(r"\s*[A-Za-z0-9]{4,8}\s*", result) and re.search(r"\d", result):
         return "[REDACTED]"
+    if OPAQUE_UUID.fullmatch(result):
+        return result
     result = PHONE.sub(r"\1****\2", result)
     result = ACCOUNT.sub(lambda match: "****" + match.group()[-4:], result)
     result = NAME.sub(lambda match: match.group(1) + match.group(2)[0] + "*" * (len(match.group(2)) - 1), result)
