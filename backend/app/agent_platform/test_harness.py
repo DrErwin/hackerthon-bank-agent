@@ -136,6 +136,22 @@ def test_task_owner_and_request_are_bound(tmp_path):
         harness.resume(trusted(user="U2"), {"choice": "approve"})
 
 
+def test_resume_rejects_silent_model_configuration_change(tmp_path):
+    path = tmp_path / "app.sqlite"
+    ports = Ports()
+    harness = runtime(path, ports, ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    changed_planner = ProposalModel()
+    changed_planner.config_version = "test-v2"
+    with pytest.raises(ValueError, match="MODEL_CONFIG_CHANGED"):
+        runtime(path, ports, changed_planner).resume(trusted(run="R2"), {"choice": "approve"})
+    assert ports.submissions == 0
+
+
 def test_deep_agent_only_receives_proposal_tool(tmp_path):
     path = tmp_path / "app.sqlite"
     application = ApplicationStore(path)

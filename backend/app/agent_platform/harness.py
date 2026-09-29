@@ -263,25 +263,38 @@ class AgentHarness:
             previous = self._result(task)
             if previous.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
                 return previous
+            if task.snapshot["config_version"] != self.planner.config_version:
+                raise ValueError("MODEL_CONFIG_CHANGED")
             self._authorize(trusted, task.snapshot["capability_name"])
             trace = self._trace(trusted, task)
+            registration = self.registry.get(task.snapshot["capability_name"])
+            saver = self.memory.checkpointer(context, trusted.task_id)
+            entry = registration.factory(trusted, saver)
+            try:
+                result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
+                if result.run_id != trusted.run_id:
+                    raise ValueError("STALE_RUN_CONTEXT")
+            except Exception:
+                trace.record(
+                    "recovery.checked",
+                    RecoveryCheckedPayload(
+                        previous_run_id=task.run_id, current_run_id=trusted.run_id,
+                        checkpoint_ref=task.checkpoint_id,
+                        operation_ids=[previous.data.operation_id] if previous.data.operation_id else [],
+                        result="stop", reason_code="PUBLIC_CAPABILITY_RESUME_FAILED",
+                    ), "failed",
+                )
+                raise
             trace.record(
                 "recovery.checked",
                 RecoveryCheckedPayload(
                     previous_run_id=task.run_id, current_run_id=trusted.run_id,
-                    checkpoint_ref=task.checkpoint_id,
+                    checkpoint_ref=self._checkpoint_id(context, task),
                     operation_ids=[previous.data.operation_id] if previous.data.operation_id else [],
-                    result="continue", reason_code="SAME_TASK_RESUME",
+                    result="wait" if result.status == TaskStatus.NEEDS_ATTENTION else "continue",
+                    reason_code="PUBLIC_CAPABILITY_RESUMED",
                 ), "succeeded",
             )
-            registration = self.registry.get(task.snapshot["capability_name"])
-            saver = self.memory.checkpointer(context, trusted.task_id)
-            entry = registration.factory(trusted, saver)
-            result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
-            if result.run_id != trusted.run_id:
-                result = ModuleResult[TransferTaskView].model_validate({
-                    **result.model_dump(mode="json"), "run_id": trusted.run_id,
-                })
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 task.revision, trusted.run_id, result.status,
