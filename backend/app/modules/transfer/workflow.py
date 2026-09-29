@@ -388,8 +388,21 @@ class TransferWorkflow:
     def _reconcile_once(self, state: TransferState) -> dict | None:
         outcome = self.ports.observe(self._trusted(state), self._action(state))
         if outcome.decision is not None and outcome.decision.decision != SecurityDecisionCode.ALLOW:
+            reason = outcome.decision.reason_codes[0]
+            if outcome.decision.decision == SecurityDecisionCode.PAUSE or reason in {
+                "AUTH_REQUIRED", "ACCESS_DENIED", "DEPENDENCY_UNAVAILABLE",
+            }:
+                pending = self._pending(state.get("operation"))
+                pending.update({
+                    "message": "暂时无法查询原转账结果。恢复合法访问后，可继续查询这笔原交易。",
+                    "error": ModuleError(
+                        code=reason, source="security", field=None,
+                        reason="当前无法核对原转账结果", upstream_code=None,
+                    ).model_dump(mode="json"),
+                })
+                return pending
             return self._fail(
-                outcome.decision.reason_codes[0], "security", "暂时无法查询原转账结果。",
+                reason, "security", "暂时无法查询原转账结果。",
                 recoverable=True,
             )
         if isinstance(outcome.result, OperationResult):
@@ -407,7 +420,7 @@ class TransferWorkflow:
                 if processing else
                 "这笔转账的结果暂时还没核实，我没有再次提交。你可以稍后查询结果。"
             ),
-            "interaction": None, "recovery_required": True,
+            "interaction": None, "error": None, "recovery_required": True,
             "recovery_reason": "OPERATION_PROCESSING" if processing else "OPERATION_UNKNOWN",
             "next": "await_query",
         }
@@ -419,7 +432,7 @@ class TransferWorkflow:
             self.sleep(min(3, remaining))
             result = self._reconcile_once(state)
             if result is not None:
-                if result["next"] == END:
+                if result["next"] in {END, "await_query"}:
                     return result
                 last_operation = result["operation"]
         return self._pending(last_operation)
@@ -427,7 +440,7 @@ class TransferWorkflow:
     def _manual_reconcile(self, state: TransferState) -> dict:
         result = self._reconcile_once(state)
         if result is not None:
-            if result["next"] == END:
+            if result["next"] in {END, "await_query"}:
                 return result
             return self._pending(result["operation"])
         return self._pending(state.get("operation"))

@@ -400,6 +400,51 @@ def test_unknown_result_queries_only_original_operation():
     assert ports.submissions == 1
 
 
+@pytest.mark.parametrize("deny_during_auto_query", [False, True])
+def test_unknown_result_can_be_queried_after_temporary_access_denial(deny_during_auto_query):
+    class TemporarilyDenied(Ports):
+        deny_query = False
+
+        def observe(self, trusted_context, action):
+            if self.deny_query:
+                self.observations += 1
+                decision = self.decision(action, SecurityDecisionCode.BLOCK).model_copy(
+                    update={"reason_codes": ["ACCESS_DENIED"]},
+                )
+                return ExecutionOutcome(decision, False, True, "unknown", None, None)
+            return super().observe(trusted_context, action)
+
+    ports = TemporarilyDenied()
+    flow, _ = workflow(ports)
+    flow.start(trusted(), request())
+    ports.approved = True
+    ports.processing = True
+    ports.deny_query = deny_during_auto_query
+    unknown = flow.resume(trusted(), {"choice": "approve"})
+    assert unknown.status == TaskStatus.NEEDS_ATTENTION
+    if deny_during_auto_query:
+        assert unknown.error.code == "ACCESS_DENIED"
+        assert ports.observations == 1
+    operation_id = unknown.data.operation_id
+    assert ports.submissions == 1
+
+    ports.processing = False
+    ports.deny_query = True
+    denied = flow.resume(trusted(), {"query": True})
+    assert denied.status == TaskStatus.NEEDS_ATTENTION
+    assert denied.error.code == "ACCESS_DENIED"
+    assert denied.data.operation_id == operation_id
+    assert ports.submissions == 1
+
+    ports.deny_query = False
+    resumed = trusted().model_copy(update={"run_id": "R2"})
+    done = flow.resume(resumed, {"query": True})
+    assert done.status == TaskStatus.SUCCEEDED
+    assert done.run_id == "R2"
+    assert done.data.operation_id == operation_id
+    assert ports.submissions == 1
+
+
 @pytest.mark.parametrize("crash_after_context_update", [False, True])
 def test_unknown_result_query_after_new_run(crash_after_context_update):
     flow, ports = workflow()
