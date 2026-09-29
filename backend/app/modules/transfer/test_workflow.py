@@ -1,6 +1,8 @@
 """The reference graph's business branches and funds boundary."""
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -355,6 +357,29 @@ def test_adjustment_gets_new_operation_and_confirmation():
         confirmation_version=1, verification_ids=[], release_authorization_id=None,
     )
     assert not flow.is_current_action(old_context, old_action.descriptor(Phase.EXECUTION))
+
+
+def test_current_action_check_uses_node_state_while_checkpoint_lags():
+    class LaggingCheckpointPorts(Ports):
+        def check(self, trusted_context, action):
+            context = ExecutionSecurityContext(
+                user_id=trusted_context.user_id, session_id=trusted_context.session_id,
+                demo_round_id=trusted_context.demo_round_id, task_id=trusted_context.task_id,
+                run_id=trusted_context.run_id, source_task_id=None,
+                operation_id=action.operation_id, action_revision=action.action_revision,
+                confirmation_id=None, confirmation_version=None, verification_ids=[],
+                release_authorization_id=None,
+            )
+            with patch.object(self.flow.graph, "get_state", return_value=SimpleNamespace(values={})):
+                assert self.flow.is_current_action(context, action.descriptor(Phase.ADMISSION))
+                stale = TransferAction(action.operation_id, action.action_revision, "OLD")
+                assert not self.flow.is_current_action(context, stale.descriptor(Phase.ADMISSION))
+            return super().check(trusted_context, action)
+
+    ports = LaggingCheckpointPorts()
+    flow, _ = workflow(ports)
+    ports.flow = flow
+    assert flow.start(trusted(), request()).status == TaskStatus.WAITING_APPROVAL
 
 
 def test_cancel_and_owner_rejection():

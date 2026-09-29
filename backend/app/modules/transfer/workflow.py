@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Callable, Protocol, TypedDict
 from uuid import UUID, uuid4
 
@@ -72,6 +74,7 @@ class TransferWorkflow:
         self.ports = ports
         self.monotonic = monotonic
         self.sleep = sleep
+        self._node_action = ContextVar("transfer_node_action", default=None)
         graph = StateGraph(TransferState)
         for name, node in (
             ("collect", self._collect), ("find_payee", self._find_payee),
@@ -318,8 +321,17 @@ class TransferWorkflow:
             UUID(state["operation_id"]), state["action_revision"], state["parameters_ref"],
         )
 
+    @contextmanager
+    def _within_action(self, state: TransferState):
+        token = self._node_action.set(state)
+        try:
+            yield
+        finally:
+            self._node_action.reset(token)
+
     def _security(self, state: TransferState) -> dict:
-        decision = self.ports.check(self._trusted(state), self._action(state))
+        with self._within_action(state):
+            decision = self.ports.check(self._trusted(state), self._action(state))
         return self._security_decision(decision)
 
     def _security_decision(self, decision: SecurityDecision) -> dict:
@@ -348,7 +360,8 @@ class TransferWorkflow:
         )
 
     def _submit(self, state: TransferState) -> dict:
-        outcome = self.ports.execute(self._trusted(state), self._action(state))
+        with self._within_action(state):
+            outcome = self.ports.execute(self._trusted(state), self._action(state))
         if outcome.decision is not None and outcome.decision.decision != SecurityDecisionCode.ALLOW:
             return self._security_decision(outcome.decision)
         if isinstance(outcome.result, OperationResult):
@@ -386,7 +399,8 @@ class TransferWorkflow:
         }
 
     def _reconcile_once(self, state: TransferState) -> dict | None:
-        outcome = self.ports.observe(self._trusted(state), self._action(state))
+        with self._within_action(state):
+            outcome = self.ports.observe(self._trusted(state), self._action(state))
         if outcome.decision is not None and outcome.decision.decision != SecurityDecisionCode.ALLOW:
             reason = outcome.decision.reason_codes[0]
             if outcome.decision.decision == SecurityDecisionCode.PAUSE or reason in {
@@ -578,9 +592,11 @@ class TransferWorkflow:
         thread_id: str | None = None,
     ) -> bool:
         """A scope-authorizer building block for transfer writes and old-confirmation rejection."""
-        state = self.graph.get_state(
-            {"configurable": {"thread_id": thread_id or context.task_id}},
-        ).values
+        state = self._node_action.get() if thread_id is None else None
+        if state is None:
+            state = self.graph.get_state(
+                {"configurable": {"thread_id": thread_id or context.task_id}},
+            ).values
         if not state:
             return False
         owner = state["trusted"]
