@@ -41,11 +41,22 @@ _CREDENTIAL_IN_REQUEST = re.compile(
 
 
 @contextmanager
+def _bounded_thread_lock(lock: RLock, deadline: float):
+    if not lock.acquire(timeout=max(0, deadline - monotonic())):
+        raise TimeoutError("TASK_BUSY")
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+@contextmanager
 def _task_lock(path: Path, task_id: str):
+    deadline = monotonic() + 60
     key = f"{path.resolve()}:{task_id}"
     with _LOCK_GUARD:
         lock = _TASK_LOCKS.setdefault(key, RLock())
-    with lock:
+    with _bounded_thread_lock(lock, deadline):
         held = getattr(_HELD_LOCKS, "keys", set())
         if key in held:
             yield
@@ -58,7 +69,6 @@ def _task_lock(path: Path, task_id: str):
                 handle.write(b"\0")
                 handle.flush()
             handle.seek(0)
-            deadline = monotonic() + 60
             while True:
                 try:
                     if os.name == "nt":
