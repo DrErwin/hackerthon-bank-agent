@@ -1,0 +1,116 @@
+"""A constrained Deep Agents model entry that only proposes a public capability."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from collections.abc import Mapping
+from typing import Literal, Protocol
+from uuid import uuid4
+
+from deepagents import (
+    GeneralPurposeSubagentProfile, HarnessProfile, create_deep_agent,
+    register_harness_profile,
+)
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage
+from langchain_core.tools import tool
+from pydantic import BaseModel, ConfigDict
+
+from app.contracts.platform import TrustedContext
+from app.memory.adapter import MemoryAdapter, MemoryContext
+
+
+class TransferProposal(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    capability_name: Literal["transfer.start_transfer"] = "transfer.start_transfer"
+    payee_hint: str | None = None
+    amount_fen: int | None = None
+    payer_account_id: str | None = None
+
+
+class Planner(Protocol):
+    config_version: str
+    provider: str
+    model_name: str
+
+    def select(self, intent_text: str, trusted: TrustedContext,
+               catalog: list[dict[str, str]], memory: MemoryAdapter,
+               thread_id: str) -> TransferProposal: ...
+
+
+@dataclass(frozen=True)
+class ModelSettings:
+    model: BaseChatModel
+    provider: str
+    model_name: str
+    config_version: str
+
+
+class DeepAgentPlanner:
+    """Deep Agents handles context; its only exposed business tool records a proposal."""
+
+    _excluded = frozenset({
+        "ls", "read_file", "write_file", "edit_file", "delete", "glob", "grep",
+        "execute", "task",
+    })
+
+    def __init__(self, settings: ModelSettings):
+        params = settings.model._get_ls_params()
+        actual_provider = params.get("ls_provider") if isinstance(params, Mapping) else None
+        actual_name = (getattr(settings.model, "model_name", None)
+                       or getattr(settings.model, "model", None))
+        if (actual_provider, actual_name) != (settings.provider, settings.model_name):
+            raise ValueError("MODEL_CONFIG_MISMATCH")
+        self.model = settings.model
+        self.provider = settings.provider
+        self.model_name = settings.model_name
+        self.config_version = settings.config_version
+        register_harness_profile(
+            f"{settings.provider}:{settings.model_name}",
+            HarnessProfile(
+                excluded_tools=self._excluded,
+                general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False),
+            ),
+        )
+
+    def select(self, intent_text: str, trusted: TrustedContext,
+               catalog: list[dict[str, str]], memory: MemoryAdapter,
+               thread_id: str) -> TransferProposal:
+        if {entry["name"] for entry in catalog} != {"transfer.start_transfer"}:
+            raise ValueError("CAPABILITY_CATALOG_UNAVAILABLE")
+        proposals: list[TransferProposal] = []
+
+        @tool("propose_transfer")
+        def propose_transfer(payee_hint: str | None = None, amount_fen: int | None = None,
+                             payer_account_id: str | None = None) -> str:
+            """Propose an ordinary transfer. This does not authorize or execute a payment."""
+            proposals.append(TransferProposal(
+                payee_hint=payee_hint, amount_fen=amount_fen,
+                payer_account_id=payer_account_id,
+            ))
+            return "转账候选已记录；资金尚未提交。"
+
+        context = MemoryContext(trusted.user_id, trusted.session_id, trusted.demo_round_id)
+        agent = create_deep_agent(
+            model=self.model, tools=[propose_transfer],
+            system_prompt=(
+                "你是银行服务入口。只判断用户是否要办理普通转账，并调用 propose_transfer 一次，"
+                "给出能从原话确定的收款人线索、整数分金额和转出账户编号。"
+                "不猜缺失字段，不办理其他业务，不请求或处理验证码，不作资金授权。"
+            ),
+            backend=memory.agent_backend(context),
+            middleware=[memory.middleware(context)],
+            checkpointer=memory.checkpointer(context, trusted.task_id),
+            subagents=[],
+        )
+        # A crashed proposal attempt must not replay a half-finished tool call.
+        agent.invoke(
+            {"messages": [HumanMessage(content=intent_text)]},
+            {"configurable": {"thread_id": thread_id,
+                              "checkpoint_ns": f"harness-{uuid4()}"},
+             "recursion_limit": 12},
+        )
+        if len(proposals) != 1:
+            raise ValueError("MODEL_PROPOSAL_AMBIGUOUS")
+        return proposals[0]
