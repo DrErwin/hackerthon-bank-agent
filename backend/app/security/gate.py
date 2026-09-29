@@ -1026,6 +1026,15 @@ class DeterministicExecutor:
                 self.gate.task_state_resolver,
             )
         except SecurityStateError as exc:
+            if exc.code == "DEPENDENCY_UNAVAILABLE":
+                paused = self.gate._stop(
+                    context, action, registered.declaration,
+                    decision=SecurityDecisionCode.PAUSE,
+                    reason="DEPENDENCY_UNAVAILABLE",
+                    rule="current-task-state-required-at-claim",
+                    message="暂时无法核对任务状态，操作已暂停。",
+                )
+                return ExecutionOutcome(paused, False, False, "not_started", None, None)
             if exc.code == "TASK_TERMINATED":
                 try:
                     self.gate.confirmations.state.terminate_task(context, exc.code)

@@ -1046,7 +1046,7 @@ def test_high_risk_termination_is_durable(tmp_path):
 def test_executor_requires_execution_phase_and_rechecks_termination_before_claim(tmp_path):
     clock = Clock()
     calls = []
-    gate, confirmations, records, _, _, _ = build_gate(
+    gate, confirmations, records, decisions, _, _ = build_gate(
         tmp_path / "application.sqlite3", clock=clock,
         handler=lambda *_: calls.append(True),
     )
@@ -1082,6 +1082,24 @@ def test_executor_requires_execution_phase_and_rechecks_termination_before_claim
     ).execute(second, action())
     assert checks == [3]
     assert at_claim.decision.reason_codes == ["TASK_TERMINATED"]
+    assert calls == []
+
+    third = ready_context(
+        confirmations, records, context(task_id="T3", operation_id=uuid4()), action(),
+    )
+    checks = [0]
+
+    def unavailable_at_claim(*_):
+        checks[0] += 1
+        return None if checks[0] == 3 else False
+
+    gate.task_state_resolver = unavailable_at_claim
+    paused = executor(
+        gate, {}, parameter_resolver=lambda *_: {"amount_fen": 50_000},
+    ).execute(third, action())
+    assert paused.decision.decision == SecurityDecisionCode.PAUSE
+    assert paused.decision.reason_codes == ["DEPENDENCY_UNAVAILABLE"]
+    assert decisions[-1] == paused.decision
     assert calls == []
 
 
