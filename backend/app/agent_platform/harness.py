@@ -285,13 +285,22 @@ class AgentHarness:
                     ), "failed",
                 )
                 raise
+            if result.status in {
+                TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL,
+                TaskStatus.NEEDS_ATTENTION,
+            }:
+                recovery_result = "wait"
+            elif result.status in {TaskStatus.FAILED, TaskStatus.CANCELLED}:
+                recovery_result = "stop"
+            else:
+                recovery_result = "continue"
             trace.record(
                 "recovery.checked",
                 RecoveryCheckedPayload(
                     previous_run_id=task.run_id, current_run_id=trusted.run_id,
                     checkpoint_ref=self._checkpoint_id(context, task),
                     operation_ids=[previous.data.operation_id] if previous.data.operation_id else [],
-                    result="wait" if result.status == TaskStatus.NEEDS_ATTENTION else "continue",
+                    result=recovery_result,
                     reason_code="PUBLIC_CAPABILITY_RESUMED",
                 ), "succeeded",
             )

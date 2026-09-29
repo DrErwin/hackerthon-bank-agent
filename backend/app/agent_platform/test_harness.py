@@ -152,6 +152,23 @@ def test_resume_rejects_silent_model_configuration_change(tmp_path):
     assert ports.submissions == 0
 
 
+def test_recovery_event_reports_still_waiting_without_approval(tmp_path):
+    path = tmp_path / "app.sqlite"
+    ports = Ports()
+    harness = runtime(path, ports, ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    waiting = harness.resume(trusted(), {"choice": "approve"})
+    assert waiting.status == TaskStatus.WAITING_APPROVAL
+    assert ports.submissions == 0
+    recovery = [event for event in harness.audit._events("D1", "T1")
+                if event.event_type == "recovery.checked"]
+    assert recovery[-1].payload.result == "wait"
+
+
 def test_deep_agent_only_receives_proposal_tool(tmp_path):
     path = tmp_path / "app.sqlite"
     application = ApplicationStore(path)
