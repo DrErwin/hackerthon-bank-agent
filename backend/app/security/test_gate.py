@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
+import sqlite3
 from threading import Barrier
 from uuid import UUID, uuid4
 
@@ -365,6 +367,35 @@ def test_confirmation_is_durable_button_only_versioned_and_one_hour(tmp_path):
                 choice="approve",
             ),
         )
+    with sqlite3.connect(path) as connection:
+        stored = connection.execute(
+            "SELECT confirmation_json FROM security_confirmations WHERE confirmation_id = ?",
+            (replacement.confirmation_id,),
+        ).fetchone()[0]
+    assert json.loads(stored)["decision"] == "expired"
+
+
+def test_expired_execution_claim_persists_confirmation_state(tmp_path):
+    clock = Clock()
+    path = tmp_path / "application.sqlite3"
+    gate, confirmations, records, _, _, _ = build_gate(path, clock=clock)
+    descriptor = action()
+    ready = ready_context(confirmations, records, context(), descriptor)
+    decision = gate.check_action(ready, descriptor)
+    clock.advance(hours=1)
+
+    with pytest.raises(ValueError, match="CONFIRMATION_EXPIRED"):
+        confirmations.state.claim_execution(
+            ready, descriptor, decision, clock(), lambda _context: False,
+        )
+    with sqlite3.connect(path) as connection:
+        stored = connection.execute(
+            "SELECT confirmation_json FROM security_confirmations WHERE confirmation_id = ?",
+            (ready.confirmation_id,),
+        ).fetchone()[0]
+        claims = connection.execute("SELECT COUNT(*) FROM security_executions").fetchone()[0]
+    assert json.loads(stored)["decision"] == "expired"
+    assert claims == 0
 
 
 def test_new_session_reissues_confirmation_and_rejects_old_session(tmp_path):

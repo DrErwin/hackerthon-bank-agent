@@ -288,18 +288,19 @@ class SQLiteSecurityState:
                     "UPDATE security_confirmations SET confirmation_json = ? WHERE confirmation_id = ?",
                     (record.model_dump_json(), confirmation_id),
                 )
-                raise SecurityStateError("CONFIRMATION_EXPIRED")
-            if wanted == "cancelled" and record.decision == "approved" and not row["claimed"]:
-                changed = record.model_copy(update={"decision": "cancelled", "decided_at": now})
-            elif record.decision == "pending":
-                changed = record.model_copy(update={"decision": wanted, "decided_at": now})
             else:
-                raise SecurityStateError("CONFIRMATION_CONFLICT")
-            connection.execute(
-                "UPDATE security_confirmations SET confirmation_json = ? WHERE confirmation_id = ?",
-                (changed.model_dump_json(), confirmation_id),
-            )
-            return changed
+                if wanted == "cancelled" and record.decision == "approved" and not row["claimed"]:
+                    changed = record.model_copy(update={"decision": "cancelled", "decided_at": now})
+                elif record.decision == "pending":
+                    changed = record.model_copy(update={"decision": wanted, "decided_at": now})
+                else:
+                    raise SecurityStateError("CONFIRMATION_CONFLICT")
+                connection.execute(
+                    "UPDATE security_confirmations SET confirmation_json = ? WHERE confirmation_id = ?",
+                    (changed.model_dump_json(), confirmation_id),
+                )
+                return changed
+        raise SecurityStateError("CONFIRMATION_EXPIRED")
 
     @staticmethod
     def _validate_execution_row(
@@ -390,35 +391,36 @@ class SQLiteSecurityState:
                     "UPDATE security_confirmations SET confirmation_json = ? WHERE confirmation_id = ?",
                     (expired.model_dump_json(), record.confirmation_id),
                 )
-                raise SecurityStateError("CONFIRMATION_EXPIRED")
-            if record.decision == "cancelled":
-                raise SecurityStateError("TASK_TERMINATED")
-            if record.decision != "approved":
-                raise SecurityStateError("CONFIRMATION_REQUIRED")
-            if (
-                record.operation_id != context.operation_id
-                or record.action_name != action.action_name
-                or record.action_revision != context.action_revision
-                or record.parameters_ref != action.parameters_ref
-            ):
-                raise SecurityStateError("CONFIRMATION_STALE")
-            connection.execute(
-                """INSERT INTO security_executions VALUES (?, ?, ?, ?, ?, ?, ?, 'processing', ?, NULL)""",
-                (
-                    str(context.operation_id), context.user_id, context.demo_round_id,
-                    context.task_id, action.action_name, action.parameters_ref,
-                    context.action_revision, decision.model_dump_json(),
-                ),
-            )
-            connection.execute(
-                "UPDATE security_confirmations SET claimed = 1 WHERE confirmation_id = ?",
-                (record.confirmation_id,),
-            )
-            created = connection.execute(
-                "SELECT * FROM security_executions WHERE operation_id = ?",
-                (str(context.operation_id),),
-            ).fetchone()
-            return self._claim(created), True
+            else:
+                if record.decision == "cancelled":
+                    raise SecurityStateError("TASK_TERMINATED")
+                if record.decision != "approved":
+                    raise SecurityStateError("CONFIRMATION_REQUIRED")
+                if (
+                    record.operation_id != context.operation_id
+                    or record.action_name != action.action_name
+                    or record.action_revision != context.action_revision
+                    or record.parameters_ref != action.parameters_ref
+                ):
+                    raise SecurityStateError("CONFIRMATION_STALE")
+                connection.execute(
+                    """INSERT INTO security_executions VALUES (?, ?, ?, ?, ?, ?, ?, 'processing', ?, NULL)""",
+                    (
+                        str(context.operation_id), context.user_id, context.demo_round_id,
+                        context.task_id, action.action_name, action.parameters_ref,
+                        context.action_revision, decision.model_dump_json(),
+                    ),
+                )
+                connection.execute(
+                    "UPDATE security_confirmations SET claimed = 1 WHERE confirmation_id = ?",
+                    (record.confirmation_id,),
+                )
+                created = connection.execute(
+                    "SELECT * FROM security_executions WHERE operation_id = ?",
+                    (str(context.operation_id),),
+                ).fetchone()
+                return self._claim(created), True
+        raise SecurityStateError("CONFIRMATION_EXPIRED")
 
     def record_execution(
         self,
