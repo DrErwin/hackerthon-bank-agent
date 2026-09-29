@@ -4,10 +4,14 @@
 
 `DeepAgentPlanner` 使用 Deep Agents 处理自然语言，但模型只看见 `propose_transfer`：它只能提出收款人、金额与账户候选，不能执行银行动作。模型和配置版本由调用方以 `ModelSettings` 提供；切换模型只替换这一配置。其他内置工具及通用子 Agent 在此入口关闭。无效、多次或缺失的候选会被拒绝，可信身份、任务编号与请求编号从服务端传入。
 
-`CapabilityRegistry` 只登记清单中的 `transfer.start_transfer`。`AgentHarness` 需要已建立的用户会话、`ApplicationStore`、`MemoryAdapter`、`AuditJournal`、公开能力工厂和权限判定回调。工厂收到当前可信上下文、任务专属的持久检查点及同一 `RunTrace`，返回实现 `start` / `resume` 的公开入口。应用必须在工厂中把当前 `run_id` 交给安全上下文，并完成转账模块 README 要求的当前动作校验与银行授权回调；Harness 本身不构造私有银行工具。
+`CapabilityRegistry` 只登记清单中的 `transfer.start_transfer`。`AgentHarness` 需要已建立的用户会话、`ApplicationStore`、`MemoryAdapter`、`AuditJournal`、公开能力工厂和权限判定回调。工厂收到当前可信上下文、任务专属的持久检查点及同一 `RunTrace`，返回实现 `start` / `resume` 的公开入口。
 
-首次请求记录模型输入、候选输出和任务状态；恢复沿原 `task_id` 与检查点继续，使用新的 `run_id`，不重新调用模型。`RunTrace` 保留同一 `trace_id` 并按每次运行排序；安全、私有工具与银行事件的实际写入仍须由集成方接到同一审计链路。
+`TransferRuntime` 是普通转账的实际组合入口：它把 `BankGateway`、`SecurityGate`、`GatewayTransferTools`、`TransferWorkflow`、持久确认与银行验证记录接到同一任务。创建时必须由可信后端传入公开能力权限、私有工具权限及风险判断回调；本目录不自行决定这些安全规则。中风险的模拟人脸需要额外传入管理员授权回调。聊天文字与 `resume` 指令不能批准资金操作；调用方须通过 `answer_confirmation()` 提交绑定当前动作的结构化确认，通过银行验证接口取得已通过的记录后调用 `bind_verification()`。这两个方法都会检查任务归属，平台恢复时只装入当前操作的记录。
 
-本 PR 可审查主 Harness、能力准入、模型提议边界、持久恢复与基础审计。生产级银行授权回调、当前确认/验证记录装配、私有工具和图节点全链路事件，以及 HTTP/前端接线尚未完成；完成这些接线并跑真实端到端验收前，不把 #09 标记完成。
+资金提交前，组合入口先持久写入安全允许决定、授权与参数证据以及工具开始事件。银行授权回调再次核对当前图动作、已领取的执行记录和冻结参数；直接调用银行网关不能绕过这道门。图节点起止、安全决定、工具调用、银行观察和恢复事件沿同一追踪编号记录，并关联父子步骤；应用侧银行结果与相应观察事件在同一数据库事务内写入。领取过的操作只按原 `operation_id` 回查，不再次提交。
 
-从 `backend/` 运行 `python -m pytest -q app/agent_platform/test_harness.py` 验证此目录。
+首次请求记录模型输入与候选输出的摘要及任务状态，不把原始用户话语复制进审计证据；带验证码或口令字样的请求在入模和建任务前拒绝。恢复沿原 `task_id` 与检查点继续，使用新的 `run_id`，不重新调用模型。`RunTrace` 保留同一 `trace_id`，并在数据库事务内为每次运行分配事件顺序；同一任务的跨进程入口用数据库旁的任务锁串行化，进程退出自动释放，等待超过 60 秒则返回 `TASK_BUSY` 供调用方重试。
+
+本目录测试覆盖真实银行与安全门的低/中风险路径、未经确认的拒绝、资金前审计、银行成功但任务摘要尚未写入时的重启恢复，以及两个进程同时发起或恢复同一任务。HTTP/前端接线归后续票；真人安全审查和跨端验收仍需完成后才能合入或标记整个 v0.3 交付完成。
+
+从 `backend/` 运行 `python -m pytest -q app/agent_platform/` 验证此目录。

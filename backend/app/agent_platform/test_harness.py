@@ -1,5 +1,6 @@
 """Public dispatch, durable recovery, model boundary and trace for ticket 09."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from pydantic import Field
 
 from app.audit.journal import AuditJournal
 from app.contracts.common import TaskStatus
+from app.contracts.audit import TaskTransitionPayload
 from app.contracts.platform import TrustedContext
 from app.memory.adapter import MemoryAdapter
 from app.modules.transfer.manifest import MANIFEST
@@ -18,7 +20,7 @@ from app.modules.transfer.test_workflow import Ports
 from app.modules.transfer.workflow import TransferWorkflow
 from app.storage.application import ApplicationStore
 
-from .harness import AgentHarness
+from .harness import AgentHarness, RunTrace
 from .model import DeepAgentPlanner, ModelSettings, TransferProposal
 from .registry import CapabilityRegistry
 
@@ -313,6 +315,52 @@ def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path):
         "model.started", "model.finished", "task.transition",
     ]
     assert events[1].parent_span_id == events[0].span_id
+
+
+@pytest.mark.parametrize("intent", [
+    "给妈妈转 500 元，验证码123456",
+    "给妈妈转 500 元，短信码是 123456",
+    "给妈妈转500元，短信发来的 123456 是验证码",
+    "转 500 元，password 在后面",
+])
+def test_credentials_never_enter_model_task_or_audit(tmp_path, intent):
+    path = tmp_path / "app.sqlite"
+    planner = ProposalModel()
+    harness = runtime(path, Ports(), planner)
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    with pytest.raises(ValueError, match="CREDENTIAL_IN_REQUEST"):
+        harness.start(trusted(), uuid4(), intent)
+    assert planner.calls == 0
+    assert harness.application.get_task("U1", "D1", "T1") is None
+    assert harness.audit._events("D1", "T1") == []
+
+
+def test_parallel_audit_events_get_unique_order(tmp_path):
+    path = tmp_path / "app.sqlite"
+    harness = runtime(path, Ports(), ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    task = harness.application.get_task("U1", "D1", "T1")
+
+    def record(_index):
+        return RunTrace(harness.audit, trusted(), task.checkpoint_thread_id,
+                        task.snapshot["trace_id"]).record(
+            "task.transition", TaskTransitionPayload(
+                previous_status=TaskStatus.RUNNING, status=TaskStatus.RUNNING,
+                plan_revision=None, step_id=None, reason_code="AUDIT_ORDER_TEST",
+                checkpoint_ref=None,
+            ), "succeeded",
+        )
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        added = list(pool.map(record, range(12)))
+    assert sorted(event.sequence for event in added) == list(range(3, 15))
 
 
 def test_deep_agent_and_transfer_share_task_storage_without_crossing_checkpoints(tmp_path):
