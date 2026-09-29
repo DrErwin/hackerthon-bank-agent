@@ -93,6 +93,24 @@ class TransferWorkflow:
     def _config(trusted: TrustedContext, thread_id: str | None) -> dict:
         return {"configurable": {"thread_id": thread_id or trusted.task_id}}
 
+    def _checkpoint_for_run(self, config: dict, trusted: TrustedContext,
+                            request_id: str | None = None):
+        saved = self.graph.get_state(config)
+        if not saved.values:
+            return saved
+        self._check_owner(saved.values, trusted)
+        if request_id is not None and saved.values["request_id"] != request_id:
+            raise ValueError("REQUEST_CONFLICT")
+        if saved.values["trusted"]["run_id"] != trusted.run_id:
+            self.graph.update_state(config, {"trusted": trusted.model_dump(mode="json")})
+            saved = self.graph.get_state(config)
+        if saved.next in {("wait",), ("await_query",)} and not any(
+            task.interrupts for task in saved.tasks
+        ):
+            self.graph.invoke(None, config)
+            saved = self.graph.get_state(config)
+        return saved
+
     @staticmethod
     def _interaction(prompt: str, fields: list[str], options: list[InteractionOption] | None = None) -> dict:
         return InteractionRequest(
@@ -370,8 +388,21 @@ class TransferWorkflow:
     def _reconcile_once(self, state: TransferState) -> dict | None:
         outcome = self.ports.observe(self._trusted(state), self._action(state))
         if outcome.decision is not None and outcome.decision.decision != SecurityDecisionCode.ALLOW:
+            reason = outcome.decision.reason_codes[0]
+            if outcome.decision.decision == SecurityDecisionCode.PAUSE or reason in {
+                "AUTH_REQUIRED", "ACCESS_DENIED", "DEPENDENCY_UNAVAILABLE",
+            }:
+                pending = self._pending(state.get("operation"))
+                pending.update({
+                    "message": "暂时无法查询原转账结果。恢复合法访问后，可继续查询这笔原交易。",
+                    "error": ModuleError(
+                        code=reason, source="security", field=None,
+                        reason="当前无法核对原转账结果", upstream_code=None,
+                    ).model_dump(mode="json"),
+                })
+                return pending
             return self._fail(
-                outcome.decision.reason_codes[0], "security", "暂时无法查询原转账结果。",
+                reason, "security", "暂时无法查询原转账结果。",
                 recoverable=True,
             )
         if isinstance(outcome.result, OperationResult):
@@ -389,7 +420,7 @@ class TransferWorkflow:
                 if processing else
                 "这笔转账的结果暂时还没核实，我没有再次提交。你可以稍后查询结果。"
             ),
-            "interaction": None, "recovery_required": True,
+            "interaction": None, "error": None, "recovery_required": True,
             "recovery_reason": "OPERATION_PROCESSING" if processing else "OPERATION_UNKNOWN",
             "next": "await_query",
         }
@@ -401,7 +432,7 @@ class TransferWorkflow:
             self.sleep(min(3, remaining))
             result = self._reconcile_once(state)
             if result is not None:
-                if result["next"] == END:
+                if result["next"] in {END, "await_query"}:
                     return result
                 last_operation = result["operation"]
         return self._pending(last_operation)
@@ -409,7 +440,7 @@ class TransferWorkflow:
     def _manual_reconcile(self, state: TransferState) -> dict:
         result = self._reconcile_once(state)
         if result is not None:
-            if result["next"] == END:
+            if result["next"] in {END, "await_query"}:
                 return result
             return self._pending(result["operation"])
         return self._pending(state.get("operation"))
@@ -512,12 +543,9 @@ class TransferWorkflow:
         self, trusted: TrustedContext, request: StartTransferInput, *, thread_id: str | None = None,
     ) -> ModuleResult[TransferTaskView]:
         config = self._config(trusted, thread_id)
-        saved = self.graph.get_state(config)
+        saved = self._checkpoint_for_run(config, trusted, str(request.request_id))
         prior = saved.values
         if prior:
-            if prior["request_id"] != str(request.request_id):
-                raise ValueError("REQUEST_CONFLICT")
-            self._check_owner(prior, trusted)
             if saved.next and not any(task.interrupts for task in saved.tasks):
                 return self.resume(trusted, {}, thread_id=thread_id)
             return self._result(prior)
@@ -571,10 +599,9 @@ class TransferWorkflow:
         self, trusted: TrustedContext, response: dict, *, thread_id: str | None = None,
     ) -> ModuleResult[TransferTaskView]:
         config = self._config(trusted, thread_id)
-        saved = self.graph.get_state(config)
+        saved = self._checkpoint_for_run(config, trusted)
         if not saved.values:
             raise ValueError("TASK_NOT_FOUND")
-        self._check_owner(saved.values, trusted)
         if not saved.next:
             return self._result(saved.values)
         command = Command(resume=response) if any(task.interrupts for task in saved.tasks) else None
