@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
-from app.audit.journal import AuditJournal, AuditReader, AuditViewer
+from app.audit.journal import AuditJournal, AuditReader, AuditViewer, redact
 from app.contracts.audit import (
     AuditEvent, AuthorizationSnapshot, ChatMessagePayload, ModelStartedPayload,
     SecurityDecidedPayload, ToolStartedPayload,
@@ -71,6 +71,33 @@ def test_redacted_evidence_survives_restart_and_is_scoped(tmp_path):
     with connect(path) as connection:
         count = connection.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
     assert count == 4  # original event, allowed read, two denied reads
+
+
+def test_uuid_operation_survives_redaction_without_exposing_accounts(tmp_path):
+    operation_id = UUID("c39aad1a-9bb9-4497-a57a-210489574284")
+    base = event(evidence_ref=None, evidence_status="missing")
+    decision = {
+        "decision_id": "DEC1", "task_id": "T1", "run_id": "R1",
+        "action_name": "bank.submit_transfer", "parameters_ref": "PARAM1",
+        "operation_id": str(operation_id), "action_revision": 1,
+        "phase": "admission", "operation_level": "sensitive",
+        "risk_level": "high", "decision": "block",
+        "reason_codes": ["HIGH_RISK"], "rule_ids": ["RULE1"],
+        "policy_version": "v1", "authorization_snapshot_ref": None,
+        "evidence_refs": [], "interaction": None,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "message": "安全规则已阻止交易",
+    }
+    blocked = AuditEvent.model_validate({
+        **base.model_dump(mode="json"), "event_type": "security.decided",
+        "payload": SecurityDecidedPayload.model_validate({"decision": decision}).model_dump(mode="json"),
+    })
+    journal = AuditJournal(StoragePaths(tmp_path).application)
+    journal.append(blocked)
+    assert journal._events("D1", "T1")[0].payload.decision.operation_id == operation_id
+    masked = redact({"text": "手机 13900000002 卡号 6222000000000002"})["text"]
+    assert "13900000002" not in masked
+    assert "6222000000000002" not in masked
 
 
 def test_export_marks_missing_results_without_running_tools(tmp_path):
