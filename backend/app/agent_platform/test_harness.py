@@ -77,7 +77,7 @@ def runtime(path, ports, planner, authorize=lambda _trusted, _definition: True):
     memory = MemoryAdapter(application, active_round=lambda: "D1")
     audit = AuditJournal(path)
     registry = CapabilityRegistry()
-    registry.register_transfer(MANIFEST, lambda _trusted, saver: TransferWorkflow(ports, saver))
+    registry.register_transfer(MANIFEST, lambda _trusted, saver, _trace: TransferWorkflow(ports, saver))
     return AgentHarness(application, memory, audit, registry, planner, authorize)
 
 
@@ -229,9 +229,11 @@ def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path):
     assert failed.error.code == "MODEL_PROPOSAL_FAILED"
     assert ports.read_calls == []
     assert ports.submissions == 0
-    assert [event.event_type for event in harness.audit._events("D1", "T1")] == [
+    events = harness.audit._events("D1", "T1")
+    assert [event.event_type for event in events] == [
         "model.started", "model.finished", "task.transition",
     ]
+    assert events[1].parent_span_id == events[0].span_id
 
 
 def test_deep_agent_and_transfer_share_task_storage_without_crossing_checkpoints(tmp_path):

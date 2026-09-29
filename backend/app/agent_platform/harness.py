@@ -43,7 +43,8 @@ class RunTrace:
         self.trace_id = trace_id
 
     def record(self, event_type: str, payload: object, outcome: str, *,
-               evidence: object | None = None) -> AuditEvent:
+               evidence: object | None = None, module: str = "agent_platform",
+               parent_span_id: str | None = None) -> AuditEvent:
         prior = self.journal._events(self.trusted.demo_round_id, self.trusted.task_id)
         sequence = 1 + max((item.sequence for item in prior
                             if item.run_id == self.trusted.run_id), default=-1)
@@ -57,13 +58,13 @@ class RunTrace:
             evidence_id = str(uuid4())
         event = AuditEvent(
             event_id=str(uuid4()), trace_id=self.trace_id, span_id=str(uuid4()),
-            sequence=sequence, parent_span_id=None,
+            sequence=sequence, parent_span_id=parent_span_id,
             demo_round_id=self.trusted.demo_round_id,
             actor_id=self.trusted.user_id, session_id=self.trusted.session_id,
             target_session_id=self.trusted.session_id,
             target_user_id=self.trusted.user_id, thread_id=self.thread_id,
             task_id=self.trusted.task_id, run_id=self.trusted.run_id,
-            module="agent_platform", event_type=event_type,
+            module=module, event_type=event_type,
             timestamp=datetime.now(timezone.utc), logical_at=None,
             outcome=outcome, evidence_ref=evidence_id,
             evidence_status="available" if evidence is not None else "missing",
@@ -142,7 +143,7 @@ class AgentHarness:
             trace = self._trace(trusted, task)
             if "proposal" not in snapshot:
                 model_call_id = str(uuid4())
-                trace.record(
+                model_started = trace.record(
                     "model.started",
                     ModelStartedPayload(
                         model_call_id=model_call_id, provider=self.planner.provider,
@@ -178,7 +179,7 @@ class AgentHarness:
                             duration_ms=int((monotonic() - started) * 1000),
                             usage=ModelUsage(input_tokens=None, output_tokens=None),
                             error=model_error,
-                        ), "failed",
+                        ), "failed", parent_span_id=model_started.span_id,
                     )
                     failure = ModuleResult[TransferTaskView](
                         task_id=trusted.task_id, run_id=trusted.run_id,
@@ -208,6 +209,7 @@ class AgentHarness:
                         duration_ms=int((monotonic() - started) * 1000),
                         usage=ModelUsage(input_tokens=None, output_tokens=None), error=None,
                     ), "succeeded", evidence=proposal.model_dump(mode="json"),
+                    parent_span_id=model_started.span_id,
                 )
                 snapshot = {**snapshot, "proposal": proposal.model_dump(mode="json")}
                 task = self.application.update_task(
@@ -219,7 +221,7 @@ class AgentHarness:
             self._authorize(trusted, proposal.capability_name)
             registration = self.registry.get(proposal.capability_name)
             saver = self.memory.checkpointer(context, trusted.task_id)
-            entry = registration.factory(trusted, saver)
+            entry = registration.factory(trusted, saver, trace)
             result = entry.start(trusted, StartTransferInput(
                 request_id=request_id, intent_text=intent_text,
                 payer_account_id=proposal.payer_account_id,
@@ -269,7 +271,7 @@ class AgentHarness:
             trace = self._trace(trusted, task)
             registration = self.registry.get(task.snapshot["capability_name"])
             saver = self.memory.checkpointer(context, trusted.task_id)
-            entry = registration.factory(trusted, saver)
+            entry = registration.factory(trusted, saver, trace)
             try:
                 result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
                 if result.run_id != trusted.run_id:

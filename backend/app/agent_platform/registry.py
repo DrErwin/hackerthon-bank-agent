@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Protocol
+from typing import TYPE_CHECKING, Callable, Protocol
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from app.contracts.platform import CapabilityDefinition, ModuleManifest, StartTransferInput, TrustedContext
 from app.contracts.tasks import ModuleResult, TransferTaskView
+
+if TYPE_CHECKING:
+    from .harness import RunTrace
 
 
 class TransferEntry(Protocol):
@@ -19,7 +22,7 @@ class TransferEntry(Protocol):
                thread_id: str | None = None) -> ModuleResult[TransferTaskView]: ...
 
 
-TransferFactory = Callable[[TrustedContext, BaseCheckpointSaver], TransferEntry]
+TransferFactory = Callable[[TrustedContext, BaseCheckpointSaver, "RunTrace"], TransferEntry]
 
 
 @dataclass(frozen=True)
