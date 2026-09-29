@@ -106,6 +106,15 @@ class AgentHarness:
             raise ValueError("TASK_NOT_READY")
         return ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
 
+    @staticmethod
+    def _recovery_result(status: TaskStatus) -> str:
+        if status in {TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL,
+                      TaskStatus.NEEDS_ATTENTION}:
+            return "wait"
+        if status in {TaskStatus.FAILED, TaskStatus.CANCELLED}:
+            return "stop"
+        return "continue"
+
     def _trace(self, trusted: TrustedContext, task: TaskRecord) -> RunTrace:
         return RunTrace(self.audit, trusted, task.checkpoint_thread_id,
                         task.snapshot["trace_id"])
@@ -227,6 +236,8 @@ class AgentHarness:
                 payer_account_id=proposal.payer_account_id,
                 payee_hint=proposal.payee_hint, amount_fen=proposal.amount_fen,
             ), thread_id=task.checkpoint_thread_id)
+            if result.run_id != trusted.run_id:
+                raise ValueError("STALE_RUN_CONTEXT")
             updated = {**snapshot, "capability_name": proposal.capability_name,
                        "result": result.model_dump(mode="json")}
             self.application.update_task(
@@ -262,6 +273,33 @@ class AgentHarness:
             if task is None:
                 raise ValueError("TASK_NOT_FOUND")
             self._check_task(task, trusted)
+            if "result" not in task.snapshot:
+                if task.snapshot["config_version"] != self.planner.config_version:
+                    raise ValueError("MODEL_CONFIG_CHANGED")
+                self._authorize(trusted, "transfer.start_transfer")
+                if task.run_id != trusted.run_id:
+                    self.application.update_task(
+                        trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                        task.revision, trusted.run_id, TaskStatus.RUNNING,
+                        task.checkpoint_id, task.snapshot,
+                    )
+                result = self.start(
+                    trusted, UUID(task.snapshot["request_id"]), task.snapshot["intent_text"],
+                )
+                current = self.application.get_task(
+                    trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                )
+                self._trace(trusted, current).record(
+                    "recovery.checked",
+                    RecoveryCheckedPayload(
+                        previous_run_id=task.run_id, current_run_id=trusted.run_id,
+                        checkpoint_ref=current.checkpoint_id,
+                        operation_ids=[result.data.operation_id] if result.data and result.data.operation_id else [],
+                        result=self._recovery_result(result.status),
+                        reason_code="UNFINISHED_TASK_RECOVERED",
+                    ), "succeeded",
+                )
+                return result
             previous = self._result(task)
             if previous.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
                 return previous
@@ -287,22 +325,13 @@ class AgentHarness:
                     ), "failed",
                 )
                 raise
-            if result.status in {
-                TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL,
-                TaskStatus.NEEDS_ATTENTION,
-            }:
-                recovery_result = "wait"
-            elif result.status in {TaskStatus.FAILED, TaskStatus.CANCELLED}:
-                recovery_result = "stop"
-            else:
-                recovery_result = "continue"
             trace.record(
                 "recovery.checked",
                 RecoveryCheckedPayload(
                     previous_run_id=task.run_id, current_run_id=trusted.run_id,
                     checkpoint_ref=self._checkpoint_id(context, task),
                     operation_ids=[previous.data.operation_id] if previous.data.operation_id else [],
-                    result=recovery_result,
+                    result=self._recovery_result(result.status),
                     reason_code="PUBLIC_CAPABILITY_RESUMED",
                 ), "succeeded",
             )

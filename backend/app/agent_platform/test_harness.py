@@ -169,6 +169,51 @@ def test_recovery_event_reports_still_waiting_without_approval(tmp_path):
     assert recovery[-1].payload.result == "wait"
 
 
+def test_resume_after_crash_before_first_model_result(tmp_path):
+    path = tmp_path / "app.sqlite"
+    planner = ProposalModel()
+    harness = runtime(path, Ports(), planner)
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    request_id = uuid4()
+    harness.application.create_task(
+        "T1", "U1", "S1", "D1", "R1", TaskStatus.RUNNING,
+        {"request_id": str(request_id), "intent_text": "给妈妈转 500 元",
+         "config_version": planner.config_version, "trace_id": str(uuid4())},
+    )
+    waiting = harness.resume(trusted(run="R2"), {})
+    assert waiting.status == TaskStatus.WAITING_APPROVAL
+    assert waiting.run_id == "R2"
+    assert planner.calls == 1
+    recovery = [event for event in harness.audit._events("D1", "T1")
+                if event.event_type == "recovery.checked"]
+    assert recovery[-1].payload.result == "wait"
+
+
+def test_resume_after_graph_checkpoint_but_before_task_summary(tmp_path):
+    path = tmp_path / "app.sqlite"
+    planner = ProposalModel()
+    ports = Ports()
+    harness = runtime(path, ports, planner)
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    task = harness.application.get_task("U1", "D1", "T1")
+    harness.application.update_task(
+        "U1", "D1", "T1", task.revision, "R1", TaskStatus.RUNNING,
+        task.checkpoint_id, {key: value for key, value in task.snapshot.items() if key != "result"},
+    )
+    waiting = runtime(path, ports, planner).resume(trusted(run="R2"), {})
+    assert waiting.status == TaskStatus.WAITING_APPROVAL
+    assert waiting.run_id == "R2"
+    assert planner.calls == 1
+    assert ports.submissions == 0
+
+
 def test_deep_agent_only_receives_proposal_tool(tmp_path):
     path = tmp_path / "app.sqlite"
     application = ApplicationStore(path)
