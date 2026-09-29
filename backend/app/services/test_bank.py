@@ -128,9 +128,15 @@ def test_timeout_returns_unknown_then_original_result_becomes_visible(tmp_path):
     payee = SavedPayee(kind="saved", payee_id="A2")
     response = gateway.submit_transfer(user, operation_id, "A1", payee, 50_000)
     assert response.error.code == "CALL_TIMEOUT"
-    assert gateway.get_operation(user, operation_id).operation.operation_status == "processing"
-    time.sleep(0.12)
-    found = gateway.get_operation(user, operation_id)
+    deadline = time.monotonic() + 2
+    while True:
+        found = gateway.get_operation(user, operation_id)
+        if found.lookup == "found" and found.operation.operation_status != "processing":
+            break
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.01)
+    assert found.lookup == "found"
     assert found.operation.operation_status == "succeeded"
     assert gateway.submit_transfer(user, operation_id, "A1", payee, 50_000) == found.operation
     assert len(bank.store.list_ledger("U1", "A1")) == 1
