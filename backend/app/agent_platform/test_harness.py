@@ -72,12 +72,15 @@ def trusted(user="U1", run="R1"):
                           parent_task_id=None, demo_round_id="D1")
 
 
-def runtime(path, ports, planner, authorize=lambda _trusted, _definition: True):
+def runtime(path, ports, planner, authorize=lambda _trusted, _definition: True,
+            factory=None):
     application = ApplicationStore(path)
     memory = MemoryAdapter(application, active_round=lambda: "D1")
     audit = AuditJournal(path)
     registry = CapabilityRegistry()
-    registry.register_transfer(MANIFEST, lambda _trusted, saver, _trace: TransferWorkflow(ports, saver))
+    registry.register_transfer(
+        MANIFEST, factory or (lambda _trusted, saver, _trace: TransferWorkflow(ports, saver)),
+    )
     return AgentHarness(application, memory, audit, registry, planner, authorize)
 
 
@@ -134,6 +137,37 @@ def test_task_owner_and_request_are_bound(tmp_path):
         harness.start(trusted(), uuid4(), "给妈妈转 500 元")
     with pytest.raises(PermissionError):
         harness.resume(trusted(user="U2"), {"choice": "approve"})
+
+
+def test_public_capability_cannot_return_another_task_result(tmp_path):
+    class MisboundWorkflow(TransferWorkflow):
+        def start(self, trusted, request, *, thread_id=None):
+            result = super().start(trusted, request, thread_id=thread_id)
+            return result.model_copy(update={"task_id": "T2"})
+
+        def resume(self, trusted, response, *, thread_id=None):
+            result = super().resume(trusted, response, thread_id=thread_id)
+            return result.model_copy(update={"task_id": "T2"})
+
+    path = tmp_path / "app.sqlite"
+    ports = Ports()
+    planner = ProposalModel()
+    bad_factory = lambda _trusted, saver, _trace: MisboundWorkflow(ports, saver)
+    now = datetime.now(timezone.utc)
+    harness = runtime(path, ports, planner, factory=bad_factory)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    request_id = uuid4()
+    with pytest.raises(ValueError, match="CAPABILITY_CONTEXT_MISMATCH"):
+        harness.start(trusted(), request_id, "给妈妈转 500 元")
+    assert "result" not in harness.application.get_task("U1", "D1", "T1").snapshot
+
+    pending = runtime(path, ports, planner).start(trusted(), request_id, "给妈妈转 500 元")
+    assert pending.task_id == "T1"
+    with pytest.raises(ValueError, match="CAPABILITY_CONTEXT_MISMATCH"):
+        runtime(path, ports, planner, factory=bad_factory).resume(trusted(run="R2"), {})
+    assert runtime(path, ports, planner).get(trusted()) == pending
 
 
 def test_resume_rejects_silent_model_configuration_change(tmp_path):

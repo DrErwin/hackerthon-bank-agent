@@ -115,6 +115,12 @@ class AgentHarness:
             return "stop"
         return "continue"
 
+    @staticmethod
+    def _check_result_scope(result: ModuleResult[TransferTaskView],
+                            trusted: TrustedContext) -> None:
+        if result.task_id != trusted.task_id or result.run_id != trusted.run_id:
+            raise ValueError("CAPABILITY_CONTEXT_MISMATCH")
+
     def _trace(self, trusted: TrustedContext, task: TaskRecord) -> RunTrace:
         return RunTrace(self.audit, trusted, task.checkpoint_thread_id,
                         task.snapshot["trace_id"])
@@ -236,8 +242,7 @@ class AgentHarness:
                 payer_account_id=proposal.payer_account_id,
                 payee_hint=proposal.payee_hint, amount_fen=proposal.amount_fen,
             ), thread_id=task.checkpoint_thread_id)
-            if result.run_id != trusted.run_id:
-                raise ValueError("STALE_RUN_CONTEXT")
+            self._check_result_scope(result, trusted)
             updated = {**snapshot, "capability_name": proposal.capability_name,
                        "result": result.model_dump(mode="json")}
             self.application.update_task(
@@ -312,8 +317,7 @@ class AgentHarness:
             entry = registration.factory(trusted, saver, trace)
             try:
                 result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
-                if result.run_id != trusted.run_id:
-                    raise ValueError("STALE_RUN_CONTEXT")
+                self._check_result_scope(result, trusted)
             except Exception:
                 trace.record(
                     "recovery.checked",
