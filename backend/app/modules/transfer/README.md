@@ -1,9 +1,11 @@
 # transfer —— 智能转账
 
-归属：梁爽。
+长期归属：梁爽。v0.3 首条普通转账路径由 Erwin 临时实现。
 
-业务：普通转账、定时转账（本轮保留；到点执行在银行侧）；AA 收款本轮不做。
+当前提供 `transfer.start_transfer` 的模块清单和普通转账子图。`TransferWorkflow.start()` 接收公共契约 `StartTransferInput` 与可信任务上下文；`resume()` 沿同一 LangGraph checkpoint 继续等待中的任务。平台负责保存持久 checkpoint、核验任务身份、把当前确认与验证记录装入 `ExecutionSecurityContext`。聊天回复中的“确认”不能代替安全确认记录。
 
-依据：[01-智能转账 PRD](../../../../docs/prd/01-智能转账-PRD-2026-09-23.md)（§3.2 对外公开能力 5 项是本模块的契约面）。开发顺序与 PR 交付要求见 [01-business-parallel](../../../../docs/principles/01-business-parallel.md)。
+`GatewayTransferTools` 只注册和调用本模块列出的私有银行工具。查询及资金提交都经过统一安全门；资金提交由 `DeterministicExecutor` 先领取唯一执行记录。`TransferSnapshots` 保存不可变的动作参数。平台的 `scope_authorizer` 须先核对权限，并对资金工具调用 `TransferWorkflow.is_current_action()`，确保修改金额或收款人后，旧确认无法用于新动作。银行接入层的 `authorize_transfer` 回调也须核验该次受控执行。
 
-开工前提：契约冻结（09-25/26 定稿会）。
+当银行提交结果未知，子图按原操作编号回查，最多再等 10 秒；主动“查询结果”仍只查原操作。未完成的平台 Harness、HTTP/SSE 和前端接线由集成票负责。
+
+依据：[01-智能转账 PRD](../../../../docs/prd/01-智能转账-PRD-2026-09-23.md) §5.3–5.6。后续普通转账之外的公开能力按各自实施票接入。
