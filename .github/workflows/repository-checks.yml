@@ -31,3 +31,10 @@ jobs:
         run: python .github/scripts/check_links.py
       - name: Check Python syntax
         run: python -m compileall -q tools backend .github/scripts
+      - name: Install backend test dependencies
+        run: python -m pip install -e './backend[dev]'
+      - name: Run backend and mock bank tests
+        working-directory: backend
+        run: |
+          python -m pytest -q
+          python -m pytest -q ../evals/mockbank/test_mockbank_eval.py
