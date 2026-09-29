@@ -10,7 +10,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 from pydantic import TypeAdapter
 
-from app.contracts.bank import OperationResult, PayeeInput, QueryFailure
+from app.contracts.bank import BankError, OperationResult, PayeeInput, QueryFailure
 from app.contracts.common import SecurityDecisionCode, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext, SecurityDecision
@@ -58,6 +58,7 @@ class TransferState(TypedDict, total=False):
     error: dict | None
     recovery_required: bool
     recovery_reason: str | None
+    retry_at: str
 
 
 class TransferWorkflow:
@@ -113,6 +114,41 @@ class TransferWorkflow:
             "next": END,
         }
 
+    def _read_failure(self, error: str, message: str, retry_at: str) -> dict:
+        if error in {"ACCESS_DENIED", "INVALID_ARGUMENT"}:
+            return self._fail(error, "bank", "无法继续这笔转账，请核对访问权限或输入。")
+        return {
+            "status": TaskStatus.WAITING_INPUT.value,
+            "message": message + "稍后可在原任务重试。",
+            "error": ModuleError(
+                code=error, source="bank", field=None, reason=message, upstream_code=None,
+            ).model_dump(mode="json"),
+            "interaction": self._interaction(message + "请选择重试或取消。", [], [
+                InteractionOption(id="resume", label="重试"),
+                InteractionOption(id="cancel", label="取消"),
+            ]),
+            "wait_kind": "retry_read", "retry_at": retry_at, "next": "wait",
+            "recovery_required": True, "recovery_reason": error,
+        }
+
+    @staticmethod
+    def _bank_reason(failure: BankError) -> str:
+        reasons = {
+            "INSUFFICIENT_FUNDS": "可用余额不足",
+            "LIMIT_EXCEEDED": "超过银行当前允许的转账额度",
+            "ACCOUNT_UNAVAILABLE": "转出账户当前不可用",
+            "PAYEE_MISMATCH": "收款账户资料未通过核验",
+            "RISK_REJECTED": "银行风控未放行",
+        }
+        reason = reasons.get(failure.code, "银行未批准这笔转账")
+        available = failure.details.get("available_fen")
+        allowed = failure.details.get("allowed_fen")
+        if isinstance(available, int):
+            reason += f"，当前可用 {available / 100:.2f} 元"
+        elif isinstance(allowed, int):
+            reason += f"，当前可用额度 {allowed / 100:.2f} 元"
+        return reason
+
     def _read(self, state: TransferState, name: str, parameters: dict):
         for attempt in range(2):
             try:
@@ -144,7 +180,7 @@ class TransferWorkflow:
         if not state.get("payer_account_id"):
             accounts, error = self._read(state, "bank.list_accounts", {})
             if error:
-                return self._fail(error, "bank", "暂时无法查询转出账户。", recoverable=True)
+                return self._read_failure(error, "暂时无法查询转出账户。", "collect")
             return {
                 "status": TaskStatus.WAITING_INPUT.value,
                 "interaction": self._interaction(
@@ -172,18 +208,16 @@ class TransferWorkflow:
             "account_number" if hint.isdigit() else "remark"
         )
         search_kinds = [kind, "name"] if kind == "remark" else [kind]
+        candidates_by_id = {}
         for search_kind in search_kinds:
             payees, error = self._read(
                 state, "bank.list_payees", {"kind": search_kind, "value": hint},
             )
             if error:
-                return self._fail(
-                    error, "bank", "收款人查询暂不可用。",
-                    recoverable=error not in {"ACCESS_DENIED", "INVALID_ARGUMENT"},
-                )
-            if payees.payees:
-                break
-        candidates = [item.model_dump(mode="json") for item in payees.payees]
+                return self._read_failure(error, "收款人查询暂不可用。", "find_payee")
+            for item in payees.payees:
+                candidates_by_id[item.payee_id] = item.model_dump(mode="json")
+        candidates = list(candidates_by_id.values())
         if not candidates:
             return {
                 "payee_hint": None,
@@ -199,7 +233,8 @@ class TransferWorkflow:
                 "interaction": self._interaction(
                     "找到多位收款人，请选择。", [],
                     [InteractionOption(id=item["payee_id"], label=(
-                        (item.get("remark") or item["name_masked"]) + " " + item["account_masked"]
+                        (item.get("remark") or item["name_masked"]) + " "
+                        + item["bank_name"] + " " + item["account_masked"]
                     )) for item in candidates],
                 ),
                 "wait_kind": "choose_payee", "next": "wait",
@@ -215,7 +250,7 @@ class TransferWorkflow:
             state, "bank.verify_payee", {"payee": state["payee_input"]},
         )
         if error:
-            return self._fail(error, "bank", "收款账户暂时无法核验。", recoverable=True)
+            return self._read_failure(error, "收款账户暂时无法核验。", "verify_payee")
         if not verification.matched:
             return self._fail("PAYEE_MISMATCH", "bank", "收款账户未通过核验，请核对账户资料。")
         return {"payee_display": verification.payee.model_dump(mode="json"), "next": "precheck"}
@@ -227,20 +262,23 @@ class TransferWorkflow:
         }
         check, error = self._read(state, "bank.precheck_transfer", draft)
         if error:
-            return self._fail(error, "bank", "银行暂时无法检查这笔转账。", recoverable=True)
+            return self._read_failure(error, "银行暂时无法检查这笔转账。", "precheck")
         if not check.can_proceed:
+            reason = self._bank_reason(check.failure)
+            if check.failure.code == "RISK_REJECTED":
+                return self._fail("RISK_REJECTED", "bank", reason + "，已停止这笔转账。")
             return {
                 "status": TaskStatus.WAITING_INPUT.value,
                 "interaction": self._interaction(
-                    "银行暂不能办理这笔转账。你可以修改金额、账户或取消。",
+                    reason + "。你可以修改金额、账户或取消。",
                     [],
                     [InteractionOption(id="cancel", label="取消")],
                 ),
                 "wait_kind": "adjust", "next": "wait",
-                "message": "这笔转账尚未提交，请修改或取消。",
+                "message": reason + "；这笔转账尚未提交，请修改或取消。",
                 "error": ModuleError(
                     code="BANK_REJECTED", source="bank", field=None,
-                    reason="银行预检查未通过", upstream_code=check.failure.code,
+                    reason=reason, upstream_code=check.failure.code,
                 ).model_dump(mode="json"),
             }
         if state.get("operation_id") and state.get("parameters_ref"):
@@ -317,12 +355,14 @@ class TransferWorkflow:
                 "interaction": None, "error": None, "next": END,
             }
         reason = operation.failure.code if operation.failure else "BANK_REJECTED"
+        description = (TransferWorkflow._bank_reason(operation.failure)
+                       if operation.failure else "银行未批准这笔转账")
         return {
             "operation": operation.model_dump(mode="json"), "status": TaskStatus.FAILED.value,
-            "message": "银行明确未完成这笔转账，请核对金额或账户后重新办理。",
+            "message": description + "；银行明确未完成这笔转账。请核对后重新办理。",
             "error": ModuleError(
                 code="BANK_REJECTED", source="bank", field=None,
-                reason="银行明确拒绝", upstream_code=reason,
+                reason=description, upstream_code=reason,
             ).model_dump(mode="json"),
             "interaction": None, "next": END,
         }
@@ -385,9 +425,18 @@ class TransferWorkflow:
         if response.get("cancel") is True or response.get("choice") == "cancel":
             return {
                 "status": TaskStatus.CANCELLED.value, "interaction": None,
-                "message": "这笔转账尚未提交，已取消。", "next": END,
+                "message": "这笔转账尚未提交，已取消。",
+                "recovery_required": False, "recovery_reason": None, "next": END,
             }
         kind = state["wait_kind"]
+        if kind == "retry_read":
+            if response.get("choice") != "resume":
+                return {"next": "wait"}
+            return {
+                "interaction": None, "status": TaskStatus.RUNNING.value,
+                "error": None, "recovery_required": False, "recovery_reason": None,
+                "next": state["retry_at"],
+            }
         if kind == "choose_payee":
             selected = next(
                 (item for item in state["payee_candidates"]
@@ -432,7 +481,9 @@ class TransferWorkflow:
     @staticmethod
     def _result(state: TransferState) -> ModuleResult[TransferTaskView]:
         status = TaskStatus(state["status"])
-        if status == TaskStatus.WAITING_INPUT:
+        if status == TaskStatus.WAITING_INPUT and state.get("wait_kind") == "retry_read":
+            allowed = ["resume", "cancel"]
+        elif status == TaskStatus.WAITING_INPUT:
             allowed = ["provide_input", "cancel"]
         elif status == TaskStatus.WAITING_APPROVAL:
             allowed = ["confirm" if state["interaction"]["kind"] == "confirmation" else "verify", "cancel"]

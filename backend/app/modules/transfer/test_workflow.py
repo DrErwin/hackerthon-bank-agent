@@ -49,7 +49,8 @@ def operation(action, status="succeeded"):
     return OperationResult(
         operation_id=action.operation_id, operation_type="transfer",
         operation_status=status, recorded_at=NOW, updated_at=NOW,
-        receipt=receipt, failure=BankError(code="BALANCE_LOW", details={}) if status == "failed" else None,
+        receipt=receipt, failure=BankError(code="INSUFFICIENT_FUNDS", details={"available_fen": 3_200})
+        if status == "failed" else None,
     )
 
 
@@ -58,6 +59,7 @@ class Ports:
         self.approved = False
         self.read_calls = []
         self.precheck_ok = True
+        self.precheck_error_code = "INSUFFICIENT_FUNDS"
         self.payees = [PayeeCandidate(**PAYEE.model_dump(), last_transfer_at=None)]
         self.submissions = 0
         self.observations = 0
@@ -79,7 +81,9 @@ class Ports:
             data = PayeeVerification(matched=True, payee=PAYEE)
         elif name == "bank.precheck_transfer":
             data = TransferPrecheck(can_proceed=self.precheck_ok,
-                failure=None if self.precheck_ok else BankError(code="BALANCE_LOW", details={}),
+                failure=None if self.precheck_ok else BankError(
+                    code=self.precheck_error_code,
+                    details={"available_fen": 3_200} if self.precheck_error_code == "INSUFFICIENT_FUNDS" else {}),
                 fee_fen=0, arrival_mode="instant", checked_at=NOW)
         else:
             raise AssertionError(name)
@@ -204,6 +208,74 @@ def test_ambiguous_payee_needs_explicit_choice():
     assert flow.resume(trusted(), {"choice": "P2"}).status == TaskStatus.WAITING_APPROVAL
 
 
+def test_name_and_remark_matches_are_combined_before_selection():
+    class SplitMatches(Ports):
+        def read(self, trusted_context, name, parameters):
+            if name == "bank.list_payees":
+                item = (self.payees[0] if parameters["kind"] == "remark" else
+                        PayeeCandidate(payee_id="P2", name_masked="张*", account_masked="****5678",
+                                       remark=None, bank_name="另一银行", last_transfer_at=None))
+                original = self.payees
+                self.payees = [item]
+                try:
+                    return super().read(trusted_context, name, parameters)
+                finally:
+                    self.payees = original
+            return super().read(trusted_context, name, parameters)
+
+    flow, ports = workflow(SplitMatches())
+    pending = flow.start(trusted(), request(payee=None, payee_hint="张三"))
+    assert pending.status == TaskStatus.WAITING_INPUT
+    assert {option.id for option in pending.interaction.options} == {"P1", "P2"}
+    assert any("模拟银行" in option.label and "****1234" in option.label
+               for option in pending.interaction.options)
+    assert any("另一银行" in option.label and "****5678" in option.label
+               for option in pending.interaction.options)
+    assert ports.submissions == 0
+
+
+@pytest.mark.parametrize("tool,changes", [
+    ("bank.list_accounts", {"payer_account_id": None}),
+    ("bank.list_payees", {"payee": None, "payee_hint": "邻居"}),
+    ("bank.verify_payee", {}),
+    ("bank.precheck_transfer", {}),
+])
+def test_temporary_read_failure_resumes_original_task(tool, changes):
+    class Flaky(Ports):
+        failures_left = 2
+
+        def read(self, trusted_context, name, parameters):
+            if name == tool and self.failures_left:
+                self.failures_left -= 1
+                raise TimeoutError("temporary read failure")
+            return super().read(trusted_context, name, parameters)
+
+    ports = Flaky()
+    saver = InMemorySaver()
+    flow = TransferWorkflow(ports, saver)
+    pending = flow.start(trusted(), request(**changes))
+    assert pending.status == TaskStatus.WAITING_INPUT
+    assert pending.recovery_required
+    assert pending.allowed_actions == ["resume", "cancel"]
+    resumed = TransferWorkflow(ports, saver).resume(trusted(), {"choice": "resume"})
+    assert resumed.task_id == pending.task_id
+    assert resumed.status in {TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL}
+    assert ports.submissions == 0
+
+
+def test_read_permission_denial_is_terminal():
+    class Denied(Ports):
+        def read(self, trusted_context, name, parameters):
+            return ExecutionOutcome(None, False, False, "not_started", None, None)
+
+    flow, ports = workflow(Denied())
+    result = flow.start(trusted(), request(payer_account_id=None))
+    assert result.status == TaskStatus.FAILED
+    assert result.error.code == "ACCESS_DENIED"
+    assert not result.recovery_required
+    assert ports.submissions == 0
+
+
 def test_adjustment_gets_new_operation_and_confirmation():
     flow, ports = workflow()
     first = flow.start(trusted(), request())
@@ -243,7 +315,9 @@ def test_checkpoint_recovery_and_bank_failure():
     recovered = TransferWorkflow(ports, saver)
     done = recovered.resume(trusted(), {"choice": "approve"})
     assert done.status == TaskStatus.FAILED
-    assert done.error.upstream_code == "BALANCE_LOW"
+    assert done.error.upstream_code == "INSUFFICIENT_FUNDS"
+    assert "可用余额不足" in done.message
+    assert "32.00 元" in done.message
     assert ports.submissions == 1
 
 
@@ -292,11 +366,26 @@ def test_precheck_and_security_denial_never_submit():
     ports.precheck_ok = False
     result = flow.start(trusted(), request())
     assert result.status == TaskStatus.WAITING_INPUT
+    assert "可用余额不足" in result.message
+    assert "32.00 元" in result.message
     assert ports.submissions == 0
     flow, ports = workflow()
     ports.block = True
     result = flow.start(trusted(), request())
     assert result.status == TaskStatus.FAILED
+    assert ports.submissions == 0
+
+
+def test_bank_risk_rejection_stops_without_adjustment():
+    ports = Ports()
+    ports.precheck_ok = False
+    ports.precheck_error_code = "RISK_REJECTED"
+    flow, _ = workflow(ports)
+    result = flow.start(trusted(), request())
+    assert result.status == TaskStatus.FAILED
+    assert result.error.code == "RISK_REJECTED"
+    assert result.interaction is None
+    assert result.allowed_actions == []
     assert ports.submissions == 0
 
 
