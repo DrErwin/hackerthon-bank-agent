@@ -93,6 +93,24 @@ class TransferWorkflow:
     def _config(trusted: TrustedContext, thread_id: str | None) -> dict:
         return {"configurable": {"thread_id": thread_id or trusted.task_id}}
 
+    def _checkpoint_for_run(self, config: dict, trusted: TrustedContext,
+                            request_id: str | None = None):
+        saved = self.graph.get_state(config)
+        if not saved.values:
+            return saved
+        self._check_owner(saved.values, trusted)
+        if request_id is not None and saved.values["request_id"] != request_id:
+            raise ValueError("REQUEST_CONFLICT")
+        if saved.values["trusted"]["run_id"] != trusted.run_id:
+            self.graph.update_state(config, {"trusted": trusted.model_dump(mode="json")})
+            saved = self.graph.get_state(config)
+        if saved.next in {("wait",), ("await_query",)} and not any(
+            task.interrupts for task in saved.tasks
+        ):
+            self.graph.invoke(None, config)
+            saved = self.graph.get_state(config)
+        return saved
+
     @staticmethod
     def _interaction(prompt: str, fields: list[str], options: list[InteractionOption] | None = None) -> dict:
         return InteractionRequest(
@@ -512,12 +530,9 @@ class TransferWorkflow:
         self, trusted: TrustedContext, request: StartTransferInput, *, thread_id: str | None = None,
     ) -> ModuleResult[TransferTaskView]:
         config = self._config(trusted, thread_id)
-        saved = self.graph.get_state(config)
+        saved = self._checkpoint_for_run(config, trusted, str(request.request_id))
         prior = saved.values
         if prior:
-            if prior["request_id"] != str(request.request_id):
-                raise ValueError("REQUEST_CONFLICT")
-            self._check_owner(prior, trusted)
             if saved.next and not any(task.interrupts for task in saved.tasks):
                 return self.resume(trusted, {}, thread_id=thread_id)
             return self._result(prior)
@@ -571,10 +586,9 @@ class TransferWorkflow:
         self, trusted: TrustedContext, response: dict, *, thread_id: str | None = None,
     ) -> ModuleResult[TransferTaskView]:
         config = self._config(trusted, thread_id)
-        saved = self.graph.get_state(config)
+        saved = self._checkpoint_for_run(config, trusted)
         if not saved.values:
             raise ValueError("TASK_NOT_FOUND")
-        self._check_owner(saved.values, trusted)
         if not saved.next:
             return self._result(saved.values)
         command = Command(resume=response) if any(task.interrupts for task in saved.tasks) else None

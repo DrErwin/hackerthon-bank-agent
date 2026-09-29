@@ -166,6 +166,68 @@ def test_normal_transfer_requires_external_confirmation_and_deduplicates_start()
     assert ports.submissions == 1
 
 
+def test_resumed_security_and_bank_calls_use_current_run_id():
+    class RunTrackingPorts(Ports):
+        def __init__(self):
+            super().__init__()
+            self.execution_runs = []
+
+        def execute(self, current, action):
+            self.execution_runs.append(current.run_id)
+            return super().execute(current, action)
+
+    ports = RunTrackingPorts()
+    flow, _ = workflow(ports)
+    flow.start(trusted(), request())
+    ports.approved = True
+    resumed = trusted().model_copy(update={"run_id": "R2"})
+    done = flow.resume(resumed, {"choice": "approve"})
+    assert done.status == TaskStatus.SUCCEEDED
+    assert done.run_id == "R2"
+    assert ports.execution_runs == ["R2"]
+    recovered_result = flow.resume(
+        trusted().model_copy(update={"run_id": "R3"}), {}
+    )
+    assert recovered_result.status == TaskStatus.SUCCEEDED
+    assert recovered_result.run_id == "R3"
+    assert ports.execution_runs == ["R2"]
+
+
+def test_repeated_start_after_restart_returns_waiting_with_current_run():
+    flow, ports = workflow()
+    original = request()
+    flow.start(trusted(), original)
+    resumed = trusted().model_copy(update={"run_id": "R2"})
+    waiting = flow.start(resumed, original)
+    assert waiting.status == TaskStatus.WAITING_APPROVAL
+    assert waiting.run_id == "R2"
+    assert ports.submissions == 0
+
+
+def test_conflicting_start_cannot_rebind_existing_run():
+    flow, _ = workflow()
+    flow.start(trusted(), request())
+    resumed = trusted().model_copy(update={"run_id": "R2"})
+    with pytest.raises(ValueError, match="REQUEST_CONFLICT"):
+        flow.start(resumed, request())
+    saved = flow.graph.get_state(flow._config(trusted(), None))
+    assert saved.values["trusted"]["run_id"] == "R1"
+
+
+def test_resume_after_crash_while_rebuilding_wait_point():
+    flow, ports = workflow()
+    flow.start(trusted(), request())
+    resumed = trusted().model_copy(update={"run_id": "R2"})
+    flow.graph.update_state(
+        flow._config(resumed, None), {"trusted": resumed.model_dump(mode="json")},
+    )
+    ports.approved = True
+    done = flow.resume(resumed, {"choice": "approve"})
+    assert done.status == TaskStatus.SUCCEEDED
+    assert done.run_id == "R2"
+    assert ports.submissions == 1
+
+
 def test_chat_confirmation_alone_cannot_submit():
     flow, ports = workflow()
     flow.start(trusted(), request())
@@ -334,6 +396,27 @@ def test_unknown_result_queries_only_original_operation():
     ports.processing = False
     done = flow.resume(trusted(), {"query": True})
     assert done.status == TaskStatus.SUCCEEDED
+    assert done.data.operation_id == unknown.data.operation_id
+    assert ports.submissions == 1
+
+
+@pytest.mark.parametrize("crash_after_context_update", [False, True])
+def test_unknown_result_query_after_new_run(crash_after_context_update):
+    flow, ports = workflow()
+    flow.start(trusted(), request())
+    ports.approved = True
+    ports.processing = True
+    unknown = flow.resume(trusted(), {"choice": "approve"})
+    assert unknown.status == TaskStatus.NEEDS_ATTENTION
+    resumed = trusted().model_copy(update={"run_id": "R2"})
+    if crash_after_context_update:
+        flow.graph.update_state(
+            flow._config(resumed, None), {"trusted": resumed.model_dump(mode="json")},
+        )
+    ports.processing = False
+    done = flow.resume(resumed, {"query": True})
+    assert done.status == TaskStatus.SUCCEEDED
+    assert done.run_id == "R2"
     assert done.data.operation_id == unknown.data.operation_id
     assert ports.submissions == 1
 
