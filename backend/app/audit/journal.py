@@ -31,7 +31,7 @@ PHONE_FIELD = {"phone", "phone_number", "recipient_phone"}
 ACCOUNT_FIELD = {"account_number", "card_number"}
 ADDRESS_FIELD = {"address", "recipient_address"}
 SECRET_LABEL = re.compile(
-    r"((?:验证码|短信码|密码|口令|登录凭据|credential|secret|cookie|api[_ -]?key|token|authorization|bearer)\s*(?:是|为|[:：=]|\s)\s*)"
+    r"((?:验证码|短信码|密码|口令|登录凭据|credential|secret|cookie|api[_ -]?key|otp|token|authorization|bearer)\s*(?:是|为|[:：=]|\s)\s*)"
     r"([^\s,，;；]+)", re.I,
 )
 PHONE = re.compile(r"(?<!\d)(1[3-9]\d)\d{4}(\d{4})(?!\d)")

@@ -123,13 +123,14 @@ def test_secret_variants_never_reach_persistent_evidence(tmp_path):
     journal.append(event(), evidence={
         "cookie": "session=secret123", "credential": "abc123", "refreshToken": "refresh123",
         "text": "验证码是123456；我的口令为abc123", "message": "AB12CD",
+        "note": "OTP 739284",
         "code": "AB12CD", "display_fields": [
             {"name": "recipient_address", "value_text": "演示市演示区1号",
              "credential": "nested-secret"},
         ],
     })
     persisted = path.read_bytes()
-    for secret in (b"secret123", b"abc123", b"refresh123", b"123456", b"AB12CD",
+    for secret in (b"secret123", b"abc123", b"refresh123", b"123456", b"739284", b"AB12CD",
                    b"nested-secret"):
         assert secret not in persisted
     assert "演示市演示区1号" not in path.read_text(errors="ignore")
