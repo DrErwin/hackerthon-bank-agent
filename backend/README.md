@@ -34,7 +34,7 @@ macOS / Linux：
 .venv/bin/python -m pytest
 ```
 
-目前只有工程入口测试；业务测试会随各实施票加入 `tests/`。`pyproject.toml` 统一指定测试目录和 `app` 包发现规则。
+默认测试命令会运行 `tests/` 中的工程入口测试和 `app/` 中各模块的业务测试。模拟银行场景评测需另行运行 `python -m pytest -q ../evals/mockbank/test_mockbank_eval.py`。
 
 ## 本地启动
 
