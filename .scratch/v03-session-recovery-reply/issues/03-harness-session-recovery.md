@@ -1,14 +1,14 @@
 # 03：Harness 新会话恢复协调
 
 Type: task\
-Status: in_progress\
+Status: resolved\
 Owner: Erwin（v0.3 纵向后端工作线；转账目录按临时安排）\
 Ticket ID: v03-session-recovery-reply/03\
 Package: [transfer-agent-framework/packages/01-vertical-backend：纵向后端主链路](../../transfer-agent-framework/packages/01-vertical-backend.md)\
 Directory: `backend/app/agent_platform/`\
 Source issue: [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)\
 Spec: [新会话恢复与仅回复补票规格](../spec.md)\
-Blocked by: 01、02（均需合入并提供公开入口）\
+Blocked by: None；01 / 02已分别经PR #30 / #31合入并提供公开入口\
 Unlocks: 04\
 Review: 工程与契约审查；涉及身份、确认、验证、资金、隐私或审计时叠加安全审查\
 Claimed by: Codex（按用户明确指示执行；用户身份未提供）\
@@ -52,3 +52,5 @@ Harness / TransferRuntime 公共入口，接真实存储、安全和模拟银行
 - 2026-10-01（修复后）：用户明确要求修复并复验后合并。修复快照 8c7a6be 已处理初验中断阻塞、初始化重试与终态运行编号问题；新增 8 项定向验证通过，Standards / Spec 最终 AI 复审均无 P0–P3。实施尚未合入，Ringo 真人批准未记录；验收及交付进度见[完整记录](../acceptance-2026-10-01.md)。
 
 - 最终完整回归：8c7a6be 后端 212 passed、模拟银行 14 passed；工程验收勾选不代表真人批准或实施合入，Status 保持 in_progress。
+
+- 2026-10-01（实际收口）：[PR #32](https://github.com/DrErwin/hackerthon-bank-agent/pull/32)最终提交CI通过，已squash合入main（651860433d6d9ebc1aba4c507f643324f455af7b）；[代码主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36774040361)通过：后端212项（63.64秒）、模拟银行14项（0.46秒），文档链接、Python语法及差异空白检查通过。本票标为resolved，来源问题#23已关闭。用户于2026-10-01明确指示「我豁免批准，合并」，本轮补票01—04的Ringo真人批准门槛由用户豁免；AI复审不记为真人批准，长期审查规则不变。

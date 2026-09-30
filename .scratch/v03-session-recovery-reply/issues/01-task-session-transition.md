@@ -1,7 +1,7 @@
 # 01：原任务的新会话归属转换
 
 Type: task\
-Status: in_progress\
+Status: resolved\
 Owner: Erwin（v0.3 纵向后端工作线；转账目录按临时安排）\
 Ticket ID: v03-session-recovery-reply/01\
 Package: [transfer-agent-framework/packages/01-vertical-backend：纵向后端主链路](../../transfer-agent-framework/packages/01-vertical-backend.md)\
@@ -52,3 +52,5 @@ Started at: 2026-09-30
 
 - 最终完整回归：8c7a6be 后端 212 passed、模拟银行 14 passed；工程验收勾选不代表真人批准或实施合入，Status 保持 in_progress。
 - 实施交付：[PR #30](https://github.com/DrErwin/hackerthon-bank-agent/pull/30)，当前未合并。
+
+- 2026-10-01（实际收口）：[PR #30](https://github.com/DrErwin/hackerthon-bank-agent/pull/30)最终提交CI通过，已squash合入main（712d104dc673d53071a720a5e8046521f6cab560）；[代码主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36774040361)通过：后端212项（63.64秒）、模拟银行14项（0.46秒），文档链接、Python语法及差异空白检查通过。本票标为resolved，来源问题#23已关闭。用户于2026-10-01明确指示「我豁免批准，合并」，本轮补票01—04的Ringo真人批准门槛由用户豁免；AI复审不记为真人批准，长期审查规则不变。
