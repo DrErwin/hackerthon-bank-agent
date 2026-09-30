@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把 docs/ 整个目录同步到飞书（省去每次手改清单）。
+"""把面向团队阅读的精选文档同步到飞书。
 
 用法：
     python tools/feishu_publish_all.py plan             # 只列计划，不碰飞书（默认命令）
@@ -15,11 +15,12 @@
    下次同步会新建一篇而不是更新，于是出现重复文档。所以：
    - 已发布的文档走 `TITLE_OVERRIDES`，标题一个字不改，保证原地更新；
    - 新文档用「文件夹标签 · 文件名」自动生成，不随正文标题变化。
-3. **plan 是默认命令**：先看清单再决定要不要推。第一次跑、或者新增了一批文档时，
-   先 plan。
+3. **白名单发布**：仓库保存完整事实源，飞书只展示 `CURATED_SOURCES` 中团队当前
+   需要阅读的文档。新增技术资料默认不上飞书；只有项目负责人确认有阅读价值后才加入。
+4. **plan 是默认命令**：先看清单再决定要不要推。
 
-排除规则：`docs/agents/` 是仓库内的 Agent 协作约定，不上飞书；`_` 开头的文件、
-非 .md/.mmd 文件一律跳过。
+已发布但退出白名单的文档不会删除；`archive-plan` 查看清单，`archive` 将它们移出
+知识库到 Drive 归档文件夹。
 """
 
 import os
@@ -45,26 +46,35 @@ ROOT = fs.ROOT
 
 # ---------- 同步范围 ----------
 
-# 扫描根目录 -> 文件后缀
-SCAN = [
-    ("docs", (".md", ".mmd")),
+# 飞书是团队阅读端，不是仓库镜像。顺序也是 plan 与知识库的推荐阅读顺序。
+CURATED_SOURCES = [
+    "docs/team/当前工作台.md",
+    "docs/README.md",
+    "docs/pm/ROADMAP.md",
+    "docs/versions/v0.3.0/implementation-plan.md",
+    "docs/versions/v0.3.0/requirements.md",
+    "docs/versions/v0.3.0/completion.md",
+    "docs/prd/01-智能转账-PRD-2026-09-23.md",
+    "docs/prd/02-账单分析-PRD-2026-09-23.md",
+    "docs/prd/06-跨场景联动-PRD-2026-09-23.md",
+    "docs/prd/安全底座父级-PRD-2026-09-23.md",
+    "docs/prd/MockBank-PRD-2026-09-23.md",
+    "docs/architecture/system-framework-2026-09-19.md",
+    "docs/contracts/公共契约-2026-09-23.md",
+    "docs/contracts/银行接口字段-2026-09-24.md",
+    "docs/contracts/确认验证字段-2026-09-24.md",
+    "docs/contracts/安全与审计字段-2026-09-24.md",
+    "docs/principles/03-review-and-merge.md",
+    "docs/principles/04-cross-team-delivery.md",
 ]
-
-# docs/ 之外、但已经在飞书上的文档，保留同步（否则它们就停更了）
-EXTRA_SOURCES = [
-    "官方资料/参赛规则与提交要求.md",
-    "官方资料/模板/source-code-readme-template.md",
-]
-
-# 不上的目录（相对 ROOT）
-EXCLUDE_DIRS = {
-    "docs/agents",
-}
 
 # 目录 -> 飞书标题前缀 / 所属分区
 # 分区名要与 feishu_sync.WIKI_SECTIONS 的键一致。
 FOLDER_RULES = [
     ("docs", "索引", "00 索引与跟踪"),
+    ("docs/team", "工作台", "00 索引与跟踪"),
+    ("docs/versions", "里程碑", "00 索引与跟踪"),
+    ("docs/pm/ROADMAP.md", "路线图", "00 索引与跟踪"),
     ("docs/prd", "PRD", "01 PRD 与评审"),
     ("docs/pm", "PM", "01 PRD 与评审"),
     ("docs/meetings", "会议", "01 PRD 与评审"),
@@ -78,6 +88,8 @@ FOLDER_RULES = [
 
 # 已发布的文档：标题保持不变，否则会在飞书里多出一份
 TITLE_OVERRIDES = {
+    "docs/team/当前工作台.md": "01 项目跟踪",
+    "docs/README.md": "00 版本进度",
     "docs/00-项目文档索引.md": "00 项目文档索引",
     "docs/01-项目跟踪.md": "01 项目跟踪",
     "官方资料/参赛规则与提交要求.md": "02 参赛规则与提交要求",
@@ -90,6 +102,7 @@ TITLE_OVERRIDES = {
     "docs/prd/06-跨场景联动-PRD-2026-09-23.md": "PRD 06 跨场景联动",
     "docs/prd/安全底座父级-PRD-2026-09-23.md": "PRD 安全底座",
     "docs/prd/MockBank-PRD-2026-09-23.md": "PRD Mock Bank",
+    "docs/pm/ROADMAP.md": "PM · ROADMAP",
     "docs/pm/PRD-预审会安排.md": "PRD 预审会安排",
     "docs/pm/安全回填表.md": "安全回填表",
 }
@@ -110,34 +123,31 @@ SECTION_ORDER = ["00 索引与跟踪", "01 PRD 与评审", "02 架构", "03 规�
 
 
 def _auto_title(rel, section_label):
-    stem = Path(rel).stem
+    path = Path(rel)
+    parts = path.parts
+    if len(parts) >= 4 and parts[0] == "docs" and parts[1] == "versions":
+        kind = {
+            "requirements": "需求",
+            "completion": "完成情况",
+            "implementation-plan": "实施计划",
+        }.get(path.stem, path.stem)
+        return f"{section_label} · {parts[2]} · {kind}"
+
+    stem = path.stem
     if stem.upper() == "README":
-        stem = Path(rel).parent.name
+        stem = path.parent.name
     return f"{section_label} · {stem}"
 
 
 def discover(only=None):
-    """返回待同步清单：[{local, title, section, is_new}]，图（.mmd）排在最前。"""
+    """返回白名单内待同步文档。"""
     state = fs.load_state()
     published = state.get("docs", {})
 
-    found = {}
-    for base, exts in SCAN:
-        for p in (ROOT / base).rglob("*"):
-            if not p.is_file() or p.suffix.lower() not in exts:
-                continue
-            rel = p.relative_to(ROOT).as_posix()
-            if p.name.startswith("_"):
-                continue
-            if any(rel == d or rel.startswith(d + "/") for d in EXCLUDE_DIRS):
-                continue
-            found[rel] = True
-    for rel in EXTRA_SOURCES:
-        if (ROOT / rel).is_file():
-            found[rel] = True
-
     items = []
-    for rel in found:
+    for rel in CURATED_SOURCES:
+        if not (ROOT / rel).is_file():
+            raise FileNotFoundError(f"飞书白名单文件不存在：{rel}")
         if only and only not in rel:
             continue
         label, section = _rule_for(rel)
@@ -152,7 +162,8 @@ def discover(only=None):
     # 按分区、再按路径排序，plan 看起来是一张整齐的表。
     # 「图先发」不靠这里的顺序——cmd_sync 是按后缀分两轮发的。
     order = {s: i for i, s in enumerate(SECTION_ORDER)}
-    items.sort(key=lambda x: (order.get(x["section"], 99), x["local"]))
+    source_order = {rel: i for i, rel in enumerate(CURATED_SOURCES)}
+    items.sort(key=lambda x: (order.get(x["section"], 99), source_order[x["local"]]))
     return items
 
 
@@ -287,6 +298,70 @@ def cmd_mount():
     return 1 if failed else 0
 
 
+def _non_curated_published():
+    curated_titles = {item["title"] for item in discover()}
+    published = fs.load_state().get("docs", {})
+    return [(title, meta) for title, meta in published.items() if title not in curated_titles]
+
+
+def cmd_archive_plan():
+    """列出已发布、但不再进入团队知识库的文档。只读。"""
+    items = _non_curated_published()
+    print(f"保留在团队知识库：{len(discover())} 篇")
+    print(f"移出知识库、保留在 Drive 归档：{len(items)} 篇\n")
+    for title, meta in items:
+        print(f"  {title:<38} {meta.get('local', '')}")
+    return 0
+
+
+def cmd_archive():
+    """把非白名单文档移出知识库，保留在 Drive 归档文件夹。"""
+    items = _non_curated_published()
+    if not items:
+        print("没有需要归档的飞书文档。")
+        return 0
+
+    state = fs.load_state()
+    folder_token = state.get("archive_folder_token")
+    if not folder_token:
+        result = fs._run_cli(["lark-cli", "drive", "+create-folder",
+                              "--name", "FinTechathon 2026 · 技术资料归档",
+                              "--as", "user", "--json"])
+        data = result.get("data", {})
+        folder_token = data.get("token") or data.get("folder_token")
+        if not result.get("ok") or not folder_token:
+            print(f"创建归档文件夹失败：{str(result.get('error') or result)[:200]}")
+            return 1
+        state["archive_folder_token"] = folder_token
+        fs.save_state(state)
+        print("已建立 Drive 归档文件夹")
+
+    moved = skipped = failed = 0
+    for title, meta in items:
+        probe = fs._run_cli(["lark-cli", "wiki", "+node-get",
+                             "--node-token", meta["doc_id"],
+                             "--as", "user", "--json"])
+        node_token = probe.get("data", {}).get("node_token") if probe.get("ok") else None
+        if not node_token:
+            print(f"  已不在知识库  {title}")
+            skipped += 1
+            continue
+
+        result = fs._run_cli(["lark-cli", "wiki", "+move-to-drive",
+                              "--node-token", node_token,
+                              "--folder-token", folder_token,
+                              "--as", "user", "--json"])
+        if result.get("ok"):
+            print(f"  归档  {title}")
+            moved += 1
+        else:
+            print(f"  失败  {title}：{str(result.get('error') or result)[:160]}")
+            failed += 1
+
+    print(f"\n完成：归档 {moved}，已归档 {skipped}，失败 {failed}")
+    return 1 if failed else 0
+
+
 def _only_arg():
     if "--only" in sys.argv:
         i = sys.argv.index("--only")
@@ -297,4 +372,5 @@ def _only_arg():
 
 if __name__ == "__main__":
     cmd = next((a for a in sys.argv[1:] if not a.startswith("-")), "plan")
-    {"plan": cmd_plan, "sync": cmd_sync, "mount": cmd_mount}.get(cmd, cmd_plan)()
+    {"plan": cmd_plan, "sync": cmd_sync, "mount": cmd_mount,
+     "archive-plan": cmd_archive_plan, "archive": cmd_archive}.get(cmd, cmd_plan)()
