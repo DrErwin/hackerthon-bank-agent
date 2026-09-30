@@ -271,6 +271,13 @@ def test_cookie_origin_ownership_and_expired_session_checks(tmp_path):
         new_session = enter(client)
         assert new_session["session_id"] != first["session_id"]
         assert client.get(f"/api/v1/tasks/{task['task_id']}").status_code == 200
+        snapshot = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert snapshot["allowed_actions"] == []
+        assert snapshot["recovery_required"] is True
+        assert snapshot["recovery_reason"] == "SESSION_RECONFIRMATION_REQUIRED"
+        pending = client.get("/api/v1/tasks", params={"recovery_required": True}).json()["data"]["items"]
+        assert pending[0]["task_id"] == task["task_id"]
+        assert pending[0]["allowed_actions"] == []
         # Safe and explicit public-platform gap; never reuse old authorization.
         blocked = post(client, f"/tasks/{task['task_id']}/resume")
         assert blocked.status_code == 409

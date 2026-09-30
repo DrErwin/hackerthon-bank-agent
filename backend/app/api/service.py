@@ -156,6 +156,12 @@ class ApiService:
             # For an in-flight action, cancel records intent and only queries the
             # original operation. It never promises that the bank can reverse it.
             view.allowed_actions.append("cancel")
+        if link["session_id"] != identity.session_id:
+            view.allowed_actions = []
+            if view.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+                view.recovery_reason = "SESSION_RECONFIRMATION_REQUIRED"
+                view.recovery_required = True
+                view.message = "原任务已保留；新登录会话的重新确认与恢复能力尚未提供。"
         return view
 
     def emit(self, identity, thread_id, event_type, payload, task=None):
