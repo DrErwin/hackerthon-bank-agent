@@ -62,19 +62,15 @@ feat(transfer): 增加按备注匹配收款人
 
 项目文档会同步到飞书供团队阅读，本地仓库始终是唯一事实源。
 
-- **2026-09-21 起统一存放处是飞书知识库**《FinTechathon 2026 项目文档》（space_id
-  记录在 `feishu_sync.py` 的 `WIKI_SPACE_ID`），四个分区：00 索引与跟踪 / 01 PRD
-  与评审 / 02 架构 / 03 规则与模板，共 14 篇。队员在飞书侧边栏「知识库」直接浏览。
+- **飞书知识库只放团队阅读层**：工作台、当前版本计划与进度、当前业务 PRD、核心架构契约和协作规则。完整事实仍保存在仓库，不把 `docs/` 当作飞书镜像。
 - 发布用 `FEISHU_STATE=.feishu_state.publish.json python tools/feishu_sync.py publish`：
-  读 `PUBLISH` 列表，用**用户身份**建/改文档。必须全程用户身份——应用身份建的文档，
+  读 `tools/feishu_publish_all.py` 的 `CURATED_SOURCES` 白名单，用**用户身份**建/改文档。必须全程用户身份——应用身份建的文档，
   用户没有编辑权（实测报 `4030004`）。
-- 新增文档三步：① 在 `PUBLISH` 加一行；② 在 `WIKI_MOVE` 标它属于哪个分区；
-  ③ 跑 publish 后用 `lark-cli wiki +move --obj-type docx --obj-token <doc_id>
-  --target-space-id <space> --target-parent-token <分区节点>` 挂进知识库
-  （分区节点 token 见 `WIKI_SECTIONS`）。已挂过的重复 move 无害。
+- 飞书只保留三层正式入口：当前工作台与当前版本、项目 Roadmap 与版本总览、已冻结且跨阶段复用的 PRD / 架构 / 契约 / 协作规则。新增飞书文档时先确认它属于哪一层，再加入 `CURATED_SOURCES`；执行 `plan → publish → mount`。模板和过程稿留仓库或 Drive 归档；退出白名单的旧文档执行 `archive-plan → archive`，不直接删除。
 - 知识库对团队可见需要在空间设置里加成员/群（或设组织内可读）——API 无对应
   设置项，属一次性手工操作。
 - 同步方向是本地 → 飞书。飞书上被改过的内容不回流，改动在本地提交后重新发布。
+- 《01 项目跟踪》使用 `docs/team/当前工作台.md` 作为人类阅读源；发布后运行 `python tools/embed_stages.py` 恢复文末的 v0.3 甘特图。
 - 授权产物与状态文件不入库（见 `.gitignore` 的 `.feishu_state*.json`）；发布用的临时
   markdown 落在 `_feishu_push/`，同样不入库，每次重新生成。
 

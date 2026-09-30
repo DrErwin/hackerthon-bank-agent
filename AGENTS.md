@@ -2,7 +2,7 @@
 
 AI Banking Agent：为银发人群打造的银行智能助理，用自然语言理解金融意图并代理执行转账、账单、跨场景联动等业务，配权限分级、敏感确认与注入防御。
 
-架构真相源：[docs/architecture/system-framework-2026-09-19.md](docs/architecture/system-framework-2026-09-19.md)。技术栈：Python 后端（FastAPI + Pydantic + Deep Agents/LangGraph），前端 Vue3。
+架构真相源：[docs/architecture/system-framework-2026-09-19.md](docs/architecture/system-framework-2026-09-19.md)。技术栈：Python 后端（FastAPI + Pydantic + Deep Agents/LangGraph），前端 React（2026-09-29 由 Vue3 改定）。
 
 ## 目录边界
 
@@ -15,11 +15,17 @@ AI Banking Agent：为银发人群打造的银行智能助理，用自然语言�
 | `backend/app/security/` | 安全（Ringo）：策略、执行器、确认；审计与记忆的安全规则 |
 | `backend/app/memory/` | 底座（Erwin）：Agent 长期记忆与上下文后端，随 harness 走；安全规则由安全侧定 |
 | `backend/app/modules/transfer/` | 转账（梁爽） |
-| `backend/app/modules/bills/` | 账单（六水） |
+| `backend/app/modules/bills/` | 账单（周恩宇；2026-09-28 全员会起由六水移交） |
 | `backend/app/modules/cross/` | 联动（周恩宇） |
 | `backend/app/services/` `storage/` | 底座共享 |
 | `frontend/` | 前端 / 适老化（梁爽负责，六水协助；2026-09-25 确认） |
-| `evals/` | 评测集，按子目录归属：transfer 梁爽 · bills 六水 · cross 周恩宇 · security Ringo · mockbank Erwin |
+| `evals/` | 评测集，按子目录归属：transfer Erwin · bills 周恩宇 · cross 周恩宇 · security Ringo · mockbank Erwin（2026-09-28 全员会调整） |
+
+### v0.3 临时执行安排（2026-09-27）
+
+为尽快跑通普通转账纵向链路，v0.3 由 Erwin 依次实现底座、最小安全门和普通转账参考路径，并接手转账评测及对应审查（2026-09-28 全员会定，原为梁爽）；Ringo 负责安全评测及审查。该安排只适用于 v0.3 首条路径，不改变安全与转账目录的长期归属；阶段收口后，后续维护回到上表负责人。
+
+同一个人可以按顺序承担多个目录，但一张实施票、一个分支和一个 PR 仍只对应一个目录，禁止把底座、安全和转账做成一个无法独立审查的大改动。
 
 ## 开工先读
 
@@ -27,6 +33,7 @@ AI Banking Agent：为银发人群打造的银行智能助理，用自然语言�
 - 写或改业务模块 → [业务并行原则](docs/principles/01-business-parallel.md)
 - 写或改安全底座 / 执行器 / 审计 → [安全底座原则](docs/principles/02-security-platform.md)
 - 开分支、提 PR、审查合并 → [Review 与合并原则](docs/principles/03-review-and-merge.md)
+- 拆跨团队纵向场景、交付包或版本进度 → [跨团队纵向交付与版本进度原则](docs/principles/04-cross-team-delivery.md)
 
 ## 三条铁律
 
@@ -51,13 +58,19 @@ python tools/feishu_sync.py publish   # 推内容：缺失的新建、已存在�
 python tools/feishu_sync.py mount     # 把还没进知识库的挂进对应分区（幂等）
 ```
 
-范围自动扫描 `docs/`（外加 `官方资料/` 已发布的两份），新增文档不用改脚本；排除规则、标题与分区规则都在 `tools/feishu_publish_all.py`。三条都可重复跑。一条要知道的：**飞书按标题认文档**，已发布文档的标题固定在 `TITLE_OVERRIDES` 里——标题一变，飞书会新建一篇而不是更新它。
+飞书使用 `tools/feishu_publish_all.py` 中的 `CURATED_SOURCES` 白名单，分三层发布：当前工作台与当前版本、项目 Roadmap 与版本总览、已冻结且跨阶段复用的 PRD / 架构 / 契约 / 协作规则。模板、会议稿、研究过程和收口过程记录只留仓库或 Drive 归档。新增文档先留在仓库，只有项目负责人确认属于上述三层后才加入白名单。已退出白名单的资料用 `archive-plan` 检查、`archive` 移出知识库并保留到 Drive 归档，不直接删除。
+
+飞书按标题识别文档；已发布标题固定在 `TITLE_OVERRIDES`，改标题会新建一篇。同步当前工作台后重新运行 `python tools/embed_stages.py`，因为覆盖正文会移除内嵌甘特图。
 
 ## Agent skills
 
 ### Issue tracker
 
 Issues and specs live as markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Version progress
+
+Milestone requirements and completion evidence live under `docs/versions/`. Update the current version's `completion.md` before starting the next milestone. See `docs/principles/04-cross-team-delivery.md`.
 
 ### Domain docs
 
