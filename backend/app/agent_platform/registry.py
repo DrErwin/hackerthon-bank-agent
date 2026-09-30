@@ -21,6 +21,12 @@ class TransferEntry(Protocol):
     def resume(self, trusted: TrustedContext, response: dict, *,
                thread_id: str | None = None) -> ModuleResult[TransferTaskView]: ...
 
+    def recover_session(self, trusted: TrustedContext, *, source_session_id: str,
+                        thread_id: str | None = None) -> ModuleResult[TransferTaskView]: ...
+
+    def checkpoint_context(self, trusted: TrustedContext, *,
+                           thread_id: str | None = None) -> TrustedContext | None: ...
+
 
 TransferFactory = Callable[[TrustedContext, BaseCheckpointSaver, "RunTrace"], TransferEntry]
 

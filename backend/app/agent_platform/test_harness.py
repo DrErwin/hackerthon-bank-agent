@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -124,6 +125,150 @@ def test_public_transfer_survives_new_harness_and_deduplicates(tmp_path):
     assert [(event.run_id, event.sequence) for event in events] == [
         ("R1", 0), ("R1", 1), ("R1", 2), ("R2", 0), ("R2", 1),
     ]
+
+
+def test_recover_session_transitions_storage_and_records_both_sessions(tmp_path):
+    path = tmp_path / "app.sqlite"
+    ports = Ports()
+    harness = runtime(path, ports, ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    pending = harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    harness.application.create_session(
+        "S2", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    current = trusted(run="R2").model_copy(update={"session_id": "S2"})
+
+    recovered = harness.recover_session(current)
+
+    assert recovered.task_id == "T1"
+    assert recovered.run_id == "R2"
+    assert recovered.status == TaskStatus.WAITING_APPROVAL
+    assert recovered.data.operation_id == pending.data.operation_id
+    assert ports.submissions == 0
+    task = harness.application.get_task("U1", "D1", "T1")
+    assert task.session_id == "S2"
+    events = [event for event in harness.audit._events("D1", "T1")
+              if event.event_type == "recovery.checked"]
+    assert [event.outcome for event in events] == ["started", "succeeded"]
+    assert all(event.session_id == "S2" and event.target_session_id == "S1" for event in events)
+    assert all(event.payload.previous_run_id == "R1" for event in events)
+    assert all(event.payload.current_run_id == "R2" for event in events)
+    assert all(event.payload.operation_ids == [pending.data.operation_id] for event in events)
+
+    # An ordinary chat reply does not skip the new session's confirmation.
+    resumed = harness.resume(current, {"choice": "approve"})
+    assert resumed.status == TaskStatus.WAITING_APPROVAL
+    assert ports.submissions == 0
+
+
+def test_recovery_audit_failure_prevents_task_or_checkpoint_conversion(tmp_path):
+    path = tmp_path / "app.sqlite"
+    ports = Ports()
+    harness = runtime(path, ports, ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    before = harness.application.get_task("U1", "D1", "T1")
+    harness.application.create_session(
+        "S2", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    current = trusted(run="R2").model_copy(update={"session_id": "S2"})
+    append = harness.audit.append_in_transaction
+
+    def unavailable(connection, event, **kwargs):
+        if event.event_type == "recovery.checked":
+            raise RuntimeError("audit unavailable")
+        return append(connection, event, **kwargs)
+
+    with patch.object(harness.audit, "append_in_transaction", side_effect=unavailable):
+        with pytest.raises(RuntimeError, match="audit unavailable"):
+            harness.recover_session(current)
+
+    after = harness.application.get_task("U1", "D1", "T1")
+    assert after.session_id == "S1"
+    assert after.revision == before.revision
+    assert "session_recovery" not in after.snapshot
+    assert ports.submissions == 0
+
+
+def test_session_recovery_retries_after_storage_transition_and_is_idempotent(tmp_path):
+    ports = Ports()
+    calls = []
+
+    class FailsOnce(TransferWorkflow):
+        def recover_session(self, trusted, *, source_session_id, thread_id=None):
+            if not calls:
+                calls.append("interrupted")
+                raise RuntimeError("simulated interruption after storage transition")
+            calls.append("recovered")
+            return super().recover_session(
+                trusted, source_session_id=source_session_id, thread_id=thread_id,
+            )
+
+    harness = runtime(
+        tmp_path / "app.sqlite", ports, ProposalModel(),
+        factory=lambda _trusted, saver, _trace: FailsOnce(ports, saver),
+    )
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    pending = harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    harness.application.create_session(
+        "S2", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    first_identity = trusted(run="R2").model_copy(update={"session_id": "S2"})
+
+    with pytest.raises(RuntimeError, match="simulated interruption"):
+        harness.recover_session(first_identity)
+
+    interrupted = harness.application.get_task("U1", "D1", "T1")
+    assert interrupted.session_id == "S2"
+    assert interrupted.snapshot["session_recovery"]["phase"] == "transitioned"
+    assert ports.submissions == 0
+
+    restarted = runtime(
+        tmp_path / "app.sqlite", ports, ProposalModel(),
+        factory=lambda _trusted, saver, _trace: FailsOnce(ports, saver),
+    )
+    retry_identity = first_identity.model_copy(update={"run_id": "R3"})
+    recovered = restarted.recover_session(retry_identity)
+    assert recovered.status == TaskStatus.WAITING_APPROVAL
+    assert recovered.data.operation_id == pending.data.operation_id
+    assert ports.submissions == 0
+    assert calls == ["interrupted", "recovered"]
+
+    audit_count = len([event for event in restarted.audit._events("D1", "T1")
+                       if event.event_type == "recovery.checked"])
+    assert restarted.recover_session(retry_identity) == recovered
+    assert len([event for event in restarted.audit._events("D1", "T1")
+                if event.event_type == "recovery.checked"]) == audit_count
+
+
+def test_recover_session_rejects_foreign_user_before_audit_or_transition(tmp_path):
+    path = tmp_path / "app.sqlite"
+    harness = runtime(path, Ports(), ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    harness.application.create_session(
+        "S2", "U2", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    current = trusted(user="U2", run="R2").model_copy(update={"session_id": "S2"})
+
+    with pytest.raises(PermissionError, match="ACCESS_DENIED"):
+        harness.recover_session(current)
+
+    assert harness.application.get_task("U1", "D1", "T1").session_id == "S1"
+    assert not any(event.event_type == "recovery.checked"
+                   for event in harness.audit._events("D1", "T1"))
 
 
 def test_task_owner_and_request_are_bound(tmp_path):
