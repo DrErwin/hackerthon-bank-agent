@@ -41,5 +41,7 @@ Unlocks: 前端真实联调、12
 - 2026-09-30：在独立 worktree、`codex/10-api-task-stream` 分支实施。依赖票已合入；使用现有 spec 和票据。代码改动限于 `backend/app/api/`，过程记录按队员开工规范更新。
 - 已实现任务、确认、验证、取消与恢复、持久事件流及只读审计入口。启动配置和前端入口见 [API 交接说明](../../../backend/app/api/README.md)。
 - 验证：完整后端 178 项（API 29 项）、模拟银行评测 14 项通过；API 类型、语法、文档链接检查通过。两位 AI 规范 / 规格审查及修复复查完成，非真人批准。公共缺口跟踪 [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)、[#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)。
-- 交付：[Draft PR #25](https://github.com/DrErwin/hackerthon-bank-agent/pull/25)，尚未合入；CI 以 PR 当前 head 的实时检查为准。
-- 本票保持 claimed：公共 Harness 尚不支持新登录会话重新确认后恢复旧任务，也没有无业务意图时仅回复的结果类型；部署模型与策略组合工厂、React 联调及真人安全审查仍待提供 / 执行。AI 审查、工程测试和 CI 不代表这些条件已满足。
+- 交付：[API 工程增量 PR #25](https://github.com/DrErwin/hackerthon-bank-agent/pull/25)；独立工程、契约与安全 AI 审查按本任务授权执行，合入状态与 CI 以 PR 当前 head 为准。
+- 本票保持 claimed（验收未完成）：公共 Harness 尚不支持新登录会话重新确认后恢复旧任务，也没有无业务意图时仅回复的结果类型；部署模型与策略组合工厂、React 联调及 AF01—AF14 联合验收仍待提供 / 执行。本次按用户授权由独立 AI 代相关角色审查并推进有限增量合入，未记录任何真人批准。AI 审查、工程测试和 CI 不代表这些条件已满足。
+
+- 独立契约审查修复：新登录后的旧任务不再显示不可用操作，非终态明确标记 SESSION_RECONFIRMATION_REQUIRED；快照及待恢复列表有回归断言。工程增量获审查认可，票 10 全部验收仍未完成。

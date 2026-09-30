@@ -69,4 +69,6 @@ SSE 的 id 为 event_id。先连流，再拉取 messages / tasks 快照；按 ev
 
 当前 Harness 的模型入口也只有普通转账候选，没有无业务意图时仅回复的公开结果类型；API 不自行写意图规则来补齐普通闲聊。相关能力需要底座另票提供。报告、导出及其他业务的入口不属于本票范围。
 
-公共缺口分别跟踪于 [新会话恢复 #23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23) 与 [无业务意图回复 #24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)。本票工程结果待审查 / 合入，版本进度和票据完成状态须在依赖缺口与负责人审查收口后更新；尚不能据此将 v0.3 标为完成。
+重新登录读取旧任务时，当前快照清空不可用的 allowed_actions；非终态任务标记 SESSION_RECONFIRMATION_REQUIRED。保留的 interaction 仅用于历史显示，专用确认 / 验证视图仍拒绝旧会话操作。切换会话后先重新 GET 任务，以当前快照权限为准；SSE 回放中的旧快照不能恢复旧按钮。
+
+公共缺口分别跟踪于 [新会话恢复 #23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23) 与 [无业务意图回复 #24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)。本票工程增量经独立工程、契约与安全 AI 审查，按用户本次授权推进有限增量合入；AI 审查不代表任何真人批准。票 10 验收仍未完成，须补齐依赖缺口与联调证据后更新完成状态；尚不能据此将 v0.3 标为完成。
