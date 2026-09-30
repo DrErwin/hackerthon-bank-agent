@@ -20,6 +20,7 @@ from app.contracts.tasks import InteractionRequest
 from app.security import ConfirmationService, ExecutionOutcome, SecurityGate, ToolRegistry
 from app.services.bank_gateway.gateway import BankGateway
 from app.services.mock_bank.core import MockBankService
+from app.storage.application import ApplicationStore
 from app.storage.mock_bank.repository import MockBankStore
 
 from .tools import GatewayTransferTools, TransferAction, TransferSnapshots
@@ -32,6 +33,20 @@ PAYEE = PayeeDisplay(payee_id="P1", name_masked="张*", account_masked="****1234
 
 def trusted(user="U1", task="T1"):
     return TrustedContext(user_id=user, session_id="S1", task_id=task, run_id="R1", parent_task_id=None, demo_round_id="D1")
+
+
+def test_checkpoint_context_is_scoped_read_only():
+    flow, ports = workflow()
+    assert flow.checkpoint_context(trusted()) is None
+    pending = flow.start(trusted(), request())
+    current = trusted().model_copy(update={"session_id": "S2", "run_id": "R2"})
+    assert flow.checkpoint_context(current) == trusted()
+    for updates in ({"user_id": "U2"}, {"task_id": "T2"}, {"demo_round_id": "D2"}):
+        with pytest.raises(ValueError, match="ACCESS_DENIED"):
+            flow.checkpoint_context(current.model_copy(update=updates), thread_id="T1")
+    assert flow.checkpoint_context(current) == trusted()
+    assert flow.resume(trusted(), {}) == pending
+    assert ports.submissions == 0
 
 
 def request(**updates):
@@ -612,10 +627,29 @@ def test_real_gateway_and_security_executor_in_same_graph(tmp_path):
         clock=lambda: NOW,
     )
     try:
-        ports = GatewayTransferTools(gateway, gate, snapshots, security_context)
+        reserved_operations = []
+        canonical_operation_id = uuid4()
+
+        def reserve_operation(current, operation_id, revision, parameters):
+            reserved_operations.append((current, operation_id, revision, dict(parameters)))
+            return canonical_operation_id
+
+        ports = GatewayTransferTools(
+            gateway, gate, snapshots, security_context,
+            operation_reserver=reserve_operation,
+        )
         flow = TransferWorkflow(ports, InMemorySaver())
         pending = flow.start(trusted(), request(payee=SavedPayee(kind="saved", payee_id="A2")))
         assert pending.status == TaskStatus.WAITING_APPROVAL
+        assert pending.data.operation_id == canonical_operation_id
+        reserved_context, candidate_id, revision, parameters = reserved_operations[0]
+        assert reserved_context == trusted()
+        assert candidate_id != canonical_operation_id
+        assert revision == 1
+        assert parameters == {
+            "operation_id": str(candidate_id), "payer_account_id": "A1",
+            "payee": {"kind": "saved", "payee_id": "A2"}, "amount_fen": 10_000,
+        }
         assert bank.get_operation(trusted(), pending.data.operation_id).lookup == "not_found"
         auth["confirmation"] = confirmations.answer(
             security_context(trusted(), pending.data.operation_id, 1),
@@ -629,3 +663,197 @@ def test_real_gateway_and_security_executor_in_same_graph(tmp_path):
         assert bank.get_operation(trusted(), done.data.operation_id).lookup == "found"
     finally:
         gateway.close()
+
+
+def test_recover_session_rechecks_waiting_security_before_submission():
+    class SessionTrackingPorts(Ports):
+        def __init__(self):
+            super().__init__()
+            self.checked_sessions = []
+            self.approved_sessions = set()
+
+        def check(self, current, action):
+            self.checked_sessions.append(current.session_id)
+            code = (SecurityDecisionCode.ALLOW if current.session_id in self.approved_sessions
+                    else SecurityDecisionCode.REQUIRE_CONFIRMATION)
+            return self.decision(action, code)
+
+    ports = SessionTrackingPorts()
+    flow, _ = workflow(ports)
+    pending = flow.start(trusted(), request())
+    assert pending.status == TaskStatus.WAITING_APPROVAL
+    original_operation_id = pending.data.operation_id
+    ports.approved_sessions.add("S1")
+
+    current = trusted().model_copy(update={"session_id": "S2", "run_id": "R2"})
+    recovered = flow.recover_session(current, source_session_id="S1")
+
+    assert recovered.status == TaskStatus.WAITING_APPROVAL
+    assert recovered.data.operation_id == original_operation_id
+    assert recovered.data.amount_fen == 10_000
+    assert recovered.data.payer_account_id == "A1"
+    assert ports.submissions == 0
+    assert ports.checked_sessions == ["S1", "S2"]
+
+    # A chat reply cannot stand in for a confirmation from the new session.
+    still_waiting = flow.resume(current, {"choice": "approve"})
+    assert still_waiting.status == TaskStatus.WAITING_APPROVAL
+    assert ports.submissions == 0
+
+    ports.approved_sessions.add("S2")
+    done = flow.resume(current, {"choice": "approve"})
+    assert done.status == TaskStatus.SUCCEEDED
+    assert done.data.operation_id == original_operation_id
+    assert ports.submissions == 1
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"user_id": "U2"},
+        {"demo_round_id": "D2"},
+        {"task_id": "T2"},
+    ],
+)
+def test_recover_session_rejects_foreign_scope_without_mutating_checkpoint(updates):
+    flow, _ = workflow()
+    flow.start(trusted(), request())
+    current = trusted().model_copy(update={"session_id": "S2", **updates})
+
+    with pytest.raises(ValueError, match="ACCESS_DENIED"):
+        flow.recover_session(current, source_session_id="S1", thread_id="T1")
+
+    saved = flow.graph.get_state(flow._config(trusted(), None))
+    assert saved.values["trusted"]["session_id"] == "S1"
+    assert saved.values.get("session_recovery_source_id") is None
+
+
+def test_recover_session_rejects_wrong_source_session():
+    flow, _ = workflow()
+    flow.start(trusted(), request())
+    current = trusted().model_copy(update={"session_id": "S2"})
+
+    with pytest.raises(ValueError, match="ACCESS_DENIED"):
+        flow.recover_session(current, source_session_id="S0")
+
+    assert flow.graph.get_state(flow._config(trusted(), None)).values["trusted"]["session_id"] == "S1"
+
+
+def test_recover_session_preserves_missing_information_wait_and_allows_cancel():
+    flow, ports = workflow()
+    waiting = flow.start(trusted(), request(amount_fen=None))
+    assert waiting.status == TaskStatus.WAITING_INPUT
+
+    current = trusted().model_copy(update={"session_id": "S2"})
+    recovered = flow.recover_session(current, source_session_id="S1")
+    assert recovered.status == TaskStatus.WAITING_INPUT
+    assert recovered.data.amount_fen is None
+
+    cancelled = flow.resume(current, {"choice": "cancel"})
+    assert cancelled.status == TaskStatus.CANCELLED
+    assert ports.submissions == 0
+
+
+def test_recover_session_at_submit_boundary_queries_without_executing():
+    flow, ports = workflow()
+    flow.start(trusted(), request())
+    ports.processing = True
+    config = flow._config(trusted(), None)
+    flow.graph.update_state(
+        config,
+        {"status": TaskStatus.RUNNING.value, "interaction": None, "next": "submit"},
+        as_node="security",
+    )
+    original = flow.graph.get_state(config).values["operation_id"]
+
+    current = trusted().model_copy(update={"session_id": "S2"})
+    recovered = flow.recover_session(current, source_session_id="S1")
+
+    assert recovered.status == TaskStatus.NEEDS_ATTENTION
+    assert str(recovered.data.operation_id) == original
+    assert recovered.recovery_reason == "OPERATION_UNKNOWN"
+    assert ports.submissions == 0
+    assert ports.observations == 1
+
+
+def test_recover_session_only_queries_original_operation_and_retries_interrupted_conversion(tmp_path):
+    class FlakyObservePorts(Ports):
+        def __init__(self):
+            super().__init__()
+            self.observation_attempts = 0
+            self.fail_next_observation = False
+
+        def observe(self, current, action):
+            self.observation_attempts += 1
+            if self.fail_next_observation:
+                self.fail_next_observation = False
+                raise TimeoutError("conversion interrupted")
+            return super().observe(current, action)
+
+    ports = FlakyObservePorts()
+    ports.bank_status = "processing"
+    checkpoint_path = tmp_path / "transfer-checkpoints.sqlite"
+    application = ApplicationStore(checkpoint_path)
+    application.create_session(
+        "S1", "U1", "D1", NOW.isoformat(), datetime(2026, 10, 1, tzinfo=timezone.utc).isoformat(),
+    )
+    task = application.create_task("T1", "U1", "S1", "D1", "R1", TaskStatus.RUNNING, {})
+    thread_id = task.checkpoint_thread_id
+    clock = [0]
+
+    def sleep(seconds):
+        clock[0] += seconds
+
+    flow = TransferWorkflow(
+        ports, application.checkpoint_saver("U1", "D1", "T1"),
+        monotonic=lambda: clock[0], sleep=sleep,
+    )
+    flow.start(trusted(), request(), thread_id=thread_id)
+    ports.approved = True
+    original = flow.resume(trusted(), {"choice": "approve"}, thread_id=thread_id)
+    assert original.status == TaskStatus.NEEDS_ATTENTION
+    original_operation_id = original.data.operation_id
+    assert ports.submissions == 1
+
+    current = trusted().model_copy(update={"session_id": "S2", "run_id": "R2"})
+    ports.fail_next_observation = True
+    with pytest.raises(TimeoutError, match="conversion interrupted"):
+        flow.recover_session(current, source_session_id="S1", thread_id=thread_id)
+
+    # A replacement workflow instance uses the same durable checkpoint after a restart.
+    application = ApplicationStore(checkpoint_path)
+    flow = TransferWorkflow(
+        ports, application.checkpoint_saver("U1", "D1", "T1"),
+        monotonic=lambda: clock[0], sleep=sleep,
+    )
+    recovered = flow.recover_session(current, source_session_id="S1", thread_id=thread_id)
+    assert recovered.status == TaskStatus.NEEDS_ATTENTION
+    assert recovered.data.operation_id == original_operation_id
+    assert recovered.recovery_reason == "OPERATION_PROCESSING"
+    assert ports.submissions == 1
+    assert ports.observation_attempts >= 2
+
+    recovered_observations = ports.observation_attempts
+    repeated = flow.recover_session(current, source_session_id="S1", thread_id=thread_id)
+    assert repeated.data.operation_id == original_operation_id
+    assert ports.submissions == 1
+    assert ports.observation_attempts == recovered_observations
+
+
+def test_recover_session_returns_terminal_history_without_reexecuting():
+    flow, ports = workflow()
+    flow.start(trusted(), request())
+    ports.approved = True
+    completed = flow.resume(trusted(), {"choice": "approve"})
+    submissions = ports.submissions
+    observations = ports.observations
+
+    current = trusted().model_copy(update={"session_id": "S2", "run_id": "R2"})
+    recovered = flow.recover_session(current, source_session_id="S1")
+
+    assert recovered.status == TaskStatus.SUCCEEDED
+    assert recovered.task_id == completed.task_id
+    assert recovered.data.operation_id == completed.data.operation_id
+    assert recovered.run_id == "R2"
+    assert ports.submissions == submissions
+    assert ports.observations == observations
