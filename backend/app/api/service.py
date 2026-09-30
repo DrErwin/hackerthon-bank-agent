@@ -113,21 +113,23 @@ class ApiService:
             raise ApiProblem(404, "NOT_FOUND")
         return rows[0]
 
-    def link(self, identity, task_id, *, mutate=False):
+    def link(self, identity, task_id, *, mutate=False, allow_session_recovery=False):
         rows = self.store.rows("SELECT * FROM api_tasks WHERE task_id=? AND user_id=? AND demo_round_id=?",
                                (task_id, identity.user_id, identity.demo_round_id))
         if not rows:
             raise ApiProblem(404, "NOT_FOUND")
         link = rows[0]
         self.thread(identity, link["thread_id"])
-        if mutate and link["session_id"] != identity.session_id:
-            # The current public Harness cannot rebind an old checkpoint to a new
-            # login. Fail closed rather than impersonating its expired session.
+        if (mutate and link["session_id"] != identity.session_id
+                and not allow_session_recovery):
             raise ApiProblem(409, "SESSION_RECONFIRMATION_REQUIRED")
         return link
 
-    def trusted(self, identity, task_id, *, new_run=False):
-        link = self.link(identity, task_id, mutate=True)
+    def trusted(self, identity, task_id, *, new_run=False, allow_session_recovery=False):
+        link = self.link(
+            identity, task_id, mutate=True,
+            allow_session_recovery=allow_session_recovery,
+        )
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
         return TrustedContext(user_id=identity.user_id, session_id=identity.session_id,
             demo_round_id=identity.demo_round_id, task_id=task_id,
@@ -161,7 +163,7 @@ class ApiService:
             if view.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
                 view.recovery_reason = "SESSION_RECONFIRMATION_REQUIRED"
                 view.recovery_required = True
-                view.message = "原任务已保留；新登录会话的重新确认与恢复能力尚未提供。"
+                view.message = "原任务已保留；请通过恢复入口在当前会话重新确认或查询。"
         return view
 
     def emit(self, identity, thread_id, event_type, payload, task=None):
@@ -190,6 +192,23 @@ class ApiService:
                       InteractionRequired(task_id=task_id, interaction=task.interaction), task)
         self.message(identity, task.thread_id, task.message, "assistant", task_id)
         return task
+
+    def events_for_session(self, identity, thread_id, cursor):
+        """Do not replay old-session task controls into a newly authenticated view."""
+        visible = []
+        scanned_cursor = cursor
+        while True:
+            page = self.store.events(thread_id, scanned_cursor)
+            if not page:
+                break
+            scanned_cursor = page[-1]["event_id"]
+            visible.extend(event for event in page if not (
+                event["session_id"] != identity.session_id
+                and event["event_type"] in {"task_updated", "interaction_required"}
+            ))
+            if visible or len(page) < self.store.EVENT_PAGE_SIZE:
+                break
+        return visible, scanned_cursor
 
     def record_context(self, identity, kind, record_id):
         rows = self.store.rows("SELECT task_id FROM api_records WHERE kind=? AND record_id=?", (kind, record_id))
@@ -255,11 +274,48 @@ class ApiService:
             reason_code=outcome.reason_code or "VERIFICATION_METHOD_PASSED",
         ), "succeeded" if outcome.kind == "verified" else "denied")
 
-    def continue_task(self, identity, task_id, response):
-        trusted = self.trusted(identity, task_id, new_run=True)
+    def continue_task(self, identity, task_id, response, *, recover_session=False):
+        link = self.link(
+            identity, task_id, mutate=True,
+            allow_session_recovery=recover_session,
+        )
+        trusted = self.trusted(
+            identity, task_id, new_run=True,
+            allow_session_recovery=recover_session,
+        )
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
-        if task is None:
-            link = self.link(identity, task_id, mutate=True)
+        session_changed = (
+            link["session_id"] != identity.session_id
+            or task is not None and task.session_id != identity.session_id
+        )
+        if session_changed and recover_session:
+            if task is None:
+                if not link["cancel_requested"]:
+                    self.runtime.harness.start(
+                        trusted, UUID(link["request_id"]), link["intent_text"],
+                    )
+            else:
+                marker = task.snapshot.get("session_recovery")
+                already_recovered = (
+                    isinstance(marker, dict)
+                    and marker.get("target_session_id") == identity.session_id
+                    and marker.get("phase") == "complete"
+                )
+                already_started_here = (
+                    task.session_id == identity.session_id and marker is None
+                )
+                if not already_recovered and not already_started_here:
+                    self.runtime.harness.recover_session(trusted)
+            current = self.runtime.application.get_task(
+                identity.user_id, identity.demo_round_id, task_id,
+            )
+            self.store.write(
+                """UPDATE api_tasks SET session_id=?, run_id=?
+                   WHERE task_id=? AND user_id=? AND demo_round_id=?""",
+                (identity.session_id, current.run_id if current else trusted.run_id, task_id,
+                 identity.user_id, identity.demo_round_id),
+            )
+        elif task is None:
             if not link["cancel_requested"]:
                 self.runtime.harness.start(trusted, UUID(link["request_id"]), link["intent_text"])
         else:

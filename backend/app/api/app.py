@@ -133,13 +133,15 @@ def create_app(runtime=None, config=None):
     def identity(request: Request, service=Depends(api)):
         return service.identity(request.cookies.get(COOKIE))
 
-    def mutation(service, who, request, body, action, *, status=200, fingerprint=None, recover_verification=False):
+    def mutation(service, who, request, body, action, *, status=200, fingerprint=None,
+                 recover_verification=False, retry_interrupted=False):
         with service.mutation_lock:
             # Recheck after a potentially long wait for another operation.
             service.identity(service.cookie(who.session_id))
             previous = service.store.receipt(who, request.url.path, body.request_id,
                                              body if fingerprint is None else fingerprint,
-                                             recover_verification=recover_verification)
+                                             recover_verification=recover_verification,
+                                             retry_interrupted=retry_interrupted)
             if previous is not None:
                 return JSONResponse(previous["body"], status_code=previous["status"], headers={"Cache-Control": "no-store"})
             try:
@@ -248,9 +250,12 @@ def create_app(runtime=None, config=None):
     @application.post("/api/v1/tasks/{task_id}/cancel")
     @application.post("/api/v1/tasks/{task_id}/query-result")
     def continue_task(request: Request, task_id: str, body: RequestIdOnly, who=Depends(identity), service=Depends(api)):
-        service.link(who, task_id, mutate=True)
+        command = request.url.path.rsplit("/", 1)[1]
+        service.link(
+            who, task_id, mutate=True,
+            allow_session_recovery=command == "resume",
+        )
         def action():
-            command = request.url.path.rsplit("/", 1)[1]
             task = service.task_view(who, task_id)
             if command == "cancel":
                 if "cancel" not in task.allowed_actions:
@@ -263,8 +268,13 @@ def create_app(runtime=None, config=None):
                 if "query" not in task.allowed_actions:
                     raise ApiProblem(409, "ACTION_UNAVAILABLE")
                 return service.continue_task(who, task_id, {"query": True})
-            return service.continue_task(who, task_id, {"choice": "resume"})
-        return mutation(service, who, request, body, action)
+            return service.continue_task(
+                who, task_id, {"choice": "resume"}, recover_session=True,
+            )
+        return mutation(
+            service, who, request, body, action,
+            retry_interrupted=command == "resume",
+        )
 
     @application.post("/api/v1/tasks/{task_id}/details")
     def details(request: Request, task_id: str, body: SubmitDetailsRequest, who=Depends(identity), service=Depends(api)):
@@ -415,7 +425,7 @@ def create_app(runtime=None, config=None):
     async def events(request: Request, thread_id: str, who=Depends(identity), service=Depends(api)):
         service.thread(who, thread_id)
         cursor = request.headers.get("Last-Event-ID")
-        service.store.events(thread_id, cursor)  # Reject foreign/stale cursors before headers.
+        service.events_for_session(who, thread_id, cursor)  # Reject foreign/stale cursors before headers.
         async def stream():
             nonlocal cursor
             while not await request.is_disconnected():
@@ -427,9 +437,11 @@ def create_app(runtime=None, config=None):
                         payload=SessionExpired(session_id=who.session_id, reason="AUTH_REQUIRED"))
                     yield f"id: {event.event_id}\nevent: session_expired\ndata: {dump(event)}\n\n"
                     return
-                for event in service.store.events(thread_id, cursor):
+                visible_events, scanned_cursor = service.events_for_session(who, thread_id, cursor)
+                for event in visible_events:
                     cursor = event["event_id"]
                     yield f"id: {cursor}\nevent: {event['event_type']}\ndata: {dump(event)}\n\n"
+                cursor = scanned_cursor or cursor
                 yield ": heartbeat\n\n"
                 await asyncio.sleep(0.25)
         return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})

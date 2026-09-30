@@ -21,6 +21,8 @@ def dump(value):
 
 
 class ApiStore:
+    EVENT_PAGE_SIZE = 100
+
     def __init__(self, path, secret):
         self.path, self.secret = path, secret
         with transaction(path) as c:
@@ -63,7 +65,8 @@ class ApiStore:
         with transaction(self.path) as c:
             return c.execute(sql, parameters).rowcount
 
-    def receipt(self, identity, endpoint, request_id, body, *, recover_verification=False):
+    def receipt(self, identity, endpoint, request_id, body, *, recover_verification=False,
+                retry_interrupted=False):
         key = (identity.user_id, identity.demo_round_id, endpoint, str(request_id))
         digest = hmac.new(self.secret, dump(body).encode(), hashlib.sha256).hexdigest()
         with transaction(self.path) as c:
@@ -73,9 +76,9 @@ class ApiStore:
                 if row["digest"] != digest:
                     raise ApiProblem(409, "REQUEST_CONFLICT")
                 if row["response_json"] is None:
-                    if recover_verification:
-                        # Only the dedicated bank verification submission may
-                        # recover here; its submission_id is bank-idempotent.
+                    if recover_verification or retry_interrupted:
+                        # Verification uses the bank submission_id; task recovery
+                        # uses the Harness transition marker and original operation_id.
                         return None
                     # An interrupted request is never automatically replayed.
                     raise ApiProblem(409, "REQUEST_IN_PROGRESS")
@@ -126,5 +129,5 @@ class ApiStore:
                 raise ApiProblem(409, "EVENT_CURSOR_STALE")
             sequence = rows[0]["sequence"]
         return [json.loads(row["event_json"]) for row in self.rows(
-            "SELECT event_json FROM api_events WHERE thread_id=? AND sequence>? ORDER BY sequence LIMIT 100",
-            (thread_id, sequence))]
+            "SELECT event_json FROM api_events WHERE thread_id=? AND sequence>? ORDER BY sequence LIMIT ?",
+            (thread_id, sequence, self.EVENT_PAGE_SIZE))]

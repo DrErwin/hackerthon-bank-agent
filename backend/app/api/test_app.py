@@ -278,10 +278,82 @@ def test_cookie_origin_ownership_and_expired_session_checks(tmp_path):
         pending = client.get("/api/v1/tasks", params={"recovery_required": True}).json()["data"]["items"]
         assert pending[0]["task_id"] == task["task_id"]
         assert pending[0]["allowed_actions"] == []
-        # Safe and explicit public-platform gap; never reuse old authorization.
-        blocked = post(client, f"/tasks/{task['task_id']}/resume")
-        assert blocked.status_code == 409
-        assert blocked.json()["error"]["code"] == "SESSION_RECONFIRMATION_REQUIRED"
+        assert client.get(f"/api/v1/confirmations/{confirmation}").status_code == 409
+
+        operation_id = task["data"]["operation_id"]
+        recovery_request_id = str(uuid4())
+        service = app.state.api
+        current_identity = service.identity(client.cookies.get("bank_session"))
+        resume_endpoint = f"/api/v1/tasks/{task['task_id']}/resume"
+        assert service.store.receipt(
+            current_identity, resume_endpoint, recovery_request_id,
+            {"request_id": recovery_request_id}, retry_interrupted=True,
+        ) is None
+        interrupted_run = service.trusted(
+            current_identity, task["task_id"], new_run=True,
+            allow_session_recovery=True,
+        )
+        service.runtime.harness.recover_session(interrupted_run)
+        # Simulate process loss after the durable Harness result but before the
+        # API links the task to this session or finishes its request receipt.
+        assert service.store.rows(
+            "SELECT session_id FROM api_tasks WHERE task_id=?", (task["task_id"],),
+        )[0]["session_id"] == first["session_id"]
+        recovered_response = post(
+            client, f"/tasks/{task['task_id']}/resume",
+            request_id=recovery_request_id,
+        )
+        assert recovered_response.status_code == 200, recovered_response.text
+        duplicate = post(
+            client, f"/tasks/{task['task_id']}/resume",
+            request_id=recovery_request_id,
+        )
+        assert duplicate.json() == recovered_response.json()
+        recovered = recovered_response.json()["data"]
+        assert recovered["task_id"] == task["task_id"]
+        assert recovered["run_id"] != task["run_id"]
+        assert recovered["data"]["operation_id"] == operation_id
+        assert recovered["interaction"]["kind"] == "confirmation"
+        assert recovered["allowed_actions"] == ["confirm", "cancel"]
+        assert recovered["recovery_required"] is False
+        assert client.get("/api/v1/tasks", params={"recovery_required": True}).json()["data"]["items"] == []
+
+        # The same confirmation ID may expose a newer version. Its old version
+        # remains stale, and only the current version can authorize the transfer.
+        current_confirmation = client.get(
+            f"/api/v1/confirmations/{recovered['interaction']['record_ref']}"
+        ).json()["data"]
+        assert current_confirmation["confirmation_version"] > 1
+        stale = post(
+            client, f"/confirmations/{confirmation}/answer",
+            confirmation_version=1, choice="approve",
+        )
+        assert stale.status_code == 409
+        verification = approve(client, recovered)
+        assert verification["status"] == "waiting_approval"
+        assert verification["interaction"]["kind"] == "verification"
+        challenge = verification["interaction"]["record_ref"]
+        assert challenge != task["interaction"]["record_ref"]
+        assert len(app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 0
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        completion_response = post(
+            client, f"/verifications/{challenge}/code",
+            submission_id=str(uuid4()), code=code,
+        )
+        assert completion_response.status_code == 200, completion_response.text
+        completed = completion_response.json()["data"]["task"]
+        assert completed["status"] == "succeeded"
+        assert completed["data"]["operation_id"] == operation_id
+        assert len(app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 1
+        transition_events = [event for event in app.state.api.runtime.audit._events("D1", task["task_id"])
+                             if event.event_type == "recovery.checked"
+                             and event.payload.reason_code in {
+                                 "SESSION_RECOVERY_STARTED", "SESSION_RECOVERY_COMPLETED",
+                             }]
+        assert [event.outcome for event in transition_events[-2:]] == ["started", "succeeded"]
+        assert all(event.session_id == new_session["session_id"]
+                   and event.target_session_id == first["session_id"]
+                   for event in transition_events[-2:])
 
 
 def test_restart_keeps_task_and_receipts_without_repeating_model(tmp_path):
@@ -305,6 +377,48 @@ def test_restart_keeps_task_and_receipts_without_repeating_model(tmp_path):
         assert snapshot["interaction"]["kind"] == "confirmation"
         assert restarted.state.api.runtime.harness.planner.calls == 0
         assert client.get("/api/v1/tasks", params={"recovery_required": True}).json()["data"]["items"] == []
+
+
+def test_new_session_recovers_completed_transfer_without_resubmitting(tmp_path):
+    from datetime import timedelta
+    from .service import now
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        first = enter(client)
+        _, task = start(client)
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        completed_response = post(
+            client, f"/verifications/{challenge}/code",
+            submission_id=str(uuid4()), code=code,
+        )
+        assert completed_response.status_code == 200, completed_response.text
+        completed = completed_response.json()["data"]["task"]
+        assert completed["status"] == "succeeded"
+        operation_id = completed["data"]["operation_id"]
+        bank = app.state.api.runtime.gateway._bank.store
+        assert len(bank.list_ledger("U1", "A1")) == 1
+
+        app.state.api.store.write(
+            "UPDATE sessions SET expires_at=? WHERE session_id=?",
+            ((now() - timedelta(seconds=1)).isoformat(), first["session_id"]),
+        )
+        renewed = enter(client)
+        before = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert before["status"] == "succeeded"
+        assert before["allowed_actions"] == []
+
+        recovered = post(client, f"/tasks/{task['task_id']}/resume")
+        assert recovered.status_code == 200, recovered.text
+        result = recovered.json()["data"]
+        assert result["status"] == "succeeded"
+        assert result["data"]["operation_id"] == operation_id
+        assert len(bank.list_ledger("U1", "A1")) == 1
+        assert app.state.api.store.rows(
+            "SELECT session_id FROM api_tasks WHERE task_id=?", (task["task_id"],),
+        )[0]["session_id"] == renewed["session_id"]
 
 
 def test_medium_risk_face_is_admin_only_and_audit_read_does_not_run_model(tmp_path):
@@ -426,6 +540,71 @@ def test_timeout_queries_original_operation_without_resubmitting(tmp_path):
         assert len(app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 1
 
 
+def test_new_session_queries_processing_operation_without_resubmitting(tmp_path, monkeypatch):
+    import time
+    from datetime import timedelta
+
+    from app.api.service import now
+
+    app = make_app(tmp_path)
+    bank = app.state.api.runtime.gateway._bank
+    bank.slow_seconds = 12.0
+    app.state.api.runtime.gateway._transfer_timeout_seconds = 0.01
+    bank.arm_slow_once("U1")
+    submits = []
+    original_submit = bank.submit_transfer
+
+    def count_submit(*args, **kwargs):
+        submits.append(str(args[1]))
+        return original_submit(*args, **kwargs)
+
+    monkeypatch.setattr(bank, "submit_transfer", count_submit)
+    with TestClient(app) as client:
+        _, task = start(client)
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        submitted = post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code)
+        assert submitted.status_code == 200, submitted.text
+        pending = submitted.json()["data"]["task"]
+        assert pending["status"] == "needs_attention"
+        assert pending["recovery_reason"] == "OPERATION_PROCESSING"
+        operation_id = pending["data"]["operation_id"]
+        assert submits == [operation_id]
+        assert bank.store.list_ledger("U1", "A1") == []
+
+        old_session = app.state.api.identity(client.cookies.get("bank_session"))
+        app.state.api.store.write(
+            "UPDATE sessions SET expires_at=? WHERE session_id=?",
+            ((now() - timedelta(seconds=1)).isoformat(), old_session.session_id),
+        )
+        renewed = enter(client)
+        with monkeypatch.context() as patch:
+            patch.setattr(bank, "submit_transfer", lambda *_args, **_kwargs: pytest.fail(
+                "session recovery must only query the original operation"))
+            recovered = post(client, f"/tasks/{task['task_id']}/resume")
+        assert recovered.status_code == 200, recovered.text
+        current = recovered.json()["data"]
+        assert current["task_id"] == task["task_id"]
+        assert current["status"] == "needs_attention"
+        assert current["recovery_reason"] == "OPERATION_PROCESSING"
+        assert current["data"]["operation_id"] == operation_id
+        assert app.state.api.runtime.application.get_task("U1", "D1", task["task_id"]).session_id == renewed["session_id"]
+        assert submits == [operation_id]
+        assert bank.store.list_ledger("U1", "A1") == []
+
+        deadline = time.monotonic() + 4
+        while bank.store.get_operation("U1", operation_id).status == "processing" and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert bank.store.get_operation("U1", operation_id).status == "succeeded"
+        queried = post(client, f"/tasks/{task['task_id']}/query-result")
+        assert queried.status_code == 200, queried.text
+        assert queried.json()["data"]["status"] == "succeeded"
+        assert queried.json()["data"]["data"]["operation_id"] == operation_id
+        assert submits == [operation_id]
+        assert len(bank.store.list_ledger("U1", "A1")) == 1
+
+
 def test_live_sse_reconnect_replays_events_without_new_task(tmp_path):
     import json
     import socket
@@ -447,7 +626,7 @@ def test_live_sse_reconnect_replays_events_without_new_task(tmp_path):
             time.sleep(0.02)
         assert server.started
         with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=5) as client:
-            enter(client)
+            initial_session = enter(client)
             thread = post(client, "/threads").json()["data"]["thread_id"]
             accepted = post(client, f"/threads/{thread}/messages", text="给妈妈转 500 元")
             task_id = accepted.json()["data"]["task_id"]
@@ -473,6 +652,51 @@ def test_live_sse_reconnect_replays_events_without_new_task(tmp_path):
             assert app.state.api.runtime.harness.planner.calls == 1
             assert len(client.get("/api/v1/tasks").json()["data"]["items"]) == 1
             assert client.get(f"/api/v1/threads/{thread}/events", headers={"Last-Event-ID": "foreign"}).status_code == 409
+
+            from datetime import timedelta
+            from app.api.service import now
+
+            from app.contracts.api import StreamEvent
+
+            stored_events = app.state.api.store.events(thread, None)
+            old_cursor = stored_events[-1]["event_id"]
+            old_control = next(item for item in stored_events
+                               if item["event_type"] == "task_updated")
+            for _ in range(app.state.api.store.EVENT_PAGE_SIZE):
+                app.state.api.store.event(StreamEvent.model_validate({
+                    **old_control, "event_id": str(uuid4()),
+                }))
+            app.state.api.store.write(
+                "UPDATE sessions SET expires_at=? WHERE session_id=?",
+                ((now() - timedelta(seconds=1)).isoformat(), initial_session["session_id"]),
+            )
+            renewed = enter(client)
+            assert renewed["session_id"] != initial_session["session_id"]
+            recovered = client.post(
+                f"/api/v1/tasks/{task_id}/resume",
+                json={"request_id": str(uuid4())},
+                headers={"Origin": "http://testserver"},
+            )
+            assert recovered.status_code == 200, recovered.text
+            received = []
+            with client.stream(
+                "GET", f"/api/v1/threads/{thread}/events",
+                headers={"Last-Event-ID": old_cursor},
+            ) as stream:
+                for line in stream.iter_lines():
+                    if line.startswith("data: "):
+                        item = json.loads(line[6:])
+                        received.append(item)
+                        if (item["event_type"] == "interaction_required"
+                                and item["session_id"] == renewed["session_id"]):
+                            break
+            assert any(item["event_type"] == "interaction_required"
+                       and item["session_id"] == renewed["session_id"] for item in received)
+            assert not any(
+                item["session_id"] != renewed["session_id"]
+                and item["event_type"] in {"task_updated", "interaction_required"}
+                for item in received
+            )
     finally:
         server.should_exit = True
         worker.join(timeout=5)
@@ -609,6 +833,112 @@ def test_accepted_unstarted_task_can_cancel_without_calling_model(tmp_path, monk
         assert after["task_revision"] > before["task_revision"]
         assert post(client, f"/tasks/{task_id}/resume").json()["data"]["status"] == "cancelled"
         assert restarted.state.api.runtime.harness.planner.calls == 0
+
+
+def test_resume_repairs_api_link_after_harness_started_in_new_session(tmp_path, monkeypatch):
+    from datetime import timedelta
+    from fastapi import BackgroundTasks
+
+    from app.api.service import now
+
+    app = make_app(tmp_path)
+    with monkeypatch.context() as patch:
+        patch.setattr(BackgroundTasks, "add_task", lambda *_args, **_kwargs: None)
+        with TestClient(app) as client:
+            old = enter(client)
+            thread = post(client, "/threads").json()["data"]["thread_id"]
+            accepted = post(client, f"/threads/{thread}/messages", text="给妈妈转 500 元")
+            assert accepted.status_code == 202, accepted.text
+            task_id = accepted.json()["data"]["task_id"]
+            old_session_id = old["session_id"]
+            app.state.api.store.write(
+                "UPDATE sessions SET expires_at=? WHERE session_id=?",
+                ((now() - timedelta(seconds=1)).isoformat(), old_session_id),
+            )
+            renewed = enter(client)
+            original_write = app.state.api.store.write
+
+            def interrupt_link_write(sql, params=()):
+                if sql.lstrip().startswith("UPDATE api_tasks SET session_id=?"):
+                    raise RuntimeError("simulated API link write interruption")
+                return original_write(sql, params)
+
+            patch.setattr(app.state.api.store, "write", interrupt_link_write)
+            first = post(client, f"/tasks/{task_id}/resume")
+            assert first.status_code == 503
+            task = app.state.api.runtime.application.get_task("U1", "D1", task_id)
+            assert task.session_id == renewed["session_id"]
+            link = app.state.api.store.rows("SELECT session_id FROM api_tasks WHERE task_id=?", (task_id,))[0]
+            assert link["session_id"] == old_session_id
+            assert app.state.api.runtime.harness.planner.calls == 1
+
+            patch.setattr(app.state.api.store, "write", original_write)
+            retried = post(client, f"/tasks/{task_id}/resume")
+            assert retried.status_code == 200, retried.text
+            assert retried.json()["data"]["task_id"] == task_id
+            assert retried.json()["data"]["interaction"]["kind"] == "confirmation"
+            linked = app.state.api.store.rows("SELECT session_id FROM api_tasks WHERE task_id=?", (task_id,))[0]
+            assert linked["session_id"] == renewed["session_id"]
+            assert app.state.api.runtime.harness.planner.calls == 1
+
+
+@pytest.mark.parametrize("window", ["before_start", "before_conversion", "after_conversion"])
+def test_http_recovery_after_interruption_and_relogin(tmp_path, window, monkeypatch):
+    from datetime import timedelta
+    from app.modules.transfer.workflow import TransferWorkflow
+    from .service import now
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        with monkeypatch.context() as injected:
+            if window == "before_start":
+                def fail_start(*args, **kwargs):
+                    raise RuntimeError("before first business checkpoint")
+                injected.setattr(TransferWorkflow, "start", fail_start)
+            _, original = start(client)
+        service = app.state.api
+        task_id = original["task_id"]
+        session = client.get("/api/v1/session").json()["data"]
+        service.store.write("UPDATE sessions SET expires_at=? WHERE session_id=?",
+                            ((now() - timedelta(seconds=1)).isoformat(), session["session_id"]))
+        renewed = enter(client)
+        if window != "before_start":
+            recover = TransferWorkflow.recover_session
+            def fail_conversion(workflow, *args, **kwargs):
+                if window == "after_conversion":
+                    recover(workflow, *args, **kwargs)
+                raise RuntimeError("conversion interrupted")
+            with monkeypatch.context() as injected:
+                injected.setattr(TransferWorkflow, "recover_session", fail_conversion)
+                assert post(client, f"/tasks/{task_id}/resume").status_code == 503
+            service.store.write("UPDATE sessions SET expires_at=? WHERE session_id=?",
+                                ((now() - timedelta(seconds=1)).isoformat(), renewed["session_id"]))
+            enter(client)
+        cookie = client.cookies.get("bank_session")
+
+    restarted = make_app(tmp_path)
+    with TestClient(restarted) as client:
+        client.cookies.set("bank_session", cookie)
+        request_id = str(uuid4())
+        response = post(client, f"/tasks/{task_id}/resume", request_id=request_id)
+        assert response.status_code == 200, response.text
+        assert post(client, f"/tasks/{task_id}/resume", request_id=request_id).json() == response.json()
+        recovered = response.json()["data"]
+        assert recovered["task_id"] == task_id
+        assert recovered["interaction"]["kind"] == "confirmation"
+        if window != "before_start":
+            assert recovered["data"]["operation_id"] == original["data"]["operation_id"]
+        assert restarted.state.api.runtime.harness.planner.calls == 0
+        verification = approve(client, recovered)
+        challenge = verification["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        submit_id = str(uuid4())
+        body = {"submission_id": str(uuid4()), "code": code, "request_id": submit_id}
+        completed = post(client, f"/verifications/{challenge}/code", **body)
+        assert completed.status_code == 200, completed.text
+        assert completed.json()["data"]["task"]["status"] == "succeeded"
+        assert post(client, f"/verifications/{challenge}/code", **body).json() == completed.json()
+        assert len(restarted.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 1
 
 
 def test_restart_after_final_face_before_binding_recovers_original_submission(tmp_path):
