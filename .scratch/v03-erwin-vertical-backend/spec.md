@@ -51,7 +51,7 @@ Scenario: [普通转账驱动的 Agent 框架纵向场景](../transfer-agent-fra
 | 07 最小安全门 | `backend/app/security/` | blocked | 08、09 |
 | 08 普通转账参考子图 | `backend/app/modules/transfer/` | blocked | 09 |
 | 09 主 Harness 集成 | `backend/app/agent_platform/` | blocked | 10 |
-| 10 API 与事件流 | `backend/app/api/` | claimed（09-30 Codex 执行，工程增量经独立 AI 审查；验收未完成，公共能力缺口见票据） | 前端真实联调、12 |
+| 10 API 与事件流 | `backend/app/api/` | claimed（09-30 Codex 执行，工程增量经独立 AI 审查并由 PR #25 合入；验收未完成，公共能力缺口见票据） | 前端真实联调、12 |
 | 11 模拟银行评测 | `evals/mockbank/` | ready | 12 的银行证据 |
 | 12 v0.3 联合验收与收口 | `docs/versions/v0.3.0/` | blocked | v0.4 启动判断 |
 
