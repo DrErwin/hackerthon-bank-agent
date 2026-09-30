@@ -670,3 +670,53 @@ def test_cancel_in_flight_only_queries_original_bank_operation(tmp_path):
         assert final["data"]["operation_id"] == original
         assert final["cancel_requested"]
         assert len(bank.store.list_ledger("U1", "A1")) == 1
+
+
+@pytest.mark.parametrize("method", ["code", "face"])
+def test_retry_after_task_success_before_http_receipt_recovers_response(tmp_path, monkeypatch, method):
+    from contextlib import ExitStack
+    risk = RiskLevel.LOW if method == "code" else RiskLevel.MEDIUM
+    app = make_app(tmp_path, risk=risk)
+    with TestClient(app) as user, ExitStack() as resources:
+        _, task = start(user)
+        challenge = approve(user, task)["interaction"]["record_ref"]
+        code = user.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        client = user
+        path = f"/api/v1/verifications/{challenge}/code"
+        body = {"request_id": str(uuid4()), "submission_id": str(uuid4()), "code": code}
+        if method == "face":
+            assert post(user, f"/verifications/{challenge}/face/start").status_code == 200
+            assert post(user, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code).status_code == 200
+            client = resources.enter_context(TestClient(make_app(tmp_path, risk=risk)))
+            assert client.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
+                headers={"Origin": "http://testserver", "X-Demo-Admin-Key": "test-admin-key"}).status_code == 200
+            path = f"/api/v1/admin/verifications/{challenge}/face-result"
+            body = {"request_id": str(uuid4()), "submission_id": str(uuid4()), "demo_round_id": "D1", "result": "passed"}
+        cookie = client.cookies.get("bank_session")
+        with monkeypatch.context() as patch:
+            def interrupted(*args):
+                raise RuntimeError("receipt unavailable")
+            patch.setattr(client.app.state.api.store, "finish", interrupted)
+            first = client.post(path, json=body, headers={"Origin": "http://testserver"})
+            assert first.status_code == 503
+        completed = user.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert completed["status"] == "succeeded"
+    restarted = make_app(tmp_path, risk=risk)
+    with TestClient(restarted) as client:
+        client.cookies.set("bank_session", cookie)
+        retry = client.post(path, json=body, headers={"Origin": "http://testserver"})
+        assert retry.status_code == 200, retry.text
+        assert retry.json()["data"]["task"]["status"] == "succeeded"
+        assert retry.json()["data"]["task"]["task_revision"] == completed["task_revision"]
+        assert client.post(path, json=body, headers={"Origin": "http://testserver"}).json() == retry.json()
+        assert restarted.state.api.runtime.harness.planner.calls == 0
+        assert len(restarted.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 1
+
+
+def test_non_ascii_admin_key_and_cookie_are_controlled_denials(tmp_path):
+    with TestClient(make_app(tmp_path)) as client:
+        login = client.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
+            headers=[(b"Origin", b"http://testserver"), (b"X-Demo-Admin-Key", b"\xe9")])
+        assert login.status_code == 403, login.text
+        denied = client.get("/api/v1/session", headers=[(b"Cookie", b"bank_session=invalid.\xe9")])
+        assert denied.status_code == 401, denied.text

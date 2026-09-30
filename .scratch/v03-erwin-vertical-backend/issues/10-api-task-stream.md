@@ -1,8 +1,10 @@
 # 10：实现任务 API、确认验证与事件流
 
 Type: task\
-Status: ready\
+Status: claimed\
 Owner: Erwin\
+Executor: Codex（按本任务授权执行 Erwin 工作线）\
+Started at: 2026-09-30\
 Directory: `backend/app/api/`\
 Blocked by: 02、05、07、09\
 Integration dependency: 04\
@@ -35,3 +37,7 @@ Unlocks: 前端真实联调、12
 向前端负责人提供启动方式、接口地址和可用的演示任务；前端真实联调完成后共同进入 12。
 
 ## Comments
+
+- 2026-09-30：在独立 worktree、`codex/10-api-task-stream` 分支实施。依赖票已合入；使用现有 spec 和票据。代码改动限于 `backend/app/api/`，过程记录按队员开工规范更新。
+- 已实现任务、确认、验证、取消与恢复、持久事件流及只读审计入口。启动配置和前端入口见 [API 交接说明](../../../backend/app/api/README.md)。
+- 本票保持 claimed：公共 Harness 尚不支持新登录会话重新确认后恢复旧任务，也没有无业务意图时仅回复的结果类型；部署模型与策略组合工厂、React 联调及真人安全审查仍待提供 / 执行。AI 审查、工程测试和 CI 不代表这些条件已满足。

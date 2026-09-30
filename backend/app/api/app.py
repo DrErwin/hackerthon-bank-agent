@@ -21,7 +21,7 @@ from app.contracts.api import (
     VerificationResponse,
 )
 from app.contracts.bank import ManualPayee, QueryFailure
-from app.contracts.common import DisplayField
+from app.contracts.common import DisplayField, TaskStatus
 from app.contracts.security import ConfirmationAnswer
 from app.contracts.tasks import ModuleError, TransferTaskView
 from app.services.mock_bank.verification import AdminContext
@@ -258,11 +258,11 @@ def create_app(runtime=None, config=None):
                 service.store.write("UPDATE api_tasks SET cancel_requested=1 WHERE task_id=?", (task_id,))
                 if service.runtime.application.get_task(who.user_id, who.demo_round_id, task_id) is None:
                     return service.publish_task(who, task_id)
-                return service.continue_task(who, task_id, {} if "query" in task.allowed_actions else {"cancel": True})
+                return service.continue_task(who, task_id, {"query": True} if "query" in task.allowed_actions else {"cancel": True})
             if command == "query-result":
                 if "query" not in task.allowed_actions:
                     raise ApiProblem(409, "ACTION_UNAVAILABLE")
-                return service.continue_task(who, task_id, {})
+                return service.continue_task(who, task_id, {"query": True})
             return service.continue_task(who, task_id, {"choice": "resume"})
         return mutation(service, who, request, body, action)
 
@@ -335,9 +335,11 @@ def create_app(runtime=None, config=None):
 
     def verification_response(service, who, trusted, outcome, actor, method):
         service.record_verification(actor, trusted, outcome, method)
-        if outcome.verification_id:
-            service.runtime.bind_verification(trusted, outcome.verification_id)
-        task = service.continue_task(who, trusted.task_id, {"choice": "resume"})
+        task = service.task_view(who, trusted.task_id)
+        if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+            if outcome.verification_id:
+                service.runtime.bind_verification(trusted, outcome.verification_id)
+            task = service.continue_task(who, trusted.task_id, {"choice": "resume"})
         error = None if outcome.kind == "verified" else ModuleError(code=outcome.reason_code or "VERIFICATION_REJECTED",
             source="bank", field=None, reason="验证尚未通过。", upstream_code=None)
         return VerificationResponse[TransferTaskView](kind=outcome.kind, verification=service.verification_view(outcome.challenge), task=task, error=error)
@@ -348,7 +350,7 @@ def create_app(runtime=None, config=None):
         def action():
             # The bank first finds the original submission_id. This also recovers
             # a passed bank record after an API crash before binding it to the task.
-            service.begin_verification(who, trusted, "verification.code")
+            service.begin_verification(who, trusted, "verification.code", terminal_challenge=challenge.challenge_status != "pending")
             outcome = service.runtime.gateway.verify_code(trusted, challenge_id, body.submission_id, body.code.get_secret_value())
             return verification_response(service, who, trusted, outcome, who, "code")
         # HMAC the actual secret for conflict detection; persist neither the code
@@ -386,7 +388,7 @@ def create_app(runtime=None, config=None):
         target = service.identity(service.cookie(link["session_id"]))
         trusted, challenge = service.verification(target, challenge_id)
         def action():
-            service.begin_verification(who, trusted, "admin.verification.face-result")
+            service.begin_verification(who, trusted, "admin.verification.face-result", terminal_challenge=challenge.challenge_status != "pending")
             admin = AdminContext(who.user_id, True, who.demo_round_id, target.user_id)
             outcome = service.runtime.gateway.verify_face(admin, challenge_id, body.submission_id, body.result)
             return verification_response(service, target, trusted, outcome, who, "mock_face")

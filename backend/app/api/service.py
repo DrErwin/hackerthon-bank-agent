@@ -59,7 +59,7 @@ class ApiService:
     def identity(self, cookie):
         try:
             session_id, signature = (cookie or "").split(".")
-            if not hmac.compare_digest(self.cookie(session_id), cookie):
+            if not hmac.compare_digest(self.cookie(session_id).encode(), cookie.encode()):
                 raise ValueError()
         except ValueError:
             raise ApiProblem(401, "AUTH_REQUIRED") from None
@@ -81,7 +81,7 @@ class ApiService:
     def enter(self, cookie, request_id, admin_key):
         role = "user"
         if admin_key is not None:
-            if not self.config.admin_key or not hmac.compare_digest(admin_key, self.config.admin_key):
+            if not self.config.admin_key or not hmac.compare_digest(admin_key.encode(), self.config.admin_key.encode()):
                 raise ApiProblem(403, "ACCESS_DENIED")
             role = "admin"
         user_id = self.config.demo_user_id if role == "user" else self.config.admin_user_id
@@ -226,10 +226,12 @@ class ApiService:
             missing_reason="API step has no secret content snapshot", payload=payload,
         ))
 
-    def begin_verification(self, actor, trusted, step):
+    def begin_verification(self, actor, trusted, step, *, terminal_challenge=False):
         self.identity(self.cookie(trusted.session_id))
         task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
-        if task.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+        # A terminal bank challenge can only return a saved submission. Allow
+        # that read-only replay if the task finished before the API receipt did.
+        if task.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED} and not terminal_challenge:
             raise ApiProblem(409, "TASK_TERMINATED")
         self.audit_step(actor, trusted, "task.transition", TaskTransitionPayload(
             previous_status=task.status, status=task.status, plan_revision=None,
