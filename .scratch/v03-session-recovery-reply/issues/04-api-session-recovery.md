@@ -1,16 +1,18 @@
 # 04：API 新会话恢复接入
 
 Type: task\
-Status: blocked\
+Status: in_progress\
 Owner: Erwin（v0.3 纵向后端工作线；转账目录按临时安排）\
+Ticket ID: v03-session-recovery-reply/04\
+Package: [transfer-agent-framework/packages/01-vertical-backend：纵向后端主链路](../../transfer-agent-framework/packages/01-vertical-backend.md)\
 Directory: `backend/app/api/`\
 Source issue: [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)\
 Spec: [新会话恢复与仅回复补票规格](../spec.md)\
 Blocked by: 03（需合入并提供公开协调能力）\
 Unlocks: 原票 10 的恢复验收；原票 12 联合验收\
 Review: 工程与契约审查；涉及身份、确认、验证、资金、隐私或审计时叠加安全审查\
-Claimed by: 未领取\
-Started at: 未开始
+Claimed by: Codex（按用户明确指示执行；用户身份未提供）\
+Started at: 2026-09-30
 
 ## 业务目的
 
@@ -33,8 +35,14 @@ HTTP + SSE 公开入口，复用真实后端与现有断线 / 重启测试。
 
 一票、一分支、一 PR 只修改本票 Directory；公开能力调用说明、模块文档和测试随本目录交付。本人规格、票据与项目跟踪对应过程条目可按队员开工规范更新。实施若确需额外契约或其他目录改动，先记录缺口并独立拆票，禁止在本票跨目录绕过。
 
-依赖完成标准是前置票实际实现、公开入口可调用且 PR 合入，不能用写完文档代替。当前票只完成正式发布，未领取、未开始实现；最终联合验收仍由原票 12 承担。
+依赖完成标准是前置票实际实现、公开入口可调用且 PR 合入，不能用写完文档代替。本票已有本地实现，尚未合入；当前验收结论见文末记录，最终联合验收仍由原票 12 承担。
 
 ## Comments
 
 - 2026-09-30：按用户“先补正式实施票”及六张单目录票方案确认补建；不是已实现功能，也不代表目录负责人本人领取或真人批准。GitHub #23 仍为开放缺口记录。
+- 2026-09-30：用户明确要求在新 worktree 完成补票 01—04；按要求开始本地集成实现，票 03 仍未 PR 合入，故仅用于 worktree 联调，不把正式依赖门槛标为满足。
+- 2026-09-30：原任务显式 resume 已接入当前身份的 Harness 恢复；API 链接在 Harness 成功后更新，恢复请求收据可在转换已持久化后用同一 request_id 续做；SSE 为新会话过滤旧会话任务按钮事件。HTTP 覆盖未提交转账重新确认 / 验证与单次扣款、已完成操作恢复只读、转换后 API 收据中断和 SSE 重放。完整 API / 后端回归与双轴复审待完成；React、真实模型、真人安全审查及依赖 PR 合入未验证。
+- 2026-09-30：双轴复审提出 API 链接写入中断后任务已在新会话启动、SSE 满页旧控制事件导致游标不前进、以及缺少跨会话处理中 HTTP 查询验证；均已加入修复与回归。API 测试 32 项、完整后端回归 204 项通过。修复后双轴复审待记录；票 03 PR 合入、Ringo 真人审查、React / 真实模型 / AF01—AF14 联合验收仍未完成。
+- 2026-09-30：票 04 Spec / Standards 对修复后 API 差异均无 P0–P3 代码发现；API 32 项和集成 worktree 全后端 204 项通过。票 03 前置 PR 未实际合入，Ringo 真人安全审查、React / 真实模型 / AF01—AF14 联合验收未完成，故本票保持 `in_progress`。
+
+- 2026-10-01：复验本地集成提交 e786e64（基线 041a6e4），后端 204 项、模拟银行 14 项及文档链接 / 语法 / 差异空白检查通过。现有 HTTP 测试通过，但真实协调入口有两个恢复 P1，完整链路验收被票 03 阻塞。尚无前置 PR 合入或真人安全批准，保持 in_progress。详见[本次验收记录](../acceptance-2026-10-01.md)。

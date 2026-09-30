@@ -1,16 +1,18 @@
 # 03：Harness 新会话恢复协调
 
 Type: task\
-Status: blocked\
+Status: in_progress\
 Owner: Erwin（v0.3 纵向后端工作线；转账目录按临时安排）\
+Ticket ID: v03-session-recovery-reply/03\
+Package: [transfer-agent-framework/packages/01-vertical-backend：纵向后端主链路](../../transfer-agent-framework/packages/01-vertical-backend.md)\
 Directory: `backend/app/agent_platform/`\
 Source issue: [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)\
 Spec: [新会话恢复与仅回复补票规格](../spec.md)\
 Blocked by: 01、02（均需合入并提供公开入口）\
 Unlocks: 04\
 Review: 工程与契约审查；涉及身份、确认、验证、资金、隐私或审计时叠加安全审查\
-Claimed by: 未领取\
-Started at: 未开始
+Claimed by: Codex（按用户明确指示执行；用户身份未提供）\
+Started at: 2026-09-30
 
 ## 业务目的
 
@@ -33,8 +35,16 @@ Harness / TransferRuntime 公共入口，接真实存储、安全和模拟银行
 
 一票、一分支、一 PR 只修改本票 Directory；公开能力调用说明、模块文档和测试随本目录交付。本人规格、票据与项目跟踪对应过程条目可按队员开工规范更新。实施若确需额外契约或其他目录改动，先记录缺口并独立拆票，禁止在本票跨目录绕过。
 
-依赖完成标准是前置票实际实现、公开入口可调用且 PR 合入，不能用写完文档代替。当前票只完成正式发布，未领取、未开始实现；最终联合验收仍由原票 12 承担。
+依赖完成标准是前置票实际实现、公开入口可调用且 PR 合入，不能用写完文档代替。本票已有本地实现，尚未合入；当前验收结论见文末记录，最终联合验收仍由原票 12 承担。
 
 ## Comments
 
 - 2026-09-30：按用户“先补正式实施票”及六张单目录票方案确认补建；不是已实现功能，也不代表目录负责人本人领取或真人批准。GitHub #23 仍为开放缺口记录。
+- 2026-09-30：用户明确要求在新 worktree 完成补票 01—04；开始本地集成实现。01、02 的公开实现已在本地依赖栈中可用，PR 合入与所需人工 / 安全审查仍未完成，未将合入依赖标为满足。
+- 2026-09-30：Harness 已调用存储转换与转账公开恢复入口，写入转换前 / 后恢复审计，并持久化转换阶段供中断续做；接入真实 TransferRuntime 后验证新会话确认版本、旧答复拒绝、重新验证和零扣款边界。存储 / Harness / TransferRuntime 组合测试 37 项通过。人工安全审查与前置 PR 实际合入仍待完成。
+- 2026-09-30：审查补测覆盖银行已成功、图检查点有原操作而任务摘要缺结果的窗口。转账工具现在先用票 01 的存储公开入口登记原编号；Harness 在摘要缺失时只从该任务最新的持久操作记录补审计编号。新恢复从银行回查原操作，未再次提交，账本仍一笔。票 03 的 Harness / TransferRuntime 定向测试 21 项通过；AI 双轴复审、前置 PR 合入及真人安全审查仍待完成。
+- 2026-09-30：票 02 Spec 复审指出应用存储预留后、图检查点 / 动作快照前中断会使重试生成另一个 UUID。Harness runtime 现在将动作修订纳入参数摘要，并按当前任务范围取回同动作已预留编号；工具把该规范编号写入快照和 workflow 状态。注入快照写入中断后重用原 HTTP / Harness start 的 runtime 测试确认仅一条预留、同一 operation_id、无银行扣款；完整 Agent Platform 测试 29 项通过。票 03 双轴复审仍待复核。
+- 2026-09-30：票 03 Spec 复审提出故障测试应跨 Runtime 重启验证。用例现在关闭初始 Harness / Gateway 并从相同 SQLite 路径重建应用 Runtime 和模拟银行后重试；定向中断恢复测试通过，双轴复审待更新固定点。
+- 2026-09-30：票 03 Spec / Standards 对 reserve-or-retrieve 与跨 Runtime 重启测试复审均无 P0–P3 代码发现；跨重启定向用例通过，集成 worktree 全后端回归 204 项通过。01/02 PR 尚未实际合入且 Ringo 真人安全审查未完成，故票状态保留 `in_progress`。
+
+- 2026-10-01：复验本地集成提交 e786e64（基线 041a6e4），后端 204 项、模拟银行 14 项及文档链接 / 语法 / 差异空白检查通过。本次验收未通过：首个业务检查点建立前中断后新会话恢复返回 TASK_NOT_FOUND；存储转换后中断并再次登录第三会话时连续返回 ACCESS_DENIED。需修复两个 P1 并补重启 / 再次登录回归，保持 in_progress。详见[本次验收记录](../acceptance-2026-10-01.md)。

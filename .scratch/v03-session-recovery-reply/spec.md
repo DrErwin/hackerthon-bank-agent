@@ -1,6 +1,6 @@
 # v0.3 原契约缺口补票：新会话恢复与仅回复
 
-Status: ready-for-agent
+Status: in_progress
 Owner: Erwin
 Milestone: v0.3.0
 Source package: [纵向后端主链路](../transfer-agent-framework/packages/01-vertical-backend.md)
@@ -68,3 +68,7 @@ Original spec: [纵向后端实施规格](../v03-erwin-vertical-backend/spec.md)
 - 用户已确认六张单目录票的粒度、依赖及公开验证入口；正式发布一票一文件并更新原票、交付包与正式项目跟踪。GitHub #23 / #24 仍为缺口问题记录，不替代本地实施票。
 
 - 规格与票据于 2026-09-30 经用户确认发布；ready 表示原依赖已具备、可由负责人领取，blocked 表示仍等新增前置票。没有开始编码。
+
+## 2026-10-01 验收更新
+
+上文“仅补票、未开始”描述的是 2026-09-30 发布时的历史状态；此后 01—04 按用户指示本地实现。当前 01—04 保持 in_progress，实施尚未推送或合入；03 有两个 P1 恢复阻塞，04 受其影响，详见[本次验收记录](acceptance-2026-10-01.md)。05 仍 ready、06 仍 blocked，未开始实现。真实模型、React、真人安全批准及原票 12 联合验收均未完成。
