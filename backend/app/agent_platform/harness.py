@@ -15,7 +15,7 @@ from time import monotonic, sleep
 from typing import Callable
 from uuid import UUID, uuid4
 
-from app.audit.journal import AuditJournal, run_key
+from app.audit.journal import AuditJournal, redact, run_key
 from app.contracts.audit import (
     AuditEvent, ModelFinishedPayload, ModelStartedPayload, ModelUsage,
     RecoveryCheckedPayload, TaskTransitionPayload,
@@ -27,7 +27,7 @@ from app.memory.adapter import MemoryAdapter, MemoryContext
 from app.storage.application import ApplicationStore, TaskRecord
 from app.storage.database import transaction
 
-from .model import Planner, TransferProposal
+from .model import Planner, ReplyOnly, TransferProposal
 from .registry import CapabilityRegistry
 
 
@@ -111,6 +111,7 @@ class RunTrace:
                parent_span_id: str | None = None, evidence_id: str | None = None,
                snapshots: dict[str, object] | None = None,
                target_session_id: str | None = None,
+               missing_reason: str | None = None,
                write: Callable[[Connection, AuditEvent], None] | None = None) -> AuditEvent:
         if evidence is None:
             evidence_id = None
@@ -132,7 +133,8 @@ class RunTrace:
             timestamp=datetime.now(timezone.utc), logical_at=None,
             outcome=outcome, evidence_ref=evidence_id,
             evidence_status="available" if evidence is not None else "missing",
-            missing_reason=None if evidence is not None else "event has no content snapshot",
+            missing_reason=(None if evidence is not None else
+                            missing_reason or "event has no content snapshot"),
             payload=payload,
         )
         with transaction(self.journal.path) as connection:
@@ -176,6 +178,11 @@ class AgentHarness:
         return context
 
     @staticmethod
+    def _check_intent_text(intent_text: str) -> None:
+        if _CREDENTIAL_IN_REQUEST.search(intent_text):
+            raise ValueError("CREDENTIAL_IN_REQUEST")
+
+    @staticmethod
     def _check_task(task: TaskRecord, trusted: TrustedContext) -> None:
         if task.session_id != trusted.session_id:
             raise PermissionError("ACCESS_DENIED")
@@ -210,23 +217,122 @@ class AgentHarness:
         saved = saver.get_tuple({"configurable": {"thread_id": task.checkpoint_thread_id}})
         return saved.config["configurable"]["checkpoint_id"] if saved else None
 
+    def understand(self, trusted: TrustedContext,
+                   intent_text: str) -> TransferProposal | ReplyOnly:
+        """Classify one message without creating a business task or invoking a capability."""
+        context = self._scope(trusted)
+        self._check_intent_text(intent_text)
+        thread_id = self.memory.conversation_thread_id(context)
+        trace = RunTrace(self.audit, trusted, thread_id, str(uuid4()))
+        return self._understand_with_trace(trusted, intent_text, trace)
+
+    def _select_outcome(self, trusted: TrustedContext, intent_text: str,
+                        thread_id: str) -> TransferProposal | ReplyOnly:
+        context = self._scope(trusted)
+        outcome = self.planner.select(
+            intent_text, trusted, self.registry.public_catalog(), self.memory,
+            thread_id,
+        )
+        if not isinstance(outcome, (TransferProposal, ReplyOnly)):
+            raise ValueError("MODEL_OUTCOME_INVALID")
+        if isinstance(outcome, ReplyOnly) and not outcome.message.strip():
+            raise ValueError("MODEL_OUTCOME_INVALID")
+        if isinstance(outcome, ReplyOnly):
+            outcome = ReplyOnly.model_validate(redact(outcome.model_dump(mode="json")))
+        return outcome
+
+    def _understand_with_trace(self, trusted: TrustedContext, intent_text: str,
+                               trace: RunTrace) -> TransferProposal | ReplyOnly:
+        model_call_id = str(uuid4())
+        model_started = trace.record(
+            "model.started",
+            ModelStartedPayload(
+                model_call_id=model_call_id, provider=self.planner.provider,
+                model=self.planner.model_name,
+                config_version=self.planner.config_version,
+                request_ref=str(uuid4()),
+            ),
+            "started",
+            missing_reason=("full provider request, including system prompt and "
+                            "conversation context, is unavailable at the harness boundary"),
+        )
+        started = monotonic()
+        try:
+            outcome = self._select_outcome(trusted, intent_text, trace.thread_id)
+        except Exception:
+            model_error = ModuleError(
+                code="MODEL_UNDERSTANDING_FAILED", source="platform", field=None,
+                reason="模型暂未形成受控回复或业务候选", upstream_code=None,
+            )
+            trace.record(
+                "model.finished",
+                ModelFinishedPayload(
+                    model_call_id=model_call_id, response_ref=None,
+                    duration_ms=int((monotonic() - started) * 1000),
+                    usage=ModelUsage(input_tokens=None, output_tokens=None),
+                    error=model_error,
+                ), "failed", parent_span_id=model_started.span_id,
+            )
+            raise ValueError("MODEL_UNDERSTANDING_FAILED") from None
+
+        if isinstance(outcome, ReplyOnly):
+            evidence = {
+                "outcome": outcome.kind,
+                "response": {"message": outcome.message},
+            }
+        else:
+            evidence = {
+                "proposal": {
+                    "recipient_name": outcome.payee_hint,
+                    "amount_fen": outcome.amount_fen,
+                    "payer_account_id": outcome.payer_account_id,
+                },
+                "capability_name": outcome.capability_name,
+            }
+        trace.record(
+            "model.finished",
+            ModelFinishedPayload(
+                model_call_id=model_call_id, response_ref=str(uuid4()),
+                duration_ms=int((monotonic() - started) * 1000),
+                usage=ModelUsage(input_tokens=None, output_tokens=None), error=None,
+            ), "succeeded", evidence=evidence,
+            parent_span_id=model_started.span_id,
+        )
+        return outcome
+
     def start(self, trusted: TrustedContext, request_id: UUID,
               intent_text: str) -> ModuleResult[TransferTaskView]:
+        result = self.handle_message(trusted, request_id, intent_text)
+        if isinstance(result, ReplyOnly):
+            raise ValueError("NO_TRANSFER_INTENT")
+        return result
+
+    def handle_message(self, trusted: TrustedContext, request_id: UUID,
+                       intent_text: str) -> ModuleResult[TransferTaskView] | ReplyOnly:
+        """Return a controlled chat reply or continue the existing transfer path."""
         with _task_lock(self.application.path, trusted.task_id):
             context = self._scope(trusted)
-            self._authorize(trusted, "transfer.start_transfer")
-            if _CREDENTIAL_IN_REQUEST.search(intent_text):
-                raise ValueError("CREDENTIAL_IN_REQUEST")
+            self._check_intent_text(intent_text)
             task = self.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
+            outcome: TransferProposal | ReplyOnly | None = None
             if task is None:
+                trace_id = str(uuid4())
+                thread_id = self.memory.conversation_thread_id(context)
+                trace = RunTrace(self.audit, trusted, thread_id, trace_id)
+                outcome = self._understand_with_trace(trusted, intent_text, trace)
+                if isinstance(outcome, ReplyOnly):
+                    return outcome
+                self._authorize(trusted, outcome.capability_name)
                 task = self.application.create_task(
                     trusted.task_id, trusted.user_id, trusted.session_id,
                     trusted.demo_round_id, trusted.run_id, TaskStatus.RUNNING,
                     {"request_id": str(request_id), "intent_text": intent_text,
                      "config_version": self.planner.config_version,
-                     "trace_id": str(uuid4())},
+                     "trace_id": trace_id},
                 )
-            self._check_task(task, trusted)
+            else:
+                self._check_task(task, trusted)
+                self._authorize(trusted, "transfer.start_transfer")
             if task.run_id != trusted.run_id:
                 raise ValueError("USE_RESUME_FOR_NEW_RUN")
             snapshot = task.snapshot
@@ -239,25 +345,12 @@ class AgentHarness:
 
             trace = self._trace(trusted, task)
             if "proposal" not in snapshot:
-                model_call_id = str(uuid4())
-                model_started = trace.record(
-                    "model.started",
-                    ModelStartedPayload(
-                        model_call_id=model_call_id, provider=self.planner.provider,
-                        model=self.planner.model_name,
-                        config_version=self.planner.config_version,
-                        request_ref=str(uuid4()),
-                    ),
-                    "started",
-                    evidence={"intent_sha256": sha256(intent_text.encode()).hexdigest(),
-                              "capabilities": self.registry.public_catalog()},
-                )
-                started = monotonic()
                 try:
-                    proposal = self.planner.select(
-                        intent_text, trusted, self.registry.public_catalog(),
-                        self.memory, task.checkpoint_thread_id,
-                    )
+                    if outcome is None:
+                        outcome = self._understand_with_trace(trusted, intent_text, trace)
+                    if isinstance(outcome, ReplyOnly):
+                        return outcome
+                    proposal = outcome
                     self.registry.get(proposal.capability_name)
                     StartTransferInput(
                         request_id=request_id, intent_text=intent_text,
@@ -269,19 +362,10 @@ class AgentHarness:
                         code="MODEL_PROPOSAL_FAILED", source="platform", field=None,
                         reason="模型暂未形成可执行的业务候选", upstream_code=None,
                     )
-                    trace.record(
-                        "model.finished",
-                        ModelFinishedPayload(
-                            model_call_id=model_call_id, response_ref=None,
-                            duration_ms=int((monotonic() - started) * 1000),
-                            usage=ModelUsage(input_tokens=None, output_tokens=None),
-                            error=model_error,
-                        ), "failed", parent_span_id=model_started.span_id,
-                    )
                     failure = ModuleResult[TransferTaskView](
                         task_id=trusted.task_id, run_id=trusted.run_id,
                         status=TaskStatus.FAILED, data=None,
-                        message="暂时无法理解这次转账请求，请重新发起并核对信息。",
+                        message="暂时无法安全处理这条消息，请重新发起并核对信息。",
                         interaction=None, error=model_error, allowed_actions=[],
                         recovery_required=False, recovery_reason=None,
                     )
@@ -299,18 +383,6 @@ class AgentHarness:
                         ), "failed",
                     )
                     return failure
-                trace.record(
-                    "model.finished",
-                    ModelFinishedPayload(
-                        model_call_id=model_call_id, response_ref=str(uuid4()),
-                        duration_ms=int((monotonic() - started) * 1000),
-                        usage=ModelUsage(input_tokens=None, output_tokens=None), error=None,
-                    ), "succeeded", evidence={
-                        "proposal_sha256": sha256(proposal.model_dump_json().encode()).hexdigest(),
-                        "capability_name": proposal.capability_name,
-                    },
-                    parent_span_id=model_started.span_id,
-                )
                 snapshot = {**snapshot, "proposal": proposal.model_dump(mode="json")}
                 task = self.application.update_task(
                     trusted.user_id, trusted.demo_round_id, trusted.task_id,

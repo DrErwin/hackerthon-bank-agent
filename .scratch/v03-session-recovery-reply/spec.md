@@ -78,3 +78,7 @@ Original spec: [纵向后端实施规格](../v03-erwin-vertical-backend/spec.md)
 ## 当前收口状态
 
 01—04已经PR #30—#33按单目录合入并标为resolved，初始化、转换中断与重复恢复修复已包含；[代码主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36774040361)通过：后端212项（63.64秒）、模拟银行14项（0.46秒），文档链接、Python语法及差异空白检查通过。#23已关闭。用户于2026-10-01明确指示「我豁免批准，合并」，本轮补票01—04的Ringo真人批准门槛由用户豁免；AI复审不记为真人批准，长期审查规则不变。05仍ready、06仍blocked（等待05），未开始实现；规格整体保持in_progress。
+
+## 2026-10-01 补票05开始实施
+
+用户明确要求在新 worktree 完成剩余补票；Codex 已开始 [v03-session-recovery-reply/05：Harness 无业务意图仅回复](issues/05-harness-reply-only.md)，并创建 [PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)，Repository checks 已通过。票状态仍为 `in_progress`；Deep Agents 接缝未暴露完整系统提示与会话上下文，审计如实将 `model.started` 请求证据标记为缺失。Ringo 真人审查与05合入未完成，因此 [v03-session-recovery-reply/06：API 仅回复接入](issues/06-api-reply-only.md)继续阻塞。#24、真实模型、React及原票12联合验收仍未完成。

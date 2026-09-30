@@ -14,7 +14,7 @@
 
 ## 仍待完成
 
-- 票10全部验收仍未完成：新登录恢复缺口#23已由补票01—04解决；普通闲聊仅回复[#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)的05 / 06仍未开始。部署模型 / 策略组合、真实模型调用及React联调仍待提供。API工程增量与恢复补票合入不代表v0.3完成。
+- 票10全部验收仍未完成：新登录恢复缺口#23已由补票01—04解决；普通闲聊仅回复[#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)的05正在独立 worktree 实施，06仍阻塞于05合入。部署模型 / 策略组合、真实模型调用及React联调仍待提供。API工程增量与恢复补票合入不代表v0.3完成。
 - 最小 React 前端及与真实后端的联调。
 - Ringo 负责的安全评测、Erwin 负责的转账业务评测及相应审查结论。
 - 票 12：AF01—AF14 联合验收、问题回归和 v0.3 收口决定。
@@ -44,6 +44,13 @@
 - 用户于2026-10-01明确指示「我豁免批准，合并」，本轮补票01—04的Ringo真人批准门槛由用户豁免；AI复审不记为真人批准，长期审查规则不变。
 - [恢复缺口#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)已关闭；#24仅回复仍开放。05 / 06、原票10全部验收、原票12联合验收及v0.3阶段收口仍未完成，未同步飞书。
 
+## 补票05：Harness 无业务意图仅回复（2026-10-01）
+
+- 按用户指示在新 worktree 开始 [v03-session-recovery-reply/05](../../../.scratch/v03-session-recovery-reply/issues/05-harness-reply-only.md)，实现通过 [PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)提交，Repository checks 已通过；票保持 `in_progress`，Ringo 真人审查与合入尚未完成。
+- 最新目标用例 **33 passed**，后端全量回归 **225 passed**（157.05秒），模拟银行评测 **14 passed**；文档链接检查与差异空白检查通过。代码支持仅回复、模糊意图、模型失败和显式转账兼容，并拒绝在审计前留下可识别凭据；模型输出记录脱敏快照。
+- Deep Agents 未向 Harness 暴露最终组装的系统提示与会话上下文，故 `model.started` 如实标记请求证据缺失；这不是完整模型调用回放，也不代表真实模型验证通过。
+- [v03-session-recovery-reply/06：API 仅回复接入](../../../.scratch/v03-session-recovery-reply/issues/06-api-reply-only.md)继续阻塞，直到05的实现PR合入；#24保持开放，v0.3仍未完成。
+
 ## 下一更新点
 
-继续补票05 / 06的仅回复能力及部署组合；本次不自动启动后续实现。API 和前端具备真实接口联调条件后，记录端到端预跑结果；三类代表性评测可运行后，执行 AF01—AF14 联合验收。收口前补齐验证证据、差异和遗留，再判断是否进入 v0.4.0。
+完成补票05的审查与合入后再启动06；本次不提前越过依赖。之后补部署组合；API 和前端具备真实接口联调条件后，记录端到端预跑结果；三类代表性评测可运行后，执行 AF01—AF14 联合验收。收口前补齐验证证据、差异和遗留，再判断是否进入 v0.4.0。

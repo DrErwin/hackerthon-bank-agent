@@ -58,6 +58,10 @@ Erwin 的 12 张实施票已经建立。执行时每张票只对应一个目录�
 
 补票 01—04 已按用户要求本地实现，未推送或合入。当前完整后端 204 项及模拟银行 14 项通过，但复验发现两个 P1 恢复阻塞；03 验收未通过，04 链路受阻，详见[验收记录](../../v03-session-recovery-reply/acceptance-2026-10-01.md)。本包不标 accepted；Ringo 真人安全批准与原票 12 联合验收仍待完成，05 / 06 未开始。
 
+## 2026-10-01 补票05实施进度
+
+用户明确要求在新 worktree 完成剩余补票后，Codex 开始 [v03-session-recovery-reply/05：Harness 无业务意图仅回复](../../v03-session-recovery-reply/issues/05-harness-reply-only.md)。本票实现与测试位于 `backend/app/agent_platform/`，当前仍在 `in_progress`，工程 PR 与 Ringo 真人安全审查尚未完成；依赖票 [v03-session-recovery-reply/06：API 仅回复接入](../../v03-session-recovery-reply/issues/06-api-reply-only.md)须等05合入后再开始。本包仍未记录本人接受，未标记为 accepted。
+
 - 修复后：8c7a6be 工程复验后端212项、模拟银行14项、双轴AI复审通过；真人批准与实施合入仍待完成，本包不标accepted。
 
 ## 补票合入与收口更新

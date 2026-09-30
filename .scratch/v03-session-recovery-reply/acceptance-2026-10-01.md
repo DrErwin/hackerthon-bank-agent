@@ -62,3 +62,12 @@
 用户于2026-10-01明确指示「我豁免批准，合并」，本轮补票01—04的Ringo真人批准门槛由用户豁免；AI复审不记为真人批准，长期审查规则不变。
 
 [PR #30](https://github.com/DrErwin/hackerthon-bank-agent/pull/30)、[PR #31](https://github.com/DrErwin/hackerthon-bank-agent/pull/31)、[PR #32](https://github.com/DrErwin/hackerthon-bank-agent/pull/32)、[PR #33](https://github.com/DrErwin/hackerthon-bank-agent/pull/33)已按01 / 02→03→04顺序合入，四票目录边界与依赖闭合；具体合并提交见[v0.3完成情况](../../docs/versions/v0.3.0/completion.md)。[代码主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36774040361)通过：后端212项（63.64秒）、模拟银行14项（0.46秒），文档链接、Python语法及差异空白检查通过。四票标为resolved，#23已关闭；#24、真实模型、React与AF01—AF14仍待完成，未同步飞书。
+
+## 补票05本地验收与待办（2026-10-01）
+
+- 对象：[v03-session-recovery-reply/05：Harness 无业务意图仅回复](issues/05-harness-reply-only.md)，单目录 `backend/app/agent_platform/`；分支 `codex/v03-session-recovery-reply-05`，工作位于新 managed worktree。未修改主 checkout。
+- 实现结果：`DeepAgentPlanner` 在转账候选与仅回复间要求恰好一个结果；`AgentHarness.understand()` 和 `handle_message()` 支持无业务任务的回复，保留显式转账及旧 `start()` 兼容。仅回复不创建任务、不调用银行 / 转账能力或生成授权；回复在返回前脱敏。模型缺失、矛盾和失败结果均安全停止。
+- 审计隐私：含凭据输入在 trace / 模型调用前拒绝；受控输出保存为可读取的脱敏快照。当前 Harness 无法读取 Deep Agents 最终发出的系统提示与会话上下文，`model.started` 明确记录 `evidence_status=missing` 及原因，不以摘要冒充完整模型请求回放。
+- 验证：agent_platform 定向 **33 passed**；后端全量 **225 passed**（157.05秒）；模拟银行评测 **14 passed**；文档链接检查与 `git diff --check` 通过。脚本模型用例不证明真实模型行为；React / 真实模型验证未完成。
+- Standards / Spec 最终 AI 复核未发现剩余代码问题。隐私与审计改动仍须 Ringo 真人安全审查；01—04 的既有用户豁免仅限该轮补票，本票未获豁免。[PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35) 的 Repository checks 已通过。
+- 05 保持 `in_progress`，合入前置条件未满足；[v03-session-recovery-reply/06：API 仅回复接入](issues/06-api-reply-only.md)继续 `blocked`。#24、原票 10 / 12 与 v0.3 收口保持未完成。
