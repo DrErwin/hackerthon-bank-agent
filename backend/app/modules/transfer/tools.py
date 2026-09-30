@@ -23,6 +23,7 @@ from .manifest import PRIVATE_TOOLS
 
 _PAYEE = TypeAdapter(PayeeInput)
 SecurityContextFactory = Callable[[TrustedContext, UUID | None, int | None], ExecutionSecurityContext]
+OperationReserver = Callable[[TrustedContext, UUID, int, dict], UUID]
 
 
 @dataclass(frozen=True)
@@ -97,11 +98,13 @@ class GatewayTransferTools:
     def __init__(
         self, gateway: BankGateway, gate: SecurityGate, snapshots: TransferSnapshots,
         security_context: SecurityContextFactory,
+        operation_reserver: OperationReserver | None = None,
     ):
         self.gateway = gateway
         self.gate = gate
         self.snapshots = snapshots
         self.security_context = security_context
+        self.operation_reserver = operation_reserver
         handlers = {
             "bank.list_accounts": lambda trusted, _payload: gateway.list_accounts(trusted),
             "bank.list_payees": lambda trusted, payload: gateway.list_payees(trusted, payload),
@@ -176,11 +179,17 @@ class GatewayTransferTools:
         self, trusted: TrustedContext, operation_id: UUID, action_revision: int,
         payer_account_id: str, payee: PayeeInput, amount_fen: int,
     ) -> TransferAction:
+        parameters = {
+            "operation_id": str(operation_id), "payer_account_id": payer_account_id,
+            "payee": payee.model_dump(mode="json"), "amount_fen": amount_fen,
+        }
+        if self.operation_reserver is not None:
+            operation_id = self.operation_reserver(
+                trusted, operation_id, action_revision, parameters,
+            )
+            parameters["operation_id"] = str(operation_id)
         ref = self.snapshots.save(
-            trusted, "bank.submit_transfer",
-            {"operation_id": str(operation_id), "payer_account_id": payer_account_id,
-             "payee": payee.model_dump(mode="json"), "amount_fen": amount_fen},
-            operation_id, action_revision,
+            trusted, "bank.submit_transfer", parameters, operation_id, action_revision,
         )
         return TransferAction(operation_id, action_revision, ref)
 

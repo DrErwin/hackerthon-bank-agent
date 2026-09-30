@@ -4,8 +4,21 @@
 
 当前提供 `transfer.start_transfer` 的模块清单和普通转账子图。`TransferWorkflow.start()` 接收公共契约 `StartTransferInput` 与可信任务上下文；`resume()` 沿同一 LangGraph checkpoint 继续等待中的任务。平台负责保存持久 checkpoint、核验任务身份、把当前确认与验证记录装入 `ExecutionSecurityContext`。聊天回复中的“确认”不能代替安全确认记录。
 
-`GatewayTransferTools` 只注册和调用本模块列出的私有银行工具。查询及资金提交都经过统一安全门；资金提交由 `DeterministicExecutor` 先领取唯一执行记录。`TransferSnapshots` 保存不可变的动作参数。平台的 `scope_authorizer` 须先核对权限，并对资金工具调用 `TransferWorkflow.is_current_action()`，确保修改金额或收款人后，旧确认无法用于新动作。图节点执行期间该校验使用节点当前状态，节点外则读取 checkpoint，避免保存稍晚时误拒当前操作。银行接入层的 `authorize_transfer` 回调也须核验该次受控执行。
+`GatewayTransferTools` 只注册和调用本模块列出的私有银行工具。查询及资金提交都经过统一安全门；资金提交由 `DeterministicExecutor` 先领取唯一执行记录。`TransferSnapshots` 保存不可变的动作参数。准备转账时工具可通过平台提供的 `operation_reserver`，先把原编号和动作参数登记到应用存储，并采用回调返回的规范编号；登记不调用银行。若图检查点写入前中断，平台按任务、动作修订和参数取回原编号，避免遗留预留记录后另建操作。平台的 `scope_authorizer` 须先核对权限，并对资金工具调用 `TransferWorkflow.is_current_action()`，确保修改金额或收款人后，旧确认无法用于新动作。图节点执行期间该校验使用节点当前状态，节点外则读取 checkpoint，避免保存稍晚时误拒当前操作。银行接入层的 `authorize_transfer` 回调也须核验该次受控执行。
 
 当银行提交结果未知，子图按原操作编号回查，最多再等 10 秒；主动“查询结果”仍只查原操作。查询权限暂时无法核对或被拒绝时，停止本次查询并保留原任务和操作编号；恢复合法访问后可继续查询，不会重新提交转账。未完成的平台 Harness、HTTP/SSE 和前端接线由集成票负责。
 
 依据：[01-智能转账 PRD](../../../../docs/prd/01-智能转账-PRD-2026-09-23.md) §5.3–5.6。后续普通转账之外的公开能力按各自实施票接入。
+
+## 新会话恢复
+
+Harness 在存储完成同一用户、同一演示轮次的任务归属转换后，调用
+`TransferWorkflow.recover_session(current_trusted, source_session_id=old_session_id)`。
+当前可信上下文必须保留原 `task_id`，并来自服务端认证的有效新会话；不要从聊天内容构造身份。
+恢复只接受检查点当前仍属于所给旧会话的任务，重复调用同一转换安全返回。
+
+`checkpoint_context(current_trusted, thread_id=...)` 是只读公开入口，返回同用户、同轮次、同任务检查点中保存的可信上下文；尚无检查点时返回 `None`，归属不符则拒绝。它不授予旧会话权限，也不执行银行动作。Harness 用它区分首个业务检查点前的中断与会话转换中断，按实际检查点归属恢复，避免再次登录时误用尚未同步的任务会话。调用前仍须由平台认证当前身份并核对任务归属。
+
+未提交的确认或验证等待会重新运行当前安全检查；聊天中的“确认”不会批准新会话的动作。
+如果检查点已到资金提交节点、已有银行操作或状态未知，恢复只查询原 `operation_id`。
+查询仍未确认时保留原任务及操作号供稍后查询，不会再次提交。已完成任务只返回原终态。

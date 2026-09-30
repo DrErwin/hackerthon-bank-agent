@@ -61,6 +61,8 @@ class TransferState(TypedDict, total=False):
     recovery_required: bool
     recovery_reason: str | None
     retry_at: str
+    session_recovery_source_id: str | None
+    session_recovery_pending: bool
 
 
 class TransferWorkflow:
@@ -311,7 +313,7 @@ class TransferWorkflow:
             state["amount_fen"],
         )
         return {
-            "operation_id": str(operation_id), "parameters_ref": action.parameters_ref,
+            "operation_id": str(action.operation_id), "parameters_ref": action.parameters_ref,
             "next": "security", "error": None,
         }
 
@@ -578,6 +580,101 @@ class TransferWorkflow:
         }
         result = self.graph.invoke(initial, config)
         return self._result(result)
+
+    def checkpoint_context(
+        self, trusted: TrustedContext, *, thread_id: str | None = None,
+    ) -> TrustedContext | None:
+        """Read the owned checkpoint identity without changing or executing it."""
+        saved = self.graph.get_state(self._config(trusted, thread_id))
+        if not saved.values:
+            return None
+        prior = TrustedContext.model_validate(saved.values["trusted"])
+        if (prior.user_id, prior.demo_round_id, prior.task_id) != (
+            trusted.user_id, trusted.demo_round_id, trusted.task_id,
+        ):
+            raise ValueError("ACCESS_DENIED")
+        return prior
+
+    def recover_session(
+        self, trusted: TrustedContext, *, source_session_id: str,
+        thread_id: str | None = None,
+    ) -> ModuleResult[TransferTaskView]:
+        """Move a task checkpoint to a verified new session and resume it safely."""
+        if source_session_id == trusted.session_id:
+            raise ValueError("SESSION_NOT_CHANGED")
+        config = self._config(trusted, thread_id)
+        saved = self.graph.get_state(config)
+        if not saved.values:
+            raise ValueError("TASK_NOT_FOUND")
+
+        state = saved.values
+        prior = state["trusted"]
+        same_transition = (
+            state.get("session_recovery_source_id") == source_session_id
+            and prior["session_id"] == trusted.session_id
+            and (prior["user_id"], prior["demo_round_id"], prior["task_id"])
+            == (trusted.user_id, trusted.demo_round_id, trusted.task_id)
+        )
+        if not same_transition and (
+            (prior["user_id"], prior["session_id"], prior["demo_round_id"], prior["task_id"])
+            != (trusted.user_id, source_session_id, trusted.demo_round_id, trusted.task_id)
+        ):
+            raise ValueError("ACCESS_DENIED")
+
+        if same_transition and state.get("session_recovery_pending", False) and any(
+            task.interrupts for task in saved.tasks
+        ) and saved.next and saved.next[0] not in {"security", "manual_reconcile"}:
+            self.graph.update_state(config, {
+                "trusted": trusted.model_dump(mode="json"),
+                "session_recovery_pending": False,
+            })
+            return self._result(self.graph.get_state(config).values)
+
+        if same_transition and not state.get("session_recovery_pending", False):
+            if prior["run_id"] != trusted.run_id:
+                self.graph.update_state(config, {"trusted": trusted.model_dump(mode="json")})
+                state = self.graph.get_state(config).values
+            return self._result(state)
+
+        patch = {
+            "trusted": trusted.model_dump(mode="json"),
+            "session_recovery_source_id": source_session_id,
+            "session_recovery_pending": True,
+        }
+        if saved.next:
+            next_node = saved.next[0]
+            must_query_original = (
+                state.get("operation") is not None
+                or state.get("recovery_reason") in {"OPERATION_UNKNOWN", "OPERATION_PROCESSING"}
+                or (
+                    bool(state.get("operation_id"))
+                    and next_node in {"submit", "reconcile", "manual_reconcile", "await_query"}
+                )
+            )
+            if must_query_original:
+                patch.update({"next": "manual_reconcile", "interaction": None})
+                self.graph.update_state(config, patch, as_node=next_node)
+                result = self.graph.invoke(None, config)
+            elif state.get("wait_kind") == "security" and next_node == "wait":
+                patch.update({
+                    "next": "security", "status": TaskStatus.RUNNING.value,
+                    "interaction": None,
+                })
+                self.graph.update_state(config, patch, as_node="wait")
+                result = self.graph.invoke(None, config)
+            else:
+                self.graph.update_state(config, patch)
+                refreshed = self.graph.get_state(config)
+                if any(task.interrupts for task in refreshed.tasks):
+                    result = refreshed.values
+                else:
+                    result = self.graph.invoke(None, config)
+        else:
+            self.graph.update_state(config, patch)
+            result = self.graph.get_state(config).values
+
+        self.graph.update_state(config, {"session_recovery_pending": False})
+        return self._result(self.graph.get_state(config).values or result)
 
     @staticmethod
     def _check_owner(state: TransferState, trusted: TrustedContext) -> None:
