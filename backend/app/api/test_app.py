@@ -497,3 +497,176 @@ def test_restart_after_bank_verification_before_api_binding_uses_saved_submissio
         assert recovered.json()["data"]["task"]["status"] == "succeeded"
         assert restarted.state.api.runtime.harness.planner.calls == 0
         assert len(restarted.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 1
+
+
+def test_deployment_entrypoint_loads_only_server_configured_runtime(tmp_path, monkeypatch):
+    import sys
+    import types
+    injected = make_app(tmp_path)
+    configured_runtime = injected.state.api.runtime
+    factory = types.ModuleType("api_test_bootstrap")
+    factory.build_runtime = lambda: configured_runtime
+    monkeypatch.setitem(sys.modules, factory.__name__, factory)
+    monkeypatch.setenv("BANK_RUNTIME_FACTORY", "api_test_bootstrap:build_runtime")
+    monkeypatch.setenv("BANK_API_SECRET", "s" * 32)
+    monkeypatch.setenv("BANK_API_ORIGINS", "http://testserver")
+    with TestClient(create_app()) as client:
+        enter(client)
+        assert client.get("/api/v1/session").status_code == 200
+        assert post(client, "/threads").status_code == 200
+
+
+def test_deployment_without_runtime_factory_fails_before_accepting_requests(monkeypatch):
+    monkeypatch.delenv("BANK_RUNTIME_FACTORY", raising=False)
+    with pytest.raises(RuntimeError, match="BANK_RUNTIME_FACTORY"):
+        with TestClient(create_app()):
+            pass
+
+
+@pytest.mark.parametrize("operation", ["code", "resend-code", "face/start", "face-result"])
+def test_audit_failure_prevents_verification_writes(tmp_path, monkeypatch, operation):
+    from contextlib import ExitStack
+    app = make_app(tmp_path, risk=RiskLevel.MEDIUM)
+    with TestClient(app) as user, ExitStack() as resources:
+        _, task = start(user)
+        waiting = approve(user, task)
+        challenge = waiting["interaction"]["record_ref"]
+        client = user
+        body = {}
+        path = f"/verifications/{challenge}/{operation}"
+        if operation == "code":
+            code = user.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+            body = {"submission_id": str(uuid4()), "code": code}
+        elif operation == "face-result":
+            assert post(user, f"/verifications/{challenge}/face/start").status_code == 200
+            client = resources.enter_context(TestClient(make_app(tmp_path, risk=RiskLevel.MEDIUM)))
+            login = client.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
+                                headers={"Origin": "http://testserver", "X-Demo-Admin-Key": "test-admin-key"})
+            assert login.status_code == 200
+            path = f"/admin/verifications/{challenge}/face-result"
+            body = {"submission_id": str(uuid4()), "demo_round_id": "D1", "result": "passed"}
+        before = user.get(f"/api/v1/verifications/{challenge}").json()["data"]
+        def unavailable(*args, **kwargs):
+            raise RuntimeError("audit offline")
+        monkeypatch.setattr(client.app.state.api.runtime.audit, "append", unavailable)
+        rejected = post(client, path, **body)
+        assert rejected.status_code == 503, rejected.text
+        after = user.get(f"/api/v1/verifications/{challenge}").json()["data"]
+        assert before == after
+        assert user.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]["interaction"]["record_ref"] == challenge
+
+
+def test_read_dependency_errors_use_controlled_envelope_without_exception_text(tmp_path, monkeypatch):
+    import sqlite3
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        with monkeypatch.context() as patch:
+            def bank_unavailable(*args, **kwargs):
+                raise RuntimeError("sensitive-provider-diagnostics")
+            patch.setattr(app.state.api.runtime.gateway, "get_verification", bank_unavailable)
+            result = client.get(f"/api/v1/verifications/{challenge}")
+            assert result.status_code == 503
+            assert result.json()["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
+            assert "sensitive-provider-diagnostics" not in result.text
+        def database_unavailable(*args, **kwargs):
+            raise sqlite3.OperationalError("sensitive-database-diagnostics")
+        monkeypatch.setattr(app.state.api.store, "rows", database_unavailable)
+        result = client.get(f"/api/v1/tasks/{task['task_id']}")
+        assert result.status_code == 503
+        assert "sensitive-database-diagnostics" not in result.text
+
+
+def test_accepted_unstarted_task_can_cancel_without_calling_model(tmp_path, monkeypatch):
+    from fastapi import BackgroundTasks
+    app = make_app(tmp_path)
+    with monkeypatch.context() as patch:
+        patch.setattr(BackgroundTasks, "add_task", lambda *_args, **_kwargs: None)
+        with TestClient(app) as client:
+            enter(client)
+            thread = post(client, "/threads").json()["data"]["thread_id"]
+            accepted = post(client, f"/threads/{thread}/messages", text="给妈妈转 500 元")
+            task_id = accepted.json()["data"]["task_id"]
+            cookie = client.cookies.get("bank_session")
+    restarted = make_app(tmp_path)
+    with TestClient(restarted) as client:
+        client.cookies.set("bank_session", cookie)
+        before = client.get(f"/api/v1/tasks/{task_id}").json()["data"]
+        assert "cancel" in before["allowed_actions"]
+        cancelled = post(client, f"/tasks/{task_id}/cancel")
+        assert cancelled.status_code == 200, cancelled.text
+        after = cancelled.json()["data"]
+        assert after["status"] == "cancelled"
+        assert after["task_revision"] > before["task_revision"]
+        assert post(client, f"/tasks/{task_id}/resume").json()["data"]["status"] == "cancelled"
+        assert restarted.state.api.runtime.harness.planner.calls == 0
+
+
+def test_restart_after_final_face_before_binding_recovers_original_submission(tmp_path):
+    app = make_app(tmp_path, risk=RiskLevel.MEDIUM)
+    with TestClient(app) as user, TestClient(make_app(tmp_path, risk=RiskLevel.MEDIUM)) as admin:
+        _, task = start(user)
+        waiting = approve(user, task)
+        challenge = waiting["interaction"]["record_ref"]
+        assert post(user, f"/verifications/{challenge}/face/start").status_code == 200
+        code = user.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        assert post(user, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code).status_code == 200
+        login = admin.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
+                           headers={"Origin": "http://testserver", "X-Demo-Admin-Key": "test-admin-key"})
+        assert login.status_code == 200
+        body = {"request_id": str(uuid4()), "submission_id": str(uuid4()), "demo_round_id": "D1", "result": "passed"}
+        admin_cookie = admin.cookies.get("bank_session")
+        user_cookie = user.cookies.get("bank_session")
+        who = admin.app.state.api.identity(admin_cookie)
+        endpoint = f"/api/v1/admin/verifications/{challenge}/face-result"
+        admin.app.state.api.store.receipt(who, endpoint, body["request_id"], body)
+        from app.services.mock_bank.verification import AdminContext
+        from uuid import UUID
+        saved = admin.app.state.api.runtime.gateway.verify_face(AdminContext(who.user_id, True, "D1", "U1"),
+            challenge, UUID(body["submission_id"]), "passed")
+        assert saved.verification_id
+    restarted = make_app(tmp_path, risk=RiskLevel.MEDIUM)
+    with TestClient(restarted) as admin:
+        admin.cookies.set("bank_session", admin_cookie)
+        recovered = admin.post(endpoint, json=body, headers={"Origin": "http://testserver"})
+        assert recovered.status_code == 200, recovered.text
+        assert recovered.json()["data"]["task"]["status"] == "succeeded"
+        repeated = admin.post(endpoint, json=body, headers={"Origin": "http://testserver"})
+        assert repeated.json() == recovered.json()
+        assert restarted.state.api.runtime.harness.planner.calls == 0
+        assert len(restarted.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 1
+
+
+def test_cancel_in_flight_only_queries_original_bank_operation(tmp_path):
+    app = make_app(tmp_path)
+    bank = app.state.api.runtime.gateway._bank
+    bank.slow_seconds = 12.0
+    app.state.api.runtime.gateway._transfer_timeout_seconds = 0.01
+    bank.arm_slow_once("U1")
+    with TestClient(app) as client:
+        _, task = start(client)
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        response = post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code)
+        assert response.status_code == 200, response.text
+        pending = response.json()["data"]["task"]
+        assert pending["status"] == "needs_attention"
+        assert "query" in pending["allowed_actions"]
+        assert "cancel" in pending["allowed_actions"]
+        original = pending["data"]["operation_id"]
+        stopped = post(client, f"/tasks/{task['task_id']}/cancel")
+        assert stopped.status_code == 200, stopped.text
+        assert stopped.json()["data"]["cancel_requested"]
+        assert stopped.json()["data"]["data"]["operation_id"] == original
+        # Wait for the original bank worker to finish, without another submission.
+        app.state.api.runtime.gateway.close()
+        settled = post(client, f"/tasks/{task['task_id']}/query-result")
+        assert settled.status_code == 200, settled.text
+        final = settled.json()["data"]
+        assert final["status"] == "succeeded", final
+        assert final["data"]["operation_id"] == original
+        assert final["cancel_requested"]
+        assert len(bank.store.list_ledger("U1", "A1")) == 1

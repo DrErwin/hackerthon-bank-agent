@@ -6,6 +6,7 @@ import asyncio
 import importlib
 import json
 import os
+import sqlite3
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -123,7 +124,7 @@ def create_app(runtime=None, config=None):
         status, body = problem(exc)
         return JSONResponse(body, status_code=status, headers={"Cache-Control": "no-store"})
 
-    for exception in (ApiProblem, ValueError, PermissionError, TimeoutError):
+    for exception in (ApiProblem, ValueError, PermissionError, TimeoutError, sqlite3.Error, RuntimeError, KeyError, OSError):
         application.add_exception_handler(exception, error_handler)
 
     def api(request: Request):
@@ -195,7 +196,8 @@ def create_app(runtime=None, config=None):
                 with service.mutation_lock:
                     try:
                         trusted = service.trusted(who, task_id)
-                        service.runtime.harness.start(trusted, body.request_id, text)
+                        if not service.link(who, task_id)["cancel_requested"]:
+                            service.runtime.harness.start(trusted, body.request_id, text)
                         service.publish_task(who, task_id)
                     except Exception:
                         # Preserve the original task for explicit recovery; never
@@ -254,7 +256,9 @@ def create_app(runtime=None, config=None):
                 if "cancel" not in task.allowed_actions:
                     raise ApiProblem(409, "ACTION_UNAVAILABLE")
                 service.store.write("UPDATE api_tasks SET cancel_requested=1 WHERE task_id=?", (task_id,))
-                return service.continue_task(who, task_id, {"cancel": True})
+                if service.runtime.application.get_task(who.user_id, who.demo_round_id, task_id) is None:
+                    return service.publish_task(who, task_id)
+                return service.continue_task(who, task_id, {} if "query" in task.allowed_actions else {"cancel": True})
             if command == "query-result":
                 if "query" not in task.allowed_actions:
                     raise ApiProblem(409, "ACTION_UNAVAILABLE")
@@ -344,6 +348,7 @@ def create_app(runtime=None, config=None):
         def action():
             # The bank first finds the original submission_id. This also recovers
             # a passed bank record after an API crash before binding it to the task.
+            service.begin_verification(who, trusted, "verification.code")
             outcome = service.runtime.gateway.verify_code(trusted, challenge_id, body.submission_id, body.code.get_secret_value())
             return verification_response(service, who, trusted, outcome, who, "code")
         # HMAC the actual secret for conflict detection; persist neither the code
@@ -359,10 +364,12 @@ def create_app(runtime=None, config=None):
             if challenge.challenge_status != "pending":
                 raise ApiProblem(409, "CHALLENGE_STALE")
             if request.url.path.endswith("resend-code"):
+                service.begin_verification(who, trusted, "verification.resend-code")
                 current = service.runtime.gateway.resend_verification_code(trusted, challenge_id, body.request_id)
                 service.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)", ("verification", current.challenge_id, trusted.task_id))
                 service.continue_task(who, trusted.task_id, {"choice": "resume"})
             else:
+                service.begin_verification(who, trusted, "verification.face.start")
                 current = service.runtime.gateway.start_face(trusted, challenge_id, body.request_id)
             return service.verification_view(current)
         return mutation(service, who, request, body, action)
@@ -379,12 +386,11 @@ def create_app(runtime=None, config=None):
         target = service.identity(service.cookie(link["session_id"]))
         trusted, challenge = service.verification(target, challenge_id)
         def action():
-            if challenge.challenge_status != "pending":
-                raise ApiProblem(409, "CHALLENGE_STALE")
+            service.begin_verification(who, trusted, "admin.verification.face-result")
             admin = AdminContext(who.user_id, True, who.demo_round_id, target.user_id)
             outcome = service.runtime.gateway.verify_face(admin, challenge_id, body.submission_id, body.result)
             return verification_response(service, target, trusted, outcome, who, "mock_face")
-        return mutation(service, who, request, body, action)
+        return mutation(service, who, request, body, action, recover_verification=True)
 
     @application.get("/api/v1/admin/audit/events")
     def timeline(task_id: str, demo_round_id: str | None = None, trace_id: str | None = None,

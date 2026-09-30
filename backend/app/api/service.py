@@ -12,7 +12,7 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from app.audit.journal import AuditReader, AuditViewer, redact
-from app.contracts.audit import AuditEvent, VerificationChangedPayload
+from app.contracts.audit import AuditEvent, TaskTransitionPayload, VerificationChangedPayload
 from app.contracts.api import MessageView, StreamEvent
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
@@ -140,13 +140,23 @@ class ApiService:
             result = ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
         else:
             interrupted = task_id not in self.active_tasks
+            cancelled = task is None and bool(link["cancel_requested"])
             result = ModuleResult[TransferTaskView](task_id=task_id, run_id=task.run_id if task else link["run_id"],
-                status=TaskStatus.RUNNING, data=None, message="正在处理请求。", interaction=None,
-                error=None, allowed_actions=["resume"] if interrupted else [],
-                recovery_required=interrupted, recovery_reason="INTERRUPTED_REQUEST" if interrupted else None)
-        return TaskView[TransferTaskView](**result.model_dump(), thread_id=link["thread_id"],
-            demo_round_id=identity.demo_round_id, snapshot_at=now(), task_revision=task.revision if task else 0,
+                status=TaskStatus.CANCELLED if cancelled else TaskStatus.RUNNING, data=None,
+                message="请求尚未开始处理，已取消。" if cancelled else "正在处理请求。", interaction=None,
+                error=None, allowed_actions=[] if cancelled else
+                ["resume", "cancel"] if interrupted and task is None else
+                ["resume"] if interrupted else ["cancel"] if task is None else [],
+                recovery_required=interrupted and not cancelled,
+                recovery_reason="INTERRUPTED_REQUEST" if interrupted and not cancelled else None)
+        view = TaskView[TransferTaskView](**result.model_dump(), thread_id=link["thread_id"],
+            demo_round_id=identity.demo_round_id, snapshot_at=now(), task_revision=task.revision if task else int(link["cancel_requested"]),
             cancel_requested=bool(link["cancel_requested"]))
+        if "query" in view.allowed_actions and "cancel" not in view.allowed_actions:
+            # For an in-flight action, cancel records intent and only queries the
+            # original operation. It never promises that the bank can reverse it.
+            view.allowed_actions.append("cancel")
+        return view
 
     def emit(self, identity, thread_id, event_type, payload, task=None):
         self.store.event(StreamEvent(event_id=str(uuid4()), thread_id=thread_id,
@@ -201,34 +211,49 @@ class ApiService:
     def verification_view(challenge):
         return VerificationView.model_validate(challenge.model_dump(include=set(VerificationView.model_fields)))
 
-    def record_verification(self, actor, trusted, outcome, method):
+    def audit_step(self, actor, trusted, event_type, payload, outcome):
         """An API invocation has its own run; link it to the original task trace."""
         task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
         link = self.link(Identity(trusted.user_id, trusted.session_id, trusted.demo_round_id, "user"), trusted.task_id)
-        challenge = outcome.challenge
         self.runtime.audit.append(AuditEvent(
             event_id=str(uuid4()), trace_id=task.snapshot["trace_id"], span_id=str(uuid4()),
             sequence=0, parent_span_id=None, demo_round_id=trusted.demo_round_id,
             actor_id=actor.user_id, session_id=actor.session_id,
             target_session_id=trusted.session_id, target_user_id=trusted.user_id,
             thread_id=link["thread_id"], task_id=trusted.task_id, run_id=str(uuid4()),
-            module="api", event_type="verification.changed", timestamp=now(), logical_at=None,
-            outcome="succeeded" if outcome.kind == "verified" else "denied",
-            evidence_ref=None, evidence_status="missing", missing_reason="verification facts have no secret content snapshot",
-            payload=VerificationChangedPayload(challenge_id=challenge.challenge_id, method=method,
-                result="passed" if outcome.kind == "verified" else "rejected", purpose=challenge.purpose,
-                operation_id=challenge.operation_id, verification_id=outcome.verification_id,
-                consecutive_code_failures=challenge.consecutive_code_failures,
-                expires_at=challenge.face_expires_at if method == "mock_face" else challenge.code_expires_at,
-                reason_code=outcome.reason_code or "VERIFICATION_METHOD_PASSED"),
+            module="api", event_type=event_type, timestamp=now(), logical_at=None,
+            outcome=outcome, evidence_ref=None, evidence_status="missing",
+            missing_reason="API step has no secret content snapshot", payload=payload,
         ))
+
+    def begin_verification(self, actor, trusted, step):
+        self.identity(self.cookie(trusted.session_id))
+        task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
+        if task.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+            raise ApiProblem(409, "TASK_TERMINATED")
+        self.audit_step(actor, trusted, "task.transition", TaskTransitionPayload(
+            previous_status=task.status, status=task.status, plan_revision=None,
+            step_id=step, reason_code="API_WRITE_STARTED", checkpoint_ref=None,
+        ), "started")
+
+    def record_verification(self, actor, trusted, outcome, method):
+        challenge = outcome.challenge
+        self.audit_step(actor, trusted, "verification.changed", VerificationChangedPayload(
+            challenge_id=challenge.challenge_id, method=method,
+            result="passed" if outcome.kind == "verified" else "rejected", purpose=challenge.purpose,
+            operation_id=challenge.operation_id, verification_id=outcome.verification_id,
+            consecutive_code_failures=challenge.consecutive_code_failures,
+            expires_at=challenge.face_expires_at if method == "mock_face" else challenge.code_expires_at,
+            reason_code=outcome.reason_code or "VERIFICATION_METHOD_PASSED",
+        ), "succeeded" if outcome.kind == "verified" else "denied")
 
     def continue_task(self, identity, task_id, response):
         trusted = self.trusted(identity, task_id, new_run=True)
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
         if task is None:
             link = self.link(identity, task_id, mutate=True)
-            self.runtime.harness.start(trusted, UUID(link["request_id"]), link["intent_text"])
+            if not link["cancel_requested"]:
+                self.runtime.harness.start(trusted, UUID(link["request_id"]), link["intent_text"])
         else:
             self.runtime.harness.resume(trusted, response)
         return self.publish_task(identity, task_id)
