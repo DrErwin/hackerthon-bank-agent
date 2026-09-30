@@ -12,7 +12,7 @@ Work spec: [Erwin 详细规格与票据](../../v03-erwin-vertical-backend/spec.m
 
 领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再续做已有规格和票据；已有实现证据保持原记录。
 
-Detailed tickets: [v0.3 Erwin 纵向后端实施规格与 12 张票](../../v03-erwin-vertical-backend/spec.md)
+Detailed tickets: [v0.3 Erwin 纵向后端实施规格与 12 张票](../../v03-erwin-vertical-backend/spec.md)；[原契约缺口补票：#23 / #24 六张单目录票](../../v03-session-recovery-reply/spec.md)
 
 ## 业务目标
 
@@ -49,3 +49,7 @@ Detailed tickets: [v0.3 Erwin 纵向后端实施规格与 12 张票](../../v03-e
 ## 拆票要求
 
 Erwin 的 12 张实施票已经建立。执行时每张票只对应一个目录，并按票中的前置依赖、可观察结果和验收方式推进。底座、安全、转账不得合并成一张大票。
+
+## 2026-09-30 补票记录
+
+#23 / #24 是票 10 接入 API 时发现的原契约实现缺口，现已按用户确认补为六张单目录实施票。这里只记录补票，未启动实现、不代填 Erwin 本人接受记录，不将交付包标为 accepted。
