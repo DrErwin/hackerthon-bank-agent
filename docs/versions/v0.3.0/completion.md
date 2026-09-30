@@ -13,7 +13,7 @@
 
 ## 仍待完成
 
-- 票 10：任务 API、确认与验证接口及事件流。目前 FastAPI 仍只有工程入口。
+- 票 10：[PR #25](https://github.com/DrErwin/hackerthon-bank-agent/pull/25) 提供任务 API、确认验证、取消 / 原结果回查、持久事件流及只读审计工程增量；独立工程、契约与安全 AI 审查按用户本次授权执行，非真人批准。原分支后端 178 项、API 29 项和模拟银行 14 项通过，独立复查修复跨会话不可用按钮并回归。票 10 全部验收未完成：新登录恢复 [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)、普通闲聊仅回复 [#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)、部署模型 / 策略组合、真实模型调用及 React 联调仍待提供；合入不代表 v0.3 完成。
 - 最小 React 前端及与真实后端的联调。
 - Ringo 负责的安全评测、Erwin 负责的转账业务评测及相应审查结论。
 - 票 12：AF01—AF14 联合验收、问题回归和 v0.3 收口决定。
