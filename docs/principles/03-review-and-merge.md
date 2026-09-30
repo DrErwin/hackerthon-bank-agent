@@ -64,7 +64,8 @@
 - 目录有没有越界。
 - PR 是否只做一件事，测试是否与声明一致。
 - 是否从过期分支开出，是否需要先 rebase。
-- 有依赖是否标明 `Depends on #n`。
+- 有前置 PR 是否标明 `Depends on PR #n`。
+- 正文是否按[票据标识规范](../agents/issue-tracker.md)引用完整实施票号、标题及链接；来源问题写 `Issue #n`，依赖交付写 `Depends on PR #n`，编号类别明确。
 
 业务 PR 额外看：
 

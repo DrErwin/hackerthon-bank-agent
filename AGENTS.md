@@ -67,7 +67,7 @@ python tools/feishu_sync.py mount     # 把还没进知识库的挂进对应分�
 
 ### Issue tracker
 
-Issues and specs live as markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+规格与实施票放在 `.scratch/`。新建、引用或领取票据时先读[票据标识规范](docs/agents/issue-tracker.md)：组内分别编号，对外使用完整票号 `<feature-slug>/<NN>`、标题及链接；交付包、实施票、GitHub Issue 与 PR 分别标注。
 
 ### Version progress
 
