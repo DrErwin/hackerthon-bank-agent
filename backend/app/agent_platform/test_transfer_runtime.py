@@ -11,8 +11,9 @@ from app.audit.journal import AuditJournal
 from app.contracts.bank import SavedPayee
 from app.contracts.common import Phase, RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import TrustedContext
-from app.contracts.security import ConfirmationAnswer
+from app.contracts.security import ConfirmationAnswer, ExecutionSecurityContext
 from app.memory.adapter import MemoryAdapter
+from app.security import SecurityError
 from app.services.mock_bank.core import MockBankService
 from app.services.mock_bank.verification import AdminContext
 from app.storage.application import ApplicationStore
@@ -53,6 +54,131 @@ def _resume_in_process(path, bank_path, ready, release, results):
         results.put(type(exc).__name__)
     finally:
         app.close()
+
+
+def test_new_session_recovers_before_first_business_checkpoint(tmp_path):
+    path = tmp_path / "application.sqlite"
+    bank = MockBankService(MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4)
+    app = runtime(path, bank)
+    now = datetime.now(timezone.utc)
+    for session in ("S1", "S2"):
+        app.application.create_session(session, "U1", "D1", now.isoformat(),
+                                       (now + timedelta(days=1)).isoformat())
+    request_id = uuid4()
+    with patch("app.modules.transfer.workflow.TransferWorkflow.start",
+               side_effect=RuntimeError("before first checkpoint")):
+        with pytest.raises(RuntimeError, match="before first checkpoint"):
+            app.harness.start(trusted(), request_id, "给妈妈转 500 元")
+    app.close()
+
+    restarted = runtime(path, bank)
+    current = trusted("R2").model_copy(update={"session_id": "S2"})
+    recovered = restarted.harness.recover_session(current)
+    assert recovered.task_id == "T1"
+    assert recovered.run_id == "R2"
+    assert recovered.status == TaskStatus.WAITING_APPROVAL
+    assert restarted.harness.planner.calls == 0
+    assert restarted.harness.recover_session(current) == recovered
+    assert len(bank.store.list_ledger("U1", "A1")) == 0
+    assert len(restarted.application.list_task_operations("U1", "D1", "T1")) == 1
+    restarted.answer_confirmation(current, ConfirmationAnswer(
+        confirmation_id=recovered.interaction.record_ref,
+        confirmation_version=1, choice="approve",
+    ))
+    verification_identity = current.model_copy(update={"run_id": "R3"})
+    verification = restarted.harness.resume(verification_identity, {"choice": "approve"})
+    code = restarted.gateway.get_demo_code_for_api(verification_identity, verification.interaction.record_ref)
+    verified = restarted.gateway.verify_code(verification_identity, verification.interaction.record_ref, uuid4(), code)
+    restarted.bind_verification(verification_identity, verified.verification_id)
+    done = restarted.harness.resume(current.model_copy(update={"run_id": "R4"}), {"choice": "approve"})
+    assert done.status == TaskStatus.SUCCEEDED
+    terminal_identity = current.model_copy(update={"run_id": "R5"})
+    terminal = restarted.harness.recover_session(terminal_identity)
+    assert terminal.status == TaskStatus.SUCCEEDED
+    assert terminal.run_id == "R5"
+    assert terminal.data.operation_id == done.data.operation_id
+    assert restarted.harness.recover_session(terminal_identity) == terminal
+    assert len(bank.store.list_ledger("U1", "A1")) == 1
+    restarted.close()
+
+
+@pytest.mark.parametrize("after_checkpoint_conversion", [False, True])
+def test_interrupted_recovery_survives_another_login(tmp_path, after_checkpoint_conversion):
+    from app.modules.transfer.workflow import TransferWorkflow
+    from app.storage.database import transaction
+
+    path = tmp_path / "application.sqlite"
+    bank = MockBankService(MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4)
+    app = runtime(path, bank)
+    now = datetime.now(timezone.utc)
+    for session in ("S1", "S2", "S3"):
+        app.application.create_session(session, "U1", "D1", now.isoformat(),
+                                       (now + timedelta(days=1)).isoformat())
+    pending = app.harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    recover = TransferWorkflow.recover_session
+
+    def interrupt(workflow, *args, **kwargs):
+        if after_checkpoint_conversion:
+            recover(workflow, *args, **kwargs)
+        raise RuntimeError("recovery interrupted")
+
+    with patch.object(TransferWorkflow, "recover_session", interrupt):
+        with pytest.raises(RuntimeError, match="recovery interrupted"):
+            app.harness.recover_session(trusted("R2").model_copy(update={"session_id": "S2"}))
+    with transaction(path) as connection:
+        connection.execute("UPDATE sessions SET expires_at=? WHERE session_id='S2'",
+                           ((now - timedelta(seconds=1)).isoformat(),))
+    app.close()
+
+    restarted = runtime(path, bank)
+    current = trusted("R3").model_copy(update={"session_id": "S3"})
+    recovered = restarted.harness.recover_session(current)
+    assert recovered.status == TaskStatus.WAITING_APPROVAL
+    assert recovered.task_id == pending.task_id
+    assert recovered.data.operation_id == pending.data.operation_id
+    assert recovered.run_id == "R3"
+    assert restarted.harness.recover_session(current) == recovered
+    assert restarted.application.get_task("U1", "D1", "T1").session_id == "S3"
+    assert restarted.harness.planner.calls == 0
+    assert len(bank.store.list_ledger("U1", "A1")) == 0
+    assert len(restarted.application.list_task_operations("U1", "D1", "T1")) == 1
+    with pytest.raises(SecurityError):
+        restarted.answer_confirmation(current, ConfirmationAnswer(
+            confirmation_id=pending.interaction.record_ref, confirmation_version=1,
+            choice="approve",
+        ))
+    restarted.close()
+
+
+def test_interrupted_new_checkpoint_initialization_retries_after_restart(tmp_path):
+    from app.modules.transfer.workflow import TransferWorkflow
+
+    path = tmp_path / "application.sqlite"
+    bank = MockBankService(MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4)
+    app = runtime(path, bank)
+    now = datetime.now(timezone.utc)
+    for session in ("S1", "S2"):
+        app.application.create_session(session, "U1", "D1", now.isoformat(),
+                                       (now + timedelta(days=1)).isoformat())
+    with patch.object(TransferWorkflow, "start", side_effect=RuntimeError("before graph")):
+        with pytest.raises(RuntimeError, match="before graph"):
+            app.harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    current = trusted("R2").model_copy(update={"session_id": "S2"})
+    with patch.object(TransferWorkflow, "_collect", side_effect=RuntimeError("graph initialized")):
+        with pytest.raises(RuntimeError, match="graph initialized"):
+            app.harness.recover_session(current)
+    app.close()
+
+    restarted = runtime(path, bank)
+    current = current.model_copy(update={"run_id": "R3"})
+    recovered = restarted.harness.recover_session(current)
+    assert recovered.status == TaskStatus.WAITING_APPROVAL
+    assert recovered.run_id == "R3"
+    assert restarted.harness.recover_session(current) == recovered
+    assert restarted.harness.planner.calls == 0
+    assert len(bank.store.list_ledger("U1", "A1")) == 0
+    assert len(restarted.application.list_task_operations("U1", "D1", "T1")) == 1
+    restarted.close()
 
 
 def _start_in_process(path, bank_path, request_id, ready, release, results):
@@ -185,6 +311,127 @@ def test_real_confirmation_verification_and_crash_recovery(tmp_path):
     restarted.close()
 
 
+def test_reserved_operation_is_reused_after_snapshot_interruption(tmp_path):
+    path = tmp_path / "application.sqlite"
+    bank_path = tmp_path / "bank.sqlite"
+    bank = MockBankService(
+        MockBankStore(bank_path), demo_secret=b"demo-secret" * 4,
+    )
+    app = runtime(path, bank)
+    now = datetime.now(timezone.utc)
+    app.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    request_id = uuid4()
+    save = app.snapshots.save
+    interrupted = False
+
+    def save_after_reservation(current, action_name, parameters, operation_id=None,
+                               action_revision=None):
+        nonlocal interrupted
+        if action_name == "bank.submit_transfer" and not interrupted:
+            interrupted = True
+            raise RuntimeError("snapshot interrupted after operation reservation")
+        return save(current, action_name, parameters, operation_id, action_revision)
+
+    with patch.object(app.snapshots, "save", side_effect=save_after_reservation):
+        with pytest.raises(RuntimeError, match="after operation reservation"):
+            app.harness.start(trusted(), request_id, "给妈妈转 500 元")
+
+    operations = app.application.list_task_operations("U1", "D1", "T1")
+    assert len(operations) == 1
+    operation_id = UUID(operations[0].operation_id)
+    assert operations[0].state == "reserved"
+    assert app.gateway.get_operation(trusted(), operation_id).lookup == "not_found"
+    app.close()
+
+    restarted_bank = MockBankService(
+        MockBankStore(bank_path), demo_secret=b"demo-secret" * 4,
+    )
+    restarted = runtime(path, restarted_bank)
+    retried = restarted.harness.start(trusted(), request_id, "给妈妈转 500 元")
+    assert retried.status == TaskStatus.WAITING_APPROVAL
+    assert retried.data.operation_id == operation_id
+    assert [item.operation_id for item in restarted.application.list_task_operations("U1", "D1", "T1")] == [
+        str(operation_id),
+    ]
+    assert restarted.gateway.get_operation(trusted(), operation_id).lookup == "not_found"
+    assert len(restarted_bank.store.list_ledger("U1", "A1")) == 0
+    restarted.close()
+
+
+def test_new_session_recovery_queries_original_operation_when_task_summary_lags(tmp_path):
+    path = tmp_path / "application.sqlite"
+    bank = MockBankService(
+        MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4,
+    )
+    app = runtime(path, bank)
+    now = datetime.now(timezone.utc)
+    app.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    pending = app.harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    operation_id = pending.data.operation_id
+    app.answer_confirmation(trusted(), ConfirmationAnswer(
+        confirmation_id=pending.interaction.record_ref,
+        confirmation_version=1, choice="approve",
+    ))
+    verification = app.harness.resume(trusted("R2"), {"choice": "approve"})
+    challenge_id = verification.interaction.record_ref
+    code = app.gateway.get_demo_code_for_api(trusted("R2"), challenge_id)
+    verified = app.gateway.verify_code(trusted("R2"), challenge_id, uuid4(), code)
+    app.bind_verification(trusted("R2"), verified.verification_id)
+
+    original_submit = bank.submit_transfer
+    submissions = []
+
+    def submit_once(*args, **kwargs):
+        submissions.append(operation_id)
+        return original_submit(*args, **kwargs)
+
+    with patch.object(bank, "submit_transfer", side_effect=submit_once), \
+         patch.object(app, "_record_result", side_effect=RuntimeError("crash after bank")):
+        with pytest.raises(RuntimeError, match="crash after bank"):
+            app.harness.resume(trusted("R3"), {"choice": "approve"})
+
+    assert submissions == [operation_id]
+    assert app.gateway.get_operation(trusted(), operation_id).lookup == "found"
+    assert app.application.get_operation("U1", "D1", str(operation_id)).state == "reserved"
+    assert len(bank.store.list_ledger("U1", "A1")) == 1
+
+    # The durable graph and operation record are ahead of the API task summary.
+    task = app.application.get_task("U1", "D1", "T1")
+    app.application.update_task(
+        "U1", "D1", "T1", task.revision, task.run_id, TaskStatus.RUNNING,
+        task.checkpoint_id,
+        {key: value for key, value in task.snapshot.items() if key != "result"},
+    )
+    app.application.create_session(
+        "S2", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    app.close()
+
+    restarted = runtime(path, bank)
+    current = trusted("R4").model_copy(update={"session_id": "S2"})
+    with patch.object(bank, "submit_transfer", side_effect=AssertionError("must not resubmit")):
+        recovered = restarted.harness.recover_session(current)
+
+    assert recovered.status == TaskStatus.SUCCEEDED
+    assert recovered.data.operation_id == operation_id
+    assert bank.store.get_operation("U1", str(operation_id)).status == "succeeded"
+    assert len(bank.store.list_ledger("U1", "A1")) == 1
+    recovery_events = [event for event in restarted.audit._events("D1", "T1")
+                       if event.event_type == "recovery.checked"]
+    started = next(event for event in recovery_events
+                   if event.payload.reason_code == "SESSION_RECOVERY_STARTED")
+    completed = next(event for event in reversed(recovery_events)
+                     if event.payload.reason_code == "SESSION_RECOVERY_COMPLETED")
+    assert started.outcome == "started"
+    assert started.payload.operation_ids == [operation_id]
+    assert completed.payload.operation_ids == [operation_id]
+    restarted.close()
+
+
 def test_real_policy_denial_stops_before_confirmation_or_bank(tmp_path):
     path = tmp_path / "application.sqlite"
     bank = MockBankService(
@@ -209,6 +456,84 @@ def test_real_policy_denial_stops_before_confirmation_or_bank(tmp_path):
                and event.payload.decision.reason_codes == ["HIGH_RISK"]
                for event in app.audit._events("D1", "T1"))
     app.close()
+
+
+def test_new_session_recovery_requires_new_confirmation_and_verification(tmp_path):
+    path = tmp_path / "application.sqlite"
+    bank = MockBankService(
+        MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4,
+    )
+    app = runtime(
+        path, bank, risk=RiskLevel.MEDIUM,
+        authorize_face=lambda admin, *_: admin.authorized,
+    )
+    now = datetime.now(timezone.utc)
+    app.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    try:
+        pending = app.harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+        old_confirmation_id = pending.interaction.record_ref
+        app.answer_confirmation(trusted(), ConfirmationAnswer(
+            confirmation_id=old_confirmation_id, confirmation_version=1, choice="approve",
+        ))
+        old_session_verification = app.harness.resume(
+            trusted("R2"), {"choice": "approve"},
+        )
+        assert old_session_verification.interaction.kind == "verification"
+        old_challenge_id = old_session_verification.interaction.record_ref
+        old_code = app.gateway.get_demo_code_for_api(trusted("R2"), old_challenge_id)
+        code_result = app.gateway.verify_code(
+            trusted("R2"), old_challenge_id, uuid4(), old_code,
+        )
+        assert code_result.verification_id is None
+        app.gateway.start_face(trusted("R2"), old_challenge_id, uuid4())
+        old_verification = app.gateway.verify_face(
+            AdminContext(actor_id="admin", authorized=True, demo_round_id="D1",
+                         target_user_id="U1"),
+            old_challenge_id, uuid4(), "passed",
+        )
+        app.bind_verification(trusted("R2"), old_verification.verification_id)
+
+        app.application.create_session(
+            "S2", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+        )
+        current = trusted("R3").model_copy(update={"session_id": "S2"})
+        recovered = app.harness.recover_session(current)
+        assert recovered.status == TaskStatus.WAITING_APPROVAL, recovered.error
+        assert recovered.interaction.kind == "confirmation"
+        assert recovered.data.operation_id == pending.data.operation_id
+        assert app.gateway.get_operation(current, pending.data.operation_id).lookup == "not_found"
+
+        current_context = ExecutionSecurityContext(
+            user_id=current.user_id, session_id=current.session_id,
+            demo_round_id=current.demo_round_id, task_id=current.task_id,
+            run_id=current.run_id, source_task_id=current.parent_task_id,
+            operation_id=None, action_revision=None, confirmation_id=None,
+            confirmation_version=None, verification_ids=[],
+            release_authorization_id=None,
+        )
+        confirmation = app.confirmations.get(
+            current_context, recovered.interaction.record_ref,
+        )
+        assert confirmation.confirmation_version == 2
+
+        with pytest.raises(SecurityError, match="CONFIRMATION_STALE"):
+            app.answer_confirmation(current, ConfirmationAnswer(
+                confirmation_id=old_confirmation_id, confirmation_version=1, choice="approve",
+            ))
+        app.answer_confirmation(current, ConfirmationAnswer(
+            confirmation_id=recovered.interaction.record_ref,
+            confirmation_version=confirmation.confirmation_version, choice="approve",
+        ))
+        new_verification = app.harness.resume(current, {"choice": "approve"})
+        assert new_verification.status == TaskStatus.WAITING_APPROVAL
+        assert new_verification.interaction.kind == "verification"
+        assert new_verification.interaction.record_ref != old_challenge_id
+        assert app.gateway.get_operation(current, pending.data.operation_id).lookup == "not_found"
+        assert len(bank.store.list_ledger("U1", "A1")) == 0
+    finally:
+        app.close()
 
 
 def test_audit_start_failure_prevents_bank_submission(tmp_path):

@@ -102,9 +102,10 @@ class TracedTransferWorkflow(TransferWorkflow):
 class TransferFacts:
     """Platform-owned links to current, bank- and security-issued records."""
 
-    def __init__(self, path: Path):
-        self.path = path
-        with transaction(path) as connection:
+    def __init__(self, application: ApplicationStore):
+        self.application = application
+        self.path = application.path
+        with transaction(self.path) as connection:
             connection.execute("""CREATE TABLE IF NOT EXISTS agent_transfer_confirmations (
                 task_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, demo_round_id TEXT NOT NULL,
                 operation_id TEXT NOT NULL, action_revision INTEGER NOT NULL,
@@ -153,6 +154,11 @@ class TransferFacts:
                 str(operation_id) if operation_id else None, action_revision,
             ):
                 return None
+            if not self.application.has_ref(
+                trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                "confirmation", row["confirmation_id"],
+            ):
+                return None
             return row["confirmation_id"], row["confirmation_version"]
         finally:
             connection.close()
@@ -177,7 +183,10 @@ class TransferFacts:
                     trusted.task_id, trusted.user_id, trusted.demo_round_id,
                     str(operation_id) if operation_id else None, action_revision,
                 )).fetchall()
-            return [row["verification_id"] for row in rows]
+            return [row["verification_id"] for row in rows if self.application.has_ref(
+                trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                "verification", row["verification_id"],
+            )]
         finally:
             connection.close()
 
@@ -328,7 +337,7 @@ class TransferRuntime:
                  authorize_face: Callable[..., bool] | None = None):
         self.application, self.memory, self.audit = application, memory, audit
         self.authorize_tool, self.assess_risk = authorize_tool, assess_risk
-        self.facts = TransferFacts(application.path)
+        self.facts = TransferFacts(application)
         self.snapshots = TransferSnapshots(application.path)
         self.confirmations = ConfirmationService(application.path)
         self._active: ContextVar[tuple | None] = ContextVar("active_transfer", default=None)
@@ -581,7 +590,32 @@ class TransferRuntime:
             decision_sink=record_decision, snapshot_writer=write_snapshot,
             summary_validator=validate_summary,
         )
-        tools = GatewayTransferTools(self.gateway, gate, self.snapshots, self._context)
+        def reserve_operation(current, operation_id, action_revision, parameters):
+            reservation_parameters = {
+                key: value for key, value in parameters.items() if key != "operation_id"
+            }
+            reservation_parameters["action_revision"] = action_revision
+            parameters_digest = parameter_digest(reservation_parameters)
+            existing = [
+                item for item in self.application.list_task_operations(
+                    current.user_id, current.demo_round_id, current.task_id,
+                )
+                if item.action_name == "bank.submit_transfer"
+                and item.parameters_digest == parameters_digest
+            ]
+            if existing:
+                return UUID(existing[-1].operation_id)
+            reservation = self.application.reserve_operation(
+                current.user_id, current.demo_round_id, current.task_id,
+                str(operation_id), "bank.submit_transfer",
+                reservation_parameters,
+            )
+            return UUID(reservation.operation_id)
+
+        tools = GatewayTransferTools(
+            self.gateway, gate, self.snapshots, self._context,
+            operation_reserver=reserve_operation,
+        )
 
         def activate(trusted, action, workflow):
             token = self._active.set((trusted, action, workflow, gate))

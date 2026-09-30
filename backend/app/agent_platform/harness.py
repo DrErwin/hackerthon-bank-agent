@@ -110,6 +110,7 @@ class RunTrace:
                evidence: object | None = None, module: str = "agent_platform",
                parent_span_id: str | None = None, evidence_id: str | None = None,
                snapshots: dict[str, object] | None = None,
+               target_session_id: str | None = None,
                write: Callable[[Connection, AuditEvent], None] | None = None) -> AuditEvent:
         if evidence is None:
             evidence_id = None
@@ -124,7 +125,7 @@ class RunTrace:
             sequence=0, parent_span_id=parent_span_id,
             demo_round_id=self.trusted.demo_round_id,
             actor_id=self.trusted.user_id, session_id=self.trusted.session_id,
-            target_session_id=self.trusted.session_id,
+            target_session_id=target_session_id or self.trusted.session_id,
             target_user_id=self.trusted.user_id, thread_id=self.thread_id,
             task_id=self.trusted.task_id, run_id=self.trusted.run_id,
             module=module, event_type=event_type,
@@ -344,6 +345,174 @@ class AgentHarness:
                 ), "waiting" if result.status in {
                     TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL,
                 } else "succeeded",
+            )
+            return result
+
+    def _operation_ids(self, task) -> list[UUID]:
+        result = task.snapshot.get("result")
+        data = result.get("data") if isinstance(result, dict) else None
+        operation_id = data.get("operation_id") if isinstance(data, dict) else None
+        if operation_id:
+            return [UUID(str(operation_id))]
+        operations = self.application.list_task_operations(
+            task.user_id, task.demo_round_id, task.task_id,
+        )
+        return [UUID(operations[-1].operation_id)] if operations else []
+
+    def recover_session(self, trusted: TrustedContext) -> ModuleResult[TransferTaskView]:
+        """Transfer an owned task to the authenticated session, then resume its public capability."""
+        with _task_lock(self.application.path, trusted.task_id):
+            self._scope(trusted)
+            self._authorize(trusted, "transfer.start_transfer")
+            task = self.application.get_task(
+                trusted.user_id, trusted.demo_round_id, trusted.task_id,
+            )
+            if task is None:
+                raise PermissionError("ACCESS_DENIED")
+
+            marker = task.snapshot.get("session_recovery")
+            marker_matches = (
+                isinstance(marker, dict)
+                and marker.get("target_session_id") == trusted.session_id
+                and marker.get("phase") in {"prepared", "transitioned", "complete"}
+            )
+            if task.session_id == trusted.session_id and not marker_matches:
+                raise ValueError("SESSION_RECOVERY_NOT_REQUIRED")
+
+            if marker_matches:
+                source_session_id = marker["source_session_id"]
+                previous_run_id = marker["source_run_id"]
+                if task.session_id not in {source_session_id, trusted.session_id}:
+                    raise PermissionError("ACCESS_DENIED")
+                if marker.get("phase") == "complete" and task.run_id == trusted.run_id:
+                    return self._result(task)
+            else:
+                source_session_id = task.session_id
+                previous_run_id = task.run_id
+                trace = self._trace(trusted, task)
+                operation_ids = self._operation_ids(task)
+                trace.record(
+                    "recovery.checked",
+                    RecoveryCheckedPayload(
+                        previous_run_id=previous_run_id, current_run_id=trusted.run_id,
+                        checkpoint_ref=task.checkpoint_id, operation_ids=operation_ids,
+                        result="continue", reason_code="SESSION_RECOVERY_STARTED",
+                    ),
+                    "started", target_session_id=source_session_id,
+                )
+                marker = {
+                    "source_session_id": source_session_id,
+                    "target_session_id": trusted.session_id,
+                    "source_run_id": previous_run_id,
+                    "target_run_id": trusted.run_id,
+                    "expected_revision": task.revision + 1,
+                    "phase": "prepared",
+                }
+                snapshot = {**task.snapshot, "session_recovery": marker}
+                task = self.application.update_task(
+                    trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                    task.revision, task.run_id, task.status, task.checkpoint_id, snapshot,
+                )
+
+            if task.session_id == source_session_id:
+                task = self.application.transition_task_session(
+                    trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                    source_session_id, trusted.session_id, marker["expected_revision"],
+                )
+            elif task.session_id != trusted.session_id:
+                raise PermissionError("ACCESS_DENIED")
+
+            if marker.get("phase") != "transitioned":
+                marker = {**marker, "phase": "transitioned"}
+                snapshot = {**task.snapshot, "session_recovery": marker}
+                task = self.application.update_task(
+                    trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                    task.revision, task.run_id, task.status, task.checkpoint_id, snapshot,
+                )
+
+            context = self._scope(trusted)
+            trace = self._trace(trusted, task)
+            capability_name = task.snapshot.get("capability_name", "transfer.start_transfer")
+            registration = self.registry.get(capability_name)
+            saver = self.memory.checkpointer(context, task.task_id)
+            entry = registration.factory(trusted, saver, trace)
+            try:
+                checkpoint_context = entry.checkpoint_context(
+                    trusted, thread_id=task.checkpoint_thread_id,
+                )
+                initializing_here = (
+                    checkpoint_context is not None
+                    and checkpoint_context.session_id == trusted.session_id
+                    and marker.get("initializing_checkpoint") is True
+                )
+                if checkpoint_context is None or initializing_here:
+                    if "result" in task.snapshot and checkpoint_context is None:
+                        # A model failure can finish a task before business execution starts.
+                        result = self._result(task).model_copy(update={"run_id": trusted.run_id})
+                    elif initializing_here:
+                        # The native target-session graph already exists, including terminal state.
+                        result = entry.resume(trusted, {}, thread_id=task.checkpoint_thread_id)
+                    else:
+                        # Continue the saved request/proposal; no business state has run yet.
+                        marker = {**marker, "initializing_checkpoint": True}
+                        task = self.application.update_task(
+                            trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                            task.revision, task.run_id, task.status, task.checkpoint_id,
+                            {**task.snapshot, "session_recovery": marker},
+                        )
+                        result = self.resume(trusted, {})
+                        task = self.application.get_task(
+                            trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                        )
+                else:
+                    checkpoint_source = marker.get("checkpoint_source_session_id", source_session_id)
+                    if checkpoint_context.session_id != trusted.session_id:
+                        checkpoint_source = checkpoint_context.session_id
+                    marker = {**marker, "checkpoint_source_session_id": checkpoint_source}
+                    task = self.application.update_task(
+                        trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                        task.revision, task.run_id, task.status, task.checkpoint_id,
+                        {**task.snapshot, "session_recovery": marker},
+                    )
+                    result = entry.recover_session(
+                        trusted, source_session_id=checkpoint_source,
+                        thread_id=task.checkpoint_thread_id,
+                    )
+                self._check_result_scope(result, trusted)
+            except Exception:
+                trace.record(
+                    "recovery.checked",
+                    RecoveryCheckedPayload(
+                        previous_run_id=previous_run_id, current_run_id=trusted.run_id,
+                        checkpoint_ref=task.checkpoint_id,
+                        operation_ids=self._operation_ids(task),
+                        result="stop", reason_code="TRANSFER_SESSION_RECOVERY_FAILED",
+                    ),
+                    "failed", target_session_id=source_session_id,
+                )
+                raise
+
+            operation_ids = [result.data.operation_id] if result.data and result.data.operation_id else []
+            trace.record(
+                "recovery.checked",
+                RecoveryCheckedPayload(
+                    previous_run_id=previous_run_id, current_run_id=trusted.run_id,
+                    checkpoint_ref=self._checkpoint_id(context, task),
+                    operation_ids=operation_ids, result=self._recovery_result(result.status),
+                    reason_code="SESSION_RECOVERY_COMPLETED",
+                ),
+                "succeeded", target_session_id=source_session_id,
+            )
+            marker = {**marker, "phase": "complete"}
+            snapshot = {
+                **task.snapshot, "capability_name": capability_name,
+                "session_recovery": marker,
+                "result": result.model_dump(mode="json"),
+            }
+            self.application.update_task(
+                trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                task.revision, trusted.run_id, result.status,
+                self._checkpoint_id(context, task), snapshot,
             )
             return result
 
