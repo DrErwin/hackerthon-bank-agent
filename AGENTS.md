@@ -29,6 +29,7 @@ AI Banking Agent：为银发人群打造的银行智能助理，用自然语言�
 
 ## 开工先读
 
+- 队员说明身份、询问下一步、领取交付包或开始工作 → 必须先读[队员开工与通用 Skill](docs/agents/delivery-workflow.md)：定位本人交付包，明确接受后自动记录领取，检查并安装缺失的通用 Skill，再按 `to-spec → to-tickets → 按票执行` 推进；有开发票时使用 `implement`。不能直接给工作清单跳过接包和拆票。
 - 任何提交与分支操作 → [Git 与提交约定](docs/agents/git-workflow.md)
 - 写或改业务模块 → [业务并行原则](docs/principles/01-business-parallel.md)
 - 写或改安全底座 / 执行器 / 审计 → [安全底座原则](docs/principles/02-security-platform.md)

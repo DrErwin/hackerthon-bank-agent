@@ -6,6 +6,12 @@ Activation: Erwin 已于 2026-09-27 确认，可立即拆票\
 Start when: 场景规格与公共契约已冻结（当前已满足）\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
+Accepted by: 未记录（Owner / Activation 不代替本人接受记录）\
+Accepted at: 未记录\
+Work spec: [Erwin 详细规格与票据](../../v03-erwin-vertical-backend/spec.md)
+
+领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再续做已有规格和票据；已有实现证据保持原记录。
+
 Detailed tickets: [v0.3 Erwin 纵向后端实施规格与 12 张票](../../v03-erwin-vertical-backend/spec.md)
 
 ## 业务目标

@@ -6,6 +6,12 @@ Activation: Erwin 已于 2026-09-27 确认，可按冻结规格立即拆票\
 Start when: 规格与契约已冻结；实现未完成时先写可执行用例和 stub 适配\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
+Accepted by: 未记录（Ringo / Erwin 须分别记录本人工作线）\
+Accepted at: 未记录（须逐人记录）\
+Work spec: Ringo 待建立或关联；Erwin 已有[详细规格与评测票](../../v03-erwin-vertical-backend/spec.md)
+
+领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再按 `to-spec → to-tickets → 按票执行` 推进；已有规格和票直接续做，有评测代码开发时使用 `implement`。
+
 ## 业务目标
 
 让各专业负责人不用等待 Erwin 写完全部代码，就能先定义“什么算通过”，并在真实接口出现后持续验证。
