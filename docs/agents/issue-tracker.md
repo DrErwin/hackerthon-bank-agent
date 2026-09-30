@@ -49,4 +49,6 @@ For a scenario that spans multiple owned directories:
 - After accepting a package, each directory owner creates their own feature directory and detailed tickets under `.scratch/<owner-feature>/issues/`.
 - Every implementation ticket still changes only one owned directory.
 
+After explicit acceptance, the AI records the actual person, date and workstream in the package and project tracking entry, checks the common skills, then follows `to-spec → to-tickets → ticket execution` (`implement` for coding tickets). Reuse existing specs and tickets. See [delivery workflow and common skills](delivery-workflow.md) for the record fields, installation checks and completion criteria.
+
 The package file does not assign or notify anyone. Activation, owner, dates and team-visible status remain in `docs/01-项目跟踪.md` and the Feishu progress table. Full workflow: [cross-team delivery principle](../principles/04-cross-team-delivery.md).

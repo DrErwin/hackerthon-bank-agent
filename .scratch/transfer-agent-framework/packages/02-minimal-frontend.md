@@ -6,6 +6,12 @@ Activation: Erwin 已于 2026-09-27 确认，可按冻结接口并行拆票\
 Start when: 公共前端类型与 API 协议已冻结；真实接口未就绪时可用契约 stub\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
+Accepted by: 未记录（梁爽主责、六水协助；须逐人记录接受范围）\
+Accepted at: 未记录（须逐人记录）\
+Work spec: 待负责人建立或关联已有规格
+
+领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再按 `to-spec → to-tickets → implement` 推进；协助人只领取已明确分配的范围。
+
 ## 业务目标
 
 提供一张能完成演示的最小页面，让用户可以发起转账、选择候选、确认、验证、恢复并看见真实结果。

@@ -6,6 +6,12 @@ Activation: 分项评测和前后端均达到可联调状态后开始\
 Start when: 交付包 01—03 的真实接口与代表性用例达到可运行状态\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
+Accepted by: 未记录（牵头与参与工作线须分别记录）\
+Accepted at: 未记录（须逐人记录）\
+Work spec: Erwin 已有[详细规格与联合验收票](../../v03-erwin-vertical-backend/spec.md)；其他工作线待关联
+
+领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill；依赖未满足保留 `blocked`，已有验收票在依赖满足后续做。
+
 ## 业务目标
 
 把纵向后端、最小前端和专业评测串成一条可演示、可恢复、可回放的真实链路，并以证据确认本里程碑完成，而不是用占位接口宣告成功。

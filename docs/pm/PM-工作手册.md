@@ -18,6 +18,8 @@
 
 ## 二、流程建立：从 PRD 到开工
 
+**当前队员执行规则（2026-09-30）**：先按[队员开工与通用 Skill](../agents/delivery-workflow.md)确认领取交付包，自动记录接受后检查 Skill，再走 `to-spec → to-tickets → 按票执行`；开发票用 `implement`。下文早期方法论中的跨层切片和上下文建议服从当前交付包、单目录票据及 Git 规则，具体工程票保存在 `.scratch/`。
+
 ```
 PRD（共识） → wayfinder（解迷雾） → to-spec（规格） → to-tickets（拆票） → implement（每人一票）
 ```
