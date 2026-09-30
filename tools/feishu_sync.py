@@ -3,14 +3,14 @@
 
 用法：
     python tools/feishu_sync.py plan           # 列出会同步哪些文档（不碰飞书）
-    python tools/feishu_sync.py publish        # 把 docs/ 下全部文档同步到飞书
+    python tools/feishu_sync.py publish        # 把团队阅读白名单同步到飞书
     python tools/feishu_sync.py check          # 校验凭证与权限
     python tools/feishu_sync.py setup          # 建文件夹、上传文档、建任务看板，输出链接
     python tools/feishu_sync.py resync         # 按本地 md 重新覆盖飞书文档内容
     python tools/feishu_sync.py tasks          # 仅重建任务看板记录
 
-同步范围不再手写：`publish` / `plan` 会自动扫描 `docs/` 下的全部 .md 与 .mmd，
-规则见 `tools/feishu_publish_all.py`。状态保存在 .feishu_state.json。
+同步范围由 `tools/feishu_publish_all.py` 的 `CURATED_SOURCES` 白名单决定。
+仓库保存完整事实源，飞书只展示当前团队需要阅读的内容。状态保存在 .feishu_state.json。
 """
 
 import json
@@ -777,12 +777,10 @@ def cmd_tasks():
 # 因此 spec_to_mermaid.py 用 Note over 表达分段。
 
 PUBLISH = None
-"""同步范围已改为**自动扫描 docs/**，清单不再手写。
+"""同步范围由 `tools/feishu_publish_all.py` 的团队阅读白名单决定。
 
-原来这里是一张手写的 14 条清单，每加一份文档都要回来改——现在由
-`tools/feishu_publish_all.py` 自动发现 docs/ 下的全部 .md/.mmd，
-标题与分区规则、排除规则也都在那个文件里。`publish` / `plan` 两个命令
-已改为委托给它。要看会同步什么，先跑：
+`publish` / `plan` 委托给该文件。新增技术文档不会自动发布；只有项目负责人确认
+适合团队阅读后才加入 `CURATED_SOURCES`。要看会同步什么，先跑：
 
     python tools/feishu_sync.py plan
 """
@@ -876,10 +874,10 @@ links_state = {}
 
 
 def cmd_publish():
-    """把 docs/ 下全部文档同步到飞书。用法：python tools/feishu_sync.py publish
+    """把团队阅读白名单同步到飞书。用法：python tools/feishu_sync.py publish
 
-    同步范围、标题与分区规则见 `tools/feishu_publish_all.py`（自动扫描 docs/，
-    新文档不用再回来改脚本）。想看会同步什么，先跑 `plan`。
+    同步范围、标题与分区规则见 `tools/feishu_publish_all.py`。想看会同步什么，
+    先跑 `plan`。
     """
     import feishu_publish_all as all_sync
     return all_sync.cmd_sync()

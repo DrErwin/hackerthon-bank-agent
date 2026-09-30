@@ -38,3 +38,15 @@ Team task assignment and progress live elsewhere and are not part of this conven
 - `docs/pm/ROADMAP.md` — 六阶段规划与硬依赖
 
 `.scratch/` holds engineering tickets and specs for agent-driven work; it does not replace the above.
+
+## Cross-team vertical scenarios
+
+For a scenario that spans multiple owned directories:
+
+- The scenario lead creates one shared `.scratch/<scenario>/spec.md`.
+- The scenario lead creates owner-level handoff packages under `.scratch/<scenario>/packages/`.
+- A package fixes the business outcome, start condition, dependencies and acceptance; it does not prescribe another owner's internal code tickets.
+- After accepting a package, each directory owner creates their own feature directory and detailed tickets under `.scratch/<owner-feature>/issues/`.
+- Every implementation ticket still changes only one owned directory.
+
+The package file does not assign or notify anyone. Activation, owner, dates and team-visible status remain in `docs/01-项目跟踪.md` and the Feishu progress table. Full workflow: [cross-team delivery principle](../principles/04-cross-team-delivery.md).

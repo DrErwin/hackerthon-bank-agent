@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5 人团队的 AI-first 文档与流程系统</title>
+<style>
+  :root{
+    --ink:#17203A; --muted:#5A6478; --line:#E3E7EF; --bg:#EDEFF4; --card:#FFFFFF;
+    --ai:#2F4BC4; --ai-deep:#1B2A5E; --ai-tint:#EDF1FD;
+    --fs:#3370FF; --fs-tint:#EAF0FF;
+    --amber:#B45309; --amber-tint:#FCF3E3;
+    --green:#0E8A6D; --green-tint:#E6F4EF;
+    --red:#C2413B; --purple:#8A5BC2;
+    --mono:ui-monospace,"Cascadia Code",Consolas,"JetBrains Mono",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC","Source Han Sans SC",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .page{max-width:1080px;margin:0 auto;padding:26px 26px 44px}
+
+  /* ---------- hero ---------- */
+  .hero{background:linear-gradient(135deg,#141C33 0%,#1E2F63 55%,#2F4BC4 135%);
+    border-radius:22px;color:#fff;padding:46px 48px 40px;position:relative;overflow:hidden}
+  .hero::after{content:"docs → 飞书";position:absolute;right:-30px;bottom:-46px;
+    font-family:var(--mono);font-size:150px;font-weight:800;color:rgba(255,255,255,.05);
+    letter-spacing:-6px;white-space:nowrap}
+  .kicker{font-family:var(--mono);font-size:13px;letter-spacing:2.5px;color:#9FB4F2;font-weight:700;margin-bottom:16px}
+  .hero h1{font-size:40px;font-weight:800;line-height:1.28;letter-spacing:.5px}
+  .hero h1 em{font-style:normal;color:#FFD37A}
+  .hero .sub{margin-top:16px;font-size:16.5px;line-height:1.85;color:#D5DEF5;max-width:760px}
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:30px}
+  .stat{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+    border-radius:12px;padding:12px 8px 10px;text-align:center}
+  .stat b{display:block;font-size:24px;font-weight:800;color:#FFD37A}
+  .stat span{display:block;margin-top:3px;font-size:12px;color:#C4D0F0}
+
+  /* ---------- section ---------- */
+  section.card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:32px 36px 30px;margin-top:22px;box-shadow:0 1px 2px rgba(23,32,58,.05)}
+  .sec-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:8px}
+  .sec-num{flex:none;width:44px;height:44px;border-radius:12px;background:var(--ink);color:#fff;
+    font-family:var(--mono);font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .sec-head h2{font-size:23px;font-weight:800;letter-spacing:.3px}
+  .sec-head .sec-sub{margin-top:5px;font-size:14px;color:var(--muted)}
+  .lead{font-size:15px;line-height:1.9;color:#39435C;margin:10px 0 4px}
+
+  .quote{margin:22px 0 4px;padding:14px 20px;background:var(--ai-tint);
+    border-left:4px solid var(--ai);border-radius:0 12px 12px 0;
+    font-size:16.5px;font-weight:700;line-height:1.75}
+  .quote.amber{background:var(--amber-tint);border-color:var(--amber)}
+  .quote.green{background:var(--green-tint);border-color:var(--green)}
+  .quote small{display:block;margin-top:3px;font-size:12.5px;font-weight:400;color:var(--muted)}
+
+  .chip{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12.5px;font-weight:700;line-height:1.7}
+  .chip.ai{background:var(--ai-tint);color:var(--ai)}
+  .chip.fsc{background:var(--fs-tint);color:var(--fs)}
+  .chip.amberc{background:var(--amber-tint);color:var(--amber)}
+  .chip.greenc{background:var(--green-tint);color:var(--green)}
+  .chip.dark{background:var(--ink);color:#fff}
+  .chip.gray{background:#F0F2F7;color:var(--muted)}
+
+  /* ---------- 01 two sides ---------- */
+  .sides{display:grid;grid-template-columns:1fr 150px 1fr;gap:0;align-items:stretch;margin-top:18px}
+  .side{border-radius:16px;padding:22px 24px;border:1.5px solid}
+  .side.local{background:var(--ai-tint);border-color:#C4D0F2}
+  .side.feishu{background:var(--fs-tint);border-color:#C4D6FB}
+  .side h3{font-size:17.5px;font-weight:800;display:flex;align-items:center;gap:9px}
+  .side .role{font-family:var(--mono);font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:.5px}
+  .side.local .role{background:var(--ai);color:#fff}
+  .side.feishu .role{background:var(--fs);color:#fff}
+  .side ul{list-style:none;margin-top:14px}
+  .side li{font-size:14px;line-height:1.6;padding:7px 0 7px 2px;border-bottom:1px dashed rgba(23,32,58,.14)}
+  .side li:last-child{border-bottom:none}
+  .side li b{font-weight:800}
+  .side li small{color:var(--muted);font-size:12.5px}
+  .side .who{margin-top:14px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;line-height:1.7}
+  .side.local .who{background:#fff;border:1px solid #C4D0F2;color:var(--ai-deep)}
+  .side.feishu .who{background:#fff;border:1px solid #C4D6FB;color:#1E4FBF}
+  .mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 8px}
+  .cmdpill{font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--ink);
+    padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .flow-arrow{position:relative;width:100%;height:2.5px;margin:2px 0;
+    background:linear-gradient(90deg,var(--ai),var(--fs))}
+  .flow-arrow::after{content:"";position:absolute;right:-2px;top:-4.8px;
+    border:6px solid transparent;border-left:9px solid var(--fs)}
+  .noreturn{font-size:11.5px;color:var(--red);font-weight:700;text-align:center;line-height:1.6;
+    border:1.5px dashed #E3B6B3;border-radius:10px;padding:7px 6px;background:#FDF4F3}
+  .sync-label{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:1px;text-align:center}
+
+  /* ---------- terminal ---------- */
+  .term{background:#101726;border-radius:14px;margin-top:18px;overflow:hidden;
+    box-shadow:0 10px 26px -14px rgba(16,23,38,.55)}
+  .term-bar{display:flex;gap:7px;padding:12px 16px;border-bottom:1px solid #1F2A44}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .term-bar .t{margin-left:8px;font-family:var(--mono);font-size:11.5px;color:#5F7099}
+  .term pre{padding:18px 22px 20px;font-family:var(--mono);font-size:13px;line-height:1.95;
+    color:#DEE6F5;white-space:pre;overflow-x:auto}
+  .c-dir{color:#7CA6FF;font-weight:700}
+  .c-file{color:#E8ECF5}
+  .c-note{color:#8B9BB8}
+  .c-star{color:#F5C065;font-weight:700}
+
+  /* ---------- fact sources ---------- */
+  .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}
+  .fact{border:1px solid var(--line);border-top:4px solid var(--ai);border-radius:12px;padding:16px 15px;background:#FBFCFE}
+  .fact .tag{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:1px}
+  .fact h4{font-size:14.5px;font-weight:800;margin:6px 0 6px}
+  .fact p{font-size:12.5px;color:var(--muted);line-height:1.7}
+
+  /* ---------- templates ---------- */
+  .tpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+  .tpl{border:1px solid var(--line);border-radius:14px;padding:18px 20px;background:#fff}
+  .tpl h4{font-size:15.5px;font-weight:800;display:flex;align-items:center;gap:9px}
+  .tpl .ico{flex:none;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-size:15px;background:var(--amber-tint)}
+  .tpl p{margin-top:9px;font-size:13.5px;line-height:1.8;color:#39435C}
+  .tpl .meta{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
+
+  /* ---------- pipeline steps ---------- */
+  .steps{margin-top:20px}
+  .step{display:grid;grid-template-columns:52px 1fr;gap:18px;position:relative;padding-bottom:22px}
+  .step::before{content:"";position:absolute;left:25px;top:52px;bottom:-2px;width:2px;background:#DDE3F0}
+  .step:last-child::before{display:none}
+  .step .n{width:52px;height:52px;border-radius:50%;background:var(--ai-tint);border:2px solid var(--ai);
+    color:var(--ai);font-family:var(--mono);font-weight:800;font-size:19px;
+    display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+  .step .body{background:#FBFCFE;border:1px solid var(--line);border-radius:14px;padding:16px 20px 15px}
+  .step h4{font-size:16.5px;font-weight:800}
+  .step h4 .skill{font-family:var(--mono);font-size:12px;color:#fff;background:var(--ink);
+    padding:2px 9px;border-radius:6px;margin-left:8px;vertical-align:2px}
+  .step p{margin-top:7px;font-size:13.5px;line-height:1.85;color:#39435C}
+  .step .meta{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
+
+  /* ---------- owner table ---------- */
+  table.owners{width:100%;border-collapse:collapse;margin-top:18px;font-size:13.5px}
+  .owners th{background:var(--ink);color:#fff;font-weight:700;text-align:left;padding:9px 16px;font-size:12.5px;letter-spacing:.5px}
+  .owners td{padding:8.5px 16px;border-bottom:1px solid var(--line)}
+  .owners tr:nth-child(even) td{background:#FAFBFD}
+  .owners td:first-child{font-family:var(--mono);font-size:12.5px;color:var(--ai-deep);font-weight:700}
+  .ppl{display:inline-block;padding:2px 11px;border-radius:999px;font-size:12px;font-weight:800;color:#fff;margin-right:5px}
+  .p-erwin{background:#2F4BC4}.p-ringo{background:#C2413B}.p-shuang{background:#0E8A6D}
+  .p-liushui{background:#8A5BC2}.p-ethan{background:#B45309}
+  .assist{font-size:12px;color:var(--muted)}
+
+  /* ---------- two-level split ---------- */
+  .split{display:grid;grid-template-columns:1fr 56px 1.15fr;gap:0;align-items:center;margin-top:18px}
+  .split-box{border:1.5px solid var(--line);border-radius:14px;padding:18px 20px}
+  .split-box h4{font-size:15px;font-weight:800;margin-bottom:4px}
+  .split-box .q{font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:10px}
+  .pkg{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:9px;background:#F6F8FC;
+    border:1px solid #E5EAF4;font-size:13px;margin-top:7px}
+  .pkg code{font-family:var(--mono);font-size:11.5px;color:var(--ai);font-weight:700}
+  .down-arrow{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--muted)}
+  .down-arrow .a{width:2.5px;height:34px;background:var(--ai);position:relative}
+  .down-arrow .a::after{content:"";position:absolute;bottom:-7px;left:-4.7px;
+    border:6px solid transparent;border-top:9px solid var(--ai)}
+  .rules{margin-top:18px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .rules .r{display:flex;gap:13px;padding:12px 18px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.7;background:#fff}
+  .rules .r:last-child{border-bottom:none}
+  .rules .r b{color:var(--ai-deep)}
+  .rules .num{flex:none;font-family:var(--mono);font-weight:800;color:var(--ai)}
+
+  /* ---------- quality ---------- */
+  .qual{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
+  .qcard{border-radius:14px;padding:18px 17px;border:1.5px solid var(--line);background:#fff}
+  .qcard .qn{font-family:var(--mono);font-size:26px;font-weight:800;color:#E3E8F4}
+  .qcard h4{font-size:15px;font-weight:800;margin:6px 0 7px}
+  .qcard p{font-size:12.5px;line-height:1.75;color:var(--muted)}
+  .gates{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .gate{flex:1;min-width:200px;background:var(--ink);color:#fff;border-radius:12px;padding:12px 16px}
+  .gate b{display:block;font-size:13.5px}
+  .gate span{font-size:11.5px;color:#AAB6D6}
+  .g-arrow{color:#9AA6C4;font-size:18px;font-weight:800}
+
+  /* ---------- feishu layers ---------- */
+  .layers{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-top:18px}
+  .layer{border-radius:14px;border:1.5px solid;padding:18px 19px}
+  .layer .lt{font-family:var(--mono);font-size:11px;letter-spacing:1px;font-weight:700}
+  .layer h4{font-size:16px;font-weight:800;margin:5px 0 8px}
+  .layer p{font-size:12.5px;line-height:1.75;color:#39435C}
+  .layer .freq{display:inline-block;margin-top:10px;font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:999px}
+  .l1{background:var(--fs-tint);border-color:#C4D6FB}.l1 .lt{color:var(--fs)}.l1 .freq{background:#fff;color:var(--fs)}
+  .l2{background:#F3F0FA;border-color:#D8CDEF}.l2 .lt{color:#6D4FB3}.l2 .freq{background:#fff;color:#6D4FB3}
+  .l3{background:var(--amber-tint);border-color:#EAD3AC}.l3 .lt{color:var(--amber)}.l3 .freq{background:#fff;color:var(--amber)}
+  .notFeishu{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .nf{border:1.5px dashed #D8DDE8;border-radius:13px;padding:15px 18px;background:#FBFCFD}
+  .nf h5{font-size:13.5px;font-weight:800;display:flex;gap:8px;align-items:center}
+  .nf p{font-size:12.5px;color:var(--muted);line-height:1.75;margin-top:6px}
+  .cmdline{margin-top:14px;background:#101726;border-radius:12px;padding:14px 20px;
+    font-family:var(--mono);font-size:12.5px;line-height:2;color:#DEE6F5}
+  .cmdline .p{color:#7CE0B2}.cmdline .c{color:#8B9BB8}
+
+  /* ---------- footer ---------- */
+  footer{margin-top:24px;text-align:center;padding:28px 20px 8px}
+  footer .motto{font-size:19px;font-weight:800;line-height:1.8;color:var(--ink)}
+  footer .motto span{color:var(--ai)}
+  footer .credit{margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ================= HERO ================= -->
+  <div class="hero">
+    <div class="kicker">FINTECHATHON 2026 · AI BANKING AGENT · 5 人团队 · 7 周</div>
+    <h1>一个人带四个人造银行 Agent，<br>我把「文档 + 流程」做成了<em>一套系统</em></h1>
+    <div class="sub">1 名资深（我 / PM）+ 2 名半经验 + 1 名新手 + 1 名非技术，外加一群 AI Agent。<br>
+      核心思路只有一句话：<b>Git 仓库给 AI 操作，飞书给人阅读；发出去的是模板，收回来的是事实。</b></div>
+    <div class="stats">
+      <div class="stat"><b>5</b><span>名成员</span></div>
+      <div class="stat"><b>4</b><span>个事实源</span></div>
+      <div class="stat"><b>6</b><span>个版本里程碑</span></div>
+      <div class="stat"><b>5</b><span>份冻结 PRD</span></div>
+      <div class="stat"><b>4</b><span>层质量机制</span></div>
+      <div class="stat"><b>3</b><span>层飞书发布</span></div>
+    </div>
+  </div>
+
+  <!-- ================= 01 ================= -->
+  <section class="card">
+    <div class="sec-head">
+      <div class="sec-num">01</div>
+      <div>
+        <h2>两端分工：AI 读仓库，人读飞书</h2>
+        <div class="sec-sub">同一个项目的两套「视图」——一套给 Agent 操作，一套给团队成员阅读</div>
+      </div>
+    </div>
+    <p class="lead">所有正式内容只存在一个地方：本地 Git 仓库的 <b>docs/ 目录（唯一事实源）</b>。飞书不是备份、不是镜像，是一个<b>按白名单 curated 的阅读端</b>——只放团队每天要看的入口，同步方向永远只有一个。</p>
+    <div class="sides">
+      <div class="side local">
+        <h3>🖥️ 本地 Git 仓库 <span class="role">AI 的操作面 · 唯一事实源</span></h3>
+        <ul>
+          <li><b>AGENTS.md</b>　项目宪法：目录归属表 + 三条铁律<small>（AI 每次开工先读）</small></li>
+          <li><b>docs/</b>　事实文档：PRD · 架构 · 契约 · 协作规则 · 版本里程碑</li>
+          <li><b>.scratch/</b>　工单系统：规格、交付包、实施票（纯 Markdown）</li>
+          <li><b>代码 + 测试 + 评测</b>　实际实现的唯一判据</li>
+        </ul>
+        <div class="who">🤖 AI 在这里干活：读规则 → 拆票 → 写代码 → 提 PR → 第一遍 Review</div>
+      </div>
+      <div class="mid">
+        <span class="sync-label">白名单单向同步</span>
+        <span class="cmdpill">plan</span>
+        <div class="flow-arrow"></div>
+        <span class="cmdpill">publish</span>
+        <div class="flow-arrow"></div>
+        <span class="cmdpill">mount</span>
+        <div class="noreturn">✕ 飞书改动不回流<br>要改 → 回仓库改完重发</div>
+      </div>
+      <div class="side feishu">
+        <h3>📘 飞书知识库 <span class="role">人的阅读端 · 只读</span></h3>
+        <ul>
+          <li><b>00 索引与跟踪</b>　团队工作台 + 当前版本计划与进度</li>
+          <li><b>01 PRD 与评审</b>　当前业务的冻结 PRD</li>
+          <li><b>02 架构</b>　系统架构 + 公共契约</li>
+          <li><b>03 规则与模板</b>　Review 合并 · 跨团队交付规则</li>
+        </ul>
+        <div class="who">👀 人在这里看：今天干什么、进度到哪、规则是什么</div>
+      </div>
+    </div>
+    <div class="quote">「AI 读仓库，人读飞书。」<small>同步何时执行由人决定；飞书按标题识别文档，改标题 = 新建一篇，所以标题在脚本里固定死。</small></div>
+  </section>
+
+  <!-- ================= 02 ================= -->
+  <section class="card">
+    <div class="sec-head">
+      <div class="sec-num">02</div>
+      <div>
+        <h2>本地仓库：AI 的操作台</h2>
+        <div class="sec-sub">给机器读的文档，目录即规则；四个事实源各管一件事，互不替代</div>
+      </div>
+    </div>
+    <div class="term">
+      <div class="term-bar">
+        <span class="dot" style="background:#FF5F57"></span>
+        <span class="dot" style="background:#FEBC2E"></span>
+        <span class="dot" style="background:#28C840"></span>
+        <span class="t">hackerthon-bank-agent/</span>
+      </div>
+      <pre><span class="c-dir">hackerthon-bank-agent/</span>
+├─ <span class="c-file">AGENTS.md</span>              <span class="c-note"># 项目宪法：目录归属表 + 三条铁律，AI 开工先读</span>
+├─ <span class="c-star">docs/</span>                  <span class="c-note"># ★ 唯一事实源</span>
+│   ├─ <span class="c-file">README.md</span>          <span class="c-note">#   版本进度入口（当前里程碑 / 历史 / 计划）</span>
+│   ├─ <span class="c-file">00-项目文档索引.md</span>   <span class="c-note">#   全部文档的地图</span>
+│   ├─ <span class="c-file">01-项目跟踪.md</span>      <span class="c-note">#   正式负责人、排期与状态</span>
+│   ├─ <span class="c-dir">prd/</span>              <span class="c-note">#   5 份 PRD + 安全回填表（成员填，PM 收口）</span>
+│   ├─ <span class="c-dir">pm/</span>               <span class="c-note">#   PM 工作手册 · ROADMAP · 分级对照表</span>
+│   ├─ <span class="c-dir">architecture/</span>      <span class="c-note">#   架构真相源（按内容日期命名，不用版本号）</span>
+│   ├─ <span class="c-dir">contracts/</span>         <span class="c-note">#   冻结公共契约（对应 Pydantic 代码）</span>
+│   ├─ <span class="c-dir">principles/</span>        <span class="c-note">#   4 份协作规则（开分支前先读）</span>
+│   ├─ <span class="c-dir">meetings/</span>          <span class="c-note">#   会议逐字稿 + 整理版纪要</span>
+│   ├─ <span class="c-dir">versions/</span>          <span class="c-note">#   v0.1~v1.0：requirements + completion</span>
+│   └─ <span class="c-dir">team/</span>              <span class="c-note">#   当前工作台 → 同步成飞书《01 项目跟踪》</span>
+├─ <span class="c-star">.scratch/</span>              <span class="c-note"># ★ 工单系统：规格、交付包、实施票</span>
+│   └─ <span class="c-dir">transfer-agent-framework/</span>
+│       ├─ <span class="c-file">spec.md</span>         <span class="c-note">#     场景规格（to-spec 产出）</span>
+│       ├─ <span class="c-dir">packages/</span>       <span class="c-note">#     5 个交付包（按工作线拆）</span>
+│       └─ <span class="c-dir">issues/NN-*.md</span>  <span class="c-note">#     实施票：一票一文件 + Status / Blocked by</span>
+├─ <span class="c-dir">backend/   frontend/</span>    <span class="c-note"># 代码本体</span>
+└─ <span class="c-dir">tools/feishu_sync.py</span>    <span class="c-note"># 白名单发布脚本（本地 → 飞书）</span></pre>
+    </div>
+    <div class="facts">
+      <div class="fact"><div class="tag">FACT SOURCE 1</div><h4>docs/versions/</h4><p>这一阶段做什么、实际完成了什么。requirements.md 定范围，completion.md 记证据。</p></div>
+      <div class="fact"><div class="tag">FACT SOURCE 2</div><h4>01-项目跟踪 + 飞书进度表</h4><p>谁、什么时候开始、现在什么状态。任务文件本身不通知人，激活以这里为准。</p></div>
+      <div class="fact"><div class="tag">FACT SOURCE 3</div><h4>.scratch/</h4><p>这次具体怎么拆、验收什么。规格引用 PRD 与契约，不复制公共字段。</p></div>
+      <div class="fact"><div class="tag">FACT SOURCE 4</div><h4>代码 + 测试 + 评测</h4><p>功能是否真的完成。测试红着就是没做完，不能吹。</p></div>
+    </div>
+  </section>
+
+  <!-- ================= 03 ================= -->
+  <section class="card">
+    <div class="sec-head">
+      <div class="sec-num">03</div>
+      <div>
+        <h2>模板体系：发出去的是模板，收回来的是事实</h2>
+        <div class="sec-sub">对齐信息不靠开会反复讲，靠「结构化模板 + 明确的填写去处」</div>
+      </div>
+    </div>
+    <p class="lead">队友水平不一（有非技术成员），与其让他们自由发挥再返工，不如<b>把「要交什么」直接做成表格和清单</b>：每一行都注明「去哪抄」，交回来的东西才能直接拼进系统。</p>
+    <div class="tpl-grid">
+      <div class="tpl">
+        <h4><span class="ico">📋</span>PRD 收件清单（7 项）</h4>
+        <p>发一份清单给每个场景负责人：用户目标与范围、正常流程、输入输出与能力、异常与取消、安全与确认、流程图、验收例子与待确认问题。按清单收齐 5 份 PRD：转账（梁爽）、账单（六水）、跨场景（周恩宇）、Mock Bank（我）、安全底座父级（Ringo）。</p>
+        <div class="meta"><span class="chip amberc">收齐 → 预审会 → 回填 → 冻结</span></div>
+      </div>
+      <div class="tpl">
+        <h4><span class="ico">🧾</span>安全回填表（15 行模板）</h4>
+        <p>安全底座父级 PRD 定「怎么填」，回填表收「填回来的事实」。拆成会前 5 行 / 会后 10 行，每行注明去哪抄，附一份填好的样例。三张业务表叠起来，还能看出单个模块看不到的跨模块结论。</p>
+        <div class="meta"><span class="chip gray">父级定规则</span><span class="chip gray">回填表给事实</span></div>
+      </div>
+      <div class="tpl">
+        <h4><span class="ico">🎙️</span>会议双稿：逐字稿 + 纪要</h4>
+        <p>每场会留两份：逐字稿是语音转写原文（保留口语和错字，不改写，当档案）；纪要是整理版（结论、待拍决策、行动清单）。口说无凭，回头翻的是纪要；纪要有争议，翻逐字稿。</p>
+        <div class="meta"><span class="chip gray">原始记录</span><span class="chip ai">结论与行动项</span></div>
+      </div>
+      <div class="tpl">
+        <h4><span class="ico">⚖️</span>决策清单（勾选框收口）</h4>
+        <p>开放问题集中在索引文档里用 checkbox 管理；Mock Bank 的 16 项决策（D01–D16）编号列出、逐条拍板、拍完回填 PRD 并标记清零。谁拍的、哪天拍的、依据是什么，全程可查。</p>
+        <div class="meta"><span class="chip greenc">16/16 决策清零</span><span class="chip gray">拍完回填正文</span></div>
+      </div>
+    </div>
+    <div class="quote amber">「同一份需求只有一个本体：冲突时一律以 PRD 正文为准。」<small>模板、填写教材、过程稿用完归档进 _archive/，不跟事实文档混放。</small></div>
+  </section>
+
+  <!-- ================= 04 ================= -->
+  <section class="card">
+    <div class="sec-head">
+      <div class="sec-num">04</div>
+      <div>
+        <h2>开发流水线：一条需求从想法到合入</h2>
+        <div class="sec-sub">AI 技能链跑量大但不需判断的活，人只在关键处拍板</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <div class="body">
+          <h4>迷雾先探路 <span class="skill">/wayfinder</span></h4>
+          <p>路径不清的地方（安全层设计、Agent 编排内部）先走 wayfinder 产出<b>决策</b>而非交付物；业务流程 PRD 已写清楚的部分直接过，不浪费在已经清楚的地方。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <div class="body">
+          <h4>契约先行：讨论 → 你定 → 冻结 → 实现</h4>
+          <p>契约只有一个 owner，多人一起定会协商成一锅粥。契约不是 markdown 文档，是 <b>backend/app/contracts/ 下的 Pydantic 代码</b>——成员 import 模型去写，字段错、类型不对，编译期直接报错。不读代码也知道他没跑偏。</p>
+          <div class="meta"><span class="chip dark">契约 = 编译产物</span><span class="chip gray">守住接缝 · 容忍深度</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <div class="body">
+          <h4>定版本：写清做什么、不做什么</h4>
+          <p>每个里程碑在 <b>docs/versions/vX.Y.Z/</b> 建 requirements.md（目标 / 范围 / 验收 / 明确不做的）+ completion.md（如实记：未开始 / 进行中 / 已完成）。当前 v0.3 = 跑通普通转账纵向链路。</p>
+          <div class="meta"><span class="chip gray">v0.1 PRD 基线 ✔</span><span class="chip gray">v0.2 架构契约 ✔</span><span class="chip ai">v0.3 进行中</span><span class="chip gray">v0.4 业务扩展</span><span class="chip gray">v0.5 验收打磨</span><span class="chip gray">v1.0 交付</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">4</div>
+        <div class="body">
+          <h4>两级拆票 <span class="skill">/to-spec → /to-tickets</span></h4>
+          <p>场景负责人先写 spec.md 和<b>交付包</b>（定业务结果、开始条件、验收标准，不替别人定内部实现）；各目录负责人接受交付包后，为自己的目录拆<b>实施票</b>——一张票只改一个目录。spec 和 ticket 必须在同一上下文产出，implement 之间清上下文。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">5</div>
+        <div class="body">
+          <h4>正式激活 + 并行实现 <span class="skill">/implement</span></h4>
+          <p>在「01-项目跟踪」和飞书进度表登记负责人与时间，负责人明确接受才开工（文件躺在 .scratch/ 里不算数）。每人一票一分支一 PR；被依赖阻塞时先做 stub、评测或审查准备，不停工等人的代码。</p>
+          <div class="meta"><span class="chip greenc">接口没好？按冻结契约写 stub</span><span class="chip gray">真 API 出来再切联调</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">6</div>
+        <div class="body">
+          <h4>收口：验收要有证据 <span class="skill">/code-review</span></h4>
+          <p>AI 做第一遍 Review，人看清单（目录越界？引用契约还是复制？测试与声明一致？）；按依赖顺序合入（契约 → 底座 → 安全 → 业务 → 联动 → 前端），squash merge 一 PR 一条记录。阶段结束先更新 completion.md 记录证据，再激活下一版本。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 05 ================= -->
+  <section class="card">
+    <div class="sec-head">
+      <div class="sec-num">05</div>
+      <div>
+        <h2>并行机制：领地划清，谁也不等谁</h2>
+        <div class="sec-sub">目录归属表写在 AGENTS.md，AI 开工前必读；两级拆分 + 阻塞边 = 并行的全部秘密</div>
+      </div>
+    </div>
+    <div class="split">
+      <div class="split-box" style="background:var(--amber-tint);border-color:#EAD3AC">
+        <h4>📦 第一级：场景负责人拆「交付包」</h4>
+        <div class="q">回答：业务结果是什么、验收标准是什么、什么时候能开始</div>
+        <div class="pkg">📦 <code>01-vertical-backend.md</code>　后端纵向主链路（v0.3 临时：Erwin）</div>
+        <div class="pkg">📦 <code>02-minimal-frontend.md</code>　最小前端（梁爽 + 六水）</div>
+        <div class="pkg">📦 <code>03-v03-evaluation.md</code>　v0.3 评测与审查（Ringo 安全）</div>
+        <div class="pkg">📦 <code>04-v04-eval-preparation.md</code>　业务评测准备（周恩宇）</div>
+        <div class="pkg">📦 <code>05-integration-acceptance.md</code>　联合验收（场景负责人）</div>
+      </div>
+      <div class="down-arrow"><span style="font-size:11px;font-weight:700">接受包后<br>各拆各的票</span><div class="a"></div></div>
+      <div class="split-box">
+        <h4>🎫 第二级：目录负责人拆「实施票」</h4>
+        <div class="q">回答：我这块具体怎么实现。一票一文件，带两行元数据——</div>
+        <div class="pkg"><code>Status:</code> claimed / resolved　认领即改状态，先到先得</div>
+        <div class="pkg"><code>Blocked by: 03, 05</code>　阻塞边：所列票全部 resolved 才解锁</div>
+        <div class="pkg"><b>Frontier 扫描</b>：开着、没被阻塞、没人认领的票 = 现在能干的活</div>
+        <div class="pkg">✅ 一张票 · 一个分支 · 一个 PR · <b>只改一个目录</b></div>
+      </div>
+    </div>
+    <table class="owners">
+      <tr><th style="width:46%">目录（领地）</th><th>Owner</th></tr>
+      <tr><td>backend/app/contracts/ · api/ · agent_platform/ · audit/ · memory/</td><td><span class="ppl p-erwin">Erwin</span><span class="assist">底座 · 契约 · 合并把关</span></td></tr>
+      <tr><td>backend/app/security/</td><td><span class="ppl p-ringo">Ringo</span><span class="assist">策略 · 执行器 · 确认</span></td></tr>
+      <tr><td>backend/app/modules/transfer/</td><td><span class="ppl p-shuang">梁爽</span><span class="assist">v0.3 参考路径临时 Erwin</span></td></tr>
+      <tr><td>backend/app/modules/bills/</td><td><span class="ppl p-ethan">周恩宇</span><span class="assist">09-28 从六水移交</span></td></tr>
+      <tr><td>backend/app/modules/cross/</td><td><span class="ppl p-ethan">周恩宇</span></td></tr>
+      <tr><td>frontend/</td><td><span class="ppl p-shuang">梁爽</span><span class="ppl p-liushui">六水</span><span class="assist">前端 / 适老化</span></td></tr>
+      <tr><td>evals/</td><td><span class="assist">按子目录：transfer·mockbank=</span><span class="ppl p-erwin">Erwin</span><span class="assist">bills·cross=</span><span class="ppl p-ethan">周恩宇</span><span class="assist">security=</span><span class="ppl p-ringo">Ringo</span></td></tr>
+    </table>
+    <div class="rules">
+      <div class="r"><span class="num">规则 1</span><div><b>每个人拆自己的票，不等待别人先拆完。</b>负责人接受交付包后即可开工，不用等我写完后端。</div></div>
+      <div class="r"><span class="num">规则 2</span><div><b>被阻塞不停工：</b>先做 stub、评测集或审查准备，当天在甘特图标记阻塞原因。</div></div>
+      <div class="r"><span class="num">规则 3</span><div><b>临时顶班要写明期限：</b>一个人可以按顺序承担多个目录，但票、分支、PR 仍按单一目录拆，阶段收口后回到长期负责人。</div></div>
+      <div class="r"><span class="num">规则 4</span><div><b>任务文件不会通知任何人。</b>正式启动 = 项目跟踪里登记 + 负责人知晓并接受，两者缺一不开工。</div></div>
+    </div>
+  </section>
+
+  <!-- ================= 06 ================= -->
+  <section class="card">
+    <div class="sec-head">
+      <div class="sec-num">06</div>
+      <div>
+        <h2>质量机制：不靠事后审查，靠四层防线</h2>
+        <div class="sec-sub">你不可能逐行读完三个人的代码——把「坏代码的破坏半径」在发生之前框死</div>
+      </div>
+    </div>
+    <div class="qual">
+      <div class="qcard"><div class="qn">01</div><h4>编译不过的契约</h4><p>契约是 Pydantic 模型，不是文档。类型与运行时校验是最不知疲倦的 reviewer。</p></div>
+      <div class="qcard"><div class="qn">02</div><h4>小接口封死半径</h4><p>成员拥有接口背后的深度。模块内部丑一点没关系，最坏重写一个函数，坏不进系统。</p></div>
+      <div class="qcard"><div class="qn">03</div><h4>测试当验收</h4><p>每个 ticket 的「完成」是客观信号：一条测试名、一条命令的输出。先写测试骨架，他们让测试变绿。</p></div>
+      <div class="qcard"><div class="qn">04</div><h4>CI 当第二 reviewer</h4><p>mypy + ruff + pytest，不过不给合。AI 替我跑 CI、拉 PR 做第一遍 review。</p></div>
+    </div>
+    <div class="gates">
+      <div class="gate"><b>闸 1 · PR 模板清单</b><span>提交前自答：对照规格做完了吗？测试跑了吗？</span></div>
+      <span class="g-arrow">→</span>
+      <div class="gate"><b>闸 2 · CI 全绿</b><span>类型 + 规范 + 测试，机器说了算</span></div>
+      <span class="g-arrow">→</span>
+      <div class="gate"><b>闸 3 · 合并权一把手</b><span>main 只有 PM 能合，按依赖顺序收口</span></div>
+    </div>
+    <div class="quote green">「测试红着就是没做完，不能吹。」<small>完成情况要有证据：不把文档、占位接口或单模块测试当作端到端完成。</small></div>
+  </section>
+
+  <!-- ================= 07 ================= -->
+  <section class="card">
+    <div class="sec-head">
+      <div class="sec-num">07</div>
+      <div>
+        <h2>飞书发布：三层白名单，只出不回</h2>
+        <div class="sec-sub">两种信息两条路——动态的「现在干什么」常更新，冻结的「长期依据」基本不动</div>
+      </div>
+    </div>
+    <div class="layers">
+      <div class="layer l1">
+        <div class="lt">LAYER 1 · 动态层</div>
+        <h4>当前工作台 + 当前版本</h4>
+        <p>《01 项目跟踪》：按工作线 / 按人员看交付、接力信号、协作规则；v0.3 的实施计划、需求、完成情况。</p>
+        <span class="freq">每天/每周更新</span>
+      </div>
+      <div class="layer l2">
+        <div class="lt">LAYER 2 · 总览层</div>
+        <h4>Roadmap + 版本总览</h4>
+        <p>六阶段并行规划、硬依赖与检查点；v0.1～v1.0 每个版本的需求与完成状态汇总。</p>
+        <span class="freq">阶段性更新</span>
+      </div>
+      <div class="layer l3">
+        <div class="lt">LAYER 3 · 冻结层</div>
+        <h4>PRD · 架构 · 契约 · 规则</h4>
+        <p>已冻结且跨阶段复用的五份 PRD、系统架构、主契约与字段附件、协作规则。冻结后基本不动，改动走契约变更流程。</p>
+        <span class="freq">🔒 冻结只读</span>
+      </div>
+    </div>
+    <div class="notFeishu">
+      <div class="nf">
+        <h5>🚫 不进飞书的</h5>
+        <p>模板、会议逐字稿、研究过程、收口过程记录——这些只留仓库；退出白名单的旧文档移入 Drive 归档，不直接删除。</p>
+      </div>
+      <div class="nf">
+        <h5>🔧 几个工程细节</h5>
+        <p>全程用户身份建文档（应用身份建的成员改不了）；发布覆盖正文会移除内嵌甘特图，重跑 embed_stages.py 恢复；新增文档先确认属于哪一层，再进白名单。</p>
+      </div>
+    </div>
+    <div class="cmdline">
+      <span class="p">$</span> python tools/feishu_sync.py <b>plan</b>     <span class="c"># 先看会推哪些文档，不碰飞书</span><br>
+      <span class="p">$</span> python tools/feishu_sync.py <b>publish</b>  <span class="c"># 推内容：缺失的新建、已存在的原地覆盖</span><br>
+      <span class="p">$</span> python tools/feishu_sync.py <b>mount</b>     <span class="c"># 挂进知识库对应分区（幂等）</span>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer>
+    <div class="motto">质量靠机制，不靠事后审查；<span>守住接缝，容忍深度。</span></div>
+    <div class="credit">内容全部来自仓库 AGENTS.md 与 docs/（唯一事实源）· AI Banking Agent @ FinTechathon 2026 · 2026-09-29</div>
+  </footer>
+
+</div>
+</body>
+</html>
