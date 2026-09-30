@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from uuid import uuid4
@@ -12,7 +13,7 @@ from app.contracts import TaskStatus
 from .database import connect, parameter_digest, transaction
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -159,6 +160,59 @@ class ApplicationStore:
                     )
                 """)
                 connection.execute("PRAGMA user_version = 1")
+            if version < 2:
+                columns = {
+                    row["name"] for row in connection.execute("PRAGMA table_info(task_refs)")
+                }
+                if "session_id" not in columns:
+                    connection.execute("ALTER TABLE task_refs ADD COLUMN session_id TEXT")
+                connection.execute("""UPDATE task_refs SET session_id = (
+                    SELECT session_id FROM tasks WHERE tasks.task_id = task_refs.task_id
+                ) WHERE session_id IS NULL""")
+                connection.execute("PRAGMA user_version = 2")
+            if version < 3:
+                connection.execute("""CREATE TABLE IF NOT EXISTS task_session_transitions (
+                    task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    source_session_id TEXT NOT NULL,
+                    target_session_id TEXT NOT NULL,
+                    source_revision INTEGER NOT NULL,
+                    target_revision INTEGER NOT NULL,
+                    occurred_at TEXT NOT NULL,
+                    PRIMARY KEY(task_id, source_revision),
+                    FOREIGN KEY(source_session_id, user_id, demo_round_id)
+                        REFERENCES sessions(session_id, user_id, demo_round_id),
+                    FOREIGN KEY(target_session_id, user_id, demo_round_id)
+                        REFERENCES sessions(session_id, user_id, demo_round_id)
+                )""")
+                connection.execute("PRAGMA user_version = 3")
+            if version < 4:
+                columns = {
+                    row["name"] for row in connection.execute("PRAGMA table_info(tool_operations)")
+                }
+                if not columns:
+                    connection.execute("""CREATE TABLE tool_operations (
+                        operation_id TEXT PRIMARY KEY,
+                        task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                        user_id TEXT NOT NULL,
+                        demo_round_id TEXT NOT NULL,
+                        action_name TEXT NOT NULL,
+                        parameters_digest TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        result_ref TEXT,
+                        created_sequence INTEGER NOT NULL DEFAULT 0
+                    )""")
+                elif "created_sequence" not in columns:
+                    connection.execute(
+                        "ALTER TABLE tool_operations ADD COLUMN created_sequence INTEGER NOT NULL DEFAULT 0",
+                    )
+                    connection.execute(
+                        "UPDATE tool_operations SET created_sequence = rowid",
+                    )
+                connection.execute("""CREATE UNIQUE INDEX IF NOT EXISTS
+                    tool_operations_created_sequence ON tool_operations(created_sequence)""")
+                connection.execute("PRAGMA user_version = 4")
 
     def create_session(
         self, session_id: str, user_id: str, demo_round_id: str, created_at: str, expires_at: str,
@@ -202,13 +256,17 @@ class ApplicationStore:
             ).fetchone()
             if row is None:
                 return None
-            return TaskRecord(
-                row["task_id"], row["user_id"], row["session_id"], row["demo_round_id"],
-                row["run_id"], TaskStatus(row["status"]), row["revision"],
-                row["checkpoint_thread_id"], row["checkpoint_id"], json.loads(row["snapshot_json"]),
-            )
+            return self._task_record(row)
         finally:
             connection.close()
+
+    @staticmethod
+    def _task_record(row) -> TaskRecord:
+        return TaskRecord(
+            row["task_id"], row["user_id"], row["session_id"], row["demo_round_id"],
+            row["run_id"], TaskStatus(row["status"]), row["revision"],
+            row["checkpoint_thread_id"], row["checkpoint_id"], json.loads(row["snapshot_json"]),
+        )
 
     def checkpoint_saver(self, user_id: str, demo_round_id: str, task_id: str):
         from .checkpoints import SqliteCheckpointSaver
@@ -235,6 +293,69 @@ class ApplicationStore:
                 raise ValueError("task is missing, out of scope, or changed concurrently")
         return self.get_task(user_id, demo_round_id, task_id)
 
+    def transition_task_session(
+        self, user_id: str, demo_round_id: str, task_id: str, source_session_id: str,
+        target_session_id: str, expected_revision: int,
+    ) -> TaskRecord:
+        if source_session_id == target_session_id:
+            raise ValueError("source and target sessions must differ")
+        with transaction(self.path) as connection:
+            row = connection.execute(
+                """SELECT * FROM tasks WHERE task_id = ? AND user_id = ?
+                   AND demo_round_id = ?""",
+                (task_id, user_id, demo_round_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError("task is not in scope")
+            previous = connection.execute(
+                """SELECT target_revision FROM task_session_transitions
+                   WHERE task_id = ? AND user_id = ? AND demo_round_id = ?
+                     AND source_session_id = ? AND target_session_id = ?
+                     AND source_revision = ?""",
+                (task_id, user_id, demo_round_id, source_session_id,
+                 target_session_id, expected_revision),
+            ).fetchone()
+            if previous is not None:
+                if row["session_id"] == target_session_id and row["revision"] == previous["target_revision"]:
+                    return self._task_record(row)
+                raise ValueError("task changed after the session transition")
+            if row["session_id"] != source_session_id or row["revision"] != expected_revision:
+                raise ValueError("task is missing, out of scope, or changed concurrently")
+
+            target = connection.execute(
+                """SELECT created_at, expires_at FROM sessions WHERE session_id = ?
+                   AND user_id = ? AND demo_round_id = ?""",
+                (target_session_id, user_id, demo_round_id),
+            ).fetchone()
+            if target is None:
+                raise ValueError("target session is not in scope")
+            transition_time = datetime.now(timezone.utc)
+            if not (
+                datetime.fromisoformat(target["created_at"]) <= transition_time
+                < datetime.fromisoformat(target["expires_at"])
+            ):
+                raise ValueError("target session is not active")
+
+            changed = connection.execute(
+                """UPDATE tasks SET session_id = ?, revision = revision + 1
+                   WHERE task_id = ? AND user_id = ? AND demo_round_id = ?
+                     AND session_id = ? AND revision = ?""",
+                (target_session_id, task_id, user_id, demo_round_id,
+                 source_session_id, expected_revision),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("task is missing, out of scope, or changed concurrently")
+            transition_time = datetime.now(timezone.utc).isoformat()
+            connection.execute(
+                """INSERT INTO task_session_transitions VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (task_id, user_id, demo_round_id, source_session_id, target_session_id,
+                 expected_revision, expected_revision + 1, transition_time),
+            )
+            transitioned = connection.execute(
+                "SELECT * FROM tasks WHERE task_id = ?", (task_id,),
+            ).fetchone()
+            return self._task_record(transitioned)
+
     def bind_ref(self, user_id: str, demo_round_id: str, task_id: str, kind: str, record_id: str) -> None:
         if kind not in {"confirmation", "verification", "memory"}:
             raise ValueError("unsupported task reference")
@@ -255,8 +376,7 @@ class ApplicationStore:
                 raise ValueError("record reference belongs to another user or round")
             if kind in {"confirmation", "verification"}:
                 bindings = connection.execute(
-                    """SELECT tasks.task_id, tasks.session_id FROM task_refs
-                       JOIN tasks ON tasks.task_id = task_refs.task_id
+                    """SELECT task_id, session_id FROM task_refs
                        WHERE task_refs.kind = ? AND task_refs.record_id = ?""",
                     (kind, record_id),
                 ).fetchall()
@@ -273,17 +393,36 @@ class ApplicationStore:
                     "INSERT INTO owned_refs VALUES (?, ?, ?, ?)",
                     (kind, record_id, user_id, demo_round_id),
                 )
-            connection.execute(
-                "INSERT OR IGNORE INTO task_refs VALUES (?, ?, ?, ?, ?)",
-                (task_id, user_id, demo_round_id, kind, record_id),
-            )
+            existing = connection.execute(
+                """SELECT session_id FROM task_refs
+                   WHERE task_id = ? AND kind = ? AND record_id = ?""",
+                (task_id, kind, record_id),
+            ).fetchone()
+            if kind == "confirmation" and existing is not None:
+                # A confirmation ID can advance to a newer version when a task
+                # moves sessions. The security store checks that version; bind
+                # the current task reference to the new session after it issues it.
+                connection.execute(
+                    """UPDATE task_refs SET session_id = ?
+                       WHERE task_id = ? AND kind = ? AND record_id = ?""",
+                    (task["session_id"], task_id, kind, record_id),
+                )
+            else:
+                connection.execute(
+                    """INSERT OR IGNORE INTO task_refs
+                       (task_id, user_id, demo_round_id, kind, record_id, session_id)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (task_id, user_id, demo_round_id, kind, record_id, task["session_id"]),
+                )
 
     def has_ref(self, user_id: str, demo_round_id: str, task_id: str, kind: str, record_id: str) -> bool:
         connection = connect(self.path)
         try:
             return connection.execute(
-                """SELECT 1 FROM task_refs WHERE user_id = ? AND demo_round_id = ?
-                   AND task_id = ? AND kind = ? AND record_id = ?""",
+                """SELECT 1 FROM task_refs refs JOIN tasks ON tasks.task_id = refs.task_id
+                   WHERE refs.user_id = ? AND refs.demo_round_id = ?
+                     AND refs.task_id = ? AND refs.kind = ? AND refs.record_id = ?
+                     AND (refs.kind = 'memory' OR refs.session_id = tasks.session_id)""",
                 (user_id, demo_round_id, task_id, kind, record_id),
             ).fetchone() is not None
         finally:
@@ -311,9 +450,16 @@ class ApplicationStore:
                 ) != (user_id, demo_round_id, task_id, action_name, digest):
                     raise ValueError("operation_id is already bound to a different action")
             else:
+                created_sequence = connection.execute(
+                    "SELECT COALESCE(MAX(created_sequence), 0) + 1 FROM tool_operations",
+                ).fetchone()[0]
                 connection.execute(
-                    "INSERT INTO tool_operations VALUES (?, ?, ?, ?, ?, ?, 'reserved', NULL)",
-                    (operation_id, task_id, user_id, demo_round_id, action_name, digest),
+                    """INSERT INTO tool_operations
+                       (operation_id, task_id, user_id, demo_round_id, action_name,
+                        parameters_digest, state, result_ref, created_sequence)
+                       VALUES (?, ?, ?, ?, ?, ?, 'reserved', NULL, ?)""",
+                    (operation_id, task_id, user_id, demo_round_id, action_name,
+                     digest, created_sequence),
                 )
         return self.get_operation(user_id, demo_round_id, operation_id)
 
@@ -323,13 +469,39 @@ class ApplicationStore:
         connection = connect(self.path)
         try:
             row = connection.execute(
-                """SELECT * FROM tool_operations WHERE user_id = ? AND demo_round_id = ?
+                """SELECT operation_id, task_id, user_id, demo_round_id, action_name,
+                          parameters_digest, state, result_ref
+                   FROM tool_operations WHERE user_id = ? AND demo_round_id = ?
                    AND operation_id = ?""",
                 (user_id, demo_round_id, operation_id),
             ).fetchone()
             if row is None:
                 return None
             return ToolOperation(**dict(row))
+        finally:
+            connection.close()
+
+    def list_task_operations(
+        self, user_id: str, demo_round_id: str, task_id: str,
+    ) -> list[ToolOperation]:
+        """Return the durable operation records owned by one scoped task."""
+        connection = connect(self.path)
+        try:
+            task = connection.execute(
+                "SELECT 1 FROM tasks WHERE task_id = ? AND user_id = ? AND demo_round_id = ?",
+                (task_id, user_id, demo_round_id),
+            ).fetchone()
+            if task is None:
+                raise ValueError("task is not in scope")
+            rows = connection.execute(
+                """SELECT operation_id, task_id, user_id, demo_round_id, action_name,
+                          parameters_digest, state, result_ref
+                   FROM tool_operations
+                   WHERE task_id = ? AND user_id = ? AND demo_round_id = ?
+                   ORDER BY created_sequence""",
+                (task_id, user_id, demo_round_id),
+            ).fetchall()
+            return [ToolOperation(**dict(row)) for row in rows]
         finally:
             connection.close()
 
