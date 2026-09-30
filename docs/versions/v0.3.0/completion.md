@@ -14,7 +14,7 @@
 
 ## 仍待完成
 
-- 票 10 全部验收未完成：新登录恢复 [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)、普通闲聊仅回复 [#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)、部署模型 / 策略组合、真实模型调用及 React 联调仍待提供。当前新会话只能读取旧任务历史，继续旧任务安全拒绝；API 工程增量合入不代表 v0.3 完成。
+- 票 10 全部验收未完成：新登录恢复 [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)、普通闲聊仅回复 [#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)、部署模型 / 策略组合、真实模型调用及 React 联调仍待提供。当前新会话只能读取旧任务历史，继续旧任务安全拒绝；两项缺口已补建 [六张单目录实施票](../../../.scratch/v03-session-recovery-reply/spec.md)，均未开始实现；补票不等于功能完成。API 工程增量合入不代表 v0.3 完成。
 - 最小 React 前端及与真实后端的联调。
 - Ringo 负责的安全评测、Erwin 负责的转账业务评测及相应审查结论。
 - 票 12：AF01—AF14 联合验收、问题回归和 v0.3 收口决定。
