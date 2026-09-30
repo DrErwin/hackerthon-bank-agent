@@ -71,4 +71,4 @@ SSE 的 id 为 event_id。先连流，再拉取 messages / tasks 快照；按 ev
 
 重新登录读取旧任务时，当前快照清空不可用的 allowed_actions；非终态任务标记 SESSION_RECONFIRMATION_REQUIRED。保留的 interaction 仅用于历史显示，专用确认 / 验证视图仍拒绝旧会话操作。切换会话后先重新 GET 任务，以当前快照权限为准；SSE 回放中的旧快照不能恢复旧按钮。
 
-公共缺口分别跟踪于 [新会话恢复 #23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23) 与 [无业务意图回复 #24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)。本票工程增量经独立工程、契约与安全 AI 审查，按用户本次授权推进有限增量合入；AI 审查不代表任何真人批准。票 10 验收仍未完成，须补齐依赖缺口与联调证据后更新完成状态；尚不能据此将 v0.3 标为完成。
+公共缺口分别跟踪于 [新会话恢复 #23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23) 与 [无业务意图回复 #24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)。本票工程增量经独立工程、契约与安全 AI 审查，已按用户授权通过 [PR #25](https://github.com/DrErwin/hackerthon-bank-agent/pull/25) 于 2026-09-30 合入（cd50ebd），合并提交主线 CI 后端 178 项和模拟银行 14 项通过；AI 审查不代表任何真人批准。票 10 验收仍未完成，须补齐依赖缺口与联调证据后更新完成状态；尚不能据此将 v0.3 标为完成。

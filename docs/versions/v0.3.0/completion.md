@@ -7,13 +7,14 @@
 
 - 普通转账纵向场景、五个交付包与 12 张 Erwin 单目录实施票已建立；阶段范围、负责人和排期已确认。
 - 后端工程骨架、公共契约代码、运行存储、模拟银行与接入层、审计回放、记忆、最小安全门、普通转账参考流程和主 Agent Harness 已通过 PR 合入 `main`。对应实施票为 01—09；模拟银行评测票 11 也已合入。PR #1—#19 均已合并，其中部分为缺陷修复与 CI 加固。
-- 后端模块测试 `python -m pytest -q`：2026-09-30 本地运行 **149 passed**。模拟银行评测 `python -m pytest -q ../evals/mockbank/test_mockbank_eval.py`：**14 passed**。
+- 票 10 的 API 工程增量已于 2026-09-30 经 [PR #25](https://github.com/DrErwin/hackerthon-bank-agent/pull/25) squash 合入 `main`，提交 `cd50ebdf36795b6883641e7494e4a29acfbbdcbc`。包含任务、确认验证、取消 / 原结果回查、持久事件流及管理员只读审计。独立工程、契约与安全 AI 审查通过，跨会话不可用操作问题已修复并复查；未记录真人批准。
+- 合并提交的 [主线 CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36687051464) 通过：完整后端 **178 passed**（API 29 项），模拟银行评测 **14 passed**；文档链接、语法及差异空白检查通过。合并后的跨会话专项回归另 **1 passed**。
 
-这些结果证明已合入后端模块能通过当前自动测试；不代表前端、真实 API 或完整用户路径已经验收。
+这些结果证明已合入后端模块能通过当前自动测试；不代表部署配置、真实模型、前端联调或完整用户路径已经验收。
 
 ## 仍待完成
 
-- 票 10：[PR #25](https://github.com/DrErwin/hackerthon-bank-agent/pull/25) 提供任务 API、确认验证、取消 / 原结果回查、持久事件流及只读审计工程增量；独立工程、契约与安全 AI 审查按用户本次授权执行，非真人批准。原分支后端 178 项、API 29 项和模拟银行 14 项通过，独立复查修复跨会话不可用按钮并回归。票 10 全部验收未完成：新登录恢复 [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)、普通闲聊仅回复 [#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)、部署模型 / 策略组合、真实模型调用及 React 联调仍待提供；合入不代表 v0.3 完成。
+- 票 10 全部验收未完成：新登录恢复 [#23](https://github.com/DrErwin/hackerthon-bank-agent/issues/23)、普通闲聊仅回复 [#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)、部署模型 / 策略组合、真实模型调用及 React 联调仍待提供。当前新会话只能读取旧任务历史，继续旧任务安全拒绝；API 工程增量合入不代表 v0.3 完成。
 - 最小 React 前端及与真实后端的联调。
 - Ringo 负责的安全评测、Erwin 负责的转账业务评测及相应审查结论。
 - 票 12：AF01—AF14 联合验收、问题回归和 v0.3 收口决定。
