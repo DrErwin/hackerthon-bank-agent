@@ -1,6 +1,6 @@
 # 补票 01—04 验收记录（2026-10-01）
 
-初验未通过；用户随后明确要求修复、复验并合并。修复后双轴 AI 复审通过，实施尚未合入；最终完整回归和合并门槛见文末。
+初验未通过；用户随后明确要求修复、复验并合并。修复后双轴AI复审通过，实施已合入；最终主线验证和收口见文末。
 
 ## 对象与证据
 
@@ -55,4 +55,10 @@
 - 最终全后端 212 passed（169.16 秒），模拟银行 14 passed，文档链接、语法及差异空白检查通过。Standards / Spec 最终 AI 复审均为 0 项 P0–P3，早期发现已修复。结论不代表 Ringo 真人安全批准。
 - 用户第二次明确要求“修复，然后验收完合并”；实施合并仍须处理仓库记录的 Ringo 审查门槛。
 
-当前 01—04 工程验收通过，但真人安全审查门槛与实施合入未完成；[票 01 PR #30](https://github.com/DrErwin/hackerthon-bank-agent/pull/30) 已建立，其余按依赖与最多两个开放 PR 的约定推进。主线仍不包含本地集成修复；#23 未关闭。
+修复复验后、用户明确豁免前，01—04工程验收通过，但真人安全审查门槛与实施合入未完成；[票 01 PR #30](https://github.com/DrErwin/hackerthon-bank-agent/pull/30) 已建立，其余按依赖与最多两个开放 PR 的约定推进。主线仍不包含本地集成修复；#23 未关闭。
+
+## 用户豁免、合入与最终收口
+
+用户于2026-10-01明确指示「我豁免批准，合并」，本轮补票01—04的Ringo真人批准门槛由用户豁免；AI复审不记为真人批准，长期审查规则不变。
+
+[PR #30](https://github.com/DrErwin/hackerthon-bank-agent/pull/30)、[PR #31](https://github.com/DrErwin/hackerthon-bank-agent/pull/31)、[PR #32](https://github.com/DrErwin/hackerthon-bank-agent/pull/32)、[PR #33](https://github.com/DrErwin/hackerthon-bank-agent/pull/33)已按01 / 02→03→04顺序合入，四票目录边界与依赖闭合；具体合并提交见[v0.3完成情况](../../docs/versions/v0.3.0/completion.md)。[代码主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36774040361)通过：后端212项（63.64秒）、模拟银行14项（0.46秒），文档链接、Python语法及差异空白检查通过。四票标为resolved，#23已关闭；#24、真实模型、React与AF01—AF14仍待完成，未同步飞书。
