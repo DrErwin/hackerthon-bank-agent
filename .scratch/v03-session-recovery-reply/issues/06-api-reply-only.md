@@ -1,12 +1,12 @@
 # 06：API 仅回复接入
 
 Type: task\
-Status: blocked\
+Status: ready\
 Owner: Erwin（v0.3 纵向后端工作线；转账目录按临时安排）\
 Directory: `backend/app/api/`\
 Source issue: [#24](https://github.com/DrErwin/hackerthon-bank-agent/issues/24)\
 Spec: [新会话恢复与仅回复补票规格](../spec.md)\
-Blocked by: 05（需合入并提供公开仅回复结果）\
+Blocked by: None（05已通过PR #35合入并提供公开仅回复结果）\
 Unlocks: 原票 10 的普通消息验收；原票 12 联合验收\
 Review: 工程与契约审查；涉及身份、确认、验证、资金、隐私或审计时叠加安全审查\
 Claimed by: 未领取\
@@ -38,3 +38,5 @@ HTTP + 消息历史 / 任务列表 / SSE，实际公共底座与可重复模型�
 ## Comments
 
 - 2026-09-30：按用户“先补正式实施票”及六张单目录票方案确认补建；不是已实现功能，也不代表目录负责人本人领取或真人批准。GitHub #24 仍为开放缺口记录。
+
+- 2026-10-01：前置 [v03-session-recovery-reply/05：Harness 无业务意图仅回复](05-harness-reply-only.md) 已经 [PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35) 合入main（0613a1a），公开understand / handle_message / ReplyOnly能力已提供，本票解除正式依赖阻塞。仅更新依赖，不代填新对话实施进度；本票实现与验收由剩余补票工作线继续。
