@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./api";
 import App from "./App";
 import TaskCard from "./TaskCard";
+import { getPageItems } from "./pagination";
 import type { SessionView, StreamEvent, TaskView, ThreadView, VerificationView } from "./contracts";
 
 vi.mock("./api", async (importOriginal) => {
@@ -93,6 +94,62 @@ afterEach(() => {
 });
 
 describe("recovery and retry controls", () => {
+  it("keeps delayed history from a previous thread out of the selected conversation", async () => {
+    let finishOldHistory!: (value: never) => void;
+    const defaultGet = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(async (path) => {
+      if (path === "/threads/thread-b/messages?limit=100") {
+        return await new Promise<never>((resolve) => { finishOldHistory = resolve; });
+      }
+      return defaultGet(path);
+    });
+    render(<App />);
+    await screen.findByRole("textbox", { name: "输入聊天内容" });
+    await waitFor(() => expect(finishOldHistory).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /对话 A/ }));
+    finishOldHistory({ items: [{ message_id: "old-message", thread_id: "thread-b", role: "assistant", text: "旧对话内容", created_at: timestamp }], next_cursor: null } as never);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/threads/thread-a/messages?limit=100"));
+    expect(screen.queryByText("旧对话内容")).toBeNull();
+  });
+
+  it("allows editing a definitively rejected chat message", async () => {
+    vi.mocked(api.post).mockRejectedValue(new api.ApiError(400, "USE_VERIFICATION_ENDPOINT", "请使用专用验证入口"));
+    render(<App />);
+    const input = await screen.findByRole("textbox", { name: "输入聊天内容" });
+    fireEvent.change(input, { target: { value: "123456" } });
+    fireEvent.submit(screen.getByRole("button", { name: "发送" }).closest("form")!);
+    await screen.findByText("请使用专用验证入口");
+    expect(input.hasAttribute("disabled")).toBe(false);
+    fireEvent.change(input, { target: { value: "你好" } });
+    expect((input as HTMLTextAreaElement).value).toBe("你好");
+  });
+
+  it("loads remaining pages with the server cursor", async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ items: ["first"], next_cursor: "next/page" } as never)
+      .mockResolvedValueOnce({ items: ["latest"], next_cursor: null } as never);
+    expect(await getPageItems<string>("/threads?limit=100")).toEqual(["first", "latest"]);
+    expect(api.get).toHaveBeenLastCalledWith("/threads?limit=100&cursor=next%2Fpage");
+  });
+
+  it("refreshes the same verification challenge when the task snapshot changes", async () => {
+    const task = makeTask({ status: "waiting_approval", allowed_actions: ["verify"], interaction: {
+      interaction_id: "interaction-1", kind: "verification", prompt: "完成专用验证",
+      required_fields: [], options: [], record_ref: "challenge-1",
+    } });
+    const verification = {
+      challenge_id: "challenge-1", required_methods: ["mock_face"],
+      face_started_at: timestamp, face_result: "pending", challenge_status: "pending",
+    } as VerificationView;
+    vi.mocked(api.get).mockResolvedValueOnce(verification as never)
+      .mockResolvedValueOnce({ ...verification, face_result: "passed" } as never);
+    const props = makeTaskCardProps(task);
+    const view = render(<TaskCard {...props} />);
+    await screen.findByText("等待管理员处理");
+    view.rerender(<TaskCard {...props} task={{ ...task, task_revision: 2 }} />);
+    await screen.findByText("已通过");
+    expect(screen.queryByText("等待管理员处理")).toBeNull();
+  });
+
   it("retries an unknown chat send only in its original thread with the same request id", async () => {
     const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
     vi.mocked(api.post).mockImplementation(async (path, body) => {

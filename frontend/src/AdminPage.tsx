@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { API_MODE, userPageUrl, apiErrorMessage, get, post, ApiError } from "./api";
-import type { AuditEventDetail, AuditEventSummary, Page, SessionView, VerificationResponse } from "./contracts";
+import { getPageItems } from "./pagination";
+import type { AuditEventDetail, AuditEventSummary, SessionView, VerificationResponse } from "./contracts";
 
 function requestId(): string {
   return crypto.randomUUID();
@@ -81,8 +82,8 @@ export default function AdminPage() {
     try {
       const query = new URLSearchParams({ task_id: taskId.trim() });
       if (demoRoundId.trim()) query.set("demo_round_id", demoRoundId.trim());
-      const result = await get<Page<AuditEventSummary>>("/admin/audit/events?" + query.toString());
-      setTimeline(result.items);
+      const items = await getPageItems<AuditEventSummary>("/admin/audit/events?" + query.toString());
+      setTimeline(items);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) setSession(null);
       else setTimelineError(apiErrorMessage(error));

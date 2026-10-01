@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_MODE, administratorUrl, apiErrorMessage, connectToThread, get, hasEnteredDemo, markEnteredDemo, post, ApiError } from "./api";
-import type { MessageAccepted, MessageView, Page, SessionView, StreamEvent, TaskView, ThreadView } from "./contracts";
+import { getPageItems } from "./pagination";
+import type { MessageAccepted, MessageView, SessionView, StreamEvent, TaskView, ThreadView } from "./contracts";
 import AdminPage from "./AdminPage";
 import TaskCard from "./TaskCard";
 
@@ -100,8 +101,16 @@ function UserPage() {
   const [connected, setConnected] = useState(false);
   const didInitialize = useRef(false);
   const eventSequence = useRef(0);
+  const activeThreadId = useRef<string | null>(null);
+  const workspaceGeneration = useRef(0);
+  const currentSessionId = useRef<string | null>(null);
 
   const expireSession = useCallback(() => {
+    activeThreadId.current = null;
+    workspaceGeneration.current += 1;
+    currentSessionId.current = null;
+    setMessages([]);
+    setTasks([]);
     setSession(null);
     setExpired(true);
     setConnected(false);
@@ -109,14 +118,15 @@ function UserPage() {
   }, []);
 
   const loadWorkspace = useCallback(async () => {
-    const result = await get<Page<ThreadView>>("/threads?limit=100");
-    let available = result.items;
+    let available = await getPageItems<ThreadView>("/threads?limit=100");
     if (available.length === 0) {
       const created = await post<ThreadView>("/threads", { request_id: makeRequestId() });
       available = [created];
     }
     setThreads(available);
     const selected = available[available.length - 1];
+    workspaceGeneration.current += 1;
+    activeThreadId.current = selected.thread_id;
     setActiveThread(selected);
   }, []);
 
@@ -127,6 +137,7 @@ function UserPage() {
       const entered = await post<SessionView>("/session/enter", { request_id: makeRequestId() });
       if (entered.role !== "user") throw new ApiError(403, "ACCESS_DENIED", "普通演示入口未授予用户会话。");
       markEnteredDemo();
+      currentSessionId.current = entered.session_id;
       setSession(entered);
       setExpired(false);
       await loadWorkspace();
@@ -146,6 +157,7 @@ function UserPage() {
       if (current.role !== "user") {
         throw new ApiError(403, "ACCESS_DENIED", "当前地址使用管理员会话。请返回普通演示入口。");
       }
+      currentSessionId.current = current.session_id;
       setSession(current);
       setExpired(false);
       await loadWorkspace();
@@ -169,14 +181,17 @@ function UserPage() {
   }, [checkSession]);
 
   const refreshThread = useCallback(async (threadId: string) => {
+    const generation = workspaceGeneration.current;
     try {
       const [messagePage, taskPage] = await Promise.all([
-        get<Page<MessageView>>("/threads/" + encodeURIComponent(threadId) + "/messages?limit=100"),
-        get<Page<TaskView>>("/tasks?thread_id=" + encodeURIComponent(threadId) + "&limit=100"),
+        getPageItems<MessageView>("/threads/" + encodeURIComponent(threadId) + "/messages?limit=100"),
+        getPageItems<TaskView>("/tasks?thread_id=" + encodeURIComponent(threadId) + "&limit=100"),
       ]);
-      setMessages((current) => mergeMessages(current, messagePage.items));
-      setTasks((current) => mergeTaskList(current, taskPage.items));
+      if (activeThreadId.current !== threadId || generation !== workspaceGeneration.current) return;
+      setMessages((current) => mergeMessages(current, messagePage));
+      setTasks((current) => mergeTaskList(current, taskPage));
     } catch (error) {
+      if (activeThreadId.current !== threadId || generation !== workspaceGeneration.current) return;
       if (statusError(error) && error.status === 401) expireSession();
       else setChatError(apiErrorMessage(error));
     }
@@ -184,11 +199,13 @@ function UserPage() {
 
   useEffect(() => {
     if (!session || !activeThread) return;
+    const generation = workspaceGeneration.current;
     let previousConnection = false;
     let hasConnected = false;
     const unsubscribe = connectToThread(
       activeThread.thread_id,
       (event: StreamEvent) => {
+        if (activeThreadId.current !== activeThread.thread_id || generation !== workspaceGeneration.current) return;
         eventSequence.current += 1;
         if (event.event_type === "message_completed") {
           setMessages((current) => mergeMessages(current, [event.payload as MessageView]));
@@ -205,6 +222,7 @@ function UserPage() {
         }
       },
       (isConnected) => {
+        if (activeThreadId.current !== activeThread.thread_id || generation !== workspaceGeneration.current) return;
         setConnected(isConnected);
         if (isConnected && hasConnected && !previousConnection) {
           void refreshThread(activeThread.thread_id);
@@ -219,9 +237,12 @@ function UserPage() {
 
   function chooseThread(thread: ThreadView) {
     if (thread.thread_id === activeThread?.thread_id) return;
+    workspaceGeneration.current += 1;
+    activeThreadId.current = thread.thread_id;
     setMessages([]);
     setTasks([]);
     setChatError("");
+    setAcceptedMessage("");
     setActiveThread(thread);
   }
 
@@ -229,6 +250,8 @@ function UserPage() {
     setChatError("");
     try {
       const created = await post<ThreadView>("/threads", { request_id: makeRequestId() });
+      workspaceGeneration.current += 1;
+      activeThreadId.current = created.thread_id;
       setThreads((current) => [...current, created]);
       setMessages([]);
       setTasks([]);
@@ -268,13 +291,17 @@ function UserPage() {
       if (result.task_id) await refreshThread(pending.threadId);
     } catch (error) {
       if (statusError(error) && error.status === 401) expireSession();
-      else setChatError(apiErrorMessage(error) + "再次发送会沿用同一个请求编号。");
+      else if (statusError(error) && error.status >= 400 && error.status < 500 && error.status !== 429) {
+        setPendingMessage(null);
+        setChatError(apiErrorMessage(error));
+      } else setChatError(apiErrorMessage(error) + "再次发送会沿用同一个请求编号。");
     } finally {
       setSending(false);
     }
   }
 
   function setTaskFromCard(task: TaskView) {
+    if (task.thread_id !== activeThreadId.current || session?.session_id !== currentSessionId.current) return;
     setTasks((current) => mergeOneTask(current, task));
   }
 
@@ -377,7 +404,9 @@ function UserPage() {
                 onRefresh={refreshCurrentThread}
                 onError={(message) => setChatError(message)}
                 onSessionExpired={expireSession}
-                onModifyDraft={setModificationDraft}
+                onModifyDraft={(text) => {
+                  if (task.thread_id === activeThreadId.current && session.session_id === currentSessionId.current) setModificationDraft(text);
+                }}
               />
             ))}
           </div>

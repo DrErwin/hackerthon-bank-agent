@@ -120,7 +120,7 @@ export default function TaskCard(props: TaskCardProps) {
         if (!cancelled) setRecordLoading(false);
       });
     return () => { cancelled = true; };
-  }, [recordRef, interactionKind, task.task_id, props.onSessionExpired]);
+  }, [recordRef, interactionKind, task.task_id, task.task_revision, task.snapshot_at, props.onSessionExpired]);
 
   useEffect(() => {
     if (!demoCode) return;
