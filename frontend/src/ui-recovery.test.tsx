@@ -142,6 +142,19 @@ describe("recovery and retry controls", () => {
     expect(screen.queryByText("123456")).toBeNull();
   });
 
+  it("ignores a delayed demo code from a previous challenge", async () => {
+    let finishHint!: (value: never) => void;
+    vi.mocked(api.get).mockImplementation(async (path) => path.endsWith("/demo-code")
+      ? await new Promise<never>((resolve) => { finishHint = resolve; }) : codeVerification as never);
+    const props = makeTaskCardProps(codeTask());
+    const view = render(<TaskCard {...props} />);
+    fireEvent.click(await screen.findByRole("button", { name: "打开模拟验证码提示区" }));
+    view.rerender(<TaskCard {...props} task={codeTask("challenge-2")} />);
+    await screen.findByLabelText("验证码（专用输入）");
+    finishHint({ code: "123456", expires_at: timestamp } as never);
+    await waitFor(() => expect(screen.queryByText("123456")).toBeNull());
+  });
+
   it("keeps delayed history from a previous thread out of the selected conversation", async () => {
     let finishOldHistory!: (value: never) => void;
     const defaultGet = vi.mocked(api.get).getMockImplementation()!;
