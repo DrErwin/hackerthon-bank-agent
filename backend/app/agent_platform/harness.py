@@ -238,6 +238,7 @@ class AgentHarness:
         if isinstance(outcome, ReplyOnly) and not outcome.message.strip():
             raise ValueError("MODEL_OUTCOME_INVALID")
         if isinstance(outcome, ReplyOnly):
+            self._check_intent_text(outcome.message)
             outcome = ReplyOnly.model_validate(redact(outcome.model_dump(mode="json")))
         return outcome
 
@@ -349,7 +350,7 @@ class AgentHarness:
                     if outcome is None:
                         outcome = self._understand_with_trace(trusted, intent_text, trace)
                     if isinstance(outcome, ReplyOnly):
-                        return outcome
+                        raise ValueError("NO_TRANSFER_INTENT")
                     proposal = outcome
                     self.registry.get(proposal.capability_name)
                     StartTransferInput(

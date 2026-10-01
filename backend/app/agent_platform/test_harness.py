@@ -21,6 +21,7 @@ from app.modules.transfer.manifest import MANIFEST
 from app.modules.transfer.test_workflow import Ports
 from app.modules.transfer.workflow import TransferWorkflow
 from app.storage.application import ApplicationStore
+from app.storage.database import connect
 
 from .harness import AgentHarness, RunTrace
 from .model import DeepAgentPlanner, ModelSettings, ReplyOnly, TransferProposal
@@ -505,6 +506,64 @@ def test_public_harness_understanding_handles_ambiguous_request_without_task(tmp
     assert finished.evidence_status == "available"
     assert json.loads(finished.evidence)["response"]["message"] == outcome.message
     assert "13912345678" not in finished.evidence
+
+
+@pytest.mark.parametrize("reply_text", ["密码是 SECRET789", "password: SECRET789"])
+def test_reply_model_secrets_never_persist_in_checkpoints_or_audit(tmp_path, reply_text):
+    path = tmp_path / "app.sqlite"
+    model = ScriptedChatModel(
+        response_mode="reply", reply_text=reply_text,
+    )
+    planner = DeepAgentPlanner(ModelSettings(
+        model=model, provider="scripted", model_name="transfer-scripted",
+        config_version="scripted-v1",
+    ))
+    ports = Ports()
+    harness = runtime(path, ports, planner)
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+
+    with pytest.raises(ValueError, match="MODEL_UNDERSTANDING_FAILED"):
+        harness.handle_message(trusted(), uuid4(), "你好")
+    assert harness.application.get_task("U1", "D1", "T1") is None
+    assert ports.read_calls == []
+    assert ports.submissions == 0
+    with connect(path) as connection:
+        for table in ("checkpoints", "checkpoint_blobs", "checkpoint_writes"):
+            assert connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+        for row in connection.execute("SELECT * FROM audit_evidence"):
+            assert all("SECRET789" not in str(value) for value in row)
+
+
+def test_interrupted_task_replanned_as_reply_finishes_with_controlled_failure(tmp_path):
+    class ReplyPlanner(ProposalModel):
+        def select(self, intent_text, trusted_context, catalog, memory, thread_id):
+            return ReplyOnly(message="请明确您希望办理的业务。")
+
+    path = tmp_path / "app.sqlite"
+    ports = Ports()
+    planner = ReplyPlanner()
+    harness = runtime(path, ports, planner)
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    harness.application.create_task(
+        "T1", "U1", "S1", "D1", "R1", TaskStatus.RUNNING,
+        {"request_id": str(uuid4()), "intent_text": "给妈妈转 500 元",
+         "config_version": planner.config_version, "trace_id": str(uuid4())},
+    )
+
+    failed = harness.resume(trusted(run="R2"), {})
+
+    assert failed.status == TaskStatus.FAILED
+    assert failed.error.code == "MODEL_PROPOSAL_FAILED"
+    assert harness.get(trusted(run="R2")) == failed
+    assert harness.application.get_task("U1", "D1", "T1").status == TaskStatus.FAILED
+    assert ports.read_calls == []
+    assert ports.submissions == 0
 
 
 def test_public_harness_understanding_rejects_credentials_before_audit(tmp_path):

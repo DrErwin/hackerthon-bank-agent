@@ -118,10 +118,10 @@ class DeepAgentPlanner:
             ),
             backend=memory.agent_backend(context),
             middleware=[memory.middleware(context)],
-            checkpointer=memory.conversation_checkpointer(context),
             subagents=[],
         )
-        # A crashed proposal attempt must not replay a half-finished tool call.
+        # Planning is transient: raw model messages may contain secrets. Business
+        # recovery uses the validated task proposal and its separate checkpointer.
         agent.invoke(
             {"messages": [HumanMessage(content=intent_text)]},
             {"configurable": {"thread_id": thread_id,
