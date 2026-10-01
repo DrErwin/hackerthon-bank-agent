@@ -25,6 +25,7 @@ from app.contracts.security import (
 )
 from app.modules.transfer.manifest import PRIVATE_TOOLS
 from app.security.demo_policy import DemoRiskEvidence, DemoRiskSignal, DemoSecurityPolicy
+from app.security.gate import POLICY_VERSION
 from app.security import (
     ConfirmationService,
     DeterministicExecutor,
@@ -633,7 +634,7 @@ def test_demo_policy_is_connected_to_gate_confirmation_verification_and_audit(tm
     security_context = context()
     waiting_confirmation = low_gate.check_action(security_context, descriptor)
     assert waiting_confirmation.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION
-    assert waiting_confirmation.policy_version == low_policy.policy_version
+    assert waiting_confirmation.policy_version == f"{POLICY_VERSION}+{low_policy.policy_version}"
     assert waiting_confirmation.evidence_refs == ["server-demo-fixture:1:case-1"]
     assert "demo-risk-low" in waiting_confirmation.rule_ids
 
@@ -719,8 +720,46 @@ def test_demo_policy_records_specific_fail_closed_risk_blocker(tmp_path):
     paused = gate.check_action(context(), action())
     assert paused.decision == SecurityDecisionCode.PAUSE
     assert paused.reason_codes == ["DEPENDENCY_UNAVAILABLE"]
-    assert paused.policy_version == policy.policy_version
+    assert paused.policy_version == f"{POLICY_VERSION}+{policy.policy_version}"
     assert "low-risk-evidence-required" in paused.rule_ids
+
+
+def test_audit_failure_preserves_risk_provenance_and_never_executes(tmp_path):
+    policy = _demo_policy_for({
+        DemoRiskSignal.FAMILIAR_PAYEE,
+        DemoRiskSignal.FAMILIAR_DEVICE,
+        DemoRiskSignal.USUAL_AMOUNT_RANGE,
+        DemoRiskSignal.CLEAR_REQUEST,
+    })
+    calls = []
+    gate, confirmations, records, _, _, _ = build_gate(
+        tmp_path / "demo-audit-failure.sqlite3",
+        clock=Clock(),
+        risk_assessor=policy.assess_risk,
+        declaration=PRIVATE_TOOLS[-1],
+        scope_authorizer=policy.authorize_tool,
+        handler=lambda *_: calls.append(True),
+    )
+    ready = ready_context(confirmations, records, context(), action())
+    attempted = []
+
+    def unavailable_sink(decision):
+        attempted.append(decision)
+        raise RuntimeError("audit unavailable")
+
+    gate.decision_sink = unavailable_sink
+    outcome = executor(gate, {}, parameter_resolver=lambda *_: {}).execute(ready, action())
+    paused = outcome.decision
+    assert paused.decision == SecurityDecisionCode.PAUSE
+    assert paused.reason_codes == ["AUDIT_UNAVAILABLE"]
+    assert paused.policy_version == f"{POLICY_VERSION}+{policy.policy_version}"
+    assert paused.evidence_refs == ["server-demo-fixture:1:case-1"]
+    assert set(attempted[0].rule_ids) <= set(paused.rule_ids)
+    assert "demo-risk-low" in paused.rule_ids
+    assert "audit-before-sensitive-execution" in paused.rule_ids
+    assert not outcome.executed
+    assert calls == []
+    assert gate.confirmations.state.get_execution(ready, action()) is None
 
 def test_scope_and_task_checks_precede_missing_binding(tmp_path):
     clock = Clock()

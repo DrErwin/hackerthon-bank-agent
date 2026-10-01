@@ -241,6 +241,7 @@ class SecurityGate:
         decision_rules = list(rules)
         if risk_assessment is not None and risk_assessment.rule_id not in decision_rules:
             decision_rules.append(risk_assessment.rule_id)
+        risk_policy_version = risk_assessment.policy_version if risk_assessment else policy_version
         return SecurityDecision(
             decision_id=str(uuid4()),
             task_id=context.task_id,
@@ -255,7 +256,7 @@ class SecurityGate:
             decision=decision,
             reason_codes=reasons,
             rule_ids=decision_rules,
-            policy_version=(risk_assessment.policy_version if risk_assessment else policy_version or POLICY_VERSION),
+            policy_version=(f"{POLICY_VERSION}+{risk_policy_version}" if risk_policy_version else POLICY_VERSION),
             authorization_snapshot_ref=snapshot_ref,
             evidence_refs=([risk_assessment.evidence_ref] if risk_assessment else []),
             interaction=interaction,
@@ -276,16 +277,14 @@ class SecurityGate:
         except Exception:
             if decision.decision != SecurityDecisionCode.ALLOW:
                 raise SecurityError("AUDIT_UNAVAILABLE")
-            return self._decision(
-                context,
-                action,
-                operation_level=declaration.operation_level,
-                risk_level=decision.risk_level,
-                decision=SecurityDecisionCode.PAUSE,
-                reasons=["AUDIT_UNAVAILABLE"],
-                rules=["audit-before-sensitive-execution"],
-                message="安全记录暂不可用，操作已暂停。",
-            )
+            return decision.model_copy(update={
+                "decision_id": str(uuid4()),
+                "decision": SecurityDecisionCode.PAUSE,
+                "reason_codes": ["AUDIT_UNAVAILABLE"],
+                "rule_ids": [*decision.rule_ids, "audit-before-sensitive-execution"],
+                "checked_at": self.clock(),
+                "message": "安全记录暂不可用，操作已暂停。",
+            })
 
     def _stop(
         self,
