@@ -81,3 +81,10 @@
 - 05 保持 `in_progress`，合入前置条件未满足；[v03-session-recovery-reply/06：API 仅回复接入](issues/06-api-reply-only.md)继续 `blocked`。#24、原票 10 / 12 与 v0.3 收口保持未完成。
 
 - 最终修复复验：后端 **228 passed**（120.43秒）、模拟银行 **14 passed**（1.05秒），文档链接、Python语法及差异空白检查通过；代码提交 `2f850b8` 的 [PR CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36807503540) 通过。
+
+
+## 补票05合入记录（2026-10-01）
+
+用户在已告知本票缺少Ringo真人批准后明确指示「补票05合并」，本轮依该指示批准合入，豁免仅限补票05；不记录为Ringo真人批准，长期审查规则不变。[PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)已squash合入main，提交 `0613a1a1eb8df9bde86de1c0d364bee48f4664cc`；最终PR提交 `36713e4` 的CI通过。三个验收问题的修复均包含在合并提交中，定向36项、后端228项、模拟银行14项通过，双轴AI复审无剩余阻塞。[合并提交主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36810100834)通过：后端228项（70.51秒）、模拟银行14项（0.47秒），文档链接、Python语法及差异空白检查通过。05标为resolved。
+
+05已合入；06的公开能力及合入前置依赖已提供。06的API实现及验收仍未合入，Issue #24保持开放；真实模型、React、原票10全部验收、原票12和v0.3联合收口均未完成，未同步飞书。此前待批准、未合入等条目为历史记录。
