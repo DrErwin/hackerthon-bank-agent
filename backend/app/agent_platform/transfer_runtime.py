@@ -28,11 +28,11 @@ from app.contracts.security import (
 )
 from app.contracts.tasks import ModuleError
 from app.memory.adapter import MemoryAdapter, MemoryContext
-from app.modules.transfer.manifest import MANIFEST
+from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.modules.transfer.tools import GatewayTransferTools, TransferAction, TransferSnapshots
 from app.modules.transfer.workflow import TransferWorkflow
 from app.security import ConfirmationService, SecurityGate, ToolRegistry
-from app.security.gate import RiskAssessor, ScopeAuthorizer, SecurityError
+from app.security.gate import RiskAssessment, RiskAssessor, ScopeAuthorizer, SecurityError
 from app.services.bank_gateway.gateway import BankGateway
 from app.services.mock_bank.core import MockBankService
 from app.storage.application import ApplicationStore
@@ -450,13 +450,32 @@ class TransferRuntime:
         if isinstance(verified, QueryFailure) or not verified.data.matched:
             raise SecurityError("PAYEE_MISMATCH")
         payee = verified.data.payee
+        trusted = self._trusted(context)
+        payer = self.gateway.get_account(trusted, payload["payer_account_id"])
+        quote = self.gateway.quote_transfer(
+            trusted, payload["payer_account_id"], _PAYEE.validate_python(payload["payee"]), payload["amount_fen"],
+        )
+        if isinstance(payer, QueryFailure) or isinstance(quote, QueryFailure):
+            raise SecurityError("CONFIRMATION_FACTS_UNAVAILABLE")
+        declaration = next(item for item in PRIVATE_TOOLS if item.name == action.action_name)
+        assessed = self.assess_risk(context, action, declaration)
+        risk = RiskLevel(assessed.risk_level if isinstance(assessed, RiskAssessment) else assessed)
+        risk_message = {
+            RiskLevel.LOW: "低风险；请核对收款人和金额。",
+            RiskLevel.MEDIUM: "中风险；需验证码和模拟人脸双因子验证。",
+            RiskLevel.HIGH: "高风险；停止办理。",
+        }[risk]
         fields = [
             DisplayField(name="payer_account_id", label="转出账户",
-                         value_text=payload["payer_account_id"]),
+                         value_text=f"{payer.data.display_name} {payer.data.account_masked}"),
             DisplayField(name="amount", label="金额",
                          value_text=f"{payload['amount_fen'] / 100:.2f} 元"),
             DisplayField(name="payee", label="收款人",
                          value_text=f"{payee.name_masked} {payee.account_masked}"),
+            DisplayField(name="bank", label="收款银行", value_text=payee.bank_name),
+            DisplayField(name="fee", label="手续费", value_text=f"{quote.data.fee_fen / 100:.2f} 元"),
+            DisplayField(name="arrival", label="到账方式", value_text="即时到账" if quote.data.arrival_mode == "instant" else quote.data.arrival_mode),
+            DisplayField(name="risk", label="风险提示", value_text=risk_message),
         ]
         return payload, payee, fields
 
