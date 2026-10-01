@@ -76,3 +76,11 @@
 - 消息入口返回可空task_id的202受理；API原子保存消息与可恢复作业，通过Harness公开handle_message结果分别保存ReplyOnly回复或关联转账任务。请求重放沿原作业，历史及SSE保留稳定事件编号，显式转账仍使用既有确认与验证流程。
 - 本地验证：完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；API源文件Pyright 0 errors，Python语法、文档链接与差异空白检查通过。Draft [PR #37](https://github.com/DrErwin/hackerthon-bank-agent/pull/37)已以main为基线打开、Repository checks已通过（[CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36812809932)）；Standards / Spec双轴独立AI复审均无发现，不代表真人批准。
 - ticket 06和Issue #24仍开放。真实模型、React、原票10全部验收、原票12联合验收及v0.3收口未完成；不把本地测试或AI复审记为真人批准。
+
+## 补票06本轮验收（2026-10-01）
+
+用户明确授权「验收补票6，有问题就修复，验收完合并，不用别人批准，更新文档」；本票豁免其他人批准，不记录为Ringo真人批准，不改变长期规则。
+
+发现并修复两项恢复问题：未开始消息在旧会话过期后无法继续；闲聊回复发布中断后重试可能重新分类为转账。未创建任务的合法重传使用当前会话，已有任务只关联原任务并要求显式恢复。先保存脱敏仅回复结果再发布，无法确定原结果时受控停止，不再次理解原消息。
+
+复验：完整后端240 passed，MockBank14 passed；专项7项通过，隐私及回复中断追加3项通过；API源文件Pyright 0 errors，链接、Python语法和差异空白检查通过。Standards与Spec独立AI复审均无剩余阻塞。补票06后端验收通过；[PR #37](https://github.com/DrErwin/hackerthon-bank-agent/pull/37)待最终提交CI及合入。此前未实现、未验收等条目为历史快照。真实模型、React、原票10全部验收、原票12及v0.3收口仍未完成；Issue #24包含真实模型与前端验收条件，继续开放。未同步飞书。
