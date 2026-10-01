@@ -30,10 +30,11 @@ API 的 BANK_API_ORIGINS 需要允许浏览器来源 http://localhost:5173 和 h
 ## 检查
 
 ```powershell
+npm test
 npm run build
 ```
 
-build 包含 TypeScript 检查与 Vite 生产构建。
+`npm test` 运行消息重试、跨会话恢复和权限按钮的 UI 检查。`npm run build` 包含 TypeScript 检查与 Vite 生产构建。
 
 后端公共 Pydantic 模型变更后，在已安装后端依赖的 Python 环境中运行：
 
@@ -42,3 +43,11 @@ npm run generate:contracts
 ```
 
 该命令从 `backend/app/contracts/` 生成 `src/api.generated.ts`；页面使用的类型从生成文件导出，不要手改生成文件。
+
+## 本次交付检查记录（2026-10-01）
+
+- `npm run generate:contracts`、`npm test`（3 项通过）与 `npm run build` 通过。
+- 契约测试响应下走查了普通聊天回复、收款人查询、脱敏确认、专用验证码、管理员模拟人脸、模拟银行回执、确认前取消，以及管理员只读时间线。所有结果均明确标为测试数据。
+- 新会话任务若由 API 标记 `recovery_required`，前端提供单一“恢复原任务”入口并调用 `/tasks/{task_id}/resume`；旧确认与验证动作仍按服务端返回禁用，权限与当前任务状态由 API 再次核验。
+- 此记录可供原票 `v03-erwin-vertical-backend/10-api-task-stream` 的前端普通回复验收和 `v03-erwin-vertical-backend/12-v03-acceptance-closeout` 查阅；仅证明契约测试响应中的页面交互，不证明真实 API、模型、银行或 AF01—AF14 验收。
+- 真实 API 联调依赖 `v03-local-demo/04`；它被本地票 02、03 与可用凭据阻塞。真实接口恢复、AF01 主路径和联合验收仍待依赖就绪后执行。

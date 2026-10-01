@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "generate:contracts": "python scripts/generate_contract_schema.py && json2ts --unknownAny --unreachableDefinitions -i .contract-schema.json -o src/api.generated.ts",
+    "test": "vitest run --environment jsdom",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -14,11 +15,15 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^30.1.1",
     "json-schema-to-typescript": "^16.0.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.1"
+    "vite": "^8.3.1",
+    "vitest": "^5.0.3"
   }
 }

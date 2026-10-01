@@ -94,7 +94,7 @@ function UserPage() {
   const [tasks, setTasks] = useState<TaskView[]>([]);
   const [draft, setDraft] = useState("");
   const [chatError, setChatError] = useState("");
-  const [pendingMessage, setPendingMessage] = useState<{ id: string; text: string } | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<{ id: string; text: string; threadId: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [acceptedMessage, setAcceptedMessage] = useState("");
   const [connected, setConnected] = useState(false);
@@ -245,14 +245,18 @@ function UserPage() {
 
   async function sendMessage() {
     if (!activeThread || sending) return;
-    const pending = pendingMessage ?? { id: makeRequestId(), text: draft.trim() };
+    if (pendingMessage && pendingMessage.threadId !== activeThread.thread_id) {
+      setChatError("上一条消息的发送结果尚未确定。请切回原对话后重试，不会把这条消息发送到当前对话。");
+      return;
+    }
+    const pending = pendingMessage ?? { id: makeRequestId(), text: draft.trim(), threadId: activeThread.thread_id };
     if (!pending.text.trim()) return;
     setPendingMessage(pending);
     setSending(true);
     setChatError("");
     const sequenceBeforeSend = eventSequence.current;
     try {
-      const result = await post<MessageAccepted>("/threads/" + encodeURIComponent(activeThread.thread_id) + "/messages", {
+      const result = await post<MessageAccepted>("/threads/" + encodeURIComponent(pending.threadId) + "/messages", {
         request_id: pending.id,
         text: pending.text,
       });
@@ -261,7 +265,7 @@ function UserPage() {
       if (sequenceBeforeSend === eventSequence.current) {
         setAcceptedMessage("消息已受理；任务编号可能稍后出现。HTTP 受理不代表交易成功。");
       }
-      if (result.task_id) await refreshThread(activeThread.thread_id);
+      if (result.task_id) await refreshThread(pending.threadId);
     } catch (error) {
       if (statusError(error) && error.status === 401) expireSession();
       else setChatError(apiErrorMessage(error) + "再次发送会沿用同一个请求编号。");
@@ -278,6 +282,11 @@ function UserPage() {
     setDraft(text);
     setChatError("原确认单已取消。修改要求已放入聊天框，请核对并点击发送；发送会创建新的处理请求。");
   }
+
+  const pendingThread = pendingMessage
+    ? threads.find((thread) => thread.thread_id === pendingMessage.threadId)
+    : null;
+  const retryPendingOnActiveThread = !pendingMessage || activeThread?.thread_id === pendingMessage.threadId;
 
   if (!session) {
     return <UserGate expired={expired} loading={loading} error={gateError} onEnter={() => void enterSession()} onRetry={() => void checkSession()} />;
@@ -305,15 +314,16 @@ function UserPage() {
         <aside className="thread-rail" aria-label="对话列表">
           <div className="rail-heading">
             <h2>对话</h2>
-            <button className="icon-button" onClick={() => void createThread()} aria-label="新建对话" title="新建对话">＋</button>
+            <button className="icon-button" onClick={() => void createThread()} aria-label="新建对话" title="新建对话" disabled={sending}>＋</button>
           </div>
-          <button className="button button-new-chat" onClick={() => void createThread()}>＋ 新对话</button>
+          <button className="button button-new-chat" onClick={() => void createThread()} disabled={sending}>＋ 新对话</button>
           <nav className="thread-list">
             {threads.map((thread) => (
               <button
                 key={thread.thread_id}
                 className={"thread-item " + (activeThread?.thread_id === thread.thread_id ? "thread-item-active" : "")}
                 onClick={() => chooseThread(thread)}
+                disabled={sending}
               >
                 <span className="thread-item-icon" aria-hidden="true">◷</span>
                 <span className="thread-item-text">{thread.title || "新对话"}</span>
@@ -334,7 +344,7 @@ function UserPage() {
               <p className="eyebrow">固定演示用户</p>
               <h2>{activeThread?.title || "新对话"}</h2>
             </div>
-            <button className="button button-secondary mobile-new-chat" onClick={() => void createThread()}>新对话</button>
+            <button className="button button-secondary mobile-new-chat" onClick={() => void createThread()} disabled={sending}>新对话</button>
           </div>
           <div className="conversation-scroll">
             {messages.length === 0 && (
@@ -386,12 +396,16 @@ function UserPage() {
                 autoComplete="off"
                 disabled={Boolean(pendingMessage) || sending}
               />
-              <button className="send-button" type="submit" disabled={sending}>
-                {sending ? "发送中…" : pendingMessage ? "重试同一请求" : "发送"}
+              <button className="send-button" type="submit" disabled={sending || !retryPendingOnActiveThread}>
+                {sending ? "发送中…" : pendingMessage ? retryPendingOnActiveThread ? "重试同一请求" : "切回原对话重试" : "发送"}
                 <span aria-hidden="true">↗</span>
               </button>
             </div>
-            <p className="composer-hint">请勿在聊天里输入验证码或完整账号；它们有专用入口。任务状态以服务端和银行返回为准。</p>
+            <p className="composer-hint">
+              {pendingMessage && !retryPendingOnActiveThread
+                ? `上一条消息结果尚未确定，属于“${pendingThread?.title || "原对话"}”。请从左侧切回原对话后重试。`
+                : "请勿在聊天里输入验证码或完整账号；它们有专用入口。任务状态以服务端和银行返回为准。"}
+            </p>
           </form>
         </main>
 

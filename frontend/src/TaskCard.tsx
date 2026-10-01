@@ -278,7 +278,9 @@ export default function TaskCard(props: TaskCardProps) {
 
   async function submitModification(event: FormEvent) {
     event.preventDefault();
-    if (!confirmation || !modifyText.trim()) return;
+    if (!confirmation || !modifyText.trim()
+      || !task.allowed_actions.includes("confirm")
+      || !task.allowed_actions.includes("cancel")) return;
     const result = await mutate<TaskView>(
       "confirmation:" + confirmation.confirmation_id + ":modify",
       "/confirmations/" + encodeURIComponent(confirmation.confirmation_id) + "/answer",
@@ -294,7 +296,9 @@ export default function TaskCard(props: TaskCardProps) {
 
   async function taskAction(command: "cancel" | "resume" | "query-result") {
     const action = command === "query-result" ? "query" : command;
-    if (!task.allowed_actions.includes(action)) return;
+    // The API intentionally clears old-session actions but exposes this single route for explicit recovery.
+    const canResumeRecoveredTask = command === "resume" && task.recovery_required;
+    if (!task.allowed_actions.includes(action) && !canResumeRecoveredTask) return;
     await mutate<TaskView>(
       "task:" + task.task_id + ":" + command,
       "/tasks/" + encodeURIComponent(task.task_id) + "/" + command,
@@ -313,6 +317,7 @@ export default function TaskCard(props: TaskCardProps) {
   const activeInput = task.interaction?.kind === "input";
   const canConfirm = task.allowed_actions.includes("confirm");
   const canCancel = task.allowed_actions.includes("cancel");
+  const canModify = canConfirm && canCancel;
   const canVerify = task.allowed_actions.includes("verify");
   const canProvideInput = task.allowed_actions.includes("provide_input");
   const inputField = task.interaction?.required_fields[0] ?? "";
@@ -451,7 +456,7 @@ export default function TaskCard(props: TaskCardProps) {
                 {canConfirm && <button className="button button-primary" disabled={Boolean(busyKey)} onClick={() => void answerConfirmation("approve")}>
                   {busyKey.startsWith("confirmation:") ? "提交中…" : "确认办理"}
                 </button>}
-                {canConfirm && <button className="button button-secondary" disabled={Boolean(busyKey)} onClick={() => setModifying(!modifying)}>修改</button>}
+                {canModify && <button className="button button-secondary" disabled={Boolean(busyKey)} onClick={() => setModifying(!modifying)}>修改</button>}
                 {canCancel && <button className="button button-danger-outline" disabled={Boolean(busyKey)} onClick={() => setConfirmingCancel(true)}>取消本次操作</button>}
               </div>
             )}
@@ -464,7 +469,7 @@ export default function TaskCard(props: TaskCardProps) {
                 </div>
               </div>
             )}
-            {modifying && canConfirm && (
+            {modifying && canModify && (
               <form className="modify-form" onSubmit={(event) => void submitModification(event)}>
                 <label htmlFor={"modify-" + task.task_id}>要调整的内容</label>
                 <textarea id={"modify-" + task.task_id} name="modification" value={modifyText} onChange={(event) => setModifyText(event.target.value)} rows={2} placeholder="例如：金额改为 300 元" required />
@@ -564,7 +569,7 @@ export default function TaskCard(props: TaskCardProps) {
           {busyKey.startsWith("task:" + task.task_id + ":query-result") ? "查询中…" : "查询原操作结果"}
         </button>
       )}
-      {task.allowed_actions.includes("resume") && (
+      {(task.allowed_actions.includes("resume") || task.recovery_required) && (
         <button className="button button-primary task-footer-action" disabled={Boolean(busyKey)} onClick={() => void taskAction("resume")}>恢复原任务</button>
       )}
       {actionError && <div className="notice notice-error" role="alert">{actionError}</div>}
