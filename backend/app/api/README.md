@@ -2,7 +2,7 @@
 
 归属：底座（Erwin）。
 
-票据：[10：任务 API、确认验证与事件流](../../../.scratch/v03-erwin-vertical-backend/issues/10-api-task-stream.md)。协议沿用[公共契约 §6](../../../docs/contracts/公共契约-2026-09-23.md)，请求和视图引用 `app.contracts`。本目录负责身份、协议与协调；转账流程、安全规则和银行规则继续由原目录执行。
+票据：[10：任务 API、确认验证与事件流](../../../.scratch/v03-erwin-vertical-backend/issues/10-api-task-stream.md)、[v03-session-recovery-reply/06：API 仅回复接入](../../../.scratch/v03-session-recovery-reply/issues/06-api-reply-only.md)。协议沿用[公共契约 §6](../../../docs/contracts/公共契约-2026-09-23.md)，请求和视图引用 `app.contracts`。本目录负责身份、协议与协调；转账流程、安全规则和银行规则继续由原目录执行。
 
 ## 启动与配置
 
@@ -49,7 +49,9 @@ $env:BANK_API_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000'
 
 普通消息不批准资金动作；意图判断交给 Harness。任务缺金额时，inputs.text 为人民币元，例如 `500` 或 `500 元`，API 转成契约中的整数分。账户及收款人选项只接受当前交互 / 当前查询产生的编号。资料表单的完整账号不回传聊天、SSE 或请求回执。
 
-每个 POST 都带 `request_id:UUID`。同用户、轮次、入口同号同内容返回原响应；异内容 409。API 回执只保存 HMAC 比较值和受控响应，不保存验证码明文。验证码另外带 `submission_id`；中断后相同提交通过银行的原记录恢复，不重新理解消息或创建资金动作。其他处理中断的请求不会自动重放，改为查询并显式恢复原任务。
+POST `/threads/{id}/messages` 在意图理解前返回 202，`MessageAccepted.task_id` 此时为空。API 原子保存用户消息和待处理消息记录，再调用 Harness 的公开 `handle_message()` 结果：`ReplyOnly` 只保存关联为空的助手消息；转账结果才创建 API 任务链接，并通过同一消息历史和 SSE 发布任务状态。普通闲聊、聊天中的“确认”及外部指令不经过 API 关键词规则，也不创建确认或验证入口。
+
+每个 POST 都带 `request_id:UUID`。同用户、轮次、入口同号同内容返回原响应；异内容 409。API 回执只保存 HMAC 比较值和受控响应，不保存验证码明文。验证码另外带 `submission_id`；中断后相同提交通过银行的原记录恢复，不重新理解消息或创建资金动作。其他处理中断的请求不会自动重放，改为查询并显式恢复原任务。消息作业保存稳定的内部候选任务编号；服务重启后，同号重试只恢复这条作业，Harness 已生成转账任务时沿原任务结果补齐 API 关联。
 
 SSE 的 id 为 event_id。先连流，再拉取 messages / tasks 快照；按 event_id 去重，以 task_revision 拒绝更旧状态。新会话恢复前，旧会话的 `task_updated` 和 `interaction_required` 不会重放给当前会话；恢复成功后发布新会话任务状态。游标不存在或属于其他对话返回 409，客户端改用历史与任务补齐。GET 和事件重连不会提交资金。会话到期后停止流，发送 session_expired；后续请求返回 401。
 
@@ -67,7 +69,7 @@ PR #25 合入时的基线回归为后端 **178 项**（API 29 项）、模拟银
 
 新会话可从本人当前轮次的原任务入口调用 `POST /tasks/{id}/resume`。API 沿公开 Harness / 转账入口完成会话转换；未提交动作产生当前会话的新确认和所需验证，已有操作只查原 `operation_id`。转换前后任务快照、可用按钮、请求回执与 SSE 使用当前状态；转换前旧会话的确认 / 验证写入口仍拒绝。会话转换标记使 API 请求在存储切换后中断时可用相同 `request_id` 安全续做。其他写入口不会借此放宽跨会话访问。
 
-当前 Harness 的模型入口也只有普通转账候选，没有无业务意图时仅回复的公开结果类型；API 不自行写意图规则来补齐普通闲聊。相关能力需要底座另票提供。报告、导出及其他业务的入口不属于本票范围。
+无业务意图的公开 `ReplyOnly` 结果由 [补票 05](../../../.scratch/v03-session-recovery-reply/issues/05-harness-reply-only.md) 的 Harness 提供；本目录只消费 Harness 结果。`ReplyOnly` 路径不创建 `api_tasks` 记录，也不经过确认、验证或银行入口。报告、导出及其他业务的入口不属于本票范围。
 
 重新登录读取旧任务时，当前快照清空不可用的 allowed_actions；非终态任务标记 SESSION_RECONFIRMATION_REQUIRED。保留的 interaction 仅用于历史显示，专用确认 / 验证视图仍拒绝旧会话操作。切换会话后先重新 GET 任务，以当前快照权限为准；SSE 回放中的旧快照不能恢复旧按钮。
 
@@ -78,3 +80,7 @@ PR #25 合入时的基线回归为后端 **178 项**（API 29 项）、模拟银
 初验发现的初始化与会话转换中断问题已在转账 / Harness 公开入口修复；API 增加三项 HTTP 故障恢复用例，证明首个业务检查点前中断、转换前后中断、再次登录、重启、重复回执、重新确认 / 验证及最终仅一次扣款。最终本地集成快照 8c7a6be 全后端212项（API35项）与模拟银行14项通过，文档链接、语法及差异空白检查通过；Standards / Spec最终AI复审无P0–P3。
 
 存储、转账与Harness分别经PR #30、#31、#32合入；API的当前PR按上述依赖同步最新main并独立运行CI。用户于2026-10-01明确豁免本轮补票01—04的Ringo真人批准门槛并授权合并，AI复审不记为真人批准；该决定不改变长期规则。#23的后端恢复缺口在本票合入及主线验证后关闭；#24仅回复、真实模型、React与AF01—AF14仍待完成。
+
+## 2026-10-01 本轮 API 验证
+
+ticket 06本地回归：完整后端234 passed（168.83秒），API单目录41 passed（116.02秒）；MockBank评测14 passed。Pyright检查app/api/app.py、service.py、store.py为0 errors、0 warnings、0 informations；Python compileall、文档链接检查及差异空白检查通过。用例使用可重复模型候选，不证明真实模型行为或React联调。

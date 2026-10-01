@@ -1,13 +1,13 @@
 # 交付包 01：v0.3 纵向后端主链路
 
-Status: ready\
+Status: in_progress\
 Owner: Erwin\
 Activation: Erwin 已于 2026-09-27 确认，可立即拆票\
 Start when: 场景规格与公共契约已冻结（当前已满足）\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
-Accepted by: 未记录（Owner / Activation 不代替本人接受记录）\
-Accepted at: 未记录\
+Accepted by: Erwin（2026-10-01 用户授权范围为 v03-session-recovery-reply/06，不扩展为整包验收）\
+Accepted at: 2026-10-01\
 Work spec: [Erwin 详细规格与票据](../../v03-erwin-vertical-backend/spec.md)
 
 领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再续做已有规格和票据；已有实现证据保持原记录。

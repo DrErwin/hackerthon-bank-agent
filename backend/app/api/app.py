@@ -134,7 +134,7 @@ def create_app(runtime=None, config=None):
         return service.identity(request.cookies.get(COOKIE))
 
     def mutation(service, who, request, body, action, *, status=200, fingerprint=None,
-                 recover_verification=False, retry_interrupted=False):
+                 recover_verification=False, retry_interrupted=False, on_replay=None):
         with service.mutation_lock:
             # Recheck after a potentially long wait for another operation.
             service.identity(service.cookie(who.session_id))
@@ -143,6 +143,8 @@ def create_app(runtime=None, config=None):
                                              recover_verification=recover_verification,
                                              retry_interrupted=retry_interrupted)
             if previous is not None:
+                if on_replay is not None:
+                    on_replay()
                 return JSONResponse(previous["body"], status_code=previous["status"], headers={"Cache-Control": "no-store"})
             try:
                 value = action()
@@ -188,32 +190,18 @@ def create_app(runtime=None, config=None):
         service.thread(who, thread_id)
         text = safe_text(body.text)
         def action():
-            task_id, run_id = str(uuid4()), str(uuid4())
-            at = now().isoformat()
-            service.store.write("INSERT INTO api_tasks(task_id,thread_id,user_id,session_id,demo_round_id,run_id,created_at,request_id,intent_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                (task_id, thread_id, who.user_id, who.session_id, who.demo_round_id, run_id, at, str(body.request_id), text))
-            message = service.message(who, thread_id, text, "user", task_id)
-            service.active_tasks.add(task_id)
-            def run():
-                with service.mutation_lock:
-                    try:
-                        trusted = service.trusted(who, task_id)
-                        if not service.link(who, task_id)["cancel_requested"]:
-                            service.runtime.harness.start(trusted, body.request_id, text)
-                        service.publish_task(who, task_id)
-                    except Exception:
-                        # Preserve the original task for explicit recovery; never
-                        # submit again merely because a background job failed.
-                        from app.contracts.tasks import ModuleError
-                        service.emit(who, thread_id, "stream_error", ModuleError(
-                            code="DEPENDENCY_UNAVAILABLE", source="platform", field=None,
-                            reason="任务处理中断，请查询原任务。", upstream_code=None))
-                    finally:
-                        service.active_tasks.discard(task_id)
-            background.add_task(run)
-            return MessageAccepted(message_id=message.message_id, thread_id=thread_id,
-                                   accepted_at=message.created_at, task_id=task_id)
-        return mutation(service, who, request, body, action, status=202)
+            job = service.accept_message_job(who, thread_id, body.request_id, text)
+            service.schedule_message_job(job["job_id"], background)
+            return MessageAccepted(
+                message_id=job["user_message_id"], thread_id=thread_id,
+                accepted_at=job["created_at"], task_id=None,
+            )
+        def replay():
+            job = service.store.message_job_for_request(who, thread_id, body.request_id)
+            if job:
+                service.schedule_message_job(job["job_id"], background)
+        return mutation(service, who, request, body, action, status=202,
+                        retry_interrupted=True, on_replay=replay)
 
     @application.get("/api/v1/threads/{thread_id}/messages")
     def messages(thread_id: str, cursor: str | None = None, limit: int = Query(50, ge=1, le=100), who=Depends(identity), service=Depends(api)):

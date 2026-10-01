@@ -69,3 +69,10 @@
 用户在已告知本票缺少Ringo真人批准后明确指示「补票05合并」，本轮依该指示批准合入，豁免仅限补票05；不记录为Ringo真人批准，长期审查规则不变。[PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)已squash合入main，提交 `0613a1a1eb8df9bde86de1c0d364bee48f4664cc`；最终PR提交 `36713e4` 的CI通过。三个验收问题的修复均包含在合并提交中，定向36项、后端228项、模拟银行14项通过，双轴AI复审无剩余阻塞。[合并提交主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36810100834)通过：后端228项（70.51秒）、模拟银行14项（0.47秒），文档链接、Python语法及差异空白检查通过。05标为resolved。
 
 05已合入；06的公开能力及合入前置依赖已提供。06的API实现及验收仍未合入，Issue #24保持开放；真实模型、React、原票10全部验收、原票12和v0.3联合收口均未完成，未同步飞书。此前待批准、未合入等条目为历史记录。
+
+## 补票06：API仅回复接入（2026-10-01）
+
+- 前置依赖补票05已由[PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)合入main（0613a1a）；补票06已切换到合并后的main提交54b6e7c作为基线，当前仅含API目录实现与关联过程记录。
+- 消息入口返回可空task_id的202受理；API原子保存消息与可恢复作业，通过Harness公开handle_message结果分别保存ReplyOnly回复或关联转账任务。请求重放沿原作业，历史及SSE保留稳定事件编号，显式转账仍使用既有确认与验证流程。
+- 本地验证：完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；API源文件Pyright 0 errors，Python语法、文档链接与差异空白检查通过。独立AI复审及PR结果待补。
+- ticket 06和Issue #24仍开放。真实模型、React、原票10全部验收、原票12联合验收及v0.3收口未完成；不把本地测试或AI复审记为真人批准。
