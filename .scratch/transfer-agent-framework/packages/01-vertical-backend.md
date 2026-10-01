@@ -66,4 +66,6 @@ Erwin 的 12 张实施票已经建立。执行时每张票只对应一个目录�
 
 ## 补票合入与收口更新
 
+补票05本轮验收发现两个秘密泄漏和一个初始化恢复阻塞，已在 `2f850b8` 修复并推送 [PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)。定向36项通过，Standards / Spec独立AI复审无剩余阻塞；真人安全批准和合入仍待完成，06仍blocked，本包仍不标accepted。详见[本轮验收记录](../../v03-session-recovery-reply/acceptance-2026-10-01.md)。
+
 01—04已经PR #30—#33合入并标为resolved；[代码主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36774040361)通过：后端212项（63.64秒）、模拟银行14项（0.46秒），文档链接、Python语法及差异空白检查通过。#23已关闭。用户于2026-10-01明确指示「我豁免批准，合并」，本轮补票01—04的Ringo真人批准门槛由用户豁免；AI复审不记为真人批准，长期审查规则不变。05 / 06、部署组合与原票12联合验收仍未完成，本交付包不标accepted。
