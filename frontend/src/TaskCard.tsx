@@ -88,6 +88,8 @@ export default function TaskCard(props: TaskCardProps) {
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
   const [code, setCode] = useState("");
+  const [submittingCode, setSubmittingCode] = useState(false);
+  const codeSubmissionPending = useRef(false);
   const [demoCode, setDemoCode] = useState<DemoCodeView | null>(null);
   const [modifying, setModifying] = useState(false);
   const [modifyText, setModifyText] = useState("");
@@ -95,6 +97,13 @@ export default function TaskCard(props: TaskCardProps) {
 
   const recordRef = task.interaction?.record_ref ?? null;
   const interactionKind = task.interaction?.kind ?? null;
+  const currentChallenge = useRef<string | null>(null);
+  currentChallenge.current = interactionKind === "verification" && !task.recovery_required ? recordRef : null;
+
+  useEffect(() => {
+    setCode("");
+    setDemoCode(null);
+  }, [recordRef, interactionKind, task.recovery_required]);
 
   useEffect(() => {
     setConfirmation(null);
@@ -200,9 +209,11 @@ export default function TaskCard(props: TaskCardProps) {
 
   async function submitCode(event: FormEvent) {
     event.preventDefault();
-    if (!verification || !task.allowed_actions.includes("verify")) return;
+    if (!verification || !task.allowed_actions.includes("verify") || codeSubmissionPending.current) return;
     const submittedCode = code;
     if (!submittedCode.trim()) return;
+    codeSubmissionPending.current = true;
+    setSubmittingCode(true);
     setCode("");
     setActionError("");
     try {
@@ -227,14 +238,18 @@ export default function TaskCard(props: TaskCardProps) {
           // Keep the explicit unknown-result notice. A later refresh reads the same task.
         }
       }
+    } finally {
+      codeSubmissionPending.current = false;
+      setSubmittingCode(false);
     }
   }
 
   async function showDemoCode() {
     if (!verification) return;
+    const challengeId = verification.challenge_id;
     try {
-      const value = await get<DemoCodeView>("/verifications/" + encodeURIComponent(verification.challenge_id) + "/demo-code");
-      setDemoCode(value);
+      const value = await get<DemoCodeView>("/verifications/" + encodeURIComponent(challengeId) + "/demo-code");
+      if (currentChallenge.current === challengeId) setDemoCode(value);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) props.onSessionExpired();
       else setActionError(apiErrorMessage(error));
@@ -502,17 +517,17 @@ export default function TaskCard(props: TaskCardProps) {
                 <label htmlFor={"code-" + task.task_id}>验证码（专用输入）</label>
                 <div className="inline-form-row">
                   <input id={"code-" + task.task_id} name="verification-code" type="password" inputMode="numeric" autoComplete="one-time-code" spellCheck={false} value={code} onChange={(event) => setCode(event.target.value)} required />
-                  <button className="button button-primary">提交验证码</button>
+                  <button className="button button-primary" disabled={submittingCode || Boolean(busyKey)}>{submittingCode ? "提交中…" : "提交验证码"}</button>
                 </div>
                 <div className="button-row">
                   <button className="text-button" type="button" onClick={() => void showDemoCode()}>打开模拟验证码提示区</button>
-                  <button className="text-button" type="button" onClick={() => void resendCode()} disabled={Boolean(busyKey)}>重新获取</button>
+                  <button className="text-button" type="button" onClick={() => void resendCode()} disabled={submittingCode || Boolean(busyKey)}>重新获取</button>
                 </div>
                 {demoCode && <div className="demo-code-panel" aria-live="polite"><span>本次模拟验证码</span><strong>{demoCode.code}</strong><small>仅在此处显示，30 秒后清除；有效期至 {displayTime(demoCode.expires_at)}</small></div>}
               </form>
             )}
             {canVerify && verification.challenge_status === "pending" && verification.required_methods.includes("mock_face") && !verification.face_started_at && (
-              <button className="button button-secondary face-start-button" disabled={Boolean(busyKey)} onClick={() => void startFace()}>
+              <button className="button button-secondary face-start-button" disabled={submittingCode || Boolean(busyKey)} onClick={() => void startFace()}>
                 {busyKey.startsWith("face-start:") ? "正在开始…" : "开始模拟人脸等待"}
               </button>
             )}
