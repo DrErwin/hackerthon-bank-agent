@@ -30,10 +30,37 @@ from app.security.state import ExecutionClaim, SQLiteSecurityState, SecurityStat
 POLICY_VERSION = "v0.3-minimum-security-gate-1"
 CONFIRMATION_TTL = timedelta(hours=1)
 
+
+@dataclass(frozen=True)
+class RiskAssessment:
+    """Risk level plus safe provenance copied into the security decision."""
+
+    risk_level: RiskLevel
+    policy_version: str
+    rule_id: str
+    evidence_ref: str
+
+    def __post_init__(self) -> None:
+        values = (self.policy_version, self.rule_id, self.evidence_ref)
+        if not all(values) or any(char.isspace() for value in values for char in value):
+            raise ValueError("risk assessment provenance must use non-empty identifiers")
+
+
+class RiskFactsUnavailable(RuntimeError):
+    """A safe, specific reason why trusted risk facts could not be resolved."""
+
+    def __init__(self, message: str, *, rule_id: str, policy_version: str):
+        super().__init__(message)
+        self.rule_id = rule_id
+        self.policy_version = policy_version
+
+
 ToolHandler = Callable[[ExecutionSecurityContext, object], object]
 ScopeAuthorizer = Callable[[ExecutionSecurityContext, ActionDescriptor, CapabilityDefinition], bool]
 TaskStateResolver = Callable[[ExecutionSecurityContext], bool]
-RiskAssessor = Callable[[ExecutionSecurityContext, ActionDescriptor, CapabilityDefinition], RiskLevel]
+RiskAssessor = Callable[
+    [ExecutionSecurityContext, ActionDescriptor, CapabilityDefinition], RiskLevel | RiskAssessment,
+]
 ConfirmationPreparer = Callable[[ExecutionSecurityContext, ActionDescriptor], ConfirmationRecord]
 VerificationPreparer = Callable[
     [ExecutionSecurityContext, ActionDescriptor, ConfirmationRecord, RiskLevel], VerificationChallenge
@@ -207,8 +234,13 @@ class SecurityGate:
         rules: list[str],
         interaction: InteractionRequest | None = None,
         snapshot_ref: str | None = None,
+        risk_assessment: RiskAssessment | None = None,
+        policy_version: str | None = None,
         message: str,
     ) -> SecurityDecision:
+        decision_rules = list(rules)
+        if risk_assessment is not None and risk_assessment.rule_id not in decision_rules:
+            decision_rules.append(risk_assessment.rule_id)
         return SecurityDecision(
             decision_id=str(uuid4()),
             task_id=context.task_id,
@@ -222,10 +254,10 @@ class SecurityGate:
             risk_level=risk_level,
             decision=decision,
             reason_codes=reasons,
-            rule_ids=rules,
-            policy_version=POLICY_VERSION,
+            rule_ids=decision_rules,
+            policy_version=(risk_assessment.policy_version if risk_assessment else policy_version or POLICY_VERSION),
             authorization_snapshot_ref=snapshot_ref,
-            evidence_refs=[],
+            evidence_refs=([risk_assessment.evidence_ref] if risk_assessment else []),
             interaction=interaction,
             checked_at=self.clock(),
             message=message,
@@ -266,6 +298,8 @@ class SecurityGate:
         rule: str,
         message: str,
         risk: RiskLevel | None = None,
+        risk_assessment: RiskAssessment | None = None,
+        policy_version: str | None = None,
     ) -> SecurityDecision:
         return self._finish(
             context,
@@ -279,6 +313,8 @@ class SecurityGate:
                 decision=decision,
                 reasons=[reason],
                 rules=[rule],
+                risk_assessment=risk_assessment,
+                policy_version=policy_version,
                 message=message,
             ),
         )
@@ -471,8 +507,18 @@ class SecurityGate:
                 ),
             )
 
+        risk_assessment = None
+        risk_failure = None
         try:
-            risk = RiskLevel(self.risk_assessor(context, action, declaration))
+            risk_result = self.risk_assessor(context, action, declaration)
+            if isinstance(risk_result, RiskAssessment):
+                risk_assessment = risk_result
+                risk = RiskLevel(risk_result.risk_level)
+            else:
+                risk = RiskLevel(risk_result)
+        except RiskFactsUnavailable as exc:
+            risk = None
+            risk_failure = exc
         except Exception:
             risk = None
         if risk is None:
@@ -480,7 +526,8 @@ class SecurityGate:
                 context, action, declaration,
                 decision=SecurityDecisionCode.PAUSE,
                 reason="DEPENDENCY_UNAVAILABLE",
-                rule="deterministic-risk-required",
+                rule=(risk_failure.rule_id if risk_failure else "deterministic-risk-required"),
+                policy_version=(risk_failure.policy_version if risk_failure else None),
                 message="暂时无法完成风险核对。",
             )
         if risk == RiskLevel.HIGH:
@@ -495,6 +542,7 @@ class SecurityGate:
                 rule="high-risk-terminates-task",
                 message="风险过高，任务已终止。",
                 risk=risk,
+                risk_assessment=risk_assessment,
             )
 
         confirmation: ConfirmationRecord | None = None
@@ -513,6 +561,7 @@ class SecurityGate:
                     rule="confirmation-owner-must-match",
                     message="无权使用该确认记录。",
                     risk=risk,
+                    risk_assessment=risk_assessment,
                 )
             mismatch = confirmation is not None and (
                 confirmation.confirmation_version != context.confirmation_version
@@ -529,6 +578,7 @@ class SecurityGate:
                     rule="cancelled-action-cannot-resume",
                     message="该操作已取消，不能继续执行。",
                     risk=risk,
+                    risk_assessment=risk_assessment,
                 )
             if mismatch:
                 return self._stop(
@@ -538,6 +588,7 @@ class SecurityGate:
                     rule="current-confirmation-version-required",
                     message="确认内容已更新，请读取当前确认单。",
                     risk=risk,
+                    risk_assessment=risk_assessment,
                 )
             if confirmation is None or confirmation.decision != "approved":
                 reason = "CONFIRMATION_REQUIRED"
@@ -556,6 +607,7 @@ class SecurityGate:
                             rule="cancelled-action-cannot-resume",
                             message="该操作已取消，不能继续执行。",
                             risk=risk,
+                            risk_assessment=risk_assessment,
                         )
                     return self._stop(
                         context, action, declaration,
@@ -564,6 +616,7 @@ class SecurityGate:
                         rule="trusted-confirmation-record-required",
                         message="确认记录暂不可用，操作已暂停。",
                         risk=risk,
+                        risk_assessment=risk_assessment,
                     )
                 except Exception:
                     return self._stop(
@@ -573,6 +626,7 @@ class SecurityGate:
                         rule="trusted-confirmation-record-required",
                         message="确认记录暂不可用，操作已暂停。",
                         risk=risk,
+                        risk_assessment=risk_assessment,
                     )
                 return self._finish(
                     context,
@@ -583,6 +637,7 @@ class SecurityGate:
                         action,
                         operation_level=declaration.operation_level,
                         risk_level=risk,
+                        risk_assessment=risk_assessment,
                         decision=SecurityDecisionCode.REQUIRE_CONFIRMATION,
                         reasons=[reason],
                         rules=["current-button-confirmation-required"],
@@ -605,6 +660,7 @@ class SecurityGate:
                         rule="verification-owner-must-match",
                         message="无权使用该验证记录。",
                         risk=risk,
+                        risk_assessment=risk_assessment,
                     )
                 verification_dependency_failed = True
                 continue
@@ -632,6 +688,7 @@ class SecurityGate:
                     rule="verification-owner-must-match",
                     message="无权使用该验证记录。",
                     risk=risk,
+                    risk_assessment=risk_assessment,
                 )
             if risk == RiskLevel.MEDIUM and record.scope == "action":
                 try:
@@ -653,6 +710,7 @@ class SecurityGate:
                             rule="verification-owner-must-match",
                             message="无权使用该验证记录。",
                             risk=risk,
+                            risk_assessment=risk_assessment,
                         )
                     verification_dependency_failed = True
                     continue
@@ -668,6 +726,7 @@ class SecurityGate:
                 rule="trusted-verification-record-required",
                 message="验证记录暂不可用，操作已暂停。",
                 risk=risk,
+                risk_assessment=risk_assessment,
             )
         if declaration.side_effect or declaration.operation_level == OperationLevel.SENSITIVE:
             if risk == RiskLevel.MEDIUM:
@@ -702,6 +761,7 @@ class SecurityGate:
                         rule="trusted-verification-challenge-required",
                         message="验证记录暂不可用，操作已暂停。",
                         risk=risk,
+                        risk_assessment=risk_assessment,
                     )
                 return self._finish(
                     context,
@@ -712,6 +772,7 @@ class SecurityGate:
                         action,
                         operation_level=declaration.operation_level,
                         risk_level=risk,
+                        risk_assessment=risk_assessment,
                         decision=SecurityDecisionCode.REQUIRE_VERIFICATION,
                         reasons=["VERIFICATION_REQUIRED"],
                         rules=["funds-action-verification-required"],
@@ -737,6 +798,7 @@ class SecurityGate:
                     rule="authorization-snapshot-required",
                     message="授权记录暂不可用，操作已暂停。",
                     risk=risk,
+                    risk_assessment=risk_assessment,
                 )
         return self._finish(
             context,
@@ -747,6 +809,7 @@ class SecurityGate:
                 action,
                 operation_level=declaration.operation_level,
                 risk_level=risk,
+                risk_assessment=risk_assessment,
                 decision=SecurityDecisionCode.ALLOW,
                 reasons=["SECURITY_CHECK_PASSED"],
                 rules=["trusted-scope", "current-confirmation", "required-verification"],

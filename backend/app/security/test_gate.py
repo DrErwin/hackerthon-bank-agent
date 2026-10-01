@@ -23,6 +23,8 @@ from app.contracts.security import (
     VerificationRecord,
     VerificationSummary,
 )
+from app.modules.transfer.manifest import PRIVATE_TOOLS
+from app.security.demo_policy import DemoRiskEvidence, DemoRiskSignal, DemoSecurityPolicy
 from app.security import (
     ConfirmationService,
     DeterministicExecutor,
@@ -146,9 +148,12 @@ def build_gate(
     snapshots: list | None = None,
     challenges: list | None = None,
     handler=lambda _context, payload: payload,
+    risk_assessor=None,
+    declaration=None,
+    scope_authorizer=None,
 ):
     registry = ToolRegistry()
-    registry.register(transfer_declaration(), handler)
+    registry.register(declaration or transfer_declaration(), handler)
     confirmations = ConfirmationService(path, clock=clock)
     stored_records = records if records is not None else {}
     emitted = decisions if decisions is not None else []
@@ -224,9 +229,9 @@ def build_gate(
     gate = SecurityGate(
         registry,
         confirmations,
-        scope_authorizer=lambda *_: scope_allowed,
+        scope_authorizer=(scope_authorizer if scope_authorizer is not None else lambda *_: scope_allowed),
         task_state_resolver=lambda *_: task_terminated,
-        risk_assessor=lambda *_: risk,
+        risk_assessor=(risk_assessor if risk_assessor is not None else lambda *_: risk),
         confirmation_preparer=prepare_confirmation,
         verification_preparer=prepare_verification,
         verification_resolver=resolve,
@@ -591,6 +596,131 @@ def test_risk_verification_rules_and_dependency_fail_closed(tmp_path):
     )
     assert broken_gate.check_action(security_context, descriptor).decision == SecurityDecisionCode.PAUSE
 
+
+
+def _demo_policy_for(signals):
+    evidence = DemoRiskEvidence(
+        source="server-demo-fixture",
+        source_version="1",
+        evidence_ref="case-1",
+        signals=frozenset(signals),
+        checked_signals=frozenset(DemoRiskSignal),
+    )
+    return DemoSecurityPolicy(
+        demo_user_id="U1",
+        admin_actor_id="ADMIN-1",
+        current_demo_round=lambda: "D1",
+        risk_facts=lambda *_: evidence,
+    )
+
+
+def test_demo_policy_is_connected_to_gate_confirmation_verification_and_audit(tmp_path):
+    descriptor = action()
+    declaration = PRIVATE_TOOLS[-1]
+    low_policy = _demo_policy_for({
+        DemoRiskSignal.FAMILIAR_PAYEE,
+        DemoRiskSignal.FAMILIAR_DEVICE,
+        DemoRiskSignal.USUAL_AMOUNT_RANGE,
+        DemoRiskSignal.CLEAR_REQUEST,
+    })
+    low_gate, confirmations, records, _, _, _ = build_gate(
+        tmp_path / "demo-low.sqlite3",
+        clock=Clock(),
+        risk_assessor=low_policy.assess_risk,
+        declaration=declaration,
+        scope_authorizer=low_policy.authorize_tool,
+    )
+    security_context = context()
+    waiting_confirmation = low_gate.check_action(security_context, descriptor)
+    assert waiting_confirmation.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION
+    assert waiting_confirmation.policy_version == low_policy.policy_version
+    assert waiting_confirmation.evidence_refs == ["server-demo-fixture:1:case-1"]
+    assert "demo-risk-low" in waiting_confirmation.rule_ids
+
+    confirmed, _ = approved_confirmation(confirmations, security_context, descriptor)
+    waiting_verification = low_gate.check_action(confirmed, descriptor)
+    assert waiting_verification.decision == SecurityDecisionCode.REQUIRE_VERIFICATION
+    basic = verification(confirmed)
+    records[basic.verification_id] = basic
+    allowed = low_gate.check_action(
+        confirmed.model_copy(update={"verification_ids": [basic.verification_id]}), descriptor,
+    )
+    assert allowed.decision == SecurityDecisionCode.ALLOW
+    assert allowed.evidence_refs == waiting_confirmation.evidence_refs
+
+    medium_policy = _demo_policy_for({DemoRiskSignal.NEW_PAYEE})
+    medium_gate, medium_confirmations, medium_records, _, _, challenges = build_gate(
+        tmp_path / "demo-medium.sqlite3",
+        clock=Clock(),
+        risk_assessor=medium_policy.assess_risk,
+        declaration=declaration,
+        scope_authorizer=medium_policy.authorize_tool,
+    )
+    medium_waiting = medium_gate.check_action(security_context, descriptor)
+    assert medium_waiting.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION
+    assert medium_waiting.risk_level == RiskLevel.MEDIUM
+    assert "demo-risk-medium" in medium_waiting.rule_ids
+    medium_confirmed, medium_confirmation = approved_confirmation(
+        medium_confirmations, security_context, descriptor,
+    )
+    basic = verification(medium_confirmed)
+    medium_records[basic.verification_id] = basic
+    step_up = medium_gate.check_action(
+        medium_confirmed.model_copy(update={"verification_ids": [basic.verification_id]}),
+        descriptor,
+    )
+    assert step_up.decision == SecurityDecisionCode.REQUIRE_VERIFICATION
+    assert challenges[-1][0].purpose == "action_step_up"
+    action_verification = verification(
+        medium_confirmed,
+        scope="action",
+        operation_id=medium_confirmed.operation_id,
+        action_revision=medium_confirmed.action_revision,
+        source_challenge_id=challenges[-1][0].challenge_id,
+    )
+    medium_records[action_verification.verification_id] = action_verification
+    medium_allowed = medium_gate.check_action(
+        medium_confirmed.model_copy(update={
+            "verification_ids": [action_verification.verification_id],
+        }),
+        descriptor,
+    )
+    assert medium_allowed.decision == SecurityDecisionCode.ALLOW
+    assert "demo-risk-medium" in medium_allowed.rule_ids
+
+    high_policy = _demo_policy_for({DemoRiskSignal.SCREEN_SHARING})
+    high_gate, high_confirmations, _, _, _, _ = build_gate(
+        tmp_path / "demo-high.sqlite3",
+        clock=Clock(),
+        risk_assessor=high_policy.assess_risk,
+        declaration=declaration,
+        scope_authorizer=high_policy.authorize_tool,
+    )
+    approved_high_context, _ = approved_confirmation(
+        high_confirmations, security_context, descriptor,
+    )
+    high_blocked = high_gate.check_action(approved_high_context, descriptor)
+    assert high_blocked.decision == SecurityDecisionCode.BLOCK
+    assert high_blocked.reason_codes == ["HIGH_RISK"]
+    assert high_blocked.evidence_refs == ["server-demo-fixture:1:case-1"]
+    assert "demo-risk-high" in high_blocked.rule_ids
+
+
+def test_demo_policy_records_specific_fail_closed_risk_blocker(tmp_path):
+    policy = _demo_policy_for(set())
+    gate, _, _, _, _, _ = build_gate(
+        tmp_path / "demo-missing-risk.sqlite3",
+        clock=Clock(),
+        risk_assessor=policy.assess_risk,
+        declaration=PRIVATE_TOOLS[-1],
+        scope_authorizer=policy.authorize_tool,
+    )
+
+    paused = gate.check_action(context(), action())
+    assert paused.decision == SecurityDecisionCode.PAUSE
+    assert paused.reason_codes == ["DEPENDENCY_UNAVAILABLE"]
+    assert paused.policy_version == policy.policy_version
+    assert "low-risk-evidence-required" in paused.rule_ids
 
 def test_scope_and_task_checks_precede_missing_binding(tmp_path):
     clock = Clock()
