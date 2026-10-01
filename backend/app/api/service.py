@@ -12,6 +12,7 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from app.audit.journal import AuditReader, AuditViewer, redact
+from app.agent_platform.model import ReplyOnly
 from app.contracts.audit import AuditEvent, TaskTransitionPayload, VerificationChangedPayload
 from app.contracts.api import MessageView, StreamEvent
 from app.contracts.common import TaskStatus
@@ -48,6 +49,7 @@ class ApiService:
         self.runtime, self.config = runtime, config
         self.store = ApiStore(runtime.application.path, config.secret)
         self.active_tasks: set[str] = set()
+        self.active_message_jobs: set[str] = set()
         # The supported demo deployment uses one ASGI worker. Harness also locks
         # individual tasks across processes; this lock spans API validation + dispatch.
         self.mutation_lock = RLock()
@@ -166,19 +168,201 @@ class ApiService:
                 view.message = "原任务已保留；请通过恢复入口在当前会话重新确认或查询。"
         return view
 
-    def emit(self, identity, thread_id, event_type, payload, task=None):
-        self.store.event(StreamEvent(event_id=str(uuid4()), thread_id=thread_id,
+    def stream_event(self, identity, thread_id, event_type, payload, task=None, event_id=None):
+        return StreamEvent(event_id=event_id or str(uuid4()), thread_id=thread_id,
             session_id=identity.session_id, task_id=task.task_id if task else None,
             run_id=task.run_id if task else None, module="transfer" if task else "platform",
-            event_type=event_type, occurred_at=now(), payload=payload))
+            event_type=event_type, occurred_at=now(), payload=payload)
+
+    def emit(self, identity, thread_id, event_type, payload, task=None, event_id=None):
+        event = self.stream_event(identity, thread_id, event_type, payload, task, event_id)
+        self.store.event(event)
+        return event
+
+    def message_view(self, thread_id, text, role, task_id=None, message_id=None):
+        return MessageView(message_id=message_id or str(uuid4()), thread_id=thread_id, role=role,
+            text=cast(str, redact(text, free_text=True)), created_at=now(),
+            task_ids=[task_id] if task_id else [], report_ids=[])
 
     def message(self, identity, thread_id, text, role, task_id=None, message_id=None):
-        message = MessageView(message_id=message_id or str(uuid4()), thread_id=thread_id, role=role,
-            text=cast(str, redact(text, free_text=True)), created_at=now(), task_ids=[task_id] if task_id else [], report_ids=[])
+        message = self.message_view(thread_id, text, role, task_id, message_id)
         self.store.write("INSERT INTO api_messages VALUES (?, ?, ?, ?)",
                          (message.message_id, thread_id, message.created_at.isoformat(), dump(message)))
         self.emit(identity, thread_id, "message_completed", message)
         return message
+
+    def accept_message_job(self, identity, thread_id, request_id, text):
+        message = self.message_view(thread_id, text, "user")
+        job = {
+            "job_id": str(uuid4()), "candidate_task_id": str(uuid4()),
+            "user_message_id": message.message_id, "assistant_message_id": str(uuid4()),
+            "thread_id": thread_id, "user_id": identity.user_id,
+            "session_id": identity.session_id, "demo_round_id": identity.demo_round_id,
+            "run_id": str(uuid4()), "request_id": str(request_id), "intent_text": text,
+            "created_at": message.created_at.isoformat(), "user_event_id": str(uuid4()),
+            "assistant_event_id": str(uuid4()), "user_task_event_id": str(uuid4()),
+            "task_updated_event_id": str(uuid4()), "interaction_event_id": str(uuid4()),
+            "error_event_id": str(uuid4()),
+        }
+        event = self.stream_event(identity, thread_id, "message_completed", message,
+                                  event_id=job["user_event_id"])
+        stored, _created = self.store.enqueue_message_job(job, dump(message), dump(event))
+        return stored
+
+    def schedule_message_job(self, job_id, background, identity):
+        job = self.store.message_job(job_id)
+        if job["status"] not in {"queued", "running", "interrupted", "task_linked", "reply_ready"}:
+            return
+        if job_id in self.active_message_jobs:
+            return
+        if job["session_id"] != identity.session_id:
+            task = self.runtime.application.get_task(
+                identity.user_id, identity.demo_round_id, job["candidate_task_id"],
+            )
+            if task is not None:
+                # Expose the original task for explicit session recovery; do not
+                # rerun its model or carry its old authorization into this session.
+                original = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
+                self.link_message_job_task(job, original, task)
+            else:
+                # No business task exists yet. The authenticated same-owner replay
+                # may continue this message using the current session.
+                self.store.write("UPDATE api_message_jobs SET session_id=? WHERE job_id=?",
+                                 (identity.session_id, job_id))
+        self.active_message_jobs.add(job_id)
+        background.add_task(self.process_message_job, job_id)
+
+    def link_message_job_task(self, job, identity, outcome):
+        user_rows = self.store.rows("SELECT view_json FROM api_messages WHERE message_id=?",
+                                    (job["user_message_id"],))
+        message = MessageView.model_validate(json.loads(user_rows[0]["view_json"]))
+        if job["candidate_task_id"] not in message.task_ids:
+            message = message.model_copy(update={"task_ids": [job["candidate_task_id"]]})
+        event = self.stream_event(identity, job["thread_id"], "message_completed", message,
+                                  event_id=job["user_task_event_id"])
+        self.store.link_message_job_task(job["job_id"], {
+            "task_id": job["candidate_task_id"], "thread_id": job["thread_id"],
+            "user_id": job["user_id"], "session_id": job["session_id"],
+            "demo_round_id": job["demo_round_id"], "run_id": outcome.run_id,
+            "created_at": job["created_at"], "request_id": job["request_id"],
+            "intent_text": job["intent_text"],
+        }, dump(message), dump(event))
+
+    def publish_message_job_task(self, job_id):
+        job = self.store.message_job(job_id)
+        identity = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
+        task = self.task_view(identity, job["task_id"])
+        if task.interaction and task.interaction.record_ref:
+            self.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
+                             (task.interaction.kind, task.interaction.record_ref, task.task_id))
+        events = [self.stream_event(
+            identity, task.thread_id, "task_updated", task, task,
+            event_id=job["task_updated_event_id"],
+        )]
+        if task.interaction:
+            from app.contracts.api import InteractionRequired
+            events.append(self.stream_event(
+                identity, task.thread_id, "interaction_required",
+                InteractionRequired(task_id=task.task_id, interaction=task.interaction), task,
+                event_id=job["interaction_event_id"],
+            ))
+        assistant = self.message_view(task.thread_id, task.message, "assistant",
+                                      task.task_id, job["assistant_message_id"])
+        events.append(self.stream_event(
+            identity, task.thread_id, "message_completed", assistant,
+            event_id=job["assistant_event_id"],
+        ))
+        self.store.complete_task_job(
+            job_id, assistant.created_at.isoformat(), dump(assistant),
+            [(event.event_id, dump(event)) for event in events],
+        )
+
+    def process_message_job(self, job_id):
+        try:
+            with self.mutation_lock:
+                job = self.store.message_job(job_id)
+                if job["status"] in {"reply_completed", "task_completed", "error_completed"}:
+                    return
+                if job["status"] == "task_linked":
+                    self.publish_message_job_task(job_id)
+                    return
+                if job["status"] == "reply_ready":
+                    self.publish_message_reply(job)
+                    return
+                if job["status"] in {"running", "interrupted"}:
+                    task = self.runtime.application.get_task(
+                        job["user_id"], job["demo_round_id"], job["candidate_task_id"],
+                    )
+                    if task is not None:
+                        identity = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
+                        self.link_message_job_task(job, identity, task)
+                        self.publish_message_job_task(job_id)
+                        return
+                    # A crash may have lost a chat classification. Do not call
+                    # the model again and turn the original message into a task.
+                    raise RuntimeError("MESSAGE_OUTCOME_UNAVAILABLE")
+                self.store.set_message_job_status(job_id, "running")
+                identity = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
+                trusted = TrustedContext(
+                    user_id=job["user_id"], session_id=job["session_id"],
+                    demo_round_id=job["demo_round_id"], task_id=job["candidate_task_id"],
+                    run_id=job["run_id"], parent_task_id=None,
+                )
+                outcome = self.runtime.harness.handle_message(
+                    trusted, UUID(job["request_id"]), job["intent_text"],
+                )
+                if isinstance(outcome, ReplyOnly):
+                    self.store.save_message_reply(job_id, cast(str, redact(outcome.message, free_text=True)))
+                    self.publish_message_reply(job)
+                    return
+                if outcome.error and outcome.error.code == "MODEL_PROPOSAL_FAILED":
+                    self.emit(identity, job["thread_id"], "stream_error", outcome.error,
+                              event_id=job["error_event_id"])
+                    self.store.set_message_job_status(job_id, "error_completed")
+                    return
+                self.link_message_job_task(job, identity, outcome)
+                self.publish_message_job_task(job_id)
+        except Exception:
+            with self.mutation_lock:
+                job = self.store.message_job(job_id)
+                identity = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
+                platform_task = self.runtime.application.get_task(
+                    job["user_id"], job["demo_round_id"], job["candidate_task_id"],
+                )
+                if platform_task is not None:
+                    try:
+                        self.link_message_job_task(job, identity, platform_task)
+                        self.publish_message_job_task(job_id)
+                        return
+                    except Exception:
+                        # Keep the durable message job retryable if linking or
+                        # publishing is interrupted after Harness created a task.
+                        job = self.store.message_job(job_id)
+                if job["status"] not in {"task_linked", "reply_ready", "reply_completed", "task_completed", "error_completed"}:
+                    self.store.set_message_job_status(job_id, "interrupted")
+                if job["status"] not in {"reply_completed", "task_completed", "error_completed"}:
+                    from app.contracts.tasks import ModuleError
+                    self.emit(identity, job["thread_id"], "stream_error", ModuleError(
+                        code="DEPENDENCY_UNAVAILABLE", source="platform", field=None,
+                        reason="消息处理中断，请重试以恢复原请求。" if platform_task is not None or job["status"] in {"reply_ready", "task_linked"}
+                            else "无法确定原消息处理结果，请重新发起并核对信息。", upstream_code=None,
+                    ), event_id=job["error_event_id"])
+                    if platform_task is None and job["status"] not in {"reply_ready", "task_linked"}:
+                        self.store.set_message_job_status(job_id, "error_completed")
+        finally:
+            with self.mutation_lock:
+                self.active_message_jobs.discard(job_id)
+
+    def publish_message_reply(self, job):
+        text = self.store.rows("SELECT reply_text FROM api_message_replies WHERE job_id=?",
+                               (job["job_id"],))[0]["reply_text"]
+        identity = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
+        assistant = self.message_view(job["thread_id"], text, "assistant",
+                                      message_id=job["assistant_message_id"])
+        event = self.stream_event(identity, job["thread_id"], "message_completed", assistant,
+                                  event_id=job["assistant_event_id"])
+        self.store.complete_reply_job(job["job_id"], assistant.created_at.isoformat(),
+                                      dump(assistant), dump(event))
 
     def publish_task(self, identity, task_id):
         task = self.task_view(identity, task_id)

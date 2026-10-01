@@ -1,13 +1,13 @@
 # 交付包 01：v0.3 纵向后端主链路
 
-Status: ready\
+Status: in_progress\
 Owner: Erwin\
 Activation: Erwin 已于 2026-09-27 确认，可立即拆票\
 Start when: 场景规格与公共契约已冻结（当前已满足）\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
-Accepted by: 未记录（Owner / Activation 不代替本人接受记录）\
-Accepted at: 未记录\
+Accepted by: Erwin（2026-10-01 用户授权范围为 v03-session-recovery-reply/06，不扩展为整包验收）\
+Accepted at: 2026-10-01\
 Work spec: [Erwin 详细规格与票据](../../v03-erwin-vertical-backend/spec.md)
 
 领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再续做已有规格和票据；已有实现证据保持原记录。
@@ -76,3 +76,11 @@ Erwin 的 12 张实施票已经建立。执行时每张票只对应一个目录�
 用户在已告知本票缺少Ringo真人批准后明确指示「补票05合并」，本轮依该指示批准合入，豁免仅限补票05；不记录为Ringo真人批准，长期审查规则不变。[PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)已squash合入main，提交 `0613a1a1eb8df9bde86de1c0d364bee48f4664cc`；最终PR提交 `36713e4` 的CI通过。三个验收问题的修复均包含在合并提交中，定向36项、后端228项、模拟银行14项通过，双轴AI复审无剩余阻塞。[合并提交主线CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36810100834)通过：后端228项（70.51秒）、模拟银行14项（0.47秒），文档链接、Python语法及差异空白检查通过。05标为resolved。
 
 05已合入；06的公开能力及合入前置依赖已提供。06的API实现及验收仍未合入，Issue #24保持开放；真实模型、React、原票10全部验收、原票12和v0.3联合收口均未完成，未同步飞书。此前待批准、未合入等条目为历史记录。
+
+## 补票06本轮验收（2026-10-01）
+
+用户明确授权「验收补票6，有问题就修复，验收完合并，不用别人批准，更新文档」；本票豁免其他人批准，不记录为Ringo真人批准，不改变长期规则。
+
+发现并修复两项恢复问题：未开始消息在旧会话过期后无法继续；闲聊回复发布中断后重试可能重新分类为转账。未创建任务的合法重传使用当前会话，已有任务只关联原任务并要求显式恢复。先保存脱敏仅回复结果再发布，无法确定原结果时受控停止，不再次理解原消息。
+
+复验：完整后端240 passed，MockBank14 passed；专项7项通过，隐私及回复中断追加3项通过；API源文件Pyright 0 errors，链接、Python语法和差异空白检查通过。Standards与Spec独立AI复审均无剩余阻塞。补票06后端验收通过；[PR #37](https://github.com/DrErwin/hackerthon-bank-agent/pull/37)待最终提交CI及合入。此前未实现、未验收等条目为历史快照。真实模型、React、原票10全部验收、原票12及v0.3收口仍未完成；Issue #24包含真实模型与前端验收条件，继续开放。未同步飞书。
