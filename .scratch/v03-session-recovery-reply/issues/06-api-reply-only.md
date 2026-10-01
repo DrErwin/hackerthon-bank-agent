@@ -45,4 +45,4 @@ HTTP + 消息历史 / 任务列表 / SSE，实际公共底座与可重复模型�
 
 - 2026-10-01：前置 [v03-session-recovery-reply/05：Harness 无业务意图仅回复](05-harness-reply-only.md) 已经 [PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35) 合入 main（0613a1a），公开理解及 ReplyOnly 能力已提供，本票解除正式依赖阻塞。
 - 2026-10-01：用户明确授权在新 worktree 实施本票。实现与验证现以合入后的 main 为基线；Issue #24 与 v0.3 联合验收保持开放。
-- 2026-10-01：本地验证完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；三个API源文件Pyright 0 errors，compileall、链接及差异空白检查通过。真人安全批准、真实模型、React与票10 / 12联合验收未完成。
+- 2026-10-01：本地验证完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；三个API源文件Pyright 0 errors，compileall、链接及差异空白检查通过。Draft [PR #37](https://github.com/DrErwin/hackerthon-bank-agent/pull/37)已以main为基线打开（head a34661a），Repository checks已通过（[CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36812809932)）。Standards / Spec双轴独立AI复审均无发现；未记录Ringo真人安全批准。真实模型、React与票10 / 12联合验收未完成。

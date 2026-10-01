@@ -94,4 +94,4 @@ Original spec: [纵向后端实施规格](../v03-erwin-vertical-backend/spec.md)
 
 ## 2026-10-01 补票06实施进度
 
-用户明确授权在新worktree实施 v03-session-recovery-reply/06。补票05已由PR #35合入main，06已在合入后的main提交54b6e7c上开始实施。API通过Harness公开handle_message结果接入仅回复和转账路径，保持MessageAccepted.task_id可空、稳定请求回放、历史与SSE一致，并保留现有专用确认 / 验证入口。完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；API源码Pyright及静态检查通过。独立复审和PR记录待补。Issue #24、原票10全量验收、原票12联合验收、真实模型、React与v0.3收口仍开放。
+用户明确授权在新worktree实施 v03-session-recovery-reply/06。补票05已由PR #35合入main，06已在合入后的main提交54b6e7c上开始实施。API通过Harness公开handle_message结果接入仅回复和转账路径，保持MessageAccepted.task_id可空、稳定请求回放、历史与SSE一致，并保留现有专用确认 / 验证入口。完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；API源码Pyright及静态检查通过。Draft [PR #37](https://github.com/DrErwin/hackerthon-bank-agent/pull/37)已以main为基线打开，Repository checks已通过（[CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36812809932)）；Standards / Spec双轴独立AI复审均无发现，不代表真人批准。Issue #24、原票10全量验收、原票12联合验收、真实模型、React与v0.3收口仍开放。

@@ -74,5 +74,5 @@
 
 - 前置依赖补票05已由[PR #35](https://github.com/DrErwin/hackerthon-bank-agent/pull/35)合入main（0613a1a）；补票06已切换到合并后的main提交54b6e7c作为基线，当前仅含API目录实现与关联过程记录。
 - 消息入口返回可空task_id的202受理；API原子保存消息与可恢复作业，通过Harness公开handle_message结果分别保存ReplyOnly回复或关联转账任务。请求重放沿原作业，历史及SSE保留稳定事件编号，显式转账仍使用既有确认与验证流程。
-- 本地验证：完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；API源文件Pyright 0 errors，Python语法、文档链接与差异空白检查通过。独立AI复审及PR结果待补。
+- 本地验证：完整后端234 passed（168.83秒）、API单目录41 passed（116.02秒）、MockBank14 passed；API源文件Pyright 0 errors，Python语法、文档链接与差异空白检查通过。Draft [PR #37](https://github.com/DrErwin/hackerthon-bank-agent/pull/37)已以main为基线打开、Repository checks已通过（[CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36812809932)）；Standards / Spec双轴独立AI复审均无发现，不代表真人批准。
 - ticket 06和Issue #24仍开放。真实模型、React、原票10全部验收、原票12联合验收及v0.3收口未完成；不把本地测试或AI复审记为真人批准。
