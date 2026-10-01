@@ -84,3 +84,7 @@ PR #25 合入时的基线回归为后端 **178 项**（API 29 项）、模拟银
 ## 2026-10-01 本轮 API 验证
 
 ticket 06本地回归：完整后端234 passed（168.83秒），API单目录41 passed（116.02秒）；MockBank评测14 passed。Pyright检查app/api/app.py、service.py、store.py为0 errors、0 warnings、0 informations；Python compileall、文档链接检查及差异空白检查通过。用例使用可重复模型候选，不证明真实模型行为或React联调。Draft [PR #37](https://github.com/DrErwin/hackerthon-bank-agent/pull/37)以main为基线，Repository checks已通过（[CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/36812809932)）；Standards / Spec双轴独立AI复审均无发现，不代表真人批准。
+
+## 补票06验收修复（2026-10-01）
+
+未开始的消息在同用户、同轮次重新登录后，以当前会话继续原请求；已有转账任务只补齐原关联，并通过专用恢复入口重新确认。仅回复结果在发布前单独持久化，发布中断后复用原回复。运行中断且没有可恢复任务或已保存回复时，发出受控错误并结束原作业，请用户重新发起；不重新调用模型将闲聊改判为转账。

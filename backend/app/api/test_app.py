@@ -939,6 +939,104 @@ def test_read_dependency_errors_use_controlled_envelope_without_exception_text(t
         assert "sensitive-database-diagnostics" not in result.text
 
 
+@pytest.mark.parametrize("reply_only", [True, False])
+def test_queued_message_replay_after_restart_and_new_session(tmp_path, monkeypatch, reply_only):
+    from datetime import timedelta
+    from fastapi import BackgroundTasks
+    from .service import now
+
+    proposal = ReplyOnly(message="您好。") if reply_only else None
+    app = make_app(tmp_path, proposal=proposal)
+    body = {"request_id": str(uuid4()), "text": "你好" if reply_only else "给妈妈转 500 元"}
+    with monkeypatch.context() as patch:
+        patch.setattr(BackgroundTasks, "add_task", lambda *_args, **_kwargs: None)
+        with TestClient(app) as client:
+            old = enter(client)
+            thread = post(client, "/threads").json()["data"]["thread_id"]
+            path = f"/api/v1/threads/{thread}/messages"
+            accepted = client.post(path, json=body, headers={"Origin": "http://testserver"})
+            cookie = client.cookies.get("bank_session")
+            app.state.api.store.write("UPDATE sessions SET expires_at=? WHERE session_id=?",
+                ((now() - timedelta(seconds=1)).isoformat(), old["session_id"]))
+    restarted = make_app(tmp_path, proposal=proposal)
+    with TestClient(restarted) as client:
+        client.cookies.set("bank_session", cookie)
+        renewed = enter(client)
+        client.cookies.set("bank_session", restarted.state.api.cookie(renewed["session_id"]))
+        assert renewed["session_id"] != old["session_id"]
+        for _ in range(2):
+            replayed = client.post(path, json=body, headers={"Origin": "http://testserver"})
+            assert replayed.status_code == 202
+            assert replayed.json() == accepted.json()
+        history = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
+        assert [m["role"] for m in history] == ["user", "assistant"]
+        tasks = client.get("/api/v1/tasks").json()["data"]["items"]
+        if reply_only:
+            assert tasks == []
+            assert all(m["task_ids"] == [] for m in history)
+        else:
+            assert len(tasks) == 1
+            assert tasks[0]["interaction"]["kind"] == "confirmation"
+            assert tasks[0]["data"]["operation"] is None
+        assert restarted.state.api.runtime.harness.planner.calls == 1
+
+
+@pytest.mark.parametrize("fault", ["save_message_reply", "complete_reply_job"])
+def test_interrupted_chat_does_not_reclassify_into_transfer(tmp_path, monkeypatch, fault):
+    app = make_app(tmp_path, proposal=ReplyOnly(message="您好。"))
+    body = {"request_id": str(uuid4()), "text": "你好"}
+    with TestClient(app) as client:
+        enter(client)
+        thread = post(client, "/threads").json()["data"]["thread_id"]
+        path = f"/api/v1/threads/{thread}/messages"
+        with monkeypatch.context() as patch:
+            def interrupt(*_args):
+                raise RuntimeError("simulated reply persistence interruption")
+            patch.setattr(app.state.api.store, fault, interrupt)
+            accepted = client.post(path, json=body, headers={"Origin": "http://testserver"})
+        cookie = client.cookies.get("bank_session")
+    restarted = make_app(tmp_path)  # A fresh model would now propose a transfer.
+    with TestClient(restarted) as client:
+        client.cookies.set("bank_session", cookie)
+        for _ in range(2):
+            replayed = client.post(path, json=body, headers={"Origin": "http://testserver"})
+            assert replayed.json() == accepted.json()
+        assert restarted.state.api.runtime.harness.planner.calls == 0
+        assert client.get("/api/v1/tasks").json()["data"]["items"] == []
+        history = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
+        if fault == "complete_reply_job":
+            assert [m["role"] for m in history] == ["user", "assistant"]
+            assert history[1]["text"] == "您好。"
+        else:
+            assert [m["role"] for m in history] == ["user"]
+            events = restarted.state.api.store.rows("SELECT event_json FROM api_events")
+            assert any("无法确定原消息处理结果" in event["event_json"] for event in events)
+        assert all(m["task_ids"] == [] for m in history)
+
+
+def test_restarted_running_message_without_outcome_fails_closed(tmp_path, monkeypatch):
+    from fastapi import BackgroundTasks
+    app = make_app(tmp_path, proposal=ReplyOnly(message="您好。"))
+    body = {"request_id": str(uuid4()), "text": "你好"}
+    with monkeypatch.context() as patch:
+        patch.setattr(BackgroundTasks, "add_task", lambda *_args, **_kwargs: None)
+        with TestClient(app) as client:
+            enter(client)
+            thread = post(client, "/threads").json()["data"]["thread_id"]
+            path = f"/api/v1/threads/{thread}/messages"
+            accepted = client.post(path, json=body, headers={"Origin": "http://testserver"})
+            cookie = client.cookies.get("bank_session")
+            app.state.api.store.write("UPDATE api_message_jobs SET status='running'")
+    restarted = make_app(tmp_path)
+    with TestClient(restarted) as client:
+        client.cookies.set("bank_session", cookie)
+        replayed = client.post(path, json=body, headers={"Origin": "http://testserver"})
+        assert replayed.json() == accepted.json()
+        assert restarted.state.api.runtime.harness.planner.calls == 0
+        assert client.get("/api/v1/tasks").json()["data"]["items"] == []
+        assert restarted.state.api.store.rows("SELECT status FROM api_message_jobs")[0]["status"] == "error_completed"
+
+
 def test_unstarted_message_job_is_not_exposed_as_a_task(tmp_path, monkeypatch):
     from fastapi import BackgroundTasks
     app = make_app(tmp_path)
@@ -959,12 +1057,15 @@ def test_unstarted_message_job_is_not_exposed_as_a_task(tmp_path, monkeypatch):
         assert restarted.state.api.runtime.harness.planner.calls == 0
 
 
-def test_replaying_message_repairs_api_link_after_harness_started(tmp_path, monkeypatch):
+@pytest.mark.parametrize("new_session", [False, True])
+def test_replaying_message_repairs_api_link_after_harness_started(tmp_path, monkeypatch, new_session):
+    from datetime import timedelta
+    from .service import now
     app = make_app(tmp_path)
     original_link = app.state.api.link_message_job_task
     body = {"request_id": str(uuid4()), "text": "给妈妈转 500 元"}
     with TestClient(app) as client:
-        enter(client)
+        old = enter(client)
         thread = post(client, "/threads").json()["data"]["thread_id"]
         path = f"/api/v1/threads/{thread}/messages"
         with monkeypatch.context() as patch:
@@ -976,6 +1077,12 @@ def test_replaying_message_repairs_api_link_after_harness_started(tmp_path, monk
         assert client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"] == []
         assert app.state.api.runtime.harness.planner.calls == 1
 
+        if new_session:
+            app.state.api.store.write("UPDATE sessions SET expires_at=? WHERE session_id=?",
+                ((now() - timedelta(seconds=1)).isoformat(), old["session_id"]))
+            renewed = enter(client)
+            assert renewed["session_id"] != old["session_id"]
+
         monkeypatch.setattr(app.state.api, "link_message_job_task", original_link)
         replayed = client.post(path, json=body, headers={"Origin": "http://testserver"})
         assert replayed.status_code == 202, replayed.text
@@ -983,6 +1090,13 @@ def test_replaying_message_repairs_api_link_after_harness_started(tmp_path, monk
         tasks = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]
         assert len(tasks) == 1
         assert tasks[0]["interaction"]["kind"] == "confirmation"
+        if new_session:
+            assert tasks[0]["recovery_required"]
+            assert tasks[0]["allowed_actions"] == []
+            recovered = post(client, f"/tasks/{tasks[0]['task_id']}/resume")
+            assert recovered.status_code == 200, recovered.text
+            assert recovered.json()["data"]["interaction"]["kind"] == "confirmation"
+            assert not recovered.json()["data"]["recovery_required"]
         assert app.state.api.runtime.harness.planner.calls == 1
 
 

@@ -191,7 +191,7 @@ def create_app(runtime=None, config=None):
         text = safe_text(body.text)
         def action():
             job = service.accept_message_job(who, thread_id, body.request_id, text)
-            service.schedule_message_job(job["job_id"], background)
+            service.schedule_message_job(job["job_id"], background, who)
             return MessageAccepted(
                 message_id=job["user_message_id"], thread_id=thread_id,
                 accepted_at=job["created_at"], task_id=None,
@@ -199,7 +199,7 @@ def create_app(runtime=None, config=None):
         def replay():
             job = service.store.message_job_for_request(who, thread_id, body.request_id)
             if job:
-                service.schedule_message_job(job["job_id"], background)
+                service.schedule_message_job(job["job_id"], background, who)
         return mutation(service, who, request, body, action, status=202,
                         retry_interrupted=True, on_replay=replay)
 

@@ -65,6 +65,8 @@ class ApiStore:
                     task_updated_event_id TEXT NOT NULL, interaction_event_id TEXT NOT NULL,
                     error_event_id TEXT NOT NULL,
                     UNIQUE(user_id, demo_round_id, thread_id, request_id))""",
+                """CREATE TABLE IF NOT EXISTS api_message_replies (
+                    job_id TEXT PRIMARY KEY, reply_text TEXT NOT NULL)""",
             ):
                 c.execute(sql)
 
@@ -168,6 +170,11 @@ class ApiStore:
 
     def set_message_job_status(self, job_id, status):
         self.write("UPDATE api_message_jobs SET status=? WHERE job_id=?", (status, job_id))
+
+    def save_message_reply(self, job_id, text):
+        with transaction(self.path) as c:
+            c.execute("INSERT OR IGNORE INTO api_message_replies VALUES (?, ?)", (job_id, text))
+            c.execute("UPDATE api_message_jobs SET status='reply_ready' WHERE job_id=?", (job_id,))
 
     def complete_reply_job(self, job_id, created_at, message_json, event_json):
         with transaction(self.path) as c:
