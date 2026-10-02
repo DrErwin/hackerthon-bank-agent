@@ -94,6 +94,67 @@ afterEach(() => {
 });
 
 describe("recovery and retry controls", () => {
+  function codeTask(challengeId = "challenge-1") {
+    return makeTask({ status: "waiting_approval", allowed_actions: ["verify"], interaction: {
+      interaction_id: challengeId, kind: "verification", prompt: "完成专用验证",
+      required_fields: [], options: [], record_ref: challengeId,
+    } });
+  }
+
+  const codeVerification = {
+    challenge_id: "challenge-1", task_id: "task-1", summary: null,
+    required_methods: ["code"], code_result: "pending", face_result: "pending",
+    challenge_status: "pending", code_expires_at: timestamp, face_started_at: null,
+    face_expires_at: null, consecutive_code_failures: 0,
+  } as VerificationView;
+
+  it("submits a code once while waiting and queries after a lost response without replaying it", async () => {
+    vi.mocked(api.get).mockImplementation(async (path) =>
+      path.startsWith("/verifications/") ? codeVerification as never : codeTask() as never);
+    let rejectSubmission!: (error: unknown) => void;
+    vi.mocked(api.post).mockImplementation(() => new Promise((_resolve, reject) => { rejectSubmission = reject; }));
+    render(<TaskCard {...makeTaskCardProps(codeTask())} />);
+    const input = await screen.findByLabelText("验证码（专用输入）");
+    fireEvent.change(input, { target: { value: "123456" } });
+    const form = input.closest("form")!;
+    fireEvent.submit(form);
+    fireEvent.change(input, { target: { value: "654321" } });
+    fireEvent.submit(form);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "提交中…" }).hasAttribute("disabled")).toBe(true);
+    rejectSubmission(new api.ApiError(0, "NETWORK_ERROR", "响应丢失"));
+    await screen.findByText(/验证码不会自动重传/);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/tasks/task-1"));
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears entered codes and demo hints when a new challenge replaces the old one", async () => {
+    vi.mocked(api.get).mockImplementation(async (path) => path.endsWith("/demo-code")
+      ? { code: "123456", expires_at: timestamp } as never : codeVerification as never);
+    const props = makeTaskCardProps(codeTask());
+    const view = render(<TaskCard {...props} />);
+    fireEvent.change(await screen.findByLabelText("验证码（专用输入）"), { target: { value: "654321" } });
+    fireEvent.click(screen.getByRole("button", { name: "打开模拟验证码提示区" }));
+    await screen.findByText("123456");
+    view.rerender(<TaskCard {...props} task={codeTask("challenge-2")} />);
+    const input = await screen.findByLabelText("验证码（专用输入）");
+    expect((input as HTMLInputElement).value).toBe("");
+    expect(screen.queryByText("123456")).toBeNull();
+  });
+
+  it("ignores a delayed demo code from a previous challenge", async () => {
+    let finishHint!: (value: never) => void;
+    vi.mocked(api.get).mockImplementation(async (path) => path.endsWith("/demo-code")
+      ? await new Promise<never>((resolve) => { finishHint = resolve; }) : codeVerification as never);
+    const props = makeTaskCardProps(codeTask());
+    const view = render(<TaskCard {...props} />);
+    fireEvent.click(await screen.findByRole("button", { name: "打开模拟验证码提示区" }));
+    view.rerender(<TaskCard {...props} task={codeTask("challenge-2")} />);
+    await screen.findByLabelText("验证码（专用输入）");
+    finishHint({ code: "123456", expires_at: timestamp } as never);
+    await waitFor(() => expect(screen.queryByText("123456")).toBeNull());
+  });
+
   it("keeps delayed history from a previous thread out of the selected conversation", async () => {
     let finishOldHistory!: (value: never) => void;
     const defaultGet = vi.mocked(api.get).getMockImplementation()!;
