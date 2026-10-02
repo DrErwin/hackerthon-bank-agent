@@ -5,7 +5,7 @@ Status: blocked\
 Owner: Erwin\
 Directory: `docs/versions/v0.3.0/`\
 Blocked by: AF01—AF14完整联合验收、T01—T18覆盖说明及专业安全/转账评测证据\
-External dependencies: [v03-local-demo/01：简易前端与真实 API 接入](../../v03-local-demo/issues/01-minimal-frontend.md)与[04：GLM本机运行组合](../../v03-local-demo/issues/04-glm-runtime.md)已resolved；`evals/security/`、`evals/transfer/`目前仅README，仍需提供可运行专业评测（完整前端后续替换，不阻塞本票）\
+External dependencies: [v03-local-demo/01：简易前端与真实 API 接入](../../v03-local-demo/issues/01-minimal-frontend.md)与[v03-local-demo/04：GLM本机运行组合](../../v03-local-demo/issues/04-glm-runtime.md)已resolved；`evals/security/`、`evals/transfer/`目前仅README，仍需提供可运行专业评测（完整前端后续替换，不阻塞本票）\
 Unlocks: v0.4 启动判断
 
 ## 业务目的
