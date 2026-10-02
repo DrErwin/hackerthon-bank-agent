@@ -1,8 +1,8 @@
 # 05 — 补齐真实确认单展示要素
 
 Ticket ID: v03-local-demo/05
-Package: transfer-agent-framework/packages/01-vertical-backend
-Spec: ../spec.md（确认单完整脱敏要素要求）
+Package: [transfer-agent-framework/packages/01-vertical-backend：纵向后端主链路](../../transfer-agent-framework/packages/01-vertical-backend.md)
+Spec: [本机简易前端与 GLM 联调准备规格](../spec.md)（确认单完整脱敏要素要求）
 Type: 开发
 Owner: Erwin
 Directory: backend/app/agent_platform/

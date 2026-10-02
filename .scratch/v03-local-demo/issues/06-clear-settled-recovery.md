@@ -1,8 +1,8 @@
 # 06 — 原银行结果确定后清除旧恢复提示
 
 Ticket ID: v03-local-demo/06
-Package: transfer-agent-framework/packages/01-vertical-backend
-Spec: ../spec.md（用户可见状态必须与银行当前结果一致）
+Package: [transfer-agent-framework/packages/01-vertical-backend：纵向后端主链路](../../transfer-agent-framework/packages/01-vertical-backend.md)
+Spec: [本机简易前端与 GLM 联调准备规格](../spec.md)（用户可见状态必须与银行当前结果一致）
 Type: 开发
 Owner: Erwin
 Directory: backend/app/modules/transfer/
