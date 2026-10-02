@@ -56,6 +56,49 @@ def _resume_in_process(path, bank_path, ready, release, results):
         app.close()
 
 
+@pytest.mark.parametrize("risk", [RiskLevel.LOW, RiskLevel.MEDIUM])
+def test_confirmation_and_verification_show_bank_quote_and_backend_risk(tmp_path, risk):
+    bank = MockBankService(MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4)
+    app = runtime(tmp_path / "application.sqlite", bank, risk=risk)
+    now = datetime.now(timezone.utc)
+    app.application.create_session("S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat())
+    pending = app.harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    context = app._context(trusted(), pending.data.operation_id, 1)
+    confirmation = app.confirmations.get(context, pending.interaction.record_ref)
+    fields = {field.name: field.value_text for field in confirmation.display_fields}
+    assert fields["payer_account_id"] == "主账户 尾号 0001"
+    assert fields["amount"] == "500.00 元"
+    assert fields["bank"] == "模拟合作银行"
+    assert fields["fee"] == "0.00 元"
+    assert fields["arrival"] == "即时到账"
+    assert fields["risk"].startswith("低风险" if risk == RiskLevel.LOW else "中风险")
+    assert "6222000000000002" not in str(fields)
+    assert len(bank.store.list_ledger("U1", "A1")) == 0
+    app.answer_confirmation(trusted(), ConfirmationAnswer(
+        confirmation_id=confirmation.confirmation_id, confirmation_version=1, choice="approve",
+    ))
+    waiting = app.harness.resume(trusted("R2"), {"choice": "approve"})
+    challenge = app.gateway.get_verification(trusted("R2"), waiting.interaction.record_ref)
+    if risk == RiskLevel.MEDIUM:
+        assert challenge.summary.display_fields == confirmation.display_fields
+    app.close()
+
+
+def test_unavailable_confirmation_quote_cannot_create_a_funds_claim(tmp_path):
+    bank = MockBankService(MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4)
+    app = runtime(tmp_path / "application.sqlite", bank)
+    now = datetime.now(timezone.utc)
+    app.application.create_session("S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat())
+    with patch.object(app.gateway, "quote_transfer", side_effect=RuntimeError("bank unavailable")):
+        pending = app.harness.start(trusted(), uuid4(), "给妈妈转 500 元")
+    assert pending.status == TaskStatus.NEEDS_ATTENTION
+    assert len(bank.store.list_ledger("U1", "A1")) == 0
+    connection = connect(app.application.path)
+    assert connection.execute("SELECT COUNT(*) FROM security_executions").fetchone()[0] == 0
+    connection.close()
+    app.close()
+
+
 def test_new_session_recovers_before_first_business_checkpoint(tmp_path):
     path = tmp_path / "application.sqlite"
     bank = MockBankService(MockBankStore(tmp_path / "bank.sqlite"), demo_secret=b"demo-secret" * 4)
