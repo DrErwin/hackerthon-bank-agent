@@ -57,12 +57,24 @@ def test_missing_or_invalid_config_never_echoes_credentials(tmp_path, monkeypatc
     assert "do-not-echo-this" not in str(error.value)
 
 
-@pytest.mark.parametrize("endpoint", ["https://api.openai.com/v1/", "https://open.bigmodel.cn/api/coding/paas/v4/", "http://open.bigmodel.cn/api/paas/v4/"])
-def test_wrong_provider_or_coding_plan_is_not_a_runtime_fallback(tmp_path, endpoint):
+@pytest.mark.parametrize("endpoint", ["https://api.openai.com/v1/", "https://open.bigmodel.cn/api/anthropic", "http://open.bigmodel.cn/api/paas/v4/"])
+def test_wrong_provider_or_protocol_is_not_a_runtime_fallback(tmp_path, endpoint):
     config = configuration(tmp_path).model_dump()
     config["base_url"] = endpoint
     with pytest.raises(ValueError):
         LocalDemoConfig.model_validate(config)
+
+
+def test_explicit_coding_endpoint_is_passed_to_connector(tmp_path):
+    content = configuration(tmp_path).model_dump()
+    content.update(base_url="https://open.bigmodel.cn/api/coding/paas/v4/", model_name="glm-5.3")
+    config = LocalDemoConfig.model_validate(content)
+    with patch("app.agent_platform.local_demo.ChatOpenAI",
+               return_value=ConnectorTestModel(model_name="glm-5.3")) as connector:
+        build_runtime(config)
+    assert connector.call_args.kwargs["base_url"] == config.base_url
+    assert connector.call_args.kwargs["model"] == "glm-5.3"
+    assert connector.call_args.kwargs["max_retries"] == 0
 
 
 def test_reply_only_and_invalid_model_create_no_task_or_bank_submission(tmp_path):

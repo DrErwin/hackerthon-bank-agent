@@ -19,7 +19,7 @@ backend/.venv/Scripts/python -m uvicorn app.agent_platform.local_demo:create_loc
 
 另开终端，在 `frontend/` 运行 `npm ci`、`npm run dev`。前端使用 `real-api`，代理目标为 `http://127.0.0.1:8000`。用户页面用 `http://127.0.0.1:5173/`，管理员页面用 `http://localhost:5173/admin`；两个主机名分别保存会话 Cookie。配置中的允许来源与这两个地址一致。普通用户固定为模拟银行的 `U1`，管理员为独立的 `demo-admin`。管理密钥仅在管理页面登录时输入，不放进前端配置或浏览器持久存储。
 
-服务实际请求智谱普通 API `https://open.bigmodel.cn/api/paas/v4/`，默认模型 `glm-4.7`，可在本机改成账户可调用的 GLM 型号。`langchain-openai` 是兼容客户端，`ModelSettings.provider` 与客户端标识保持为 `openai`；这不代表请求了 OpenAI 服务。配置版本带 `zhipu-local` 前缀并绑定模型、地址和演示事实。Coding Plan 地址及其他提供商不在此本机运行组合范围内。
+服务实际请求智谱普通 API `https://open.bigmodel.cn/api/paas/v4/`，默认模型 `glm-4.7`，可在本机改成账户可调用的 GLM 型号。`langchain-openai` 是兼容客户端，`ModelSettings.provider` 与客户端标识保持为 `openai`；这不代表请求了 OpenAI 服务。配置版本带 `zhipu-local` 前缀并绑定模型、地址和演示事实。默认仍使用普通 API。2026-10-02项目负责人明确要求使用 Coding Plan 入口做本机测试：在本机配置显式设置 `base_url` 为 `https://open.bigmodel.cn/api/coding/paas/v4/`，`model_name` 为 `glm-5.3`。两个入口不会自动切换；额度/权限错误仍明确失败。该入口的测试证据须标明 Coding Plan，不作为普通 API 或生产部署可用证据。其他服务商和 Anthropic 协议地址不在此连接器范围内。
 
 ## 演示事实的范围
 

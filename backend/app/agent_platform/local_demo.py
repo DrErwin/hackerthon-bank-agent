@@ -80,10 +80,10 @@ class LocalDemoConfig(BaseModel):
         if not self.demo_round_id.strip() or not self.model_name.startswith("glm-"):
             raise ValueError("demo round and GLM model must be configured")
         endpoint = urlparse(self.base_url)
-        if (endpoint.scheme, endpoint.hostname, endpoint.path.rstrip("/")) != (
-            "https", "open.bigmodel.cn", "/api/paas/v4",
-        ) or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment or endpoint.port:
-            raise ValueError("use the ordinary Zhipu API endpoint")
+        if (endpoint.scheme != "https" or endpoint.hostname != "open.bigmodel.cn"
+                or endpoint.path.rstrip("/") not in {"/api/paas/v4", "/api/coding/paas/v4"}
+                or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment or endpoint.port):
+            raise ValueError("use an explicitly configured Zhipu chat-completion endpoint")
         for origin in self.origins:
             parsed = urlparse(origin)
             if (parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1"}
