@@ -386,6 +386,7 @@ class TransferWorkflow:
                 "operation": operation.model_dump(mode="json"), "status": TaskStatus.SUCCEEDED.value,
                 "message": f"银行返回转账成功，金额 {receipt.amount_fen / 100:.2f} 元。交易编号 {receipt.transaction_id}。",
                 "interaction": None, "error": None, "next": END,
+                "recovery_required": False, "recovery_reason": None,
             }
         reason = operation.failure.code if operation.failure else "BANK_REJECTED"
         description = (TransferWorkflow._bank_reason(operation.failure)
@@ -398,6 +399,7 @@ class TransferWorkflow:
                 reason=description, upstream_code=reason,
             ).model_dump(mode="json"),
             "interaction": None, "next": END,
+            "recovery_required": False, "recovery_reason": None,
         }
 
     def _reconcile_once(self, state: TransferState) -> dict | None:

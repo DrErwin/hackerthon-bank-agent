@@ -423,7 +423,8 @@ def test_checkpoint_recovery_and_bank_failure():
     assert ports.submissions == 1
 
 
-def test_unknown_result_queries_only_original_operation():
+@pytest.mark.parametrize("bank_status", ["succeeded", "failed"])
+def test_unknown_result_queries_only_original_operation(bank_status):
     flow, ports = workflow()
     flow.start(trusted(), request())
     ports.approved = True
@@ -434,8 +435,12 @@ def test_unknown_result_queries_only_original_operation():
     assert ports.submissions == 1
     assert ports.observations >= 3
     ports.processing = False
+    ports.bank_status = bank_status
     done = flow.resume(trusted(), {"query": True})
-    assert done.status == TaskStatus.SUCCEEDED
+    assert done.status == (TaskStatus.SUCCEEDED if bank_status == "succeeded" else TaskStatus.FAILED)
+    assert not done.recovery_required
+    assert done.recovery_reason is None
+    assert done.allowed_actions == []
     assert done.data.operation_id == unknown.data.operation_id
     assert ports.submissions == 1
 
