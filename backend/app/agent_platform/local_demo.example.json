@@ -1,0 +1,142 @@
+{
+  "api_key": "REPLACE_LOCALLY",
+  "api_secret": "REPLACE_WITH_A_FIXED_RANDOM_SECRET_OF_AT_LEAST_32_BYTES",
+  "bank_secret": "REPLACE_WITH_A_FIXED_RANDOM_SECRET_OF_AT_LEAST_32_BYTES",
+  "admin_key": "REPLACE_WITH_A_FIXED_RANDOM_SECRET_OF_AT_LEAST_32_BYTES",
+  "model_name": "glm-4.7",
+  "data_directory": "C:/absolute/local/demo-data",
+  "facts_version": "fictional-demo-v1",
+  "read_fixture": {
+    "fixture_id": "local-read-context",
+    "signals": [
+      "familiar_payee",
+      "familiar_device",
+      "usual_amount_range",
+      "clear_request"
+    ],
+    "checked_signals": [
+      "familiar_payee",
+      "familiar_device",
+      "usual_amount_range",
+      "clear_request",
+      "new_payee",
+      "unusual_amount",
+      "rapid_account_changes",
+      "hesitation_or_unclear_purpose",
+      "impersonation",
+      "secrecy_or_urgent_pressure",
+      "screen_sharing",
+      "credential_request",
+      "unfamiliar_link",
+      "unusual_device_or_counterparty"
+    ]
+  },
+  "transfer_fixtures": [
+    {
+      "fixture_id": "mom-500-low",
+      "payer_account_id": "A1",
+      "payee_id": "A2",
+      "amount_fen": 50000,
+      "signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request"
+      ],
+      "checked_signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request",
+        "new_payee",
+        "unusual_amount",
+        "rapid_account_changes",
+        "hesitation_or_unclear_purpose",
+        "impersonation",
+        "secrecy_or_urgent_pressure",
+        "screen_sharing",
+        "credential_request",
+        "unfamiliar_link",
+        "unusual_device_or_counterparty"
+      ]
+    },
+    {
+      "fixture_id": "mom-501-medium",
+      "payer_account_id": "A1",
+      "payee_id": "A2",
+      "amount_fen": 50100,
+      "signals": [
+        "unusual_amount"
+      ],
+      "checked_signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request",
+        "new_payee",
+        "unusual_amount",
+        "rapid_account_changes",
+        "hesitation_or_unclear_purpose",
+        "impersonation",
+        "secrecy_or_urgent_pressure",
+        "screen_sharing",
+        "credential_request",
+        "unfamiliar_link",
+        "unusual_device_or_counterparty"
+      ]
+    },
+    {
+      "fixture_id": "mom-502-high",
+      "payer_account_id": "A1",
+      "payee_id": "A2",
+      "amount_fen": 50200,
+      "signals": [
+        "secrecy_or_urgent_pressure"
+      ],
+      "checked_signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request",
+        "new_payee",
+        "unusual_amount",
+        "rapid_account_changes",
+        "hesitation_or_unclear_purpose",
+        "impersonation",
+        "secrecy_or_urgent_pressure",
+        "screen_sharing",
+        "credential_request",
+        "unfamiliar_link",
+        "unusual_device_or_counterparty"
+      ]
+    },
+    {
+      "fixture_id": "mom-600-low",
+      "payer_account_id": "A1",
+      "payee_id": "A2",
+      "amount_fen": 60000,
+      "signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request"
+      ],
+      "checked_signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request",
+        "new_payee",
+        "unusual_amount",
+        "rapid_account_changes",
+        "hesitation_or_unclear_purpose",
+        "impersonation",
+        "secrecy_or_urgent_pressure",
+        "screen_sharing",
+        "credential_request",
+        "unfamiliar_link",
+        "unusual_device_or_counterparty"
+      ]
+    }
+  ]
+}
