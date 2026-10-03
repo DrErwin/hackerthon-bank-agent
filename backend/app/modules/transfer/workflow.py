@@ -44,6 +44,7 @@ class TransferState(TypedDict, total=False):
     payee_hint: str | None
     payee_input: dict | None
     payee_display: dict | None
+    payee_error: str | None
     payee_candidates: list[dict]
     amount_fen: int | None
     operation_id: str | None
@@ -188,7 +189,23 @@ class TransferWorkflow:
             if attempt == 1:
                 return None, error
 
+    def _payee_rejected(self, state: TransferState, code: str) -> dict:
+        return {
+            "payee_input": None, "payee_hint": None, "payee_display": None,
+            "payee_error": None, "operation_id": None, "parameters_ref": None,
+            "operation": None,
+            "action_revision": state["action_revision"] + bool(state.get("operation_id")),
+            "status": TaskStatus.WAITING_INPUT.value,
+            "interaction": self._interaction("收款资料未通过核验，请核对后重新填写。", ["payee_hint"]),
+            "wait_kind": "details", "next": "wait",
+            "message": "这笔转账尚未提交，请重新提供收款资料。",
+            "error": ModuleError(code=code, source="bank", field="payee_hint",
+                reason="收款资料未通过核验", upstream_code=None).model_dump(mode="json"),
+        }
+
     def _collect(self, state: TransferState) -> dict:
+        if state.get("payee_error"):
+            return self._payee_rejected(state, state["payee_error"])
         if not state["intent_text"].strip():
             return self._fail("INVALID_ARGUMENT", "transfer", "请说明要办理的普通转账。")
         if state.get("amount_fen") is None or state.get("amount_fen", 0) <= 0:
@@ -477,7 +494,11 @@ class TransferWorkflow:
                 "message": "这笔转账尚未提交，已取消。",
                 "recovery_required": False, "recovery_reason": None, "next": END,
             }
+        if response.get("input_rejected"):
+            return {"next": "wait"}
         kind = state["wait_kind"]
+        if kind in {"details", "adjust", "security"} and response.get("payee_error"):
+            return self._payee_rejected(state, response["payee_error"])
         if kind == "retry_read":
             if response.get("choice") != "resume":
                 return {"next": "wait"}
@@ -499,19 +520,8 @@ class TransferWorkflow:
                 "status": TaskStatus.RUNNING.value, "next": "verify_payee",
             }
         if kind in {"details", "adjust", "security"} and isinstance(response.get("fields"), dict):
-            fields = response.get("fields")
-            allowed = {"payer_account_id", "amount_fen", "payee_hint", "payee_input"}
-            changes = {key: value for key, value in fields.items() if key in allowed}
-            if not changes:
-                return {"next": "wait"}
-            if "payee_input" in changes:
-                try:
-                    changes["payee_input"] = payee_input(changes["payee_input"]).model_dump(mode="json")
-                except ValueError:
-                    return {"next": "wait"}
-            if "amount_fen" in changes and (
-                not isinstance(changes["amount_fen"], int) or changes["amount_fen"] <= 0
-            ):
+            changes = self._input_changes(response["fields"])
+            if changes is None:
                 return {"next": "wait"}
             if "payee_hint" in changes:
                 changes["payee_input"] = None
@@ -569,11 +579,12 @@ class TransferWorkflow:
             return self._result(prior)
         if request.execute_at is not None:
             raise ValueError("CAPABILITY_UNAVAILABLE")
+        protected, payee_error = self._protect_payee(trusted, request.payee, 1) if request.payee else (None, None)
         initial: TransferState = {
             "trusted": trusted.model_dump(mode="json"), "request_id": str(request.request_id),
             "intent_text": request.intent_text, "payer_account_id": request.payer_account_id,
             "payee_hint": request.payee_hint,
-            "payee_input": self._protect_payee(trusted, request.payee, 1) if request.payee else None,
+            "payee_input": protected, "payee_error": payee_error,
             "amount_fen": request.amount_fen, "operation_id": None,
             "action_revision": 1, "parameters_ref": None, "operation": None,
             "status": TaskStatus.RUNNING.value, "interaction": None,
@@ -583,17 +594,34 @@ class TransferWorkflow:
         result = self.graph.invoke(initial, config)
         return self._result(result)
 
+    @staticmethod
+    def _input_changes(fields: dict) -> dict | None:
+        changes = {key: value for key, value in fields.items()
+                   if key in {"payer_account_id", "amount_fen", "payee_hint", "payee_input"}}
+        if not changes:
+            return None
+        if "payee_input" in changes:
+            try:
+                changes["payee_input"] = payee_input(changes["payee_input"]).model_dump(mode="json")
+            except ValueError:
+                return None
+        if "amount_fen" in changes and (
+            not isinstance(changes["amount_fen"], int) or changes["amount_fen"] <= 0
+        ):
+            return None
+        return changes
+
     def _protect_payee(self, trusted, payee, revision):
         parsed = payee_input(payee) if isinstance(payee, dict) else payee
         if parsed.kind != "manual":
-            return parsed.model_dump(mode="json")
+            return parsed.model_dump(mode="json"), None
         registered = self.ports.protect_payee(trusted, parsed, revision)
         if isinstance(registered, QueryFailure):
-            raise ValueError("PAYEE_REFERENCE_UNAVAILABLE")
+            return None, registered.error.code
         if not getattr(registered, "reference", None):
-            raise ValueError("PAYEE_MISMATCH")
+            return None, "PAYEE_MISMATCH"
         return {"kind": "reference", "reference": registered.reference,
-                "payee_revision": revision}
+                "payee_revision": revision}, None
 
     def checkpoint_context(
         self, trusted: TrustedContext, *, thread_id: str | None = None,
@@ -734,17 +762,28 @@ class TransferWorkflow:
         # Command(resume=...) is persisted as a checkpoint write before _wait runs.
         # Replace dedicated raw material before constructing that command.
         fields = response.get("fields")
-        if (saved.values.get("payee_input") or {}).get("kind") == "reference" and (
-            isinstance(fields, dict) and ("payee_hint" in fields or (
-                isinstance(fields.get("payee_input"), dict)
-                and fields["payee_input"].get("kind") in {"saved", "own"}
-            ))
-        ):
-            self.ports.clear_payee(trusted)
-        if isinstance(fields, dict) and fields.get("payee_input") is not None:
-            response = {**response, "fields": {**fields, "payee_input": self._protect_payee(
-                trusted, fields["payee_input"], saved.values["action_revision"] + 1,
-            )}}
+        response = {key: value for key, value in response.items() if key in {"choice", "cancel"}}
+        if isinstance(fields, dict) and not (response.get("cancel") is True or response.get("choice") == "cancel"):
+            changes = self._input_changes(fields)
+            if saved.values.get("wait_kind") not in {"details", "adjust", "security"} or changes is None:
+                response["input_rejected"] = True
+            else:
+                if (saved.values.get("payee_input") or {}).get("kind") == "reference" and (
+                    "payee_hint" in changes or (changes.get("payee_input") or {}).get("kind") in {"saved", "own"}
+                ):
+                    self.ports.clear_payee(trusted)
+                if changes.get("payee_input") is not None and "payee_hint" not in changes:
+                    protected, error = self._protect_payee(trusted, changes["payee_input"], saved.values["action_revision"] + 1)
+                    if error:
+                        response["payee_error"] = error
+                        changes.pop("payee_input")
+                    else:
+                        changes["payee_input"] = protected
+                if "payee_hint" in changes:
+                    changes.pop("payee_input", None)
+                response["fields"] = changes
+        if not response:
+            response = {"choice": "resume"}
         command = Command(resume=response) if any(task.interrupts for task in saved.tasks) else None
         result = self.graph.invoke(command, config)
         return self._result(result)

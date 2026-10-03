@@ -117,3 +117,41 @@ def test_cross_task_reference_does_not_prepare_operation(setup):
     assert rejected.status != TaskStatus.WAITING_APPROVAL
     assert len(bank.store.list_ledger("U1", "A1")) == 0
     scan(app)
+
+
+@pytest.mark.parametrize("fields", [
+    {"payee_hint": "妈妈", "amount_fen": 0},
+    {"payee_input": manual().model_dump(), "amount_fen": 0},
+])
+def test_rejected_fields_keep_reference_usable(setup, fields):
+    app, bank = setup
+    first = app.harness.resume(trusted("R2"), {"fields": {"payee_input": manual().model_dump()}})
+    rejected = app.harness.resume(trusted("R3"), {"fields": fields})
+    assert rejected.data.operation_id == first.data.operation_id
+    assert rejected.interaction.record_ref == first.interaction.record_ref
+    corrected = app.harness.resume(trusted("R4"), {"fields": {"amount_fen": 60000}})
+    assert corrected.status == TaskStatus.WAITING_APPROVAL
+    assert corrected.data.operation_id != first.data.operation_id
+    assert len(bank.store.list_ledger("U1", "A1")) == 0
+    scan(app)
+
+
+def test_mismatched_manual_payee_can_be_corrected_on_same_task(setup):
+    app, bank = setup
+    first = app.harness.resume(trusted("R2"), {"fields": {"payee_input": manual().model_dump()}})
+    wrong = manual().model_copy(update={"account_name": "错误户名"})
+    rejected = app.harness.resume(trusted("R3"), {"fields": {"payee_input": wrong.model_dump()}})
+    assert rejected.task_id == first.task_id
+    assert rejected.status == TaskStatus.WAITING_INPUT
+    assert rejected.error.code == "PAYEE_MISMATCH"
+    assert rejected.data.operation_id is None
+    assert rejected.data.payee is None
+    assert rejected.allowed_actions == ["provide_input", "cancel"]
+    with pytest.raises(SecurityError, match="CONFIRMATION_STALE"):
+        app.answer_confirmation(trusted("R3"), ConfirmationAnswer(
+            confirmation_id=first.interaction.record_ref, confirmation_version=1, choice="approve"))
+    corrected = app.harness.resume(trusted("R4"), {"fields": {"payee_input": manual().model_dump()}})
+    assert corrected.task_id == first.task_id
+    assert corrected.status == TaskStatus.WAITING_APPROVAL
+    assert len(bank.store.list_ledger("U1", "A1")) == 0
+    scan(app)
