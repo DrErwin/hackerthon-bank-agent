@@ -89,3 +89,20 @@ def test_session_reuse_checks_current_owner_round_and_expiry(tmp_path):
         assert len(bank.store.list_ledger("U1", "A1")) == 0
     finally:
         app.close()
+
+
+def test_source_task_session_migration_does_not_block_old_valid_session(tmp_path):
+    app, bank, old_id = verified_then_cancelled(tmp_path)
+    task = app.application.get_task("U1", "D1", "T1")
+    app.application.transition_task_session("U1", "D1", "T1", "S1", "S2", task.revision)
+    owner = trusted("R2").model_copy(update={"task_id": "T2"})
+    try:
+        pending = app.harness.start(owner, uuid4(), "给妈妈转 500 元")
+        assert pending.status == TaskStatus.WAITING_APPROVAL
+        assert pending.interaction.kind == "confirmation"
+        assert app._context(owner, pending.data.operation_id, 1).verification_ids == [old_id]
+        assert len(bank.store.list_ledger("U1", "A1")) == 0
+        assert approved(app, owner, pending).status == TaskStatus.SUCCEEDED
+        assert len(bank.store.list_ledger("U1", "A1")) == 1
+    finally:
+        app.close()

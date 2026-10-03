@@ -182,8 +182,7 @@ class TransferFacts:
                 AND scope = 'session' AND task_id != ? AND verification_id NOT IN (
                     SELECT verification_id FROM agent_transfer_verifications WHERE task_id = ?)
                 """, (trusted.user_id, trusted.demo_round_id, trusted.task_id, trusted.task_id)).fetchall()
-            return [(row["task_id"], row["verification_id"]) for row in rows if self.application.has_ref(
-                trusted.user_id, trusted.demo_round_id, row["task_id"], "verification", row["verification_id"])]
+            return [(row["task_id"], row["verification_id"]) for row in rows]
         finally:
             connection.close()
 
@@ -432,7 +431,9 @@ class TransferRuntime:
             ):
                 continue
             source = trusted.model_copy(update={"task_id": source_task})
-            self._task(source)
+            # The task may have moved sessions since this bank session fact was issued.
+            if self.application.get_task(trusted.user_id, trusted.demo_round_id, source_task) is None:
+                continue
             challenge = self.gateway.get_verification(source, record.source_challenge_id)
             if challenge.challenge_status != "passed" or challenge.purpose != "basic_identity":
                 continue
