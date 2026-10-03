@@ -197,6 +197,7 @@ class AuditedTransferPorts:
                  activate: Callable[[TrustedContext, TransferAction, TransferWorkflow], object],
                  record_result: Callable,
                  decision_spans: dict[str, str],
+                 payee_references: ControlledPayeeReferences,
                  workflow: TransferWorkflow | None = None):
         self.tools = tools
         self.trace = trace
@@ -204,6 +205,11 @@ class AuditedTransferPorts:
         self.record_result = record_result
         self.decision_spans = decision_spans
         self.workflow = workflow
+        self.payee_references = payee_references
+
+    def protect_payee(self, trusted, payee, payee_revision):
+        """Public port used before business input can enter its checkpoint."""
+        return self.payee_references.register(trusted, payee, payee_revision)
 
     def read(self, trusted: TrustedContext, action_name: str, parameters: dict):
         registered = self.tools.gate.registry.get(action_name)
@@ -661,7 +667,7 @@ class TransferRuntime:
             return lambda: self._active.reset(token)
 
         ports = AuditedTransferPorts(
-            tools, trace, activate, self._record_result, decision_spans,
+            tools, trace, activate, self._record_result, decision_spans, self.payee_references,
         )
         flow = TracedTransferWorkflow(ports, saver, trace, node_span)
         ports.workflow = flow
