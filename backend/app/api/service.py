@@ -413,7 +413,13 @@ class ApiService:
 
     def verification(self, identity, challenge_id):
         trusted = self.record_context(identity, "verification", challenge_id)
-        challenge = self.runtime.gateway.get_verification(trusted, challenge_id)
+        try:
+            challenge = self.runtime.gateway.get_verification(trusted, challenge_id)
+        except Exception as exc:
+            if isinstance(exc, PermissionError) or isinstance(exc, ValueError) and str(exc) == "ACCESS_DENIED":
+                raise
+            self.verification_fault(identity, trusted, challenge_id, None, "lookup")
+            raise ApiProblem(503, "DEPENDENCY_UNAVAILABLE") from None
         return trusted, challenge
 
     @staticmethod
@@ -458,7 +464,7 @@ class ApiService:
     def check_verification_retry(self, trusted, challenge_id, submission_id, method):
         task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
         pending = task.snapshot.get("pending_verification")
-        if pending and pending != {"challenge_id": challenge_id, "submission_id": str(submission_id), "method": method}:
+        if pending and pending["method"] != "lookup" and pending != {"challenge_id": challenge_id, "submission_id": str(submission_id), "method": method}:
             raise ApiProblem(409, "ORIGINAL_VERIFICATION_SUBMISSION_REQUIRED")
 
     def begin_verification(self, actor, trusted, step, *, terminal_challenge=False):
@@ -494,7 +500,8 @@ class ApiService:
             allow_session_recovery=recover_session,
         )
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
-        if task and task.snapshot.get("pending_verification") and not verification_retry and response.get("cancel") is not True:
+        lookup_retry = bool(task and (task.snapshot.get("pending_verification") or {}).get("method") == "lookup")
+        if task and task.snapshot.get("pending_verification") and not (verification_retry or lookup_retry) and response.get("cancel") is not True:
             raise ApiProblem(409, "ORIGINAL_VERIFICATION_SUBMISSION_REQUIRED")
         session_changed = (
             link["session_id"] != identity.session_id
@@ -532,7 +539,7 @@ class ApiService:
                 self.runtime.harness.start(trusted, UUID(link["request_id"]), link["intent_text"])
         else:
             self.runtime.harness.resume(trusted, response)
-        if verification_retry:
+        if verification_retry or lookup_retry:
             current = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
             if current and "pending_verification" in current.snapshot:
                 snapshot = {key: value for key, value in current.snapshot.items() if key != "pending_verification"}

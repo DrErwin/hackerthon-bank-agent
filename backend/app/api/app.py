@@ -341,11 +341,19 @@ def create_app(runtime=None, config=None):
         except Exception as exc:
             status, _ = problem(exc)
             if status != 503:
+                if isinstance(exc, (ValueError, ApiProblem)) and (
+                    getattr(exc, "code", None) == "CHALLENGE_STALE" or str(exc) == "TASK_TERMINATED"
+                ):
+                    current = service.runtime.gateway.get_verification(trusted, challenge_id)
+                    if current.challenge_status in {"failed", "expired", "cancelled"}:
+                        service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
                 raise
             service.verification_fault(who, trusted, challenge_id, submission_id, method)
             raise ApiProblem(503, "DEPENDENCY_UNAVAILABLE") from None
 
     def verification_response(service, who, trusted, outcome, actor, method):
+        current = service.runtime.gateway.get_verification(trusted, outcome.challenge.challenge_id)
+        outcome = outcome.model_copy(update={"challenge": current})
         service.record_verification(actor, trusted, outcome, method)
         task = service.task_view(who, trusted.task_id)
         if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
@@ -358,8 +366,9 @@ def create_app(runtime=None, config=None):
 
     @application.post("/api/v1/verifications/{challenge_id}/code")
     def code(request: Request, challenge_id: str, body: VerificationCodeRequest, who=Depends(identity), service=Depends(api)):
-        trusted, challenge = service.verification(who, challenge_id)
+        trusted = service.record_context(who, "verification", challenge_id)
         def action():
+            challenge = service.runtime.gateway.get_verification(trusted, challenge_id)
             # The bank first finds the original submission_id. This also recovers
             # a passed bank record after an API crash before binding it to the task.
             service.begin_verification(who, trusted, "verification.code", terminal_challenge=challenge.challenge_status != "pending")
@@ -375,20 +384,21 @@ def create_app(runtime=None, config=None):
     @application.post("/api/v1/verifications/{challenge_id}/resend-code")
     @application.post("/api/v1/verifications/{challenge_id}/face/start")
     def verification_action(request: Request, challenge_id: str, body: RequestIdOnly, who=Depends(identity), service=Depends(api)):
-        trusted, challenge = service.verification(who, challenge_id)
+        trusted = service.record_context(who, "verification", challenge_id)
         def action():
+            challenge = service.runtime.gateway.get_verification(trusted, challenge_id)
             if request.url.path.endswith("resend-code"):
                 service.begin_verification(who, trusted, "verification.resend-code")
                 current = service.runtime.gateway.resend_verification_code(trusted, challenge_id, body.request_id)
                 service.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)", ("verification", current.challenge_id, trusted.task_id))
             else:
-                if challenge.challenge_status != "pending":
-                    raise ApiProblem(409, "CHALLENGE_STALE")
-                service.begin_verification(who, trusted, "verification.face.start")
+                service.begin_verification(who, trusted, "verification.face.start",
+                    terminal_challenge=challenge.challenge_status != "pending")
                 current = service.runtime.gateway.start_face(trusted, challenge_id, body.request_id)
             task = service.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
             if request.url.path.endswith("resend-code") or task.snapshot.get("pending_verification"):
                 service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
+            current = service.runtime.gateway.get_verification(trusted, current.challenge_id)
             return service.verification_view(current)
         return mutation(service, who, request, body, lambda: verification_guard(
             service, who, trusted, challenge_id, body.request_id,
@@ -404,8 +414,9 @@ def create_app(runtime=None, config=None):
             raise ApiProblem(404, "NOT_FOUND")
         link = rows[0]
         target = service.identity(service.cookie(link["session_id"]))
-        trusted, challenge = service.verification(target, challenge_id)
+        trusted = service.record_context(target, "verification", challenge_id)
         def action():
+            challenge = service.runtime.gateway.get_verification(trusted, challenge_id)
             service.begin_verification(who, trusted, "admin.verification.face-result", terminal_challenge=challenge.challenge_status != "pending")
             admin = AdminContext(who.user_id, True, who.demo_round_id, target.user_id)
             outcome = service.runtime.gateway.verify_face(admin, challenge_id, body.submission_id, body.result)
