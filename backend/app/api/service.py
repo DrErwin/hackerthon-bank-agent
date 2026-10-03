@@ -454,9 +454,13 @@ class ApiService:
             "allowed_actions": ["resume", "cancel"], "recovery_required": True,
             "recovery_reason": "VERIFICATION_OUTCOME_UNKNOWN",
         })
+        pending = {"challenge_id": challenge_id,
+                   "submission_id": str(submission_id) if submission_id is not None else None,
+                   "method": method}
+        if method == "lookup" and task.snapshot.get("pending_verification"):
+            pending = task.snapshot["pending_verification"]
         snapshot = {**task.snapshot, "result": result.model_dump(mode="json"),
-                    "pending_verification": {"challenge_id": challenge_id,
-                        "submission_id": str(submission_id), "method": method}}
+                    "pending_verification": pending}
         self.runtime.application.update_task(trusted.user_id, trusted.demo_round_id, trusted.task_id,
             task.revision, task.run_id, TaskStatus.NEEDS_ATTENTION, task.checkpoint_id, snapshot)
         self.publish_task(identity, trusted.task_id)

@@ -36,6 +36,13 @@ def test_verification_fault_updates_task_and_replays_original_submission(tmp_pat
         assert "待核实" in failed.text
         assert current["recovery_reason"] == "VERIFICATION_OUTCOME_UNKNOWN"
         assert current["data"]["operation_id"] == initial["data"]["operation_id"]
+        with patch.object(gateway, "get_verification", side_effect=RuntimeError("secret: " + code)):
+            read_failed = client.get(f"/api/v1/verifications/{challenge}")
+        assert read_failed.status_code == 503
+        assert code not in read_failed.text
+        saved = app.state.api.runtime.application.get_task("U1", "D1", initial["task_id"])
+        assert saved.snapshot["pending_verification"]["submission_id"] == body["submission_id"]
+        assert saved.snapshot["pending_verification"]["method"] == "code"
         trusted = app.state.api.trusted(app.state.api.identity(client.cookies.get("bank_session")), initial["task_id"])
         fact = gateway.get_verification(trusted, challenge)
         assert fact.consecutive_code_failures == 0
