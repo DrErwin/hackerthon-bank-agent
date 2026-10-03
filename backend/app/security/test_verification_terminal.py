@@ -108,3 +108,21 @@ def test_unavailable_challenge_fact_is_pause_not_terminal(tmp_path):
         assert len(bank.store.list_ledger("U1", "A1")) == 0
     finally:
         app.close()
+
+
+def test_resend_failure_before_runtime_registration_is_terminal(tmp_path):
+    app, bank, _, challenge = begin(tmp_path, RiskLevel.LOW)
+    new = app.gateway.resend_verification_code(trusted(), challenge, uuid4())
+    # Bank write succeeds, but the application crashes before its next gate check.
+    app.close()
+    for _ in range(3):
+        bank.verification.verify_code(trusted(), new.challenge_id, uuid4(), "incorrect")
+    restarted = runtime(tmp_path / "application.sqlite", bank)
+    try:
+        result = restarted.harness.resume(trusted("R3"), {"choice": "resume"})
+        assert result.status == TaskStatus.FAILED
+        assert result.error.code == "VERIFICATION_FAILED"
+        assert restarted.confirmations.state.is_task_terminated(restarted._context(trusted(), None, None))
+        assert len(bank.store.list_ledger("U1", "A1")) == 0
+    finally:
+        restarted.close()
