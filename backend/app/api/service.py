@@ -18,7 +18,7 @@ from app.contracts.api import MessageView, StreamEvent
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
-from app.contracts.tasks import ModuleResult, TaskView, TransferTaskView
+from app.contracts.tasks import ModuleError, ModuleResult, TaskView, TransferTaskView
 
 from .store import ApiProblem, ApiStore, dump
 
@@ -435,6 +435,32 @@ class ApiService:
             missing_reason="API step has no secret content snapshot", payload=payload,
         ))
 
+    def verification_fault(self, identity, trusted, challenge_id, submission_id, method):
+        task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
+        if task.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+            return
+        result = ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
+        result = result.model_copy(update={
+            "status": TaskStatus.NEEDS_ATTENTION, "interaction": None,
+            "message": "验证结果待核实，请使用原提交重试；这不是验证未通过。",
+            "error": ModuleError(code="DEPENDENCY_UNAVAILABLE", source="bank", field=None,
+                                 reason="暂时无法核对验证结果。", upstream_code=None),
+            "allowed_actions": ["resume", "cancel"], "recovery_required": True,
+            "recovery_reason": "VERIFICATION_OUTCOME_UNKNOWN",
+        })
+        snapshot = {**task.snapshot, "result": result.model_dump(mode="json"),
+                    "pending_verification": {"challenge_id": challenge_id,
+                        "submission_id": str(submission_id), "method": method}}
+        self.runtime.application.update_task(trusted.user_id, trusted.demo_round_id, trusted.task_id,
+            task.revision, task.run_id, TaskStatus.NEEDS_ATTENTION, task.checkpoint_id, snapshot)
+        self.publish_task(identity, trusted.task_id)
+
+    def check_verification_retry(self, trusted, challenge_id, submission_id, method):
+        task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
+        pending = task.snapshot.get("pending_verification")
+        if pending and pending != {"challenge_id": challenge_id, "submission_id": str(submission_id), "method": method}:
+            raise ApiProblem(409, "ORIGINAL_VERIFICATION_SUBMISSION_REQUIRED")
+
     def begin_verification(self, actor, trusted, step, *, terminal_challenge=False):
         self.identity(self.cookie(trusted.session_id))
         task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
@@ -458,7 +484,7 @@ class ApiService:
             reason_code=outcome.reason_code or "VERIFICATION_METHOD_PASSED",
         ), "succeeded" if outcome.kind == "verified" else "denied")
 
-    def continue_task(self, identity, task_id, response, *, recover_session=False):
+    def continue_task(self, identity, task_id, response, *, recover_session=False, verification_retry=False):
         link = self.link(
             identity, task_id, mutate=True,
             allow_session_recovery=recover_session,
@@ -468,6 +494,8 @@ class ApiService:
             allow_session_recovery=recover_session,
         )
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+        if task and task.snapshot.get("pending_verification") and not verification_retry and response.get("cancel") is not True:
+            raise ApiProblem(409, "ORIGINAL_VERIFICATION_SUBMISSION_REQUIRED")
         session_changed = (
             link["session_id"] != identity.session_id
             or task is not None and task.session_id != identity.session_id
@@ -504,6 +532,12 @@ class ApiService:
                 self.runtime.harness.start(trusted, UUID(link["request_id"]), link["intent_text"])
         else:
             self.runtime.harness.resume(trusted, response)
+        if verification_retry:
+            current = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+            if current and "pending_verification" in current.snapshot:
+                snapshot = {key: value for key, value in current.snapshot.items() if key != "pending_verification"}
+                self.runtime.application.update_task(identity.user_id, identity.demo_round_id, task_id,
+                    current.revision, current.run_id, current.status, current.checkpoint_id, snapshot)
         return self.publish_task(identity, task_id)
 
     def current_interaction(self, identity, task_id, interaction_id):

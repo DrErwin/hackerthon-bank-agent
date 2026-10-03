@@ -913,7 +913,12 @@ def test_audit_failure_prevents_verification_writes(tmp_path, monkeypatch, opera
         assert rejected.status_code == 503, rejected.text
         after = user.get(f"/api/v1/verifications/{challenge}").json()["data"]
         assert before == after
-        assert user.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]["interaction"]["record_ref"] == challenge
+        snapshot = user.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert snapshot["status"] == "needs_attention"
+        assert snapshot["interaction"] is None
+        assert snapshot["recovery_reason"] == "VERIFICATION_OUTCOME_UNKNOWN"
+        stored = client.app.state.api.runtime.application.get_task("U1", "D1", task["task_id"])
+        assert stored.snapshot["pending_verification"]["challenge_id"] == challenge
 
 
 def test_read_dependency_errors_use_controlled_envelope_without_exception_text(tmp_path, monkeypatch):
