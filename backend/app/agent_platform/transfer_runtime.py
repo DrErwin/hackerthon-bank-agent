@@ -40,6 +40,7 @@ from app.storage.database import connect, parameter_digest, transaction
 
 from .harness import AgentHarness, RunTrace
 from .model import Planner
+from .payee_references import ControlledPayeeReferences
 from .registry import CapabilityRegistry
 
 
@@ -344,6 +345,7 @@ class TransferRuntime:
         self.gateway = BankGateway(
             bank, authorize_transfer=self._authorize_bank, authorize_face=authorize_face,
         )
+        self.payee_references = ControlledPayeeReferences(self.snapshots, self.gateway, self._task)
         registry = CapabilityRegistry()
         registry.register_transfer(MANIFEST, self._transfer_factory)
         self.harness = AgentHarness(
