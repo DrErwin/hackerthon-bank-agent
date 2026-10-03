@@ -34,3 +34,5 @@
 
 
 修复票 `v03-transfer-eval-fixes/06`：安全门保存已签发的脱敏验证挑战来源，每次敏感操作前从银行接入端重新核对该任务的可信状态。`failed` 或中风险 `expired` 形成持久终止标记及带挑战证据的BLOCK；基础前两错和基础验证码过期不被永久终止。源事实查询异常保持PAUSE，不按异常文案判断输错或超时。旧会话来源仅用于阻止原任务，不能授权新会话。测试：`python -m pytest app/security/test_gate.py app/security/test_verification_terminal.py -q`，25项门测试及8项真实平台/银行终止与技术暂停测试通过；六类终止均零流水且重建后不复活。HTTP集中联调、TF-VFY矩阵对照及真人安全审查仍待。
+
+重发中断窗口依赖 `v03-transfer-eval-fixes/05` 的银行类型化终止事实（PR #53）：安全门只接受同用户/轮次/任务的真实VerificationChallenge终止状态，异常字符串不形成终止。组合定向34通过（25门测试、9生命周期/恢复测试），包含重发落库后应用未登记即关闭、替代挑战三错、重建仍failed且零流水。
