@@ -174,6 +174,19 @@ class TransferFacts:
                     record.action_revision,
                 ))
 
+    def session_verification_sources(self, trusted: TrustedContext) -> list[tuple[str, str]]:
+        connection = connect(self.path)
+        try:
+            rows = connection.execute("""SELECT DISTINCT task_id, verification_id
+                FROM agent_transfer_verifications WHERE user_id = ? AND demo_round_id = ?
+                AND scope = 'session' AND task_id != ? AND verification_id NOT IN (
+                    SELECT verification_id FROM agent_transfer_verifications WHERE task_id = ?)
+                """, (trusted.user_id, trusted.demo_round_id, trusted.task_id, trusted.task_id)).fetchall()
+            return [(row["task_id"], row["verification_id"]) for row in rows if self.application.has_ref(
+                trusted.user_id, trusted.demo_round_id, row["task_id"], "verification", row["verification_id"])]
+        finally:
+            connection.close()
+
     def verification_ids(self, trusted: TrustedContext, operation_id: UUID | None,
                          action_revision: int | None) -> list[str]:
         connection = connect(self.path)
@@ -406,8 +419,37 @@ class TransferRuntime:
             run_id=context.run_id, parent_task_id=context.source_task_id,
         )
 
+    def _reuse_session_verifications(self, trusted: TrustedContext) -> None:
+        self._task(trusted)
+        for source_task, verification_id in self.facts.session_verification_sources(trusted):
+            try:
+                record = self.gateway.get_verification_record(trusted, verification_id)
+            except ValueError:
+                # Another session's bank record grants no authority here.
+                continue
+            if record.scope != "session" or (record.user_id, record.session_id, record.demo_round_id) != (
+                trusted.user_id, trusted.session_id, trusted.demo_round_id
+            ):
+                continue
+            source = trusted.model_copy(update={"task_id": source_task})
+            self._task(source)
+            challenge = self.gateway.get_verification(source, record.source_challenge_id)
+            if challenge.challenge_status != "passed" or challenge.purpose != "basic_identity":
+                continue
+            self.application.bind_ref(trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                                      "verification", verification_id)
+            self.facts.add_verification(trusted, record)
+            self._trace(trusted).record("verification.changed", VerificationChangedPayload(
+                challenge_id=challenge.challenge_id, method="code", result="passed",
+                purpose=challenge.purpose, operation_id=None, verification_id=verification_id,
+                consecutive_code_failures=challenge.consecutive_code_failures,
+                expires_at=challenge.code_expires_at, reason_code="SESSION_VERIFICATION_REUSED",
+            ), "succeeded", module="bank_gateway")
+
     def _context(self, trusted: TrustedContext, operation_id: UUID | None,
                  action_revision: int | None) -> ExecutionSecurityContext:
+        if operation_id is not None:
+            self._reuse_session_verifications(trusted)
         current = self.facts.confirmation(trusted, operation_id, action_revision)
         return ExecutionSecurityContext(
             user_id=trusted.user_id, session_id=trusted.session_id,
