@@ -17,3 +17,15 @@
 本 PR 合入前若已有旧版演示银行库，其操作没有轮次归属且含明文模拟码；服务会明确拒绝加载。先保留旧库供核对，再由演示管理员显式启用新的银行库，不静默改写原操作或清除数据。
 
 从 `backend/` 验证：`python -m pytest -q app/services/test_bank.py app/services/test_verification.py`。
+
+## JSON 种子与转账评测数据（v03-transfer-evals/02）
+
+账户初始余额、状态和展示信息来自 `seeds/accounts.json`，联系人资料来自 `seeds/payees.json`；完整号码是虚构测试资料，银行返回仍仅展示脱敏信息。两份文件按服务代码所在路径读取，不依赖启动目录。缺失文件或非法 JSON 会直接报错，不回退到硬编码数据。本工程当前采用源码 / editable 安装运行；普通 wheel 分发如需使用这些资源，须另行在构建配置中纳入 JSON（构建配置不在本票目录范围）。
+
+默认仍播种 A1、A5、U2A1，余额与既有演示一致。新联系人 A8/A9 是不同银行的张伟（尾号1111/2222），A10/A11 是同银行的李明（3333/4444），A12 是无备注的赵强（手机号13812345678、19位虚构卡号）；其余新联系人使用16位虚构卡号。保留 A2/A3/A4/A7 的原资料与银行规则。
+
+02 交付 D1 联系人和 D2 的 A6 / A8_ACC。03 建立隔离临时银行库后调用 `bank.seed_demo(include_evaluation=True)`，加入 A6（U1，active，50000分可用余额）及 A8_ACC（U1，frozen）。`seed_account` 只插入尚不存在的账户；重复播种或同库重启不会补回已扣余额，不清除流水，也不覆盖已有账户状态。已加入的评测账户在同库重启后继续保留，因此不要对开发者演示库调用此入口。
+
+类别、closed 状态、历史日/年额度和故障注入仍由03准备；本票没有交付151条转账场景的自动化或真实模型评测。账户/联系人加载表保持既有测试接缝 `ACCOUNT_LABELS` / `PAYEES`，数据内容仅在 JSON 定义，限额与涉诈规则继续由银行代码裁决。
+
+验证：从 `backend/` 运行 `python -m pytest -q app/services/test_seeds.py app/services/test_bank.py app/services/test_verification.py`，以及后端全量测试与 `../evals/mockbank/test_mockbank_eval.py`。新测试覆盖同名多候选、号码检索/手工核对、用户隔离、输出脱敏、一分钱不足、余额归零、冻结拒绝和重复播种/重启不重置账本。

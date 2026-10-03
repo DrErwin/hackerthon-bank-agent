@@ -1,0 +1,67 @@
+[
+  {
+    "account_id": "A1",
+    "user_id": "U1",
+    "account_type": "class_i",
+    "account_status": "active",
+    "book_balance_fen": 6000000,
+    "frozen_balance_fen": 0,
+    "version": 0,
+    "account_masked": "尾号 0001",
+    "display_name": "主账户",
+    "bank_name": "模拟银行",
+    "evaluation_only": false
+  },
+  {
+    "account_id": "A5",
+    "user_id": "U1",
+    "account_type": "class_i",
+    "account_status": "active",
+    "book_balance_fen": 0,
+    "frozen_balance_fen": 0,
+    "version": 0,
+    "account_masked": "尾号 0005",
+    "display_name": "储蓄账户",
+    "bank_name": "模拟银行",
+    "evaluation_only": false
+  },
+  {
+    "account_id": "U2A1",
+    "user_id": "U2",
+    "account_type": "class_i",
+    "account_status": "active",
+    "book_balance_fen": 100000,
+    "frozen_balance_fen": 0,
+    "version": 0,
+    "account_masked": "尾号 1001",
+    "display_name": "主账户",
+    "bank_name": "模拟银行",
+    "evaluation_only": false
+  },
+  {
+    "account_id": "A6",
+    "user_id": "U1",
+    "account_type": "class_i",
+    "account_status": "active",
+    "book_balance_fen": 50000,
+    "frozen_balance_fen": 0,
+    "version": 0,
+    "account_masked": "尾号 0006",
+    "display_name": "临界余额账户",
+    "bank_name": "模拟银行",
+    "evaluation_only": true
+  },
+  {
+    "account_id": "A8_ACC",
+    "user_id": "U1",
+    "account_type": "class_i",
+    "account_status": "frozen",
+    "book_balance_fen": 100000,
+    "frozen_balance_fen": 0,
+    "version": 0,
+    "account_masked": "尾号 0008",
+    "display_name": "冻结账户",
+    "bank_name": "模拟银行",
+    "evaluation_only": true
+  }
+]

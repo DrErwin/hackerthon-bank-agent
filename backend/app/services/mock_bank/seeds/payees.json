@@ -1,0 +1,83 @@
+[
+  {
+    "payee_id": "A2",
+    "user_id": "U1",
+    "name": "王阿姨",
+    "account_number": "6222000000000002",
+    "remark": "妈妈",
+    "bank_name": "模拟合作银行",
+    "phone": "13900000002"
+  },
+  {
+    "payee_id": "A3",
+    "user_id": "U1",
+    "name": "李先生",
+    "account_number": "6222000000000003",
+    "remark": "房东",
+    "bank_name": "模拟合作银行",
+    "phone": "13900000003"
+  },
+  {
+    "payee_id": "A4",
+    "user_id": "U1",
+    "name": "家庭账户",
+    "account_number": "6222000000000004",
+    "remark": "家庭",
+    "bank_name": "模拟银行",
+    "phone": "13900000004"
+  },
+  {
+    "payee_id": "A7",
+    "user_id": "U1",
+    "name": "风险账户",
+    "account_number": "6222000000000007",
+    "remark": null,
+    "bank_name": "模拟合作银行",
+    "phone": "13900000007"
+  },
+  {
+    "payee_id": "A8",
+    "user_id": "U1",
+    "name": "张伟",
+    "account_number": "6222000000001111",
+    "remark": null,
+    "bank_name": "中国工商银行",
+    "phone": "13800000008"
+  },
+  {
+    "payee_id": "A9",
+    "user_id": "U1",
+    "name": "张伟",
+    "account_number": "6222000000002222",
+    "remark": null,
+    "bank_name": "招商银行",
+    "phone": "13800000009"
+  },
+  {
+    "payee_id": "A10",
+    "user_id": "U1",
+    "name": "李明",
+    "account_number": "6222000000003333",
+    "remark": null,
+    "bank_name": "模拟银行",
+    "phone": "13800000010"
+  },
+  {
+    "payee_id": "A11",
+    "user_id": "U1",
+    "name": "李明",
+    "account_number": "6222000000004444",
+    "remark": null,
+    "bank_name": "模拟银行",
+    "phone": "13800000011"
+  },
+  {
+    "payee_id": "A12",
+    "user_id": "U1",
+    "name": "赵强",
+    "account_number": "6222000000000000012",
+    "remark": null,
+    "bank_name": "模拟银行",
+    "phone": "13812345678"
+  }
+]

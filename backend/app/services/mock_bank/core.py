@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
 import sqlite3
 import threading
 import time
@@ -23,16 +25,22 @@ from .verification import MockBankVerification
 
 
 BEIJING = timezone(timedelta(hours=8))
+SEEDS_DIR = Path(__file__).parent / "seeds"
+
+
+def _load_seeds(filename: str) -> list[dict]:
+    return json.loads((SEEDS_DIR / filename).read_text(encoding="utf-8"))
+
+
 ACCOUNT_LABELS = {
-    "A1": ("U1", "尾号 0001", "主账户", "模拟银行"),
-    "A5": ("U1", "尾号 0005", "储蓄账户", "模拟银行"),
-    "U2A1": ("U2", "尾号 1001", "主账户", "模拟银行"),
+    row["account_id"]: (row["user_id"], row["account_masked"], row["display_name"], row["bank_name"])
+    for row in _load_seeds("accounts.json")
 }
+# Keep the existing test seam; the facts themselves live only in JSON.
 PAYEES = {
-    "A2": ("U1", "王阿姨", "6222000000000002", "妈妈", "模拟合作银行", "13900000002"),
-    "A3": ("U1", "李先生", "6222000000000003", "房东", "模拟合作银行", "13900000003"),
-    "A4": ("U1", "家庭账户", "6222000000000004", "家庭", "模拟银行", "13900000004"),
-    "A7": ("U1", "风险账户", "6222000000000007", None, "模拟合作银行", "13900000007"),
+    row["payee_id"]: (row["user_id"], row["name"], row["account_number"],
+                      row["remark"], row["bank_name"], row["phone"])
+    for row in _load_seeds("payees.json")
 }
 LIMITS = {
     "class_i": (5_000_000, 5_000_000, None),
@@ -90,10 +98,17 @@ class MockBankService:
                 ))
         self.verification = MockBankVerification(store.path, demo_secret)
 
-    def seed_demo(self) -> None:
-        self.store.seed_account(BankAccount("A1", "U1", "class_i", "active", 6_000_000, 0, 0))
-        self.store.seed_account(BankAccount("A5", "U1", "class_i", "active", 0, 0, 0))
-        self.store.seed_account(BankAccount("U2A1", "U2", "class_i", "active", 100_000, 0, 0))
+    def seed_demo(self, *, include_evaluation: bool = False) -> None:
+        """Add missing JSON accounts without resetting balances or existing state."""
+        for row in _load_seeds("accounts.json"):
+            if row["evaluation_only"] and not include_evaluation:
+                continue
+            self.store.seed_account(BankAccount(
+                account_id=row["account_id"], user_id=row["user_id"],
+                account_type=row["account_type"], account_status=row["account_status"],
+                book_balance_fen=row["book_balance_fen"],
+                frozen_balance_fen=row["frozen_balance_fen"], version=row["version"],
+            ))
 
     def arm_slow_once(self, user_id: str) -> None:
         """Bank-internal demo control; no ordinary gateway method exposes it."""
