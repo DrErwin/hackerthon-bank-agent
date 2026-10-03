@@ -276,13 +276,16 @@ def create_app(runtime=None, config=None):
             response = None
             if isinstance(body.fields, PayeeDetailsFields):
                 payee = ManualPayee(kind="manual", **body.fields.model_dump())
-                checked = service.runtime.gateway.verify_payee(trusted, payee)
+                revision = service.task_view(who, task_id).task_revision + 1
+                checked = service.runtime.payee_references.register(trusted, payee, revision)
                 if isinstance(checked, QueryFailure):
                     raise ApiProblem(503, "DEPENDENCY_UNAVAILABLE")
-                if not checked.data.matched:
+                if not getattr(checked, "reference", None):
                     raise ApiProblem(400, "PAYEE_MISMATCH")
-                display = checked.data.payee
-                response = {"fields": {"payee_input": payee.model_dump(mode="json")}}
+                display = checked.display
+                response = {"fields": {"payee_input": {
+                    "kind": "reference", "reference": checked.reference,
+                    "payee_revision": revision}}}
                 fields = [DisplayField(name="payee", label="收款人", value_text=display.name_masked),
                           DisplayField(name="account", label="收款账户", value_text=display.account_masked),
                           DisplayField(name="bank", label="开户行", value_text=display.bank_name)]
