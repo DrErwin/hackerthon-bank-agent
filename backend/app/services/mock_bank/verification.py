@@ -201,7 +201,11 @@ class MockBankVerification:
                     raise ValueError("VERIFICATION_SCOPE_MISMATCH")
                 return VerificationChallenge.model_validate_json(previous["response_json"])
             old = self._expire(connection, old)
-            if old.challenge_status != "pending" or old.code_result != "pending":
+            basic_expired = (
+                old.purpose == "basic_identity" and old.challenge_status == "expired"
+                and old.code_result == "expired" and old.consecutive_code_failures < 3
+            )
+            if not basic_expired and (old.challenge_status != "pending" or old.code_result != "pending"):
                 raise ValueError("TASK_TERMINATED")
             now = self.clock()
             new = old.model_copy(deep=True)
@@ -210,6 +214,8 @@ class MockBankVerification:
                 new.challenge_id = str(uuid4())
             new.created_at = now
             new.code_created_at = now
+            new.challenge_status = "pending"
+            new.code_result = "pending"
             new.code_expires_at = (
                 old.code_expires_at if old.purpose == "action_step_up" else now + timedelta(minutes=5)
             )

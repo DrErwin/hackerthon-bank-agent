@@ -87,6 +87,35 @@ def test_basic_code_scope_retries_and_persistent_record(tmp_path):
     assert reopened.verification.get_record(user, passed.verification_id).source_challenge_id == challenge.challenge_id
 
 
+def test_expired_basic_code_can_be_resent_without_losing_failures(tmp_path):
+    bank, gateway, clock = ready(tmp_path)
+    try:
+        user = context()
+        old = gateway.create_verification(user, "basic_identity")
+        code = gateway.get_demo_code_for_api(user, old.challenge_id)
+        wrong = "000000" if code != "000000" else "111111"
+        submission = uuid4()
+        gateway.verify_code(user, old.challenge_id, submission, wrong)
+        assert gateway.verify_code(user, old.challenge_id, submission, wrong).challenge.consecutive_code_failures == 1
+        clock.advance(300)
+        assert gateway.get_verification(user, old.challenge_id).challenge_status == "expired"
+        resend = uuid4()
+        new = gateway.resend_verification_code(user, old.challenge_id, resend)
+        assert new.challenge_status == "pending"
+        assert new.code_result == "pending"
+        assert new.consecutive_code_failures == 1
+        assert new.code_expires_at == clock() + timedelta(minutes=5)
+        assert gateway.resend_verification_code(user, old.challenge_id, resend) == new
+        with pytest.raises(ValueError):
+            gateway.verify_code(user, old.challenge_id, uuid4(), code)
+        current = gateway.get_demo_code_for_api(user, new.challenge_id)
+        result = gateway.verify_code(user, new.challenge_id, uuid4(), current)
+        assert result.verification_id
+        with pytest.raises(ValueError, match="TASK_TERMINATED"):
+            gateway.resend_verification_code(user, new.challenge_id, uuid4())
+    finally:
+        gateway.close()
+
 def test_action_needs_both_factors_and_admin_scope(tmp_path):
     bank, gateway, clock = ready(tmp_path)
     user = context()
