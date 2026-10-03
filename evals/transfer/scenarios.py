@@ -2,8 +2,10 @@ from contextlib import closing
 """Exercise public HTTP/platform entry points, with named fault seams and checks."""
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import timedelta
 import json
+import re
 import sqlite3
 from unittest.mock import patch
 from uuid import UUID, uuid4
@@ -15,7 +17,52 @@ from app.contracts.security import ConfirmationAnswer
 from app.modules.transfer.workflow import TransferWorkflow
 from app.services.mock_bank.core import PAYEES
 
-from environment import ADMIN_KEY
+from environment import ADMIN_KEY, Environment
+
+
+def explicit_amount_rejection(response, messages, *, precision=False, negative=False):
+    """Require a visible amount rejection, rather than absence of a task."""
+    body = response.json()
+    error = body.get("error", {})
+    if response.status_code == 400 and error.get("code") == "INVALID_INPUT" and error.get("field") == "amount_fen":
+        return True
+    texts = [error.get("reason", "")] if response.status_code == 400 else []
+    texts += [row.get("text", "") for row in messages if row.get("role") == "assistant" and not row.get("task_ids")]
+    rule = r"两位小数|小数.{0,5}两位|精度|精确到分" if precision else r"正数|大于[零0]|非正|有效金额" + (r"|不能.{0,3}负" if negative else r"|不能.{0,3}[零0]")
+    return any("金额" in text and re.search(rule, text) and re.search(r"必须|不能|只能|最多|无效|不合法|拒绝|请.{0,8}(输入|提供)", text) for text in texts)
+
+
+def invalid_amount(e, text, *, precision=False):
+    views = e.client.get("/api/v1/tasks", params={"thread_id": e.thread}).json()["data"]["items"]
+    e.check("input.no_executable_confirmation", all(not view.get("interaction") or view["interaction"]["kind"] == "input" for view in views))
+    if e.task:
+        expect_wait(e, "amount_fen")
+    else:
+        messages = e.client.get(f"/api/v1/threads/{e.thread}/messages").json()["data"]["items"]
+        e.check("input.explicit_amount_rejection", explicit_amount_rejection(e.message_response, messages, precision=precision, negative=text.startswith("-")))
+        e.zero()
+    # Even a no-task message rejection must exercise dedicated input. This is
+    # an explicitly separate fixed-proposal setup, never a live-model fallback.
+    field_env = e
+    if not e.task or not e.task.get("interaction") or "amount_fen" not in e.task["interaction"]["required_fields"]:
+        plan = replace(e.plan, amount=None, hint="妈妈", payer="A1", text="给妈妈转钱，使用默认主账户A1。")
+        field_env = Environment(e.directory / "dedicated-amount", e.case, plan)
+        field_env.start()
+        e.steps.append({"entry": "dedicated-amount.setup", "provider": "fixed-proposal", "separate_bank": True})
+    try:
+        if not field_env.task:
+            e.check("input.dedicated_task_created", False)
+            return
+        rejected = field_env.input(text=text)
+        field_env.check("input.dedicated_rejected", rejected.status_code == 400)
+        expect_wait(field_env, "amount_fen")
+        if field_env is not e:
+            common_checks(field_env)
+            e.assertions.extend({**assertion, "scope": "dedicated-field"} for assertion in field_env.assertions)
+            e.steps.extend(field_env.steps)
+    finally:
+        if field_env is not e:
+            field_env.close()
 
 
 def expect_wait(e, field=None, candidates=None):
@@ -84,10 +131,16 @@ def payee(e, n):
             e.check("selection.target", e.task["data"]["payee"]["payee_id"] == e.plan.target)
     elif n == 11: expect_wait(e, "payee_hint")
     elif n == 15:
+        original = e.task["task_id"]
         r = details(e, "payee", {"account_number": PAYEES["A2"][2], "account_name": "错误户名"})
         e.check("F36.mismatch", r.status_code == 400 and r.json()["error"]["code"] == "PAYEE_MISMATCH")
-        e.state("failed")
+        expect_wait(e, "payee_hint")
+        e.check("F36.no_success_payee", e.task["data"].get("payee") is None and e.task["data"].get("operation_id") is None)
+        e.check("F36.no_account_disclosure", PAYEES["A2"][2] not in r.text and "account_status" not in r.text and "balance" not in r.text)
         e.zero()
+        corrected = details(e, "payee", {"account_number": PAYEES["A2"][2], "account_name": PAYEES["A2"][1]})
+        e.check("F36.same_task_corrected", corrected.status_code == 200 and e.task["task_id"] == original)
+        assert_confirmation(e)
     elif n == 16:
         e.resume_fields(payee_input={"kind": "own", "account_id": "A5"})
     if e.plan.finish:
@@ -118,6 +171,9 @@ def inputs(e, n):
             e.check("model.controlled_failure", request_count == 1 and e.task is None)
         e.check("input.no_task", e.task is None, e.task)
         e.zero()
+        return
+    if n == 9:
+        invalid_amount(e, "100.005元", precision=True)
         return
     if not e.task: e.check("task.created", False); return
     original = e.task["task_id"]
@@ -274,14 +330,13 @@ def banking(e, n):
         with patch.object(e.bank, fault, side_effect=faulty): e.start()
         e.check("read.bounded_attempts", len(attempts) <= 3, len(attempts))
     else: e.start()
+    if n in (1, 2):
+        invalid_amount(e, "0元" if n == 1 else "-1元")
+        return
     if not e.task: e.check("task.created", False); return
     if n == 15:
         details(e, "payee", {"account_number": PAYEES["A7"][2], "account_name": PAYEES["A7"][1]})
-    if n in (1, 2):
-        expect_wait(e, "amount_fen")
-        e.input(text="0元" if n == 1 else "-1元")
-        expect_wait(e, "amount_fen")
-    elif n in (13, 14):
+    if n in (13, 14):
         assert_confirmation(e)
         if n == 13:
             # Another bank-recognized operation consumes the available funds.

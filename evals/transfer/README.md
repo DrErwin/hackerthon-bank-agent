@@ -184,3 +184,12 @@ CLI和pytest都生成`.mnemon/transfer-evals/<本次时间>/report.json`及`repo
 任何产品失败保持Failed，pytest也实际失败；没有xfail或通过改期望制造全绿。完整真实流程运行需要数分钟，原03票的“秒级全绿”历史目标尚未达到。当前仓库CI仍只运行后端及模拟银行测试，绿CI不能冒充153样本通过。本票只改`evals/transfer/`，不为接入CI跨目录改工作流。
 
 本轮实际证据与跨目录问题见[03实现证据](automation-evidence.md)及[问题记录](gaps.md)。票04、原12及v0.3未收口，AI双轴审查不能替代Erwin业务确认或Ringo专业安全结论。
+
+
+## 2026-10-04 判据修正：v03-transfer-eval-fixes/01
+
+D1遵循F36：户名不匹配明确PAYEE_MISMATCH，原任务waiting_input可纠正；错误资料不得产生成功payee、确认或资金。D2允许非法金额被明确拒绝后无任务，但必须有具体用户提示或可信amount_fen入口错误、无可执行确认、银行零副作用和秘密扫描；仅无任务、默认金额、取绝对值或舍入不能通过。
+
+无任务情况下专用非法字段仍在独立fixed-proposal/真实HTTP/隔离银行入口验证，报告显式标dedicated-field，不替代原模型结果。INP09分精度拒绝从缺项问询指标迁出，分母9→8；该样本另列amount_precision_sample，场景151/样本153及标准成功21分母不变。原6/9等历史数据不覆盖、不沿用为新口径结论。
+
+最新正反例15通过；原产品catalog/INP09/BNK01/02四项通过，PAY15原产品完整卡号泄漏仍Failed。隔离02/461d539+03/6d53860+04/0e540af真实HTTP组合PAY15/OBS08/INP09/BNK01/02五项通过。专业安全结论、合入及完整离线153仍待；未运行GLM、不实施10。

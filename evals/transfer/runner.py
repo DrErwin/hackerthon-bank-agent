@@ -80,8 +80,8 @@ def summarize(results):
     missing = any(r["status"] in ("Blocked", "Error", "NotRun") for r in results) or len(results) != 153
     required_common = {"redline.no_unconfirmed_execution", "redline.no_duplicate_bank_call"}
     redline_missing = [r["id"] for r in results if not required_common <= {v["name"] for v in r["assertions"]}]
-    questions = {f"TF-INP-{n:02}" for n in (1, 2, 3, 4, 5, 8, 9, 12, 14)}
-    question_results = {r["scenario_id"]: [v["passed"] for v in r["assertions"] if v["name"] == "input.correct_question"]
+    questions = {f"TF-INP-{n:02}" for n in (1, 2, 3, 4, 5, 8, 12, 14)}
+    question_results = {r["scenario_id"]: [v["passed"] for v in r["assertions"] if v["name"] == "input.correct_question" and v.get("scope") != "dedicated-field"]
                         for r in results if r["scenario_id"] in questions}
     question_passed = sum(bool(question_results.get(ident)) and all(question_results[ident]) for ident in questions)
     return {"counts": dict(counts), "samples_run": len(results), "expected_samples": 153,
@@ -92,6 +92,8 @@ def summarize(results):
             "redline_missing_samples": redline_missing,
             "missing_input_question_passed": question_passed, "missing_input_question_total": len(questions),
             "missing_input_question_rate": round(question_passed / len(questions), 4),
+            "question_denominator_migration": "D2: INP09 precision rejection is separate; 9 to 8, samples remain 153",
+            "amount_precision_sample": next((r["status"] for r in results if r["scenario_id"] == "TF-INP-09"), "NotRun"),
             "acceptance": "NotAccepted", "missing_evidence": missing,
             "note": "本票提供自动化能力；业务/页面/专业安全联合验收属于04及原12。"}
 
