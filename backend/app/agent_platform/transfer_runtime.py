@@ -18,7 +18,7 @@ from app.contracts.audit import (
     TaskTransitionPayload, ToolFinishedPayload, ToolStartedPayload,
     VerificationChangedPayload,
 )
-from app.contracts.bank import OperationResult, PayeeInput, QueryFailure
+from app.contracts.bank import BankError, OperationResult, PayeeInput, QueryFailure
 from app.contracts.common import DisplayField, Phase, RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import (
@@ -345,7 +345,9 @@ class TransferRuntime:
         self.gateway = BankGateway(
             bank, authorize_transfer=self._authorize_bank, authorize_face=authorize_face,
         )
-        self.payee_references = ControlledPayeeReferences(self.snapshots, self.gateway, self._task)
+        self.payee_references = ControlledPayeeReferences(
+            self.snapshots, self._verify_controlled_payee, self._task,
+        )
         registry = CapabilityRegistry()
         registry.register_transfer(MANIFEST, self._transfer_factory)
         self.harness = AgentHarness(
@@ -354,6 +356,22 @@ class TransferRuntime:
 
     def close(self) -> None:
         self.gateway.close()
+
+    def _verify_controlled_payee(self, trusted, payee):
+        # Reuse registered read tools, permissions, termination checks and audit.
+        # Building the workflow does not start it or put the input in its saver.
+        saver = self.memory.checkpointer(MemoryContext(
+            trusted.user_id, trusted.session_id, trusted.demo_round_id,
+        ), trusted.task_id)
+        flow = self._transfer_factory(trusted, saver, self._trace(trusted))
+        outcome = flow.ports.read(trusted, "bank.verify_payee", {
+            "payee": payee.model_dump(mode="json"),
+        })
+        if outcome.decision.decision != SecurityDecisionCode.ALLOW:
+            return QueryFailure(kind="error", error=BankError(
+                code=outcome.decision.reason_codes[0], details={},
+            ))
+        return outcome.result
 
     def _task(self, trusted: TrustedContext):
         self.memory.agent_backend(MemoryContext(

@@ -3,12 +3,13 @@
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 
 from app.contracts.bank import ManualPayee, QueryFailure, BankError
 from app.contracts.common import TaskStatus
-from app.storage.database import connect
+from app.storage.database import connect, transaction
 
 from .payee_references import ControlledPayeeReference
 from .test_transfer_runtime import runtime, trusted
@@ -27,7 +28,8 @@ def setup(tmp_path):
     ):
         app.application.create_session(session, user, round_id, now.isoformat(),
                                        (now + timedelta(days=1)).isoformat())
-        app.application.create_task(task, user, session, round_id, "R1", TaskStatus.WAITING_INPUT, {})
+        app.application.create_task(task, user, session, round_id, "R1", TaskStatus.WAITING_INPUT,
+                                    {"trace_id": str(uuid4())})
     yield app, bank
     app.close()
 
@@ -141,3 +143,35 @@ def test_unauthorized_registration_does_not_call_bank_or_erase_owner_reference(s
             app.payee_references.register(trusted().model_copy(update={"session_id": "S2"}), manual(), 2)
     verify.assert_not_called()
     assert app.payee_references.resolve(trusted(), ref.reference, 1) == manual()
+
+
+@pytest.mark.parametrize("status", [TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.SUCCEEDED])
+def test_terminal_task_registration_is_denied_before_bank_read(setup, status):
+    app, _ = setup
+    with transaction(app.application.path) as connection:
+        connection.execute("UPDATE tasks SET status = ? WHERE task_id = ?", (status.value, "T1"))
+    with patch.object(app.gateway, "verify_payee") as verify:
+        denied = app.payee_references.register(trusted(), manual(), 1)
+    assert isinstance(denied, QueryFailure)
+    verify.assert_not_called()
+
+
+def test_tool_permission_denial_prevents_account_lookup_and_reference(setup):
+    app, _ = setup
+    with patch.object(app, "authorize_tool", return_value=False):
+        with patch.object(app.gateway, "verify_payee") as verify:
+            denied = app.payee_references.register(trusted(), manual(), 1)
+    assert isinstance(denied, QueryFailure)
+    assert denied.error.code == "ACCESS_DENIED"
+    verify.assert_not_called()
+
+
+def test_reference_follows_trusted_task_migration_and_rejects_old_session(setup):
+    app, _ = setup
+    ref = app.payee_references.register(trusted(), manual(), 1)
+    task = app.application.get_task("U1", "D1", "T1")
+    app.application.transition_task_session("U1", "D1", "T1", "S1", "S2", task.revision)
+    assert app.payee_references.resolve(trusted().model_copy(update={"session_id": "S2"}),
+                                       ref.reference, 1) == manual()
+    with pytest.raises(PermissionError, match="ACCESS_DENIED"):
+        app.payee_references.resolve(trusted(), ref.reference, 1)

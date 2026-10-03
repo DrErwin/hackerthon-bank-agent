@@ -8,7 +8,6 @@ from app.contracts.common import Phase
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
 from app.modules.transfer.tools import TransferSnapshots
-from app.services.bank_gateway.gateway import BankGateway
 from app.storage.database import transaction
 
 from .harness import _task_lock
@@ -25,9 +24,10 @@ class ControlledPayeeReferences:
 
     action_name = "transfer.controlled_payee"
 
-    def __init__(self, snapshots: TransferSnapshots, gateway: BankGateway,
+    def __init__(self, snapshots: TransferSnapshots,
+                 verify_payee: Callable[[TrustedContext, ManualPayee], QueryOk[PayeeVerification] | QueryFailure],
                  check_task: Callable[[TrustedContext], object]):
-        self.snapshots, self.gateway, self.check_task = snapshots, gateway, check_task
+        self.snapshots, self.verify_payee, self.check_task = snapshots, verify_payee, check_task
 
     def clear(self, trusted: TrustedContext) -> None:
         """Retire this task's material before changing or abandoning manual input."""
@@ -45,7 +45,7 @@ class ControlledPayeeReferences:
         with _task_lock(self.snapshots.path, trusted.task_id):
             self.clear(trusted)
             try:
-                verified = self.gateway.verify_payee(trusted, payee)
+                verified = self.verify_payee(trusted, payee)
                 if isinstance(verified, QueryFailure) or not verified.data.matched:
                     return verified
                 # Recheck session/round after the bank call and before persisting.
