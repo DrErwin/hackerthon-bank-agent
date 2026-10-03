@@ -2,8 +2,26 @@ name: Repository checks
 
 on:
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+      - 'docs/**/*.mmd'
+      - 'docs/**/*.png'
+      - 'docs/**/*.jpg'
+      - 'docs/**/*.jpeg'
+      - 'docs/**/*.svg'
+      - 'docs/**/*.pdf'
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+      - 'docs/**/*.mmd'
+      - 'docs/**/*.png'
+      - 'docs/**/*.jpg'
+      - 'docs/**/*.jpeg'
+      - 'docs/**/*.svg'
+      - 'docs/**/*.pdf'
 
 permissions:
   contents: read
