@@ -211,6 +211,9 @@ class AuditedTransferPorts:
         """Public port used before business input can enter its checkpoint."""
         return self.payee_references.register(trusted, payee, payee_revision)
 
+    def clear_payee(self, trusted):
+        self.payee_references.clear(trusted)
+
     def read(self, trusted: TrustedContext, action_name: str, parameters: dict):
         registered = self.tools.gate.registry.get(action_name)
         if registered is None or registered.declaration.side_effect:
