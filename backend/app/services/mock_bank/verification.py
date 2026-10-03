@@ -38,6 +38,14 @@ class VerificationOutcome(ContractModel):
     reason_code: str | None
 
 
+class VerificationTerminated(ValueError):
+    """Internal bank failure with a typed terminal fact, never a code or raw input."""
+
+    def __init__(self, challenge: VerificationChallenge):
+        super().__init__("TASK_TERMINATED")
+        self.challenge = challenge
+
+
 class MockBankVerification:
     def __init__(self, bank_path, demo_secret: bytes, *, clock=_now):
         if len(demo_secret) < 32:
@@ -138,7 +146,7 @@ class MockBankVerification:
                     )
                 if same_task and (old.challenge_status == "failed" or
                         (old.purpose == "action_step_up" and old.challenge_status == "expired")):
-                    raise ValueError("TASK_TERMINATED")
+                    raise VerificationTerminated(old)
                 if (old.user_id, old.session_id, old.task_id, old.demo_round_id, old.purpose,
                     old.operation_id, old.action_revision) == (
                     context.user_id, context.session_id, context.task_id, context.demo_round_id,

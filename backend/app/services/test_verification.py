@@ -275,3 +275,23 @@ def test_legacy_plaintext_code_store_fails_closed(tmp_path):
         )""")
     with pytest.raises(RuntimeError, match="legacy demo codes"):
         MockBankService(MockBankStore(path), demo_secret=DEMO_SECRET)
+
+
+def test_create_after_resend_failure_exposes_trusted_terminal_fact(tmp_path):
+    from app.services.mock_bank.core import MockBankService
+    from app.services.mock_bank.verification import VerificationTerminated
+    from app.storage.mock_bank.repository import MockBankStore
+    from app.contracts.platform import TrustedContext
+    bank = MockBankService(MockBankStore(tmp_path / "terminal.sqlite"), demo_secret=b"demo-secret" * 4)
+    owner = TrustedContext(user_id="U1", session_id="S1", task_id="T1", run_id="R1",
+                           parent_task_id=None, demo_round_id="D1")
+    original = bank.verification.create_verification(owner, "basic_identity")
+    replacement = bank.verification.resend_code(owner, original.challenge_id, uuid4())
+    for _ in range(3):
+        bank.verification.verify_code(owner, replacement.challenge_id, uuid4(), "incorrect")
+    with pytest.raises(VerificationTerminated) as caught:
+        bank.verification.create_verification(owner, "basic_identity")
+    assert caught.value.challenge.challenge_id == replacement.challenge_id
+    assert caught.value.challenge.challenge_status == "failed"
+    assert caught.value.challenge.consecutive_code_failures == 3
+    assert "incorrect" not in caught.value.challenge.model_dump_json()
