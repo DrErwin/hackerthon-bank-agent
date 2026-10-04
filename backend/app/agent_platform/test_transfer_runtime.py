@@ -617,8 +617,24 @@ def test_audit_start_failure_prevents_bank_submission(tmp_path):
     assert app.gateway.get_operation(trusted(), pending.data.operation_id).lookup == "not_found"
     assert len(bank.store.list_ledger("U1", "A1")) == 0
 
+    interrupted = app.harness.get(trusted("R3"))
+    assert interrupted.status == TaskStatus.NEEDS_ATTENTION
+    assert interrupted.data.operation_id == pending.data.operation_id
+    assert interrupted.interaction is None
+    saved = app.application.get_task("U1", "D1", "T1")
+    assert saved.snapshot["capability_fault"]["audit_evidence"] == "not_confirmed"
+    from app.storage.database import connect
+    connection = connect(path)
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM security_executions").fetchone()[0] == 0
+    finally:
+        connection.close()
+    app.close()
+    app = runtime(path, bank)
+    assert app.harness.get(trusted("R4")).status == TaskStatus.NEEDS_ATTENTION
     done = app.harness.resume(trusted("R4"), {"choice": "approve"})
     assert done.status == TaskStatus.SUCCEEDED
+    assert done.data.operation_id == pending.data.operation_id
     assert len(bank.store.list_ledger("U1", "A1")) == 1
     app.close()
 

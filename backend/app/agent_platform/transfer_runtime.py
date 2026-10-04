@@ -18,7 +18,7 @@ from app.contracts.audit import (
     TaskTransitionPayload, ToolFinishedPayload, ToolStartedPayload,
     VerificationChangedPayload,
 )
-from app.contracts.bank import BankError, OperationResult, PayeeInput, QueryFailure
+from app.contracts.bank import BankError, OperationResult, PayeeDisplay, PayeeInput, QueryFailure
 from app.contracts.common import DisplayField, Phase, RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import (
@@ -26,7 +26,7 @@ from app.contracts.security import (
     ExecutionSecurityContext, SecurityDecision, VerificationRecord,
     VerificationSummary,
 )
-from app.contracts.tasks import ModuleError
+from app.contracts.tasks import ModuleError, TransferTaskView
 from app.memory.adapter import MemoryAdapter, MemoryContext
 from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.modules.transfer.tools import GatewayTransferTools, TransferAction, TransferSnapshots
@@ -56,6 +56,17 @@ class TracedTransferWorkflow(TransferWorkflow):
         super().__init__(ports, saver)
 
     def _step(self, name: str, state, run):
+        # Node input is the last committed graph state, not an uncommitted
+        # return value. Keep only the existing public, masked task data in
+        # this platform-owned observer, before any audit write can fail.
+        self.trace.transfer_data = TransferTaskView(
+            operation_id=state.get("operation_id"),
+            payer_account_id=state.get("payer_account_id"),
+            payee={key: value for key, value in state["payee_display"].items()
+                   if key in PayeeDisplay.model_fields} if state.get("payee_display") else None,
+            amount_fen=state.get("amount_fen"),
+            operation=state.get("operation"),
+        )
         previous = TaskStatus(state.get("status", TaskStatus.RUNNING.value))
         started = self.trace.record("task.transition", TaskTransitionPayload(
             previous_status=previous, status=previous, plan_revision=None,
