@@ -700,10 +700,11 @@ def test_public_capability_denial_never_enters_transfer(tmp_path):
     assert harness.application.get_task("U1", "D1", "T1") is None
 
 
-def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path):
+@pytest.mark.parametrize("amount", [0, -1])
+def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path, amount):
     class InvalidAmount(ProposalModel):
         def select(self, intent_text, trusted, catalog, memory, thread_id):
-            return TransferProposal(payee_hint="妈妈", amount_fen=-1,
+            return TransferProposal(payee_hint="妈妈", amount_fen=amount,
                                     payer_account_id="A1")
 
     path = tmp_path / "app.sqlite"
@@ -713,14 +714,15 @@ def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path):
     harness.application.create_session(
         "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
     )
-    failed = harness.start(trusted(), uuid4(), "给妈妈转 500 元")
-    assert failed.status == TaskStatus.FAILED
-    assert failed.error.code == "MODEL_PROPOSAL_FAILED"
+    outcome = harness.handle_message(trusted(), uuid4(), "给妈妈转 500 元")
+    assert isinstance(outcome, ReplyOnly)
+    assert "金额" in outcome.message and "大于零" in outcome.message
+    assert harness.application.get_task("U1", "D1", "T1") is None
     assert ports.read_calls == []
     assert ports.submissions == 0
     events = harness.audit._events("D1", "T1")
     assert [event.event_type for event in events] == [
-        "model.started", "model.finished", "task.transition",
+        "model.started", "model.finished",
     ]
     assert events[1].parent_span_id == events[0].span_id
 

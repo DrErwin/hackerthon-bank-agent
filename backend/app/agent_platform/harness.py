@@ -325,6 +325,8 @@ class AgentHarness:
                 if isinstance(outcome, ReplyOnly):
                     return outcome
                 self._authorize(trusted, outcome.capability_name)
+                if outcome.amount_fen is not None and outcome.amount_fen <= 0:
+                    return ReplyOnly(message="转账金额必须大于零，请重新输入有效金额。")
                 task = self.application.create_task(
                     trusted.task_id, trusted.user_id, trusted.session_id,
                     trusted.demo_round_id, trusted.run_id, TaskStatus.RUNNING,
