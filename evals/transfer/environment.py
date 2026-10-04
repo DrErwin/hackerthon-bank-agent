@@ -30,6 +30,10 @@ SECRET = b"transfer-evaluation-isolated-secret" * 2
 ADMIN_KEY = "evaluation-admin-only"
 
 
+class InputUnavailable(RuntimeError):
+    """The preceding business result does not offer the planned input action."""
+
+
 class EvalClock:
     def __init__(self):
         self.at = datetime.now(timezone.utc)
@@ -71,6 +75,10 @@ class RecordingPlanner:
             return outcome
         except Exception as exc:
             record["error_type"] = type(exc).__name__
+            if type(exc) is ValueError and str(exc) in {
+                "MODEL_PROPOSAL_AMBIGUOUS", "EMPTY_REPLY", "CAPABILITY_CATALOG_UNAVAILABLE",
+            }:
+                record["error_code"] = str(exc)
             raise
 
 
@@ -264,6 +272,14 @@ class Environment:
         self.snapshot("platform.provide_fields")
 
     def input(self, **body):
+        interaction = self.task.get("interaction") if self.task else None
+        available = bool(interaction and interaction.get("kind") == "input")
+        self.check("input.available", available, {
+            "status": self.task.get("status") if self.task else None,
+            "interaction_kind": interaction.get("kind") if interaction else None,
+        })
+        if not available:
+            raise InputUnavailable()
         r = self.post(f"/tasks/{self.task['task_id']}/inputs",
                       interaction_id=self.task["interaction"]["interaction_id"], **body)
         self.get_task()

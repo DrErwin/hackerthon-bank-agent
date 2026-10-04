@@ -29,7 +29,7 @@ def explicit_amount_rejection(response, messages, *, precision=False, negative=F
     texts = [error.get("reason", "")] if response.status_code == 400 else []
     texts += [row.get("text", "") for row in messages if row.get("role") == "assistant" and not row.get("task_ids")]
     rule = r"两位小数|小数.{0,5}两位|精度|精确到分" if precision else r"正数|大于[零0]|非正|有效金额" + (r"|不能.{0,3}负" if negative else r"|不能.{0,3}[零0]")
-    return any("金额" in text and re.search(rule, text) and re.search(r"必须|不能|只能|最多|无效|不合法|拒绝|请.{0,8}(输入|提供)", text) for text in texts)
+    return any("金额" in text and re.search(rule, text) and re.search(r"必须|不能|只能|最多|无效|不合法|拒绝|无法处理|请.{0,8}(输入|提供|确认)", text) for text in texts)
 
 
 def invalid_amount(e, text, *, precision=False):

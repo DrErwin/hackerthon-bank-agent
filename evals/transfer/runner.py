@@ -12,7 +12,7 @@ import traceback
 from app.audit.journal import redact
 
 from catalog import STANDARD_IDS, data_version, load_cases
-from environment import Environment
+from environment import Environment, InputUnavailable
 from plans import plan_for
 from scenarios import common_checks, execute
 
@@ -41,13 +41,19 @@ def run_case(case, directory, delegate=None, live_blocker=None, react_dist=None,
             if browser_case:
                 from browser_checks import run_browser
                 run_browser(env, int(plan.variant[-2:]), react_dist, evidence_directory or directory / "browser")
-            else: execute(env)
+            else:
+                try:
+                    execute(env)
+                except InputUnavailable:
+                    # Keep the failed business assertions and still check funds/privacy.
+                    env.get_task()
+                    env.snapshot("final")
             common_checks(env)
             failed = [v["name"] for v in env.assertions if not v["passed"]]
             result.update(status="Failed" if failed else "Passed", failed_assertions=failed)
             if failed: result["provider"] = "产品归属目录；见失败断言与实际步骤"
             if delegate and plan.variant != "INP-17" and any(v.get("error_type") for v in env.planner.records):
-                result.update(status="Blocked", provider="智谱GLM", reason="真实模型调用未返回可用规划；见脱敏error_type，不回退离线")
+                result.update(status="Blocked", provider="模型规划/接入（归因未确定）", reason="模型调用未返回可用规划；见脱敏error_type/error_code，不据异常类归因供应商，不回退离线")
         except Exception as exc:
             # Exception messages may contain provider credentials or submitted
             # code. Store only its class and the last safe step, never str(exc).
