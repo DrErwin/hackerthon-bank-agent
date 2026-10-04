@@ -1,6 +1,6 @@
 # v0.4 跨场景联动评测准备规格
 
-Status: in_progress
+Status: resolved
 Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Milestone: v0.4 preparation
 Source package: [交付包 04：后续业务评测准备](../transfer-agent-framework/packages/04-v04-eval-preparation.md)
@@ -52,3 +52,7 @@ Contract: [公共契约](../../docs/contracts/公共契约-2026-09-23.md)
 
 - 用户于 2026-10-04 明确要求按 09-28 启动会与仓库规范推进本人当前工作，本规格据此建立。
 - 当前会话无法核验用户本机 `to-spec` / `to-tickets` Skill 的安装与来源提交，因此不声称已实际调用本机 Skill；本文件按仓库固定 spec/票据结构生成，后续在用户本机 Codex 开工时应再按 `docs/agents/delivery-workflow.md` 检查 Skill。
+
+## 本轮准备完成证据（2026-10-04）
+
+[PR #62](https://github.com/DrErwin/hackerthon-bank-agent/pull/62) 已合入，交付23条代表性用例。仅文档准备完成；真实运行、完整规模扩充和对应业务实现仍待后续阶段。

@@ -1,6 +1,6 @@
 # 交付包 04：后续业务评测准备
 
-Status: in_progress\
+Status: accepted\
 Owner: 周恩宇（账单〔09-28 移交〕、跨场景）\
 Activation: Erwin 已于 2026-09-27 确认，可与 v0.3 并行\
 Start when: 对应 PRD 与公共契约已冻结\
@@ -40,3 +40,7 @@ Work spec:
 ## 拆票要求
 
 本包现在可以领取并拆评测准备票：先用 `to-spec` 将本包细化成本人规格，再用 `to-tickets` 拆独立票，每票只对应 `evals/bills/` 或 `evals/cross/` 一个目录。每票写明 PRD 映射、输入、预期结果、通过标准与公开能力依赖。需要编写评测代码时用 `implement`；只整理用例时按文档产物验收。实际业务实现仍待 v0.4.0 启动后再拆票。
+
+## 准备交付验收（2026-10-04）
+
+本轮按项目负责人“检查未合并 PR，没问题就合并”的授权，完成代表性评测文档验收：[账单 PR #61](https://github.com/DrErwin/hackerthon-bank-agent/pull/61) 21条、[联动 PR #62](https://github.com/DrErwin/hackerthon-bank-agent/pull/62) 23条均已合入。规范与规格 AI 审查发现的问题已修正，内容、链接、编号及差异空白检查通过。accepted 仅表示本包开发前准备已验收；用例均待运行，完整规模、模块实现、联合验收及真人专业安全审查未完成。后续按 v0.4 启动条件推进。

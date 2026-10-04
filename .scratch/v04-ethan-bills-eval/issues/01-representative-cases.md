@@ -1,7 +1,7 @@
 # 01：账单代表性评测用例
 
 Type: 评测
-Status: in_progress
+Status: resolved
 Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Ticket ID: v04-ethan-bills-eval/01
 Package: [transfer-agent-framework/packages/04-v04-eval-preparation：后续业务评测准备](../../transfer-agent-framework/packages/04-v04-eval-preparation.md)
@@ -22,11 +22,11 @@ Blocked by: None
 
 ## 验收
 
-- [ ] 正常、边界、异常、权限/导出均有代表性用例。
-- [ ] 关键冻结规则均至少有一条正向或反向验证。
-- [ ] 没有真实个人数据。
-- [ ] 没有提前实现 bills 业务代码或修改公共契约。
-- [ ] 用例可直接映射到 PRD/契约，PASS/FAIL 可客观判断。
+- [x] 正常、边界、异常、权限/导出均有代表性用例。
+- [x] 关键冻结规则均至少有一条正向或反向验证。
+- [x] 没有真实个人数据。
+- [x] 没有提前实现 bills 业务代码或修改公共契约。
+- [x] 用例可直接映射到 PRD/契约，PASS/FAIL 可客观判断。
 
 ## 公开能力依赖
 
@@ -37,3 +37,5 @@ Blocked by: None
 ## Comments
 
 - 2026-10-04：周恩宇明确领取交付包 04 并开始本评测准备票。
+
+- 2026-10-04：本轮 AI 规范与规格审查及修正后，[PR #61](https://github.com/DrErwin/hackerthon-bank-agent/pull/61) 已合入；21条代表性用例已交付，链接、编号、内容与差异空白检查通过。仅验收文档准备；全部用例待运行，不代表模块实现、完整评测或真人专业安全验收。
