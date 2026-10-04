@@ -20,10 +20,9 @@ from app.contracts.platform import TrustedContext
 from app.memory.adapter import MemoryAdapter, MemoryContext
 
 
-class TransferProposal(BaseModel):
+class _TransferFields(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    capability_name: Literal["transfer.start_transfer"] = "transfer.start_transfer"
     payee_hint: str | None = None
     amount_fen: int | None = None
     payer_account_id: str | None = None
@@ -34,6 +33,10 @@ class TransferProposal(BaseModel):
         # The provider has emitted the JSON null token as a string. It conveys
         # absence, never permission to choose an account on the user's behalf.
         return None if value == "null" else value
+
+
+class TransferProposal(_TransferFields):
+    capability_name: Literal["transfer.start_transfer"] = "transfer.start_transfer"
 
 
 class ReplyOnly(BaseModel):
@@ -106,7 +109,7 @@ class DeepAgentPlanner:
             raise ValueError("CAPABILITY_CATALOG_UNAVAILABLE")
         outcomes: list[TransferProposal | ReplyOnly] = []
 
-        @tool("propose_transfer", return_direct=True)
+        @tool("propose_transfer", return_direct=True, args_schema=_TransferFields)
         def propose_transfer(payee_hint: str | None = None, amount_fen: int | None = None,
                              payer_account_id: str | None = None) -> str:
             """Propose an ordinary transfer. This does not authorize or execute a payment."""

@@ -3,6 +3,7 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from typing import Any
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
@@ -81,9 +82,13 @@ def test_no_result_has_safe_zero_count(tmp_path):
 
 
 class MalformedFieldsModel(PlanningSequenceModel):
+    invalid_amount: Any = ["provider-private-text"]
+
     def _generate(self, messages, **kwargs):
         result = super()._generate(messages, **kwargs)
-        result.generations[0].message.tool_calls[0]["args"]["amount_fen"] = ["provider-private-text"]
+        for call in result.generations[0].message.tool_calls:
+            if call["name"] == "propose_transfer":
+                call["args"]["amount_fen"] = self.invalid_amount
         return result
 
 
@@ -93,6 +98,12 @@ def test_malformed_fields_are_distinct_from_no_result(tmp_path):
     assert caught.value.stage == "field_parse"
     assert caught.value.outcome_count == 0
     assert "provider-private-text" not in str(caught.value)
+
+
+@pytest.mark.parametrize("amount", [True, "1600", 1600.0, 1600.5])
+def test_amount_type_is_not_coerced_before_validation(tmp_path, amount):
+    with pytest.raises(ValueError, match="MODEL_PROPOSAL_INVALID"):
+        select(tmp_path, MalformedFieldsModel(invalid_amount=amount))
 
 
 def test_invocation_failure_exposes_no_provider_exception(tmp_path):
