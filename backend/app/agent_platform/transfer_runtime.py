@@ -18,7 +18,7 @@ from app.contracts.audit import (
     TaskTransitionPayload, ToolFinishedPayload, ToolStartedPayload,
     VerificationChangedPayload,
 )
-from app.contracts.bank import OperationResult, PayeeInput, QueryFailure
+from app.contracts.bank import BankError, OperationResult, PayeeInput, QueryFailure
 from app.contracts.common import DisplayField, Phase, RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import (
@@ -40,6 +40,7 @@ from app.storage.database import connect, parameter_digest, transaction
 
 from .harness import AgentHarness, RunTrace
 from .model import Planner
+from .payee_references import ControlledPayeeReferences
 from .registry import CapabilityRegistry
 
 
@@ -196,6 +197,7 @@ class AuditedTransferPorts:
                  activate: Callable[[TrustedContext, TransferAction, TransferWorkflow], object],
                  record_result: Callable,
                  decision_spans: dict[str, str],
+                 payee_references: ControlledPayeeReferences,
                  workflow: TransferWorkflow | None = None):
         self.tools = tools
         self.trace = trace
@@ -203,6 +205,14 @@ class AuditedTransferPorts:
         self.record_result = record_result
         self.decision_spans = decision_spans
         self.workflow = workflow
+        self.payee_references = payee_references
+
+    def protect_payee(self, trusted, payee, payee_revision):
+        """Public port used before business input can enter its checkpoint."""
+        return self.payee_references.register(trusted, payee, payee_revision)
+
+    def clear_payee(self, trusted):
+        self.payee_references.clear(trusted)
 
     def read(self, trusted: TrustedContext, action_name: str, parameters: dict):
         registered = self.tools.gate.registry.get(action_name)
@@ -344,6 +354,9 @@ class TransferRuntime:
         self.gateway = BankGateway(
             bank, authorize_transfer=self._authorize_bank, authorize_face=authorize_face,
         )
+        self.payee_references = ControlledPayeeReferences(
+            self.snapshots, self._verify_controlled_payee, self._task,
+        )
         registry = CapabilityRegistry()
         registry.register_transfer(MANIFEST, self._transfer_factory)
         self.harness = AgentHarness(
@@ -352,6 +365,22 @@ class TransferRuntime:
 
     def close(self) -> None:
         self.gateway.close()
+
+    def _verify_controlled_payee(self, trusted, payee):
+        # Reuse registered read tools, permissions, termination checks and audit.
+        # Building the workflow does not start it or put the input in its saver.
+        saver = self.memory.checkpointer(MemoryContext(
+            trusted.user_id, trusted.session_id, trusted.demo_round_id,
+        ), trusted.task_id)
+        flow = self._transfer_factory(trusted, saver, self._trace(trusted))
+        outcome = flow.ports.read(trusted, "bank.verify_payee", {
+            "payee": payee.model_dump(mode="json"),
+        })
+        if outcome.decision.decision != SecurityDecisionCode.ALLOW:
+            return QueryFailure(kind="error", error=BankError(
+                code=outcome.decision.reason_codes[0], details={},
+            ))
+        return outcome.result
 
     def _task(self, trusted: TrustedContext):
         self.memory.agent_backend(MemoryContext(
@@ -641,7 +670,7 @@ class TransferRuntime:
             return lambda: self._active.reset(token)
 
         ports = AuditedTransferPorts(
-            tools, trace, activate, self._record_result, decision_spans,
+            tools, trace, activate, self._record_result, decision_spans, self.payee_references,
         )
         flow = TracedTransferWorkflow(ports, saver, trace, node_span)
         ports.workflow = flow
