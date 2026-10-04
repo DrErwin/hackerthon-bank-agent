@@ -38,6 +38,14 @@ class VerificationOutcome(ContractModel):
     reason_code: str | None
 
 
+class VerificationTerminated(ValueError):
+    """Internal bank failure with a typed terminal fact, never a code or raw input."""
+
+    def __init__(self, challenge: VerificationChallenge):
+        super().__init__("TASK_TERMINATED")
+        self.challenge = challenge
+
+
 class MockBankVerification:
     def __init__(self, bank_path, demo_secret: bytes, *, clock=_now):
         if len(demo_secret) < 32:
@@ -138,7 +146,7 @@ class MockBankVerification:
                     )
                 if same_task and (old.challenge_status == "failed" or
                         (old.purpose == "action_step_up" and old.challenge_status == "expired")):
-                    raise ValueError("TASK_TERMINATED")
+                    raise VerificationTerminated(old)
                 if (old.user_id, old.session_id, old.task_id, old.demo_round_id, old.purpose,
                     old.operation_id, old.action_revision) == (
                     context.user_id, context.session_id, context.task_id, context.demo_round_id,
@@ -201,7 +209,11 @@ class MockBankVerification:
                     raise ValueError("VERIFICATION_SCOPE_MISMATCH")
                 return VerificationChallenge.model_validate_json(previous["response_json"])
             old = self._expire(connection, old)
-            if old.challenge_status != "pending" or old.code_result != "pending":
+            basic_expired = (
+                old.purpose == "basic_identity" and old.challenge_status == "expired"
+                and old.code_result == "expired" and old.consecutive_code_failures < 3
+            )
+            if not basic_expired and (old.challenge_status != "pending" or old.code_result != "pending"):
                 raise ValueError("TASK_TERMINATED")
             now = self.clock()
             new = old.model_copy(deep=True)
@@ -210,6 +222,8 @@ class MockBankVerification:
                 new.challenge_id = str(uuid4())
             new.created_at = now
             new.code_created_at = now
+            new.challenge_status = "pending"
+            new.code_result = "pending"
             new.code_expires_at = (
                 old.code_expires_at if old.purpose == "action_step_up" else now + timedelta(minutes=5)
             )

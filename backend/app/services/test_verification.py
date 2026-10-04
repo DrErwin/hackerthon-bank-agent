@@ -87,6 +87,35 @@ def test_basic_code_scope_retries_and_persistent_record(tmp_path):
     assert reopened.verification.get_record(user, passed.verification_id).source_challenge_id == challenge.challenge_id
 
 
+def test_expired_basic_code_can_be_resent_without_losing_failures(tmp_path):
+    bank, gateway, clock = ready(tmp_path)
+    try:
+        user = context()
+        old = gateway.create_verification(user, "basic_identity")
+        code = gateway.get_demo_code_for_api(user, old.challenge_id)
+        wrong = "000000" if code != "000000" else "111111"
+        submission = uuid4()
+        gateway.verify_code(user, old.challenge_id, submission, wrong)
+        assert gateway.verify_code(user, old.challenge_id, submission, wrong).challenge.consecutive_code_failures == 1
+        clock.advance(300)
+        assert gateway.get_verification(user, old.challenge_id).challenge_status == "expired"
+        resend = uuid4()
+        new = gateway.resend_verification_code(user, old.challenge_id, resend)
+        assert new.challenge_status == "pending"
+        assert new.code_result == "pending"
+        assert new.consecutive_code_failures == 1
+        assert new.code_expires_at == clock() + timedelta(minutes=5)
+        assert gateway.resend_verification_code(user, old.challenge_id, resend) == new
+        with pytest.raises(ValueError):
+            gateway.verify_code(user, old.challenge_id, uuid4(), code)
+        current = gateway.get_demo_code_for_api(user, new.challenge_id)
+        result = gateway.verify_code(user, new.challenge_id, uuid4(), current)
+        assert result.verification_id
+        with pytest.raises(ValueError, match="TASK_TERMINATED"):
+            gateway.resend_verification_code(user, new.challenge_id, uuid4())
+    finally:
+        gateway.close()
+
 def test_action_needs_both_factors_and_admin_scope(tmp_path):
     bank, gateway, clock = ready(tmp_path)
     user = context()
@@ -246,3 +275,23 @@ def test_legacy_plaintext_code_store_fails_closed(tmp_path):
         )""")
     with pytest.raises(RuntimeError, match="legacy demo codes"):
         MockBankService(MockBankStore(path), demo_secret=DEMO_SECRET)
+
+
+def test_create_after_resend_failure_exposes_trusted_terminal_fact(tmp_path):
+    from app.services.mock_bank.core import MockBankService
+    from app.services.mock_bank.verification import VerificationTerminated
+    from app.storage.mock_bank.repository import MockBankStore
+    from app.contracts.platform import TrustedContext
+    bank = MockBankService(MockBankStore(tmp_path / "terminal.sqlite"), demo_secret=b"demo-secret" * 4)
+    owner = TrustedContext(user_id="U1", session_id="S1", task_id="T1", run_id="R1",
+                           parent_task_id=None, demo_round_id="D1")
+    original = bank.verification.create_verification(owner, "basic_identity")
+    replacement = bank.verification.resend_code(owner, original.challenge_id, uuid4())
+    for _ in range(3):
+        bank.verification.verify_code(owner, replacement.challenge_id, uuid4(), "incorrect")
+    with pytest.raises(VerificationTerminated) as caught:
+        bank.verification.create_verification(owner, "basic_identity")
+    assert caught.value.challenge.challenge_id == replacement.challenge_id
+    assert caught.value.challenge.challenge_status == "failed"
+    assert caught.value.challenge.consecutive_code_failures == 3
+    assert "incorrect" not in caught.value.challenge.model_dump_json()
