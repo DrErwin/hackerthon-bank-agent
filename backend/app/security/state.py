@@ -13,6 +13,7 @@ from app.contracts.security import (
     ConfirmationRecord,
     ExecutionSecurityContext,
     SecurityDecision,
+    VerificationChallenge,
 )
 from app.storage.database import connect, transaction
 
@@ -79,6 +80,34 @@ class SQLiteSecurityState:
                     reason_code TEXT NOT NULL
                 )
             """)
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS security_verification_challenges (
+                    challenge_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    task_id TEXT NOT NULL,
+                    challenge_json TEXT NOT NULL
+                )
+            """)
+
+    def remember_challenge(self, context: ExecutionSecurityContext, challenge: VerificationChallenge) -> None:
+        with transaction(self.path) as connection:
+            connection.execute(
+                "INSERT OR IGNORE INTO security_verification_challenges VALUES (?, ?, ?, ?, ?)",
+                (challenge.challenge_id, context.user_id, context.demo_round_id,
+                 context.task_id, challenge.model_dump_json()),
+            )
+
+    def issued_challenges(self, context: ExecutionSecurityContext) -> list[VerificationChallenge]:
+        connection = connect(self.path)
+        try:
+            rows = connection.execute(
+                "SELECT challenge_json FROM security_verification_challenges WHERE user_id = ? AND demo_round_id = ? AND task_id = ?",
+                (context.user_id, context.demo_round_id, context.task_id),
+            ).fetchall()
+            return [VerificationChallenge.model_validate_json(row["challenge_json"]) for row in rows]
+        finally:
+            connection.close()
 
     def is_task_terminated(self, context: ExecutionSecurityContext) -> bool:
         connection = connect(self.path)

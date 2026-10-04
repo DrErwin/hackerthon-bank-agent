@@ -393,6 +393,40 @@ class SecurityGate:
         if valid_summary is not True:
             raise SecurityError("POLICY_VIOLATION")
 
+    @staticmethod
+    def _is_terminal_challenge(context, challenge) -> bool:
+        return isinstance(challenge, VerificationChallenge) and (
+            challenge.user_id, challenge.demo_round_id, challenge.task_id
+        ) == (context.user_id, context.demo_round_id, context.task_id) and (
+            challenge.challenge_status == "failed" or (
+                challenge.purpose == "action_step_up" and challenge.challenge_status == "expired"
+            )
+        )
+
+    def _stop_verification(self, context, action, declaration, risk, risk_assessment, challenge):
+        self.confirmations.state.terminate_task(context, "VERIFICATION_FAILED")
+        decision = self._decision(context, action,
+            operation_level=declaration.operation_level, risk_level=risk,
+            decision=SecurityDecisionCode.BLOCK, reasons=["VERIFICATION_FAILED"],
+            rules=["verification-terminal-fact-stops-task"],
+            message="身份验证未通过，已停止这笔转账。", risk_assessment=risk_assessment)
+        decision.evidence_refs.append(challenge.challenge_id)
+        return self._finish(context, action, declaration, decision)
+
+    def _terminal_verification(self, context: ExecutionSecurityContext) -> VerificationChallenge | None:
+        for issued in self.confirmations.state.issued_challenges(context):
+            # Old-session facts can stop this task; they never grant a new session authority.
+            source_context = context.model_copy(update={"session_id": issued.session_id,
+                "operation_id": issued.operation_id, "action_revision": issued.action_revision})
+            current = self.challenge_resolver(source_context, issued.challenge_id)
+            identity = ("challenge_id", "user_id", "session_id", "demo_round_id", "task_id",
+                        "purpose", "operation_id", "action_revision")
+            if any(getattr(current, key) != getattr(issued, key) for key in identity):
+                raise SecurityError("POLICY_VIOLATION")
+            if self._is_terminal_challenge(context, current):
+                return current
+        return None
+
     def check_action(
         self,
         context: ExecutionSecurityContext,
@@ -543,6 +577,18 @@ class SecurityGate:
                 risk=risk,
                 risk_assessment=risk_assessment,
             )
+
+        if declaration.side_effect or declaration.operation_level == OperationLevel.SENSITIVE:
+            try:
+                terminal = self._terminal_verification(context)
+            except Exception:
+                return self._stop(context, action, declaration,
+                    decision=SecurityDecisionCode.PAUSE, reason="DEPENDENCY_UNAVAILABLE",
+                    rule="trusted-verification-terminal-fact-required",
+                    message="暂时无法核对验证结果，操作已暂停。", risk=risk,
+                    risk_assessment=risk_assessment)
+            if terminal is not None:
+                return self._stop_verification(context, action, declaration, risk, risk_assessment, terminal)
 
         confirmation: ConfirmationRecord | None = None
         confirmation_error: str | None = None
@@ -752,7 +798,11 @@ class SecurityGate:
                         context, action, confirmation, risk,
                     )
                     self._check_challenge(context, action, confirmation, risk, challenge)
-                except Exception:
+                    self.confirmations.state.remember_challenge(context, challenge)
+                except Exception as exc:
+                    terminal = getattr(exc, "challenge", None)
+                    if self._is_terminal_challenge(context, terminal):
+                        return self._stop_verification(context, action, declaration, risk, risk_assessment, terminal)
                     return self._stop(
                         context, action, declaration,
                         decision=SecurityDecisionCode.PAUSE,
