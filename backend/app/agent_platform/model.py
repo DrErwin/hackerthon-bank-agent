@@ -27,9 +27,9 @@ class _TransferFields(BaseModel):
     amount_fen: int | None = None
     payer_account_id: str | None = None
 
-    @field_validator("payer_account_id", mode="before")
+    @field_validator("payer_account_id", "payee_hint", mode="before")
     @classmethod
-    def absent_account(cls, value):
+    def absent_string_field(cls, value):
         # The provider has emitted the JSON null token as a string. It conveys
         # absence, never permission to choose an account on the user's behalf.
         return None if value == "null" else value
@@ -132,8 +132,8 @@ class DeepAgentPlanner:
             model=self.model, tools=[propose_transfer, reply_only],
             system_prompt=(
                 "你是银行服务入口，只提出业务意图，不执行或授权资金操作。\n"
-                "意图：用户明确要求普通转账，就调用 propose_transfer；字段缺失或不确定仍是转账意图，"
-                "由原任务追问补齐。普通闲聊、尚未决定办理或其他意图才调用 reply_only。\n"
+                "意图：用户明确发起一笔新的普通转账请求，就调用 propose_transfer；字段缺失或不确定仍是转账意图，"
+                "由原任务追问补齐。对已有业务的确认答复、普通闲聊、咨询、尚未决定办理或其他意图调用 reply_only。\n"
                 "字段：只提取原话中确定的收款人线索、整数分金额和付款账户编号；未知联系人交银行查询。"
                 "金额不确定时留空，不估算或舍入；确定金额按原值换算，不替用户修正合法性。"
                 "缺失字段用 JSON null 或省略，不用字符串 null，不默认账户。\n"

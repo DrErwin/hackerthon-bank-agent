@@ -19,6 +19,7 @@ from .test_local_demo import ConnectorTestModel, app_for, configuration, ledger_
 class PlanningSequenceModel(ScriptedChatModel):
     calls: int = 0
     account: str | None = "A1"
+    payee: str | None = "妈妈"
     amount: int | None = None
     tail_reply: bool = False
     simultaneous: bool = False
@@ -30,7 +31,7 @@ class PlanningSequenceModel(ScriptedChatModel):
                       "id": "tail", "type": "tool_call"}] if self.tail_reply and self.calls == 2 else []
         else:
             calls = [{"name": "propose_transfer", "args": {
-                "payee_hint": "妈妈", "amount_fen": self.amount,
+                "payee_hint": self.payee, "amount_fen": self.amount,
                 "payer_account_id": self.account}, "id": "first", "type": "tool_call"}]
             if self.simultaneous:
                 calls.append({"name": "reply_only", "args": {"message": "请补充金额。"},
@@ -71,6 +72,10 @@ def test_absent_account_remains_absent(tmp_path, account):
 
 def test_explicit_account_is_preserved(tmp_path):
     assert select(tmp_path, PlanningSequenceModel(account="OTHER")).payer_account_id == "OTHER"
+
+
+def test_absent_recipient_uses_same_null_semantics(tmp_path):
+    assert select(tmp_path, PlanningSequenceModel(payee="null")).payee_hint is None
 
 
 def test_no_result_has_safe_zero_count(tmp_path):
