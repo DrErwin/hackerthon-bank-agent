@@ -112,3 +112,5 @@ Accepted at: 2026-10-05\
 Work spec: [v03-transfer-eval-fixes修复规格](../../v03-transfer-eval-fixes/spec.md)
 
 当前票implemented、独立PR待审查/合入；完整包仍in_progress，不改为accepted，不恢复模型10。详见[诊断与交付记录](../../v03-transfer-eval-fixes/online-diagnosis-20261005.md)。
+
+2026-10-05追加授权：Erwin工作线恢复v03-transfer-eval-fixes/10，由新对话实施、测试/审查通过后合并；用户已明确批准，不重复要求技术细化。票11/12已合入，完整包与v0.3验收不提升。

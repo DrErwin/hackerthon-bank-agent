@@ -6,10 +6,10 @@ Spec: [修复规格](../spec.md)\
 Type: 开发（先复现诊断，未确定原因不承诺异常已修）\
 Owner: Erwin\
 Directory: backend/app/agent_platform/\
-Status: paused\
+Status: ready-for-agent — 2026-10-05用户明确恢复，交新对话实施/测试/审查后合并\
 Blocked by: None
 
-Paused by: 用户于2026-10-04明确要求“暂缓10，先只看程序问题”。本票保留原编号、范围与验收条件，不领取、不执行；恢复须用户另行明确指示。
+Historical pause: 用户2026-10-04要求暂缓，本记录保留；2026-10-05最新明确授权已恢复实施。
 
 交付：明确转账而缺项时提供缺项proposal并建立原任务；近似金额不确定，合法十六元能形成确认并在同任务纠正。INP14/CNF15/OBS12的ValueError先诊断，再决定本目录最小修复；不能证明的外部故障保留Blocked及处理建议，不扩大本票。
 
@@ -29,3 +29,15 @@ Paused by: 用户于2026-10-04明确要求“暂缓10，先只看程序问题”
 - 2026-10-04：用户要求“暂缓10，先只看程序问题”，本票由ready-for-agent改为paused；模型理解、提示词/规划输出调整及三个ValueError样本诊断退出当前修复范围。01—09不依赖本票；原缺口和完整验收要求保留。
 
 - 2026-10-05：最新用户允许诊断但未恢复实施；Status保持paused。诊断见[报告](../online-diagnosis-20261005.md)，关联[Issue #68](https://github.com/DrErwin/hackerthon-bank-agent/issues/68)、[Issue #69](https://github.com/DrErwin/hackerthon-bank-agent/issues/69)、[Issue #70](https://github.com/DrErwin/hackerthon-bank-agent/issues/70)。建议实施获授权后补明确转账分类、空账户null与单结果终止；CNF10/15已复现双工具结果，原INP14/RCV21 ValueError归因仍未知，不填写成网络故障。
+
+## 2026-10-05 恢复与实施边界（覆盖旧暂停）
+
+用户明确要求“开一个新对话来完成这一个票10”，Prompt不要补丁式，应简洁统一，测试完成后可以合并。Status恢复ready-for-agent，新对话负责领取、最小实现、必要测试/审查与CI，通过后按本次用户授权合并；无需用户再细化技术规划。上文“尚未实施授权”和“paused”为历史记录，不能继续作为阻止执行的理由。
+
+关联[Issue #68](https://github.com/DrErwin/hackerthon-bank-agent/issues/68)、[Issue #69](https://github.com/DrErwin/hackerthon-bank-agent/issues/69)、[Issue #70](https://github.com/DrErwin/hackerthon-bank-agent/issues/70)。扩充当前已诊断PAY11明确转账分类、INP03真正空账户、CNF10双工具结果回归，保留原INP13/RCV01/21等全部验收。
+
+- [ ] Prompt以“意图是否明确、字段是否确定、本轮单一结果”为统一原则，不按失败样本逐条加特例；具体近似/区间/缺项/非法值留测试。
+- [ ] 一次有效结果后结束本轮规划，保留真正冲突输出的拒绝；空值用JSON null/省略，不默认A1。
+- [ ] 在本目录以固定安全码/数量/阶段区分无结果、多结果、字段解析和调用异常，不泄漏原始provider内容或敏感参数；原异常证据不足的历史归因继续未知。
+
+代码仅backend/app/agent_platform，一目录/分支/PR。11/12已合入，不夹带其旧实施。读[新对话交接](../ticket10-handoff-20261005.md)后开始；实际领取时改in_progress。Ringo本人审查/专业安全材料另列，不能用AI代审或代码合并冒充专业验收。

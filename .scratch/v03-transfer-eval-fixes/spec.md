@@ -174,3 +174,18 @@ LLM意图/金额理解、提示词和规划输出调整、无有效模型输出�
 限定真实GLM各一次：BNK01 Passed，真实proposal=0由确定性代码拒绝；INP09 Blocked，安全码MODEL_PROPOSAL_AMBIGUOUS。未反复跑到绿，不改原153全量成绩。真实在线发生在审计补充前；其后审计/HTTP及最终组合回放覆盖新分支。模型双结果与缺项问题留票10，专业TF-VFY-16继续依赖Ringo材料，v0.3仍NotAccepted。完整本机实施证据在.mnemon/online-diagnosis-20261005/，未上传原JSON或敏感配置。
 
 最终[PR #73 CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37224931011)与[PR #74 CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37225409981)均通过。代码PR仍开放，真人安全批准未记录；纯文档记录另行发布主线，未运行/等待文档CI。
+
+## 2026-10-05 用户授权AI代审与合并，票10恢复
+
+用户明确要求AI代替Ringo审查并合并PR #73/#74；随后新对话完成票10，Prompt保持简洁统一，测试与审查通过后可以合并。此授权是本次AI代审/合并授权，不记作Ringo本人审查或专业安全验收。
+
+| 实施票 | 合并PR | 合并提交 | 最终代码CI |
+|---|---|---|---|
+| v03-transfer-eval-fixes/11 | [#74](https://github.com/DrErwin/hackerthon-bank-agent/pull/74) | `2c7ecafd2a94a4ebcd80c651c704f49ca0d98599` | [通过](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37226355691) |
+| v03-transfer-eval-fixes/12 | [#73](https://github.com/DrErwin/hackerthon-bank-agent/pull/73) | `ba77dbbf30c01e0244be58c9153807638cb43a6e` | [通过](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37226561639) |
+
+两轴AI与安全代审无剩余发现；PR #73已重新基于合入#74的主线。合并组合23项评测判据通过，主线权限/拒绝/审计6项与最终评测冒烟8项通过。Issue #71/#72按已合入交付关闭；模型Issue #68/#69/#70继续开放。
+
+11/12标为resolved。10由paused恢复ready-for-agent，由新对话领取实施与测试/审查/合并；[票10交接](ticket10-handoff-20261005.md)规定以业务意图、字段确定性、单一结果三条统一原则组织Prompt，具体用例放测试。不得选择首个/末个候选兜底或把普通确认当授权。用户无需再细化技术规划。
+
+真实GLM模型遗留失败与专业TF-VFY-16缺材料依然存在；这些合并不表示模型票10完成或v0.3验收通过。原153在线报告保留，未同步飞书、未进入下一阶段。纯文档进度按主线独立发布，仅内容/链接/编号/空白检查。
