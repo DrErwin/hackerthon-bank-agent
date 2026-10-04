@@ -1,14 +1,16 @@
 # 交付包 04：后续业务评测准备
 
-Status: ready\
+Status: in_progress\
 Owner: 周恩宇（账单〔09-28 移交〕、跨场景）\
 Activation: Erwin 已于 2026-09-27 确认，可与 v0.3 并行\
 Start when: 对应 PRD 与公共契约已冻结\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
-Accepted by: 未记录（周恩宇 / Ethan 须本人明确接受）\
-Accepted at: 未记录\
-Work spec: 待负责人建立或关联已有规格
+Accepted by: 周恩宇（Ethan / GitHub @zhouey314-cloud）\
+Accepted at: 2026-10-04\
+Work spec:
+- [账单评测准备规格](../../v04-ethan-bills-eval/spec.md)
+- [跨场景评测准备规格](../../v04-ethan-cross-eval/spec.md)
 
 领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再按 `to-spec → to-tickets → 按票执行` 推进。
 
