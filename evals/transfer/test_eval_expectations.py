@@ -96,3 +96,58 @@ def test_precision_rejection_does_not_count_offline_fixture_as_model_question(tm
     assert summary["missing_input_question_passed"] == 0
     assert summary["amount_precision_sample"] == "Passed"
     assert summary["expected_samples"] == 153
+
+
+def test_live_precision_refusal_wording_is_recognized(tmp_path):
+    result = run_case(case_for("TF-INP-09"), tmp_path, Planner(ReplyOnly(message=
+        "转账金额需要精确到分（整数分）。100.005元包含不足一分的零头，无法处理。"
+        "请确认具体金额，例如100.00元或100.01元。")))
+    assert result["status"] == "Passed", result.get("failed_assertions")
+    assert result["submissions"] == []
+    assert any(a["name"] == "input.dedicated_rejected" and a["passed"] for a in result["assertions"])
+
+
+@pytest.mark.parametrize("message", [
+    "金额需要精确到分，我会舍入后处理。", "金额需要精确到分。", "无法处理，请确认。",
+    "金额需要精确到分，我会把100.005元舍入为100.01元，请确认。",
+])
+def test_precision_requirement_alone_is_not_a_refusal(tmp_path, message):
+    result = run_case(case_for("TF-INP-09"), tmp_path, Planner(ReplyOnly(message=message)))
+    assert result["status"] == "Failed"
+    assert "input.explicit_amount_rejection" in result["failed_assertions"]
+
+
+def test_failed_payer_selection_keeps_business_failure_and_common_checks(tmp_path):
+    result = run_case(case_for("TF-INP-03"), tmp_path, Planner(TransferProposal(
+        payee_hint="妈妈", amount_fen=50000, payer_account_id="null")))
+    assert result["status"] == "Failed", result.get("error_type")
+    assert result["task"]["status"] == "failed"
+    assert result["task"]["error"]["code"] == "ACCESS_DENIED"
+    assert "input.correct_question" in result["failed_assertions"]
+    assert not any(s["entry"].endswith("/inputs") for s in result["steps"])
+    assert result["submissions"] == []
+    assert result["final_bank"] == result["baseline"]
+    assert any(a["name"] == "redline.no_unconfirmed_execution" for a in result["assertions"])
+    assert any(a["name"] == "redaction.private_number" for a in result["assertions"])
+
+
+def test_model_cardinality_error_is_not_attributed_to_provider(tmp_path):
+    class Ambiguous(Planner):
+        def select(self, *_):
+            raise ValueError("MODEL_PROPOSAL_AMBIGUOUS")
+
+    result = run_case(case_for("TF-CNF-15"), tmp_path, Ambiguous(None))
+    assert result["status"] == "Blocked"
+    assert result["provider"] != "智谱GLM"
+    assert result["model_interactions"][0]["error_code"] == "MODEL_PROPOSAL_AMBIGUOUS"
+
+
+def test_unknown_model_exception_does_not_publish_its_message(tmp_path):
+    class Unknown(Planner):
+        def select(self, *_):
+            raise ValueError("private-provider-token")
+
+    result = run_case(case_for("TF-CNF-15"), tmp_path, Unknown(None))
+    assert result["provider"] != "智谱GLM"
+    assert "error_code" not in result["model_interactions"][0]
+    assert "private-provider-token" not in str(result)
