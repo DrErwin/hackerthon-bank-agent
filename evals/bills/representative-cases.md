@@ -1,8 +1,8 @@
 # 02 账单分析 · 首批代表性评测用例
 
-> Owner: 周恩宇（Ethan）  
-> 票据：[v04-ethan-bills-eval/01：账单代表性评测用例](../../.scratch/v04-ethan-bills-eval/issues/01-representative-cases.md)  
-> 依据：[02 账单分析 PRD](../../docs/prd/02-账单分析-PRD-2026-09-23.md) · [公共契约](../../docs/contracts/公共契约-2026-09-23.md)  
+> Owner: 周恩宇（Ethan）
+> 票据：[v04-ethan-bills-eval/01：账单代表性评测用例](../../.scratch/v04-ethan-bills-eval/issues/01-representative-cases.md)
+> 依据：[02 账单分析 PRD](../../docs/prd/02-账单分析-PRD-2026-09-23.md) · [公共契约](../../docs/contracts/公共契约-2026-09-23.md)
 > 说明：本文件是 v0.4 开发前的首批代表性 Eval，不替代后续“每功能 ≥10 条、每类异常 ≥3 条”的完整规模要求。运行结果在真实模块可执行后填写。
 
 | 编号 | 类别 | 依据 | 用户输入与起始条件 | 预期过程 | 预期结果与通过标准 | 依赖公开能力 | 运行结果 |
