@@ -1,0 +1,5 @@
+# Isolated evaluator environment; backend editable install supplies core runtime.
+langchain-openai==1.6.6
+httpx==0.28.1
+# Optional actual React/TCP browser checks (--react-dist).
+playwright==1.63.0

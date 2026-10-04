@@ -3,7 +3,7 @@
 Owner: Erwin（2026-09-28 全员会接手转账业务评测）\
 Ticket ID: v03-transfer-evals/01：转账正交用例矩阵文档规划\
 Date: 2026-10-03\
-Status: 用例文档已编写，自动化待实现、业务待运行；不表示 v0.3 验收通过。
+Status: 01用例文档与03自动化已实现；评测存在实际失败和安全证据阻塞，尚未通过业务及v0.3联合验收。
 
 这套考题检查用户能否找对人、看懂确认、完成验证，并在失败、取消和中断后得到真实结果。每条核对中间阶段与银行事实，防止“最后只扣一次，但在确认前已扣款”的漏测。
 
@@ -45,7 +45,7 @@ Status: 用例文档已编写，自动化待实现、业务待运行；不表示
 
 确认有效期1小时、验证码/模拟人脸各5分钟、会话2小时，以真实经过时间计。银行首次提交4秒超时，之后每3秒回查原操作、最多再等10秒；查询耗时计入窗口，查询失败不续期。时间边界用可控测试时钟精确覆盖；不要求逐条实际等一小时，也不以银行业务时间快进代替真实计时。
 
-八字段最后一列使用稳定参数化ID，全部为 **待实现／待运行**，不声称已有函数或通过记录。03票计划对应 `test_transfer_eval[用例ID]`；TF-CNF-03按“嗯／好／行”三个输入独立运行并各自记录结果；平台引用不另建相同转账测试。恢复/页面适配按真实入口实现，本票不发明接口。
+八字段最后一列保留01票的设计时状态，实际实现和结果以03票运行证据为准。[catalog.py](catalog.py)读取八字段并展开153个独立样本，[test_transfer_eval.py](test_transfer_eval.py)对应 `test_transfer_eval[用例ID]`；TF-CNF-03按“嗯／好／行”独立记录。两项平台引用另取当前版本证据，恢复/页面适配使用真实入口。
 
 | 执行层 | 证明什么 | 仍需的独立证据 |
 |---|---|---|
@@ -151,3 +151,36 @@ Status: 用例文档已编写，自动化待实现、业务待运行；不表示
 | 12 | 提交及银行重查 | TF-BNK-13/14；TF-CNF-20；TF-RCV-05—08/22 |
 | 13 | 原操作结果核对 | TF-QRY-01—12/14—16；TF-RCV-06/07/10 |
 | 14 | 按真实状态发回执 | TF-QRY-03/10/11/15；TF-OBS-04/11/16 |
+
+## 8. 03票运行入口
+
+在仓库根目录使用隔离Python环境。仅使用临时应用库与临时银行库，每样本独立；不使用配置中的data_directory，不碰开发演示库。
+
+```powershell
+python -m pip install -e './backend[dev]'
+python -m pip install -r evals/transfer/requirements.txt
+python -m pytest -q evals/transfer/
+python evals/transfer/run_live_eval.py
+python evals/transfer/run_live_eval.py --live-glm --config D:/hackerthon-bank-agent/.env.local-demo.json --jobs 4
+python -m pytest -q evals/transfer/ --live-glm --glm-config D:/hackerthon-bank-agent/.env.local-demo.json
+```
+
+真实GLM限定GLM-5.3和智谱Coding Plan的`coding/paas/v4`入口；配置读取既有`load_config`，报告只保留模型与端点摘要，API Key不入库。连接失败逐样本Blocked，不回退固定规划。TF-INP-17明确注入供应商故障，故意不调用模型。
+
+默认离线模式固定公开proposal，随后执行真实Harness、转账流程、安全门、网关及MockBankService。按动作参数绑定受控风险事实，银行规则只由真实银行实现判定。指定故障、可控真实计时和固定银行业务日均在报告替身栏列明；不冒充真实反诈、真实短信/人脸或真实网络4秒超时证明。
+
+需要真实页面时，先在`frontend/`执行既有`npm ci`和`npm run build`，然后回到仓库根目录：
+
+```powershell
+python -m playwright install chromium
+python -m pytest -q evals/transfer/ --react-dist frontend/dist
+python evals/transfer/run_live_eval.py --live-glm --config D:/hackerthon-bank-agent/.env.local-demo.json --react-dist frontend/dist --jobs 4
+```
+
+这会为TF-OBS-03—07启动临时TCP HTTP服务并使用现有React的real-api模式，保存截图、DOM、请求和前端构建指纹。未给构建时这5项Blocked；其他样本的React列也不自动标Passed。Ringo专业安全列始终独立，TF-VFY-16缺真实攻击来源时Blocked。
+
+CLI和pytest都生成`.mnemon/transfer-evals/<本次时间>/report.json`及`report.md`。CLI支持重复`--case`选择样本，分母仍为153样本及冻结的21标准任务；未执行ID单列。每次新建目录，复跑保留第一次失败。开始时间、HEAD、dirty路径、评测器源码哈希及数据版本在启动时冻结；实际proposal、交互、资金调用、银行事实、账本和失败断言逐样本保存。平台回归失败也导致非零退出码。
+
+任何产品失败保持Failed，pytest也实际失败；没有xfail或通过改期望制造全绿。完整真实流程运行需要数分钟，原03票的“秒级全绿”历史目标尚未达到。当前仓库CI仍只运行后端及模拟银行测试，绿CI不能冒充153样本通过。本票只改`evals/transfer/`，不为接入CI跨目录改工作流。
+
+本轮实际证据与跨目录问题见[03实现证据](automation-evidence.md)及[问题记录](gaps.md)。票04、原12及v0.3未收口，AI双轴审查不能替代Erwin业务确认或Ringo专业安全结论。
