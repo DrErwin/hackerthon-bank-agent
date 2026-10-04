@@ -129,3 +129,8 @@ CI日志核实：后端288 passed（82.18s），MockBank14 passed（0.47s）。�
 ## 仓库同步核实（2026-10-04）
 
 上述最新main和PR60—63开放状态为原执行时快照。当前PR60—63、66、67均已合入，账单/联动代表性准备仍待运行。原合入台账、临时PR正文和辅助执行脚本留在本机备份，未作为交付代码提交；此次未重新运行程序评测或同步飞书。
+
+
+## 2026-10-05 票10完成与授权合入
+
+[PR #75](https://github.com/DrErwin/hackerthon-bank-agent/pull/75)合入`c49269e718d4db9f56865c4a2e42c467c6fbcde1`；[完整验证记录](ticket10-verification-20261005.md)包含各次固定GLM失败和修复、最终21项×2 Passed、最终离线与GLM各153样本152 Passed/1专业材料Blocked。代码CI与AI代审通过；软件修复01—12 resolved，专业/联合验收另待，v0.3 NotAccepted。未同步飞书或进入下一阶段。

@@ -1,8 +1,8 @@
 # v0.3 普通转账评测缺口修复规格
 
-Status: in_progress — 程序票01—09已resolved；10paused，专业评测与联合验收另待\
-Date: 2026-10-04\
-Owner: Erwin（v0.3 临时执行线；未记录新增开发票领取）\
+Status: resolved — 修复01—12已合入；专业评测与v0.3联合验收另待\
+Date: 2026-10-05\
+Owner: Erwin（v0.3 临时执行线；Codex按授权领取并交付票10）\
 Milestone: v0.3.0\
 Package: [transfer-agent-framework/packages/01-vertical-backend：v0.3纵向后端主链路](../transfer-agent-framework/packages/01-vertical-backend.md)；评测口径归[交付包03：v0.3评测与专业审查](../transfer-agent-framework/packages/03-v03-evaluation.md)\
 Source ticket: [v03-transfer-evals/03：转账自动化评测套件与Live GLM Runner](../v03-transfer-evals/issues/03-eval-automation-suite.md)\
@@ -10,7 +10,7 @@ Tickets: [已确认拆分与正式票索引](ticket-proposal.md)
 
 ## 当前执行授权与事实
 
-用户已明确豁免本轮Ringo审批并授权合并，PR #51及修复01—09全部合入；该豁免不记为Ringo本人审查。主线153离线147 Passed / 6 Blocked、0 Failed / 0 Error；327后端和14 MockBank为既有代码主线验证。10继续paused，专业评测、真实模型遗留与联合验收另待。最新证据见[执行记录](execution.md)及[版本完成情况](../../docs/versions/v0.3.0/completion.md)。下方历史授权和旧进展保留作追溯。
+评测套件及修复01—12已合入；票10按最新用户授权完成实施、固定验证、AI代审与PR #75合并。最终离线/真实GLM模式各153：152 Passed/1专业材料Blocked，标准21/21、缺项8/8，最后代码CI后端346/MockBank14通过。AI代审不记为Ringo本人或专业安全验收；AF/T联合验收、专业结论及历史未知隐私断言另列，v0.3 NotAccepted。详见[票10验证](ticket10-verification-20261005.md)、[执行记录](execution.md)及[版本进度](../../docs/versions/v0.3.0/completion.md)。下方历史授权、暂停与旧进展保留作追溯。
 
 ## 初始规划授权（历史）
 
@@ -189,3 +189,8 @@ LLM意图/金额理解、提示词和规划输出调整、无有效模型输出�
 11/12标为resolved。10由paused恢复ready-for-agent，由新对话领取实施与测试/审查/合并；[票10交接](ticket10-handoff-20261005.md)规定以业务意图、字段确定性、单一结果三条统一原则组织Prompt，具体用例放测试。不得选择首个/末个候选兜底或把普通确认当授权。用户无需再细化技术规划。
 
 真实GLM模型遗留失败与专业TF-VFY-16缺材料依然存在；这些合并不表示模型票10完成或v0.3验收通过。原153在线报告保留，未同步飞书、未进入下一阶段。纯文档进度按主线独立发布，仅内容/链接/编号/空白检查。
+
+
+## 2026-10-05 票10实施与合入
+
+用户最新恢复/实施/AI代审/合并授权已执行；票10按Erwin执行线领取并完成独立PR #75。软件修复01—12均resolved；历史暂停和仅规划段落保留作追溯，不作为当前状态。固定运行、所有失败、最终CI与专业/联合验收边界见[票10实际验证](ticket10-verification-20261005.md)。v0.3仍NotAccepted，无飞书或下一阶段。
