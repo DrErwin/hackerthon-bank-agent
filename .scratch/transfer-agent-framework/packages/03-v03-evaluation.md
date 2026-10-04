@@ -1,14 +1,14 @@
 # 交付包 03：v0.3 评测与专业审查
 
-Status: ready\
+Status: in_progress\
 Owner: Ringo（安全）、Erwin（转账〔09-28 起〕、模拟银行与端到端）\
 Activation: Erwin 已于 2026-09-27 确认，可按冻结规格立即拆票\
 Start when: 规格与契约已冻结；实现未完成时先写可执行用例和 stub 适配\
 Spec: [普通转账驱动的 Agent 框架纵向场景](../spec.md)
 
-Accepted by: 未记录（Ringo / Erwin 须分别记录本人工作线）\
-Accepted at: 未记录（须逐人记录）\
-Work spec: Ringo 待建立或关联；Erwin 已有[详细规格与评测票](../../v03-erwin-vertical-backend/spec.md)
+Accepted by: Erwin（转账业务评测与端到端实跑，2026-10-03；Ringo 安全工作线待记录）\
+Accepted at: Erwin 2026-10-03；Ringo 未记录\
+Work spec: Erwin [普通转账评测规格与工作组](../../v03-transfer-evals/spec.md)；Ringo 待建立或关联
 
 领取与执行按[队员开工规范](../../../docs/agents/delivery-workflow.md)：明确接受后 AI 自动登记包与项目跟踪，检查通用 Skill，再按 `to-spec → to-tickets → 按票执行` 推进；已有规格和票直接续做，有评测代码开发时使用 `implement`。
 

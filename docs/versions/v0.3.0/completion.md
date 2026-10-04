@@ -133,3 +133,7 @@
 主线报告和逐文件比较保存在本轮隔离worktree的 `.mnemon/merged-main-offline-153/20261004T090228191321Z/report.json`、`report.md` 与 `.mnemon/merged-source-comparison.json`；这些是本机运行证据，未作为跨目录文件塞入代码PR。
 
 `v03-transfer-eval-fixes/01—09` 按程序修复范围标为resolved。票10保持paused，本轮未运行GLM或调整模型/提示词；真实模型历史失败仍待处理。`v03-transfer-evals/03` 的工程套件已合并，但真实GLM及原全绿条件尚未全满足，继续in_progress；该组04及原 `v03-erwin-vertical-backend/12` 仍blocked。AF01—AF14、T01—T18及专业安全/转账结论未齐，不收口v0.3、不进入下一阶段。此前“评测目录仅README”等描述为历史，当前转账目录已交付上述套件。未同步飞书，其他成员PR60—63未在本轮合并。
+
+## 仓库同步记录（2026-10-04）
+
+遗漏的正式规格、实施票及执行记录已整理入库：[转账评测组](../../../.scratch/v03-transfer-evals/spec.md)、[程序修复组](../../../.scratch/v03-transfer-eval-fixes/spec.md)、[纯文档CI维护票](../../../.scratch/docs-only-ci/issues/01-skip-docs-ci.md)。程序修复01—09已resolved，模型票10paused；评测03保持in_progress，04和原票12保持blocked。本次未重新运行评测，不增加验收证据、不启动下一阶段，也未同步飞书。
