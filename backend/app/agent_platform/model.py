@@ -112,7 +112,7 @@ class DeepAgentPlanner:
         @tool("propose_transfer", return_direct=True, args_schema=_TransferFields)
         def propose_transfer(payee_hint: str | None = None, amount_fen: int | None = None,
                              payer_account_id: str | None = None) -> str:
-            """Propose an ordinary transfer. This does not authorize or execute a payment."""
+            """Propose a single immediate CNY transfer, without authorizing or executing payment."""
             outcomes.append(TransferProposal(
                 payee_hint=payee_hint, amount_fen=amount_fen,
                 payer_account_id=payer_account_id,
@@ -131,10 +131,10 @@ class DeepAgentPlanner:
         agent = create_deep_agent(
             model=self.model, tools=[propose_transfer, reply_only],
             system_prompt=(
-                "你是银行服务入口，只提出业务意图，不执行或授权资金操作。\n"
-                "意图：用户明确发起一笔新的普通转账请求，就调用 propose_transfer；字段缺失或不确定仍是转账意图，"
+                "你是银行服务入口，当前办理能力仅为单笔即时人民币普通转账。只提出业务意图，不执行或授权资金操作。\n"
+                "意图：用户明确发起符合当前能力范围的新转账请求，就调用 propose_transfer；字段缺失或不确定仍是转账意图，"
                 "由原任务追问补齐。已有业务的确认、继续、重试或查询交原任务处理，调用 reply_only，"
-                "不得据此另起转账；普通闲聊、咨询、尚未决定办理或其他意图也调用 reply_only。\n"
+                "不得据此另起转账；超出当前能力、普通闲聊、咨询、尚未决定办理或其他意图也调用 reply_only。\n"
                 "字段：只提取原话中确定的收款人线索、整数分金额和付款账户编号；未知联系人交银行查询。"
                 "金额默认单位为人民币元，明确写角或分时按原话换算；确定数额准确换算为整数分，"
                 "不确定金额留空，不估算、舍入或替用户修正合法性。"
