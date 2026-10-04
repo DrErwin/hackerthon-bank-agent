@@ -47,9 +47,8 @@ def plan_for(case):
             p.hint, p.text, p.expected_status = "不存在的联系人", "给不存在的联系人转500元，使用默认主账户A1。", "waiting_input"
         if n in (12, 13, 14): p.expected_status = "waiting_input"
         if n == 15:
-            # F36 rejects mismatched manual details before dispatch. The matrix
-            # asks for a failed task too; assert that separately, do not rewrite it.
-            p.expected_status = "failed"
+            # D1: mismatched F36 input is corrected on the original task.
+            p.expected_status = "waiting_input"
         if n == 16: p.target = "A5"
         p.finish = n in range(1, 9) or n == 16
     elif group == "INP":
