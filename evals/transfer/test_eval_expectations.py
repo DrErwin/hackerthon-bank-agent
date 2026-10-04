@@ -107,7 +107,10 @@ def test_live_precision_refusal_wording_is_recognized(tmp_path):
     assert any(a["name"] == "input.dedicated_rejected" and a["passed"] for a in result["assertions"])
 
 
-@pytest.mark.parametrize("message", ["金额需要精确到分，我会舍入后处理。", "金额需要精确到分。", "无法处理，请确认。"])
+@pytest.mark.parametrize("message", [
+    "金额需要精确到分，我会舍入后处理。", "金额需要精确到分。", "无法处理，请确认。",
+    "金额需要精确到分，我会把100.005元舍入为100.01元，请确认。",
+])
 def test_precision_requirement_alone_is_not_a_refusal(tmp_path, message):
     result = run_case(case_for("TF-INP-09"), tmp_path, Planner(ReplyOnly(message=message)))
     assert result["status"] == "Failed"
