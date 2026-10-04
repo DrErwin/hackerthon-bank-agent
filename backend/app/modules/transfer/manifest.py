@@ -44,7 +44,7 @@ MANIFEST = ModuleManifest(
     module_name="transfer",
     version="0.3.0",
     owner="LiangShuang",
-    description="普通转账参考流程及同一任务的新会话恢复；v0.3 由 Erwin 临时实现",
+    description="普通转账、受控收款资料及同任务恢复；v0.3 由 Erwin 临时实现",
     implementation_kind="workflow",
     capabilities=[
         CapabilityDefinition(

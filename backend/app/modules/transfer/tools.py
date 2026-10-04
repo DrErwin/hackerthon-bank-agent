@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Literal
 from uuid import UUID, uuid4
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, ConfigDict, PositiveInt, TypeAdapter
 
 from app.contracts.bank import OperationResult, PayeeInput, QueryFailure
 from app.contracts.common import Phase
@@ -24,6 +24,21 @@ from .manifest import PRIVATE_TOOLS
 _PAYEE = TypeAdapter(PayeeInput)
 SecurityContextFactory = Callable[[TrustedContext, UUID | None, int | None], ExecutionSecurityContext]
 OperationReserver = Callable[[TrustedContext, UUID, int, dict], UUID]
+
+
+class ReferencedPayee(BaseModel):
+    """Internal checkpoint shape; it is not a public bank PayeeInput variant."""
+
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["reference"]
+    reference: str
+    payee_revision: PositiveInt
+
+
+def payee_input(value):
+    if isinstance(value, dict) and value.get("kind") == "reference":
+        return ReferencedPayee.model_validate(value)
+    return _PAYEE.validate_python(value)
 
 
 @dataclass(frozen=True)
@@ -109,11 +124,11 @@ class GatewayTransferTools:
             "bank.list_accounts": lambda trusted, _payload: gateway.list_accounts(trusted),
             "bank.list_payees": lambda trusted, payload: gateway.list_payees(trusted, payload),
             "bank.verify_payee": lambda trusted, payload: gateway.verify_payee(
-                trusted, _PAYEE.validate_python(payload["payee"]),
+                trusted, self._resolve_payee(trusted, payee_input(payload["payee"])),
             ),
             "bank.precheck_transfer": lambda trusted, payload: gateway.precheck_transfer(
                 trusted, payload["payer_account_id"],
-                _PAYEE.validate_python(payload["payee"]), payload["amount_fen"],
+                self._resolve_payee(trusted, payee_input(payload["payee"])), payload["amount_fen"],
             ),
             "bank.submit_transfer": lambda trusted, payload: gateway.submit_transfer(
                 trusted, UUID(payload["operation_id"]), payload["payer_account_id"],
@@ -133,6 +148,18 @@ class GatewayTransferTools:
             operation_lookup=self._lookup_operation,
             result_observer=self._observe_result,
         )
+
+    def _resolve_payee(self, trusted, payee):
+        if not isinstance(payee, ReferencedPayee):
+            return payee
+        context = self.security_context(trusted, None, None).model_copy(update={
+            "action_revision": payee.payee_revision,
+        })
+        parameters = self.snapshots.resolve(context, ActionDescriptor(
+            action_name="transfer.controlled_payee", parameters_ref=payee.reference,
+            resource_refs=[], phase=Phase.ADMISSION,
+        ))
+        return _PAYEE.validate_python(parameters["payee"])
 
     @staticmethod
     def _trusted(context: ExecutionSecurityContext) -> TrustedContext:
@@ -179,6 +206,7 @@ class GatewayTransferTools:
         self, trusted: TrustedContext, operation_id: UUID, action_revision: int,
         payer_account_id: str, payee: PayeeInput, amount_fen: int,
     ) -> TransferAction:
+        payee = self._resolve_payee(trusted, payee)
         parameters = {
             "operation_id": str(operation_id), "payer_account_id": payer_account_id,
             "payee": payee.model_dump(mode="json"), "amount_fen": amount_fen,
