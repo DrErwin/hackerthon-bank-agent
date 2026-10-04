@@ -21,9 +21,11 @@ AI Banking Agent：为银发人群打造的银行智能助理，用自然语言�
 | `frontend/` | 前端 / 适老化（梁爽负责，六水协助；2026-09-25 确认） |
 | `evals/` | 评测集，按子目录归属：transfer Erwin · bills 周恩宇 · cross 周恩宇 · security Ringo · mockbank Erwin（2026-09-28 全员会调整） |
 
-### v0.3 临时执行安排（2026-09-27）
+### v0.3 临时执行安排（2026-10-01 更新）
 
 为尽快跑通普通转账纵向链路，v0.3 由 Erwin 依次实现底座、最小安全门和普通转账参考路径，并接手转账评测及对应审查（2026-09-28 全员会定，原为梁爽）；Ringo 负责安全评测及审查。该安排只适用于 v0.3 首条路径，不改变安全与转账目录的长期归属；阶段收口后，后续维护回到上表负责人。
+
+前端本阶段由梁爽主责、六水协助交一份普通转账关键流程原型图；Erwin 临时负责 `frontend/` 简易前端和联调测试。v0.3 收口后由梁爽、六水完成完整前端并替换简易前端，长期前端归属不变。范围与排期见[当前实施计划](docs/versions/v0.3.0/implementation-plan.md)。
 
 同一个人可以按顺序承担多个目录，但一张实施票、一个分支和一个 PR 仍只对应一个目录，禁止把底座、安全和转账做成一个无法独立审查的大改动。
 
@@ -76,3 +78,15 @@ Milestone requirements and completion evidence live under `docs/versions/`. Upda
 ### Domain docs
 
 Single-context: one `CONTEXT.md` plus `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+
+## 纯文档改动的检查与合并（2026-10-04）
+
+用户明确要求：**“以后纯文档改动就不要CI了”以及“纯文档的提交不用PR”。**
+
+- 纯文档可在核对最新main后直接提交并推送主线，不创建PR；本条优先于旧的全量PR约定。
+- 纯文档改动（README、AGENTS、规格与票据、用例说明、进度及其他说明文档）只做必要的内容核对、链接/锚点、格式、编号和差异空白检查。
+- 不主动运行 CI，不跑后端/前端全量回归；不等待 CI，也不把 CI 作为纯文档 PR 的合并门槛。只有用户对本次文档变更明确要求时才运行 CI。
+- GitHub Actions已通过[PR #49](https://github.com/DrErwin/hackerthon-bank-agent/pull/49)启用路径过滤（提交`fd6c677`）：Markdown/reST以及docs目录内的mmd/png/jpg/jpeg/svg/pdf图示全部匹配时，PR和main推送不创建Repository checks运行；混入任一代码、依赖或执行配置仍触发。其他文档格式按现有过滤结果处理，不把自动触发作为纯文档合并等待理由。
+- 涉及运行代码、依赖、构建、部署或 CI 执行配置的变更，仍按影响范围做必要测试及 CI；不能按纯文档处理。
+- 开工先判断改动类型，按本条选择检查，不再对纯文档改动重复要求 CI。
