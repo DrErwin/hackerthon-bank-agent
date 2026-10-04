@@ -137,3 +137,15 @@
 ## 仓库同步记录（2026-10-04）
 
 遗漏的正式规格、实施票及执行记录已整理入库：[转账评测组](../../../.scratch/v03-transfer-evals/spec.md)、[程序修复组](../../../.scratch/v03-transfer-eval-fixes/spec.md)、[纯文档CI维护票](../../../.scratch/docs-only-ci/issues/01-skip-docs-ci.md)。程序修复01—09已resolved，模型票10paused；评测03保持in_progress，04和原票12保持blocked。本次未重新运行评测，不增加验收证据、不启动下一阶段，也未同步飞书。
+
+## 2026-10-05 票11/12实施交付（未合并）
+
+用户明确回复“可以，实施吧”，授权前述票12→11实施；未恢复票10或授权合并。独立交付[PR #73：评测判据与失败交互保真](https://github.com/DrErwin/hackerthon-bank-agent/pull/73)（evals/transfer，HEAD a16efc4）、[PR #74：非正金额明确拒绝及审计](https://github.com/DrErwin/hackerthon-bank-agent/pull/74)（agent_platform，HEAD 401a281）。两轴AI复审无剩余发现，非真人批准。票11/12为implemented、待审查/合入；10仍paused；Issue #68—#72保留开放。没有主线代码修复合入、飞书同步或下一阶段。
+
+23项评测判据回归、6项相关正常场景通过。平台/API137项回归通过；审计补充后48项相关测试通过，两个测试证据字段读取更正后最后3项拒绝/审计故障回归通过。HTTP重复请求保持一次规划/回复，message_completed事件可回放，无资金提交；未直接读取SSE流或新增React页面验收。
+
+最后组合回放原五项在线输出：BNK01、INP09 Passed；PAY11、INP03、INP08继续Failed。原INP03 Error已正确归还业务Failed，保留真实ACCESS_DENIED与共同检查，未修其模型空值。所有原输出回放无银行提交/出流。
+
+限定真实GLM各一次：BNK01 Passed，真实proposal=0由确定性代码拒绝；INP09 Blocked，安全码MODEL_PROPOSAL_AMBIGUOUS。未反复跑到绿，不改原153全量成绩。真实在线发生在审计补充前；其后审计/HTTP及最终组合回放覆盖新分支。模型双结果与缺项问题留票10，专业TF-VFY-16继续依赖Ringo材料，v0.3仍NotAccepted。完整本机实施证据在.mnemon/online-diagnosis-20261005/，未上传原JSON或敏感配置。
+
+最终[PR #73 CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37224931011)与[PR #74 CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37225409981)均通过。代码PR仍开放，真人安全批准未记录；纯文档记录另行发布主线，未运行/等待文档CI。

@@ -104,3 +104,11 @@ Erwin 的 12 张实施票已经建立。执行时每张票只对应一个目录�
 ## 2026-10-04 程序修复工作线交付
 
 Erwin工作线已按授权执行[v03-transfer-eval-fixes/02—09](../../v03-transfer-eval-fixes/spec.md)，01归评测包03。相关独立PR全部合入，程序范围已resolved，10paused；本轮Ringo审批由用户豁免，不记为本人审查。该记录不表示整包accepted；原票12联合验收仍blocked。详见[执行记录](../../v03-transfer-eval-fixes/execution.md)。
+
+### 2026-10-05 追加工作领取与交付
+
+Accepted by: Erwin（本次仅修复票11，用户明确批准实施）\
+Accepted at: 2026-10-05\
+Work spec: [v03-transfer-eval-fixes修复规格](../../v03-transfer-eval-fixes/spec.md)
+
+当前票implemented、独立PR待审查/合入；完整包仍in_progress，不改为accepted，不恢复模型10。详见[诊断与交付记录](../../v03-transfer-eval-fixes/online-diagnosis-20261005.md)。

@@ -37,3 +37,11 @@ Work spec: Erwin [普通转账评测规格与工作组](../../v03-transfer-evals
 - 安全评测同时证明“该拦的拦住”和“正常交易能通过”。
 - 转账评测引用 PRD，不重新发明业务流程。
 - 评测结果能够成为 v0.3 `completion.md` 的完成证据。
+
+### 2026-10-05 追加工作领取与交付
+
+Accepted by: Erwin（本次仅修复票12，用户明确批准实施）\
+Accepted at: 2026-10-05\
+Work spec: [v03-transfer-eval-fixes修复规格](../../v03-transfer-eval-fixes/spec.md)
+
+当前票implemented、独立PR待审查/合入；完整包仍in_progress，不改为accepted，不恢复模型10。详见[诊断与交付记录](../../v03-transfer-eval-fixes/online-diagnosis-20261005.md)。

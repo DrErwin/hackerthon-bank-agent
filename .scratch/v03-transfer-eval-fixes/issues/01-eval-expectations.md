@@ -40,3 +40,5 @@ Start when: 使用来源[v03-transfer-evals/03：转账自动化评测套件与L
 ## 2026-10-04 合入收口
 
 用户明确指示“我豁免ringo审批，合并吧”。[PR #59](https://github.com/DrErwin/hackerthon-bank-agent/pull/59) 已按依赖 squash 合入，主线提交 `a8218ffd2fdb777a9c9382bed9f3ff5cd3f29524`，最终 PR 提交 `a1702ffb80c7ac8421761ffccc3b405da1f0c165` 检查通过。与已验证组合67文件一致；实际主线153离线147 Passed/6 Blocked、0 Failed/0 Error，新增评测判据15测试通过。专业安全评测、真实GLM模型问题及v0.3联合验收另待，10继续paused；不记为Ringo本人审查。上文未批准/未合入为历史。
+
+- 2026-10-05：本票原交付保持resolved；真实在线出现D2拒绝词汇漏判和INP03失败任务继续输入的评测问题，记录[Issue #72](https://github.com/DrErwin/hackerthon-bank-agent/issues/72)，后续规划[v03-transfer-eval-fixes/12](12-live-eval-verdict-fidelity.md)，Status proposed，未实施。
