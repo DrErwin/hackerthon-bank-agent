@@ -13,6 +13,7 @@ from app.api.test_app import approve, enter, post, start
 
 from .local_demo import LocalDemoConfig, build_runtime, create_local_app, load_config
 from .test_harness import ScriptedChatModel
+from .model import TransferProposal
 
 
 class ConnectorTestModel(ScriptedChatModel):
@@ -93,6 +94,38 @@ def test_reply_only_and_invalid_model_create_no_task_or_bank_submission(tmp_path
             assert ledger_count(app) == 0
             if mode == "none":
                 assert app.state.api.store.rows("SELECT status FROM api_message_jobs ORDER BY created_at DESC LIMIT 1")[0]["status"] == "error_completed"
+
+
+@pytest.mark.parametrize("amount", [0, -100])
+def test_nonpositive_proposal_publishes_durable_amount_refusal(tmp_path, amount):
+    app = app_for(configuration(tmp_path))
+    api = app.state.api
+    request = str(uuid4())
+    with patch.object(api.runtime.harness.planner, "select", return_value=TransferProposal(
+        payee_hint="妈妈", amount_fen=amount, payer_account_id="A1")) as planner, \
+            patch.object(api.runtime.gateway._bank, "submit_transfer", wraps=api.runtime.gateway._bank.submit_transfer) as submit:
+        with TestClient(app) as client:
+            enter(client)
+            thread = post(client, "/threads").json()["data"]["thread_id"]
+            for _ in range(2):
+                response = post(client, f"/threads/{thread}/messages", request_id=request,
+                                text="从A1给妈妈转0元" if amount == 0 else "从A1给妈妈转-1元")
+                assert response.status_code == 202
+                assert response.json()["data"]["task_id"] is None
+            messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
+            replies = [m for m in messages if m["role"] == "assistant"]
+            assert len(replies) == 1
+            assert "金额" in replies[0]["text"] and "大于零" in replies[0]["text"]
+            assert replies[0]["task_ids"] == []
+            events = api.store.events(thread, None)
+            assert not any(event["event_type"] == "stream_error" for event in events)
+            assert any(event["event_type"] == "message_completed"
+                       and event["payload"]["message_id"] == replies[0]["message_id"] for event in events)
+            assert client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"] == []
+            assert api.store.rows("SELECT status FROM api_message_jobs WHERE request_id=?", (request,))[0]["status"] == "reply_completed"
+            assert planner.call_count == 1
+            assert submit.call_count == 0
+            assert ledger_count(app) == 0
 
 
 def test_confirm_verify_repeat_and_rebuild_use_one_original_operation(tmp_path):

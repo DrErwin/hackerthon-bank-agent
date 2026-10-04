@@ -700,10 +700,11 @@ def test_public_capability_denial_never_enters_transfer(tmp_path):
     assert harness.application.get_task("U1", "D1", "T1") is None
 
 
-def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path):
+@pytest.mark.parametrize("amount", [0, -1])
+def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path, amount):
     class InvalidAmount(ProposalModel):
         def select(self, intent_text, trusted, catalog, memory, thread_id):
-            return TransferProposal(payee_hint="妈妈", amount_fen=-1,
+            return TransferProposal(payee_hint="妈妈", amount_fen=amount,
                                     payer_account_id="A1")
 
     path = tmp_path / "app.sqlite"
@@ -713,16 +714,48 @@ def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path):
     harness.application.create_session(
         "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
     )
-    failed = harness.start(trusted(), uuid4(), "给妈妈转 500 元")
-    assert failed.status == TaskStatus.FAILED
-    assert failed.error.code == "MODEL_PROPOSAL_FAILED"
+    outcome = harness.handle_message(trusted(), uuid4(), "给妈妈转 500 元")
+    assert isinstance(outcome, ReplyOnly)
+    assert "金额" in outcome.message and "大于零" in outcome.message
+    assert harness.application.get_task("U1", "D1", "T1") is None
     assert ports.read_calls == []
     assert ports.submissions == 0
     events = harness.audit._events("D1", "T1")
     assert [event.event_type for event in events] == [
-        "model.started", "model.finished", "task.transition",
+        "model.started", "model.finished", "chat.message",
     ]
     assert events[1].parent_span_id == events[0].span_id
+    assert events[2].outcome == "denied"
+    assert events[2].payload.related_task_ids == []
+    details = AuditReader(harness.audit, authorize=lambda *_: True).timeline(
+        AuditViewer("auditor", "AS", "D1"), "D1", "T1",
+    )
+    refusal = next(item for item in details if item.event_type == "chat.message")
+    assert json.loads(refusal.evidence)["reason_code"] == "INVALID_AMOUNT"
+    assert json.loads(refusal.evidence)["message"] == outcome.message
+
+
+def test_amount_refusal_audit_failure_stops_before_task_or_bank(tmp_path):
+    ports = Ports()
+    harness = runtime(tmp_path / "app.sqlite", ports, ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    append = harness.audit.append_in_transaction
+
+    def unavailable(connection, event, **kwargs):
+        if event.event_type == "chat.message":
+            raise OSError("audit unavailable")
+        return append(connection, event, **kwargs)
+
+    with patch.object(harness.planner, "select", return_value=TransferProposal(amount_fen=0)), \
+            patch.object(harness.audit, "append_in_transaction", side_effect=unavailable):
+        with pytest.raises(OSError):
+            harness.handle_message(trusted(), uuid4(), "给妈妈转0元")
+    assert harness.application.get_task("U1", "D1", "T1") is None
+    assert ports.read_calls == []
+    assert ports.submissions == 0
 
 
 @pytest.mark.parametrize("intent", [
