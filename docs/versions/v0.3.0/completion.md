@@ -1,7 +1,11 @@
 # v0.3.0 完成情况：普通转账纵向链路
 
 > 状态：进行中\
-> 最后更新：2026-10-02
+> 最后更新：2026-10-04
+
+## 本轮最新状态（2026-10-04）
+
+转账自动化评测套件 PR #51 和 `v03-transfer-eval-fixes/01—09` 已全部合入，程序修复主线验证通过。本轮 Ringo 真人审批由用户明确豁免，不记录为 Ringo 已审查。票 10 的模型问题继续暂停；专业安全评测、真实模型遗留问题和原票 12 联合验收仍待，v0.3 保持进行中。具体合入与验证证据见文末。
 
 ## 已完成
 
@@ -100,3 +104,32 @@
 真实GLM 5.3使用用户指定的Coding Plan入口，真实React/API连受控策略与模拟银行。普通回复、缺项补充/候选、低风险验证码、中风险独立管理员模拟人脸、修改取消、刷新、重启、新登录显式原任务恢复、处理中查询原操作已提供证据。主线重启后浏览器又验证普通回复与500元完整确认，取消该复验任务后未新增资金操作；四个既有成功操作和原回执仍保留，各一笔流水。聊天“确认”仅回复，不创建任务或银行动作。模拟银行延迟故障已移除，常规工厂运行；配置秘密仅从Git忽略的后端本机文件读取，无仓库/前端秘密。
 
 本阶段v03-local-demo/01、04及缺陷票05、06标为resolved；前置02、03已由PR40、41交付。原v03-erwin-vertical-backend/10的六项验收在工程回归、实际React/GLM、主线恢复及台账证据下满足，标为resolved。Issue24实际模型和前端仅回复条件满足，按证据关闭。原票12继续blocked：AF01—AF14完整逐项证据、T01—T18覆盖说明及专业安全/转账评测未齐（两评测目录仍仅README）。v0.3仍进行中，不进入v0.4；原型图/完整前端不代填其他负责人完成。此前尚未实现、额度阻断和待批准文字为历史状态，以本段为当前结论。未同步飞书。
+
+## 转账评测与程序修复合入（2026-10-04）
+
+用户明确指示“我豁免ringo审批，合并吧”，适用于本轮转账评测 PR #51 和修复01—09。本轮 Ringo 真人审批由用户豁免；不记作 Ringo 本人审查，不替代专业安全评测，不改变长期审查规则。各代码 PR 更新到最新主线，最终提交的 Repository checks 均通过后，按依赖 squash 合入。
+
+来源套件 [PR #51](https://github.com/DrErwin/hackerthon-bank-agent/pull/51) 合入提交 `86b158eb9db94d9b4352ab1262bea54d7f571f0d`，覆盖151场景、153独立样本及两项平台回归。原始失败与真实GLM历史结果保留。
+
+| 完整票号 | PR | 主线合并提交 |
+|---|---|---|
+| v03-transfer-eval-fixes/01 | [#59](https://github.com/DrErwin/hackerthon-bank-agent/pull/59) | `a8218ffd2fdb777a9c9382bed9f3ff5cd3f29524` |
+| v03-transfer-eval-fixes/02 | [#52](https://github.com/DrErwin/hackerthon-bank-agent/pull/52) | `4d1fd3e4ad0934b4a44afed1e266b7f64cec490f` |
+| v03-transfer-eval-fixes/03 | [#54](https://github.com/DrErwin/hackerthon-bank-agent/pull/54) | `ade5393648508f89c9f944efa544f4ca97982378` |
+| v03-transfer-eval-fixes/04 | [#58](https://github.com/DrErwin/hackerthon-bank-agent/pull/58) | `086891cfb14f835cf9a29f6fe1876b31c7cea91c` |
+| v03-transfer-eval-fixes/05 | [#53](https://github.com/DrErwin/hackerthon-bank-agent/pull/53) | `29fc65e58cbab6ddd87b47d0fbbc314e420be8a4` |
+| v03-transfer-eval-fixes/06 | [#55](https://github.com/DrErwin/hackerthon-bank-agent/pull/55) | `6b19e915a345689ce629f35f9f6375780d8d347b` |
+| v03-transfer-eval-fixes/07 | [#56](https://github.com/DrErwin/hackerthon-bank-agent/pull/56) | `e4993f9b7bb11ab79bfa56620a530437c08af02b` |
+| v03-transfer-eval-fixes/08 | [#57](https://github.com/DrErwin/hackerthon-bank-agent/pull/57) | `bf45957451c51327778f3e04a28e66fb0aeb11b2` |
+| v03-transfer-eval-fixes/09 | [#64](https://github.com/DrErwin/hackerthon-bank-agent/pull/64) | `ddcf5b192d74e705b7933867cbc4ea5389853a39` |
+
+代码主线 `a8218ffd2fdb777a9c9382bed9f3ff5cd3f29524` 的实际验证：
+
+- [主线 CI](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37190825047)通过：完整后端 **327 passed**（97.58秒）、模拟银行评测 **14 passed**（0.40秒）；文档链接、语法与差异空白检查通过。此前隔离组合仅收集backend/app的326项，两种范围不相加。
+- 合入后的67个实现、测试和评测文件，与此前已验证组合按规范换行文本逐个核对一致。合并时保留双方README说明，同时保留BankError和PayeeDisplay导入，没有增加业务行为。
+- 新增评测判据的15项正例、反例测试通过。主线完整单次153离线样本：**147 Passed / 6 Blocked，0 Failed / 0 Error**；标准用例21/21、离线缺项追问8/8，两项平台回归通过。非法精度单独计分，样本总数仍153，不放大真实模型成绩。
+- 六项Blocked为TF-VFY-16缺真实攻击来源材料，及TF-OBS-03—07本次未提供真实React构建；不认定前端功能失败，也不认定当前代码下已通过这些浏览器用例。完整红线仍Unverified，版本NotAccepted；CLI退出码1来自Blocked。
+
+主线报告和逐文件比较保存在本轮隔离worktree的 `.mnemon/merged-main-offline-153/20261004T090228191321Z/report.json`、`report.md` 与 `.mnemon/merged-source-comparison.json`；这些是本机运行证据，未作为跨目录文件塞入代码PR。
+
+`v03-transfer-eval-fixes/01—09` 按程序修复范围标为resolved。票10保持paused，本轮未运行GLM或调整模型/提示词；真实模型历史失败仍待处理。`v03-transfer-evals/03` 的工程套件已合并，但真实GLM及原全绿条件尚未全满足，继续in_progress；该组04及原 `v03-erwin-vertical-backend/12` 仍blocked。AF01—AF14、T01—T18及专业安全/转账结论未齐，不收口v0.3、不进入下一阶段。此前“评测目录仅README”等描述为历史，当前转账目录已交付上述套件。未同步飞书，其他成员PR60—63未在本轮合并。
