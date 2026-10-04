@@ -722,9 +722,40 @@ def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path, amount):
     assert ports.submissions == 0
     events = harness.audit._events("D1", "T1")
     assert [event.event_type for event in events] == [
-        "model.started", "model.finished",
+        "model.started", "model.finished", "chat.message",
     ]
     assert events[1].parent_span_id == events[0].span_id
+    assert events[2].outcome == "denied"
+    assert events[2].payload.related_task_ids == []
+    details = AuditReader(harness.audit, authorize=lambda *_: True).timeline(
+        AuditViewer("auditor", "AS", "D1"), "D1", "T1",
+    )
+    refusal = next(item for item in details if item.event.event_type == "chat.message")
+    assert json.loads(refusal.evidence)["reason_code"] == "INVALID_AMOUNT"
+    assert json.loads(refusal.evidence)["message"] == outcome.message
+
+
+def test_amount_refusal_audit_failure_stops_before_task_or_bank(tmp_path):
+    ports = Ports()
+    harness = runtime(tmp_path / "app.sqlite", ports, ProposalModel())
+    now = datetime.now(timezone.utc)
+    harness.application.create_session(
+        "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
+    )
+    append = harness.audit.append_in_transaction
+
+    def unavailable(connection, event, **kwargs):
+        if event.event_type == "chat.message":
+            raise OSError("audit unavailable")
+        return append(connection, event, **kwargs)
+
+    with patch.object(harness.planner, "select", return_value=TransferProposal(amount_fen=0)), \
+            patch.object(harness.audit, "append_in_transaction", side_effect=unavailable):
+        with pytest.raises(OSError):
+            harness.handle_message(trusted(), uuid4(), "给妈妈转0元")
+    assert harness.application.get_task("U1", "D1", "T1") is None
+    assert ports.read_calls == []
+    assert ports.submissions == 0
 
 
 @pytest.mark.parametrize("intent", [

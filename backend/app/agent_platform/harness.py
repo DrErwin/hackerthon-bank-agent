@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 
 from app.audit.journal import AuditJournal, redact, run_key
 from app.contracts.audit import (
-    AuditEvent, ModelFinishedPayload, ModelStartedPayload, ModelUsage,
+    AuditEvent, ChatMessagePayload, ModelFinishedPayload, ModelStartedPayload, ModelUsage,
     RecoveryCheckedPayload, TaskTransitionPayload,
 )
 from app.contracts.common import TaskStatus
@@ -326,7 +326,16 @@ class AgentHarness:
                     return outcome
                 self._authorize(trusted, outcome.capability_name)
                 if outcome.amount_fen is not None and outcome.amount_fen <= 0:
-                    return ReplyOnly(message="转账金额必须大于零，请重新输入有效金额。")
+                    refusal = ReplyOnly(message="转账金额必须大于零，请重新输入有效金额。")
+                    content_ref = str(uuid4())
+                    trace.record(
+                        "chat.message", ChatMessagePayload(
+                            message_id=str(uuid4()), role="assistant",
+                            content_ref=content_ref, related_task_ids=[],
+                        ), "denied", evidence_id=content_ref,
+                        evidence={"message": refusal.message, "reason_code": "INVALID_AMOUNT"},
+                    )
+                    return refusal
                 task = self.application.create_task(
                     trusted.task_id, trusted.user_id, trusted.session_id,
                     trusted.demo_round_id, trusted.run_id, TaskStatus.RUNNING,
