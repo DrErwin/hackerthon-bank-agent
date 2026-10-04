@@ -67,7 +67,7 @@ def problem(exc):
             code = "DEPENDENCY_UNAVAILABLE"
     reasons = {401: "演示登录已过期，请重新进入。", 403: "没有操作或查看权限。",
                404: "当前用户范围内找不到该记录。", 409: "请求已失效或与当前状态冲突，请刷新任务。",
-               400: "请核对输入并使用对应的专用入口。", 503: "服务暂不可用，请查询原任务后再继续。"}
+               400: "请核对输入并使用对应的专用入口。", 503: "服务暂不可用，原任务结果待核实，请查询原任务后再继续。"}
     return status, {"error": ModuleError(code=code, source="platform", field=None,
                                         reason=reasons[status], upstream_code=None).model_dump(mode="json")}
 
@@ -334,21 +334,41 @@ def create_app(runtime=None, config=None):
         return success({"challenge_id": challenge_id, "code": service.runtime.gateway.get_demo_code_for_api(trusted, challenge_id),
                         "expires_at": challenge.code_expires_at})
 
+    def verification_guard(service, who, trusted, challenge_id, submission_id, method, action):
+        service.check_verification_retry(trusted, challenge_id, submission_id, method)
+        try:
+            return action()
+        except Exception as exc:
+            status, _ = problem(exc)
+            if status != 503:
+                if isinstance(exc, (ValueError, ApiProblem)) and (
+                    getattr(exc, "code", None) == "CHALLENGE_STALE" or str(exc) == "TASK_TERMINATED"
+                ):
+                    current = service.runtime.gateway.get_verification(trusted, challenge_id)
+                    if current.challenge_status in {"failed", "expired", "cancelled"}:
+                        service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
+                raise
+            service.verification_fault(who, trusted, challenge_id, submission_id, method)
+            raise ApiProblem(503, "DEPENDENCY_UNAVAILABLE") from None
+
     def verification_response(service, who, trusted, outcome, actor, method):
+        current = service.runtime.gateway.get_verification(trusted, outcome.challenge.challenge_id)
+        outcome = outcome.model_copy(update={"challenge": current})
         service.record_verification(actor, trusted, outcome, method)
         task = service.task_view(who, trusted.task_id)
         if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
             if outcome.verification_id:
                 service.runtime.bind_verification(trusted, outcome.verification_id)
-            task = service.continue_task(who, trusted.task_id, {"choice": "resume"})
+            task = service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
         error = None if outcome.kind == "verified" else ModuleError(code=outcome.reason_code or "VERIFICATION_REJECTED",
             source="bank", field=None, reason="验证尚未通过。", upstream_code=None)
         return VerificationResponse[TransferTaskView](kind=outcome.kind, verification=service.verification_view(outcome.challenge), task=task, error=error)
 
     @application.post("/api/v1/verifications/{challenge_id}/code")
     def code(request: Request, challenge_id: str, body: VerificationCodeRequest, who=Depends(identity), service=Depends(api)):
-        trusted, challenge = service.verification(who, challenge_id)
+        trusted = service.record_context(who, "verification", challenge_id)
         def action():
+            challenge = service.runtime.gateway.get_verification(trusted, challenge_id)
             # The bank first finds the original submission_id. This also recovers
             # a passed bank record after an API crash before binding it to the task.
             service.begin_verification(who, trusted, "verification.code", terminal_challenge=challenge.challenge_status != "pending")
@@ -357,25 +377,32 @@ def create_app(runtime=None, config=None):
         # HMAC the actual secret for conflict detection; persist neither the code
         # nor its reversible encoding. SecretStr.model_dump masks every value.
         fingerprint = {**body.model_dump(mode="json"), "code": body.code.get_secret_value()}
-        return mutation(service, who, request, body, action, fingerprint=fingerprint, recover_verification=True)
+        return mutation(service, who, request, body, lambda: verification_guard(
+            service, who, trusted, challenge_id, body.submission_id, "code", action),
+            fingerprint=fingerprint, recover_verification=True)
 
     @application.post("/api/v1/verifications/{challenge_id}/resend-code")
     @application.post("/api/v1/verifications/{challenge_id}/face/start")
     def verification_action(request: Request, challenge_id: str, body: RequestIdOnly, who=Depends(identity), service=Depends(api)):
-        trusted, challenge = service.verification(who, challenge_id)
+        trusted = service.record_context(who, "verification", challenge_id)
         def action():
-            if challenge.challenge_status != "pending":
-                raise ApiProblem(409, "CHALLENGE_STALE")
+            challenge = service.runtime.gateway.get_verification(trusted, challenge_id)
             if request.url.path.endswith("resend-code"):
                 service.begin_verification(who, trusted, "verification.resend-code")
                 current = service.runtime.gateway.resend_verification_code(trusted, challenge_id, body.request_id)
                 service.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)", ("verification", current.challenge_id, trusted.task_id))
-                service.continue_task(who, trusted.task_id, {"choice": "resume"})
             else:
-                service.begin_verification(who, trusted, "verification.face.start")
+                service.begin_verification(who, trusted, "verification.face.start",
+                    terminal_challenge=challenge.challenge_status != "pending")
                 current = service.runtime.gateway.start_face(trusted, challenge_id, body.request_id)
+            task = service.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
+            if request.url.path.endswith("resend-code") or task.snapshot.get("pending_verification"):
+                service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
+            current = service.runtime.gateway.get_verification(trusted, current.challenge_id)
             return service.verification_view(current)
-        return mutation(service, who, request, body, action)
+        return mutation(service, who, request, body, lambda: verification_guard(
+            service, who, trusted, challenge_id, body.request_id,
+            "resend" if request.url.path.endswith("resend-code") else "face_start", action), recover_verification=True)
 
     @application.post("/api/v1/admin/verifications/{challenge_id}/face-result")
     def face_result(request: Request, challenge_id: str, body: FaceAnswer, who=Depends(identity), service=Depends(api)):
@@ -387,13 +414,15 @@ def create_app(runtime=None, config=None):
             raise ApiProblem(404, "NOT_FOUND")
         link = rows[0]
         target = service.identity(service.cookie(link["session_id"]))
-        trusted, challenge = service.verification(target, challenge_id)
+        trusted = service.record_context(target, "verification", challenge_id)
         def action():
+            challenge = service.runtime.gateway.get_verification(trusted, challenge_id)
             service.begin_verification(who, trusted, "admin.verification.face-result", terminal_challenge=challenge.challenge_status != "pending")
             admin = AdminContext(who.user_id, True, who.demo_round_id, target.user_id)
             outcome = service.runtime.gateway.verify_face(admin, challenge_id, body.submission_id, body.result)
             return verification_response(service, target, trusted, outcome, who, "mock_face")
-        return mutation(service, who, request, body, action, recover_verification=True)
+        return mutation(service, who, request, body, lambda: verification_guard(
+            service, target, trusted, challenge_id, body.submission_id, "mock_face", action), recover_verification=True)
 
     @application.get("/api/v1/admin/audit/events")
     def timeline(task_id: str, demo_round_id: str | None = None, trace_id: str | None = None,
