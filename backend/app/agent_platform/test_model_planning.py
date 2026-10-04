@@ -125,4 +125,3 @@ def test_missing_fields_reach_http_task_without_bank_submission(tmp_path, amount
             assert task["status"] == "waiting_input"
             assert missing in task["interaction"]["required_fields"]
             assert ledger_count(app) == 0
-
