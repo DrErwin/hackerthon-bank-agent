@@ -730,7 +730,7 @@ def test_invalid_model_amount_does_not_start_a_bank_task(tmp_path, amount):
     details = AuditReader(harness.audit, authorize=lambda *_: True).timeline(
         AuditViewer("auditor", "AS", "D1"), "D1", "T1",
     )
-    refusal = next(item for item in details if item.event.event_type == "chat.message")
+    refusal = next(item for item in details if item.event_type == "chat.message")
     assert json.loads(refusal.evidence)["reason_code"] == "INVALID_AMOUNT"
     assert json.loads(refusal.evidence)["message"] == outcome.message
 
