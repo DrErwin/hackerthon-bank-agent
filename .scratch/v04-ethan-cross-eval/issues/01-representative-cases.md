@@ -1,7 +1,7 @@
 # 01：跨场景代表性评测用例
 
 Type: 评测
-Status: in_progress
+Status: resolved
 Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Ticket ID: v04-ethan-cross-eval/01
 Package: [transfer-agent-framework/packages/04-v04-eval-preparation：后续业务评测准备](../../transfer-agent-framework/packages/04-v04-eval-preparation.md)
@@ -22,11 +22,11 @@ Blocked by: None
 
 ## 验收
 
-- [ ] A/B/C 各至少有正常、缺信息/边界、失败或未知结果用例。
-- [ ] 覆盖确认失效、预算版本、部分成功、重复执行防护和外部注入边界。
-- [ ] 只依赖 transfer / bills 等公开能力，不引用私有工具或数据。
-- [ ] 没有提前实现 cross 业务代码或修改公共契约。
-- [ ] PASS/FAIL 可由公开状态、模拟银行/订单结果及用户回执客观判断。
+- [x] A/B/C 各至少有正常、缺信息/边界、失败或未知结果用例。
+- [x] 覆盖确认失效、预算版本、部分成功、重复执行防护和外部注入边界。
+- [x] 只依赖 transfer / bills 等公开能力，不引用私有工具或数据。
+- [x] 没有提前实现 cross 业务代码或修改公共契约。
+- [x] PASS/FAIL 可由公开状态、模拟银行/订单结果及用户回执客观判断。
 
 ## 公开能力依赖
 
@@ -38,3 +38,5 @@ Blocked by: None
 ## Comments
 
 - 2026-10-04：周恩宇明确领取交付包 04 并开始本评测准备票。
+
+- 2026-10-04：本轮 AI 规范与规格审查及修正后，[PR #62](https://github.com/DrErwin/hackerthon-bank-agent/pull/62) 已合入；23条代表性用例已交付，链接、编号、内容与差异空白检查通过。仅验收文档准备；全部用例待运行，不代表模块实现、完整评测或真人专业安全验收。
