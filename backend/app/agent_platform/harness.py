@@ -9,7 +9,7 @@ from hashlib import sha256
 import os
 from pathlib import Path
 import re
-from sqlite3 import Connection
+from sqlite3 import Connection, Error as DatabaseError
 from threading import Lock, RLock, local
 from time import monotonic, sleep
 from typing import Callable
@@ -105,6 +105,7 @@ class RunTrace:
         self.trusted = trusted
         self.thread_id = thread_id
         self.trace_id = trace_id
+        self.transfer_data: TransferTaskView | None = None
 
     def record(self, event_type: str, payload: object, outcome: str, *,
                evidence: object | None = None, module: str = "agent_platform",
@@ -641,9 +642,40 @@ class AgentHarness:
             registration = self.registry.get(task.snapshot["capability_name"])
             saver = self.memory.checkpointer(context, trusted.task_id)
             entry = registration.factory(trusted, saver, trace)
+            result = None
             try:
                 result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
                 self._check_result_scope(result, trusted)
+                checkpoint_id = self._checkpoint_id(context, task)
+            except (RuntimeError, OSError, DatabaseError):
+                # The trusted task was checked before entering the capability.
+                # Bookkeeping remains possible if its session expires inside it;
+                # this does not authorize another bank read or execution.
+                if result is None:
+                    result = ModuleResult[TransferTaskView](
+                        task_id=trusted.task_id, run_id=trusted.run_id,
+                        status=TaskStatus.NEEDS_ATTENTION,
+                        data=trace.transfer_data if trace.transfer_data is not None else previous.data,
+                        message="流程中断，请核实原任务后继续。", interaction=None,
+                        error=ModuleError(code="DEPENDENCY_UNAVAILABLE", source="platform",
+                                          field=None, reason="流程推进未完成。", upstream_code=None),
+                        allowed_actions=["resume", "cancel"], recovery_required=True,
+                        recovery_reason="PUBLIC_CAPABILITY_INTERRUPTED",
+                    )
+                try:
+                    fault_checkpoint_id = self._checkpoint_id(context, task)
+                except PermissionError:
+                    # Retain the last owned reference when authority expired;
+                    # do not bypass the checkpointer's scope check.
+                    fault_checkpoint_id = task.checkpoint_id
+                self.application.update_task(
+                    trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                    task.revision, trusted.run_id, result.status, fault_checkpoint_id,
+                    {**task.snapshot, "result": result.model_dump(mode="json"),
+                     "capability_fault": {"reason_code": "PUBLIC_CAPABILITY_INTERRUPTED",
+                                          "audit_evidence": "not_confirmed"}},
+                )
+                raise
             except Exception:
                 trace.record(
                     "recovery.checked",
@@ -655,21 +687,22 @@ class AgentHarness:
                     ), "failed",
                 )
                 raise
+            # Store the known business result before completion logging. A log
+            # failure must not leave an obsolete waiting/approval snapshot.
+            self.application.update_task(
+                trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                task.revision, trusted.run_id, result.status, checkpoint_id,
+                {**task.snapshot, "result": result.model_dump(mode="json")},
+            )
             trace.record(
                 "recovery.checked",
                 RecoveryCheckedPayload(
                     previous_run_id=task.run_id, current_run_id=trusted.run_id,
-                    checkpoint_ref=self._checkpoint_id(context, task),
+                    checkpoint_ref=checkpoint_id,
                     operation_ids=[previous.data.operation_id] if previous.data.operation_id else [],
                     result=self._recovery_result(result.status),
                     reason_code="PUBLIC_CAPABILITY_RESUMED",
                 ), "succeeded",
-            )
-            self.application.update_task(
-                trusted.user_id, trusted.demo_round_id, trusted.task_id,
-                task.revision, trusted.run_id, result.status,
-                self._checkpoint_id(context, task),
-                {**task.snapshot, "result": result.model_dump(mode="json")},
             )
             trace.record(
                 "task.transition",
@@ -677,7 +710,7 @@ class AgentHarness:
                     previous_status=previous.status, status=result.status,
                     plan_revision=None, step_id=task.snapshot["capability_name"],
                     reason_code="TASK_RESUMED",
-                    checkpoint_ref=self._checkpoint_id(context, task),
+                    checkpoint_ref=checkpoint_id,
                 ), "waiting" if result.status in {
                     TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL,
                 } else "succeeded",
