@@ -42,6 +42,8 @@ Issues and specs for this repo live as markdown files in `.scratch/`.
 Ticket ID: <feature-slug>/<NN>
 Package: <完整交付包标识>：<标题>（附交付包链接）
 Spec: <本工作组 spec 链接>
+Core scenarios: <核心场景编号及场景 spec 链接；不适用时说明原因>
+Verification: <本票验收步骤、预期结果、证据要求及受影响的核心路径>
 Owner: <负责人>
 Directory: <单一实施目录>
 Status: <当前状态>
@@ -50,6 +52,10 @@ Source issue: Issue #<编号>（有来源问题时附链接）
 ```
 
 完成检查：每张新票可由完整票号定位到唯一文件，所属交付包与 spec 可读，所有跨组依赖可定位，票号、Issue 和 PR 没有混用。
+
+`Core scenarios` 引用场景 spec 中的稳定编号，不在每张票复制完整场景。`Verification` 区分本票局部验收与整条路径验收；尚未具备的路径由明确依赖的联调验收票覆盖，不把局部通过标为场景通过。非业务票不适用时写明原因。
+
+拆票时明确联调验收及阶段全面评测的责任与依赖，已有对应票时复用。联调票只负责验证与证据，跨目录缺陷分别回到所属实施票修复；验收顺序和完成门槛见[跨团队交付原则 §3](../principles/04-cross-team-delivery.md#3-标准流程)。
 
 ## When a skill says "publish to the issue tracker"
 
