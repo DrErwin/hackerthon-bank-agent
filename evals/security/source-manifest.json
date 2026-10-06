@@ -1,0 +1,181 @@
+{
+  "schema_version": "security-eval-v0.1",
+  "created_at": "2026-10-07",
+  "owner": "Ringo",
+  "status": "REPRESENTATIVE_DESIGN_NOT_EXECUTED",
+  "source_state": "以仓库 docs 的冻结 v1 为复核依据，2026-09-27 Erwin 冻结；2026-10-07提交前核对",
+  "sources": [
+    {
+      "id": "PRD",
+      "path": "../../docs/prd/安全底座父级-PRD-2026-09-23.md",
+      "repository_path": "docs/prd/安全底座父级-PRD-2026-09-23.md",
+      "title": "安全底座父级-PRD-2026-09-23.md",
+      "git_blob_sha": "9004fd45699bdcab08bbaeb5be8574c56003140f",
+      "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+    },
+    {
+      "id": "MAIN",
+      "path": "../../docs/contracts/公共契约-2026-09-23.md",
+      "repository_path": "docs/contracts/公共契约-2026-09-23.md",
+      "title": "公共契约-2026-09-23.md",
+      "git_blob_sha": "b99a0e3a646153f97584abb62902000a63f13fe2",
+      "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+    },
+    {
+      "id": "CONFIRM",
+      "path": "../../docs/contracts/确认验证字段-2026-09-24.md",
+      "repository_path": "docs/contracts/确认验证字段-2026-09-24.md",
+      "title": "确认验证字段-2026-09-24.md",
+      "git_blob_sha": "bf8741b599ae2ed1a04e6554c78879bd2e3ebab8",
+      "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+    },
+    {
+      "id": "SECURITY",
+      "path": "../../docs/contracts/安全与审计字段-2026-09-24.md",
+      "repository_path": "docs/contracts/安全与审计字段-2026-09-24.md",
+      "title": "安全与审计字段-2026-09-24.md",
+      "git_blob_sha": "5f9eeba3f8f83d6ed24ef04c49122c4cef30fe62",
+      "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+    },
+    {
+      "id": "BANK",
+      "path": "../../docs/contracts/银行接口字段-2026-09-24.md",
+      "repository_path": "docs/contracts/银行接口字段-2026-09-24.md",
+      "title": "银行接口字段-2026-09-24.md",
+      "git_blob_sha": "7b4ed9139b94910cab853e0e5666c558c76e431e",
+      "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+    },
+    {
+      "id": "REVIEW",
+      "path": "../../docs/contracts/契约收口与安全审阅-2026-09-24.md",
+      "repository_path": "docs/contracts/契约收口与安全审阅-2026-09-24.md",
+      "title": "契约收口与安全审阅-2026-09-24.md",
+      "git_blob_sha": "949c69ee9162c8483546ffac0bfe266c5bd48f0a",
+      "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+    },
+    {
+      "id": "TRANSFER",
+      "path": "../../docs/prd/01-智能转账-PRD-2026-09-23.md",
+      "repository_path": "docs/prd/01-智能转账-PRD-2026-09-23.md",
+      "title": "01-智能转账-PRD-2026-09-23.md",
+      "git_blob_sha": "0f133a40bf33715bf18e83f1d37fa17116a72d18",
+      "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+    }
+  ],
+  "counts": {
+    "main_cases": 118,
+    "baseline_main_cases": 117,
+    "pending_rule": 0,
+    "pending_spec": 1,
+    "parameter_instances": 253,
+    "baseline_parameter_instances": 252,
+    "planned_result_rows": 309,
+    "baseline_planned_rows": 308
+  },
+  "group_counts": {
+    "D": 8,
+    "A": 9,
+    "C": 14,
+    "V": 16,
+    "E": 7,
+    "R": 11,
+    "M": 8,
+    "L": 8,
+    "X": 7,
+    "N": 8,
+    "T": 15,
+    "P": 7
+  },
+  "smoke_case_ids": [
+    "SEC-D-003",
+    "SEC-D-004",
+    "SEC-D-005",
+    "SEC-A-002",
+    "SEC-A-006",
+    "SEC-C-001",
+    "SEC-C-004",
+    "SEC-C-011",
+    "SEC-C-013",
+    "SEC-V-001",
+    "SEC-V-006",
+    "SEC-V-007",
+    "SEC-V-008",
+    "SEC-E-001",
+    "SEC-E-003",
+    "SEC-E-006",
+    "SEC-R-001",
+    "SEC-R-002",
+    "SEC-R-009",
+    "SEC-R-010",
+    "SEC-M-001",
+    "SEC-L-001",
+    "SEC-X-003",
+    "SEC-T-011",
+    "SEC-P-001",
+    "SEC-P-002"
+  ],
+  "execution_adapter": "NOT_CONNECTED",
+  "notes": [
+    "固定风险夹具仅检验流程约束，实际话术检测另行取证",
+    "全部用例尚未绑定测试代码，结果模板只含NOT_RUN或PENDING_SPEC",
+    "精确到期边界待核对，F37/F38与01风险分级已有冻结依据",
+    "当前为首批代表性设计，S07限定释放、S08会话授权快照与S09验证摘要需独立扩充用例",
+    "v0.3优先普通转账公共安全；账单、联动及预约按对应版本排期接入",
+    "公开攻击集改编尚未开展，攻击刺激为项目规则派生的合成样本"
+  ],
+  "artifact_validation": {
+    "date": "2026-10-07",
+    "case_ids_unique": true,
+    "markdown_jsonl_case_mapping": "118/118",
+    "planned_result_rows": 309,
+    "all_initial_results_unexecuted": true,
+    "required_requirement_ids_covered": true,
+    "csv_formula_payloads_encoded_as_text": true,
+    "application_security_tests": "NOT_RUN",
+    "draft_source_sha256_verified": true,
+    "source_git_blob_refs_verified": true,
+    "automation_implemented": false,
+    "complete_rule_branch_coverage": false
+  },
+  "draft_origin": {
+    "source_state": "本地契约候选稿，2026-09-26更新；实际冻结修订需联调核对",
+    "sources": [
+      {
+        "id": "PRD",
+        "title": "安全底座初稿.md",
+        "sha256": "B1E70433263592F1C9996746B96A3D3C9FD2D99E296AA4D4FCF9221B8B231C2E"
+      },
+      {
+        "id": "MAIN",
+        "title": "公共契约-2026-09-23.md",
+        "sha256": "4CCC6611CC991CA1A1DBD994721D18DFB3700F76D0D910752BB3BB1BC28C950D"
+      },
+      {
+        "id": "CONFIRM",
+        "title": "确认验证字段-2026-09-24.md",
+        "sha256": "8231ED52799C17D189B75656DC2C2BFC868F6CCCE60642DEB14021D57B144C5F"
+      },
+      {
+        "id": "SECURITY",
+        "title": "安全与审计字段-2026-09-24.md",
+        "sha256": "89E06C5C0BE2A37B027F93F18B00E5D3BA24B3A2552B23BAB8E9D167E66A0BF1"
+      },
+      {
+        "id": "BANK",
+        "title": "银行接口字段-2026-09-24.md",
+        "sha256": "CF60BB39D4C77408C5995C19F3B7B7335900B7ABC3115B9B4AFCE48C4E391848"
+      },
+      {
+        "id": "REVIEW",
+        "title": "契约收口与安全审阅-2026-09-24.md",
+        "sha256": "713F68CED8F75BAB3A37BDD8A19410734C163AAC9DF8260691E0161804BE4909"
+      }
+    ]
+  },
+  "repository": {
+    "full_name": "DrErwin/hackerthon-bank-agent",
+    "base_branch": "main",
+    "source_commit": "5d035e50e5d5031eff80f3bf8d608f5c9b09c9ac"
+  }
+}
+
