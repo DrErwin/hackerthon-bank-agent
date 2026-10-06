@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>转账 · 交互原型 v0.1</title>
+<style>
+  :root{
+    --brand:#FF6A00; --brand-press:#E05E00; --brand-tint:#FFF1E6;
+    --success:#067647; --danger:#B42318; --warning:#B54708;
+    --ink:#111827; --ink2:#374151; --ink3:#6B7280;
+    --bg:#F5F6F8; --card:#FFFFFF; --border:#D0D5DD;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:#E9E7E4;
+    padding:26px;
+    display:flex; justify-content:center;
+  }
+  .phone{
+    width:390px; height:800px; background:var(--bg);
+    border-radius:36px; overflow:hidden;
+    box-shadow:0 14px 44px rgba(0,0,0,.20), 0 2px 8px rgba(0,0,0,.10);
+    display:flex; flex-direction:column; position:relative;
+  }
+
+  /* 顶部栏 */
+  .topbar{
+    height:60px; background:var(--card); flex:0 0 auto;
+    display:flex; align-items:center; gap:10px; padding:0 18px;
+    border-bottom:1px solid var(--border);
+  }
+  .topbar .title{font-size:19px; font-weight:700; color:var(--ink);}
+  .topbar .status{margin-left:auto; font-size:14px; color:var(--success); display:flex; align-items:center; gap:5px;}
+  .topbar .status .dot{width:8px; height:8px; border-radius:50%; background:var(--success);}
+  .topbar .reset{
+    font-size:15px; color:var(--ink2); background:transparent; border:1px solid var(--border);
+    border-radius:10px; padding:5px 10px; cursor:pointer;
+  }
+
+  /* 聊天流 */
+  .chat{flex:1 1 auto; overflow-y:auto; padding:16px 14px 8px; display:flex; flex-direction:column; gap:12px;}
+  .chat::-webkit-scrollbar{width:0;}
+  .msg{max-width:82%; animation:up .25s ease;}
+  @keyframes up{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+  .msg .bubble{
+    font-size:18px; line-height:1.55; color:var(--ink);
+    padding:12px 14px; border-radius:16px; word-break:break-word;
+  }
+  .msg .time{font-size:14px; color:var(--ink3); margin:4px 6px 0;}
+  .msg.user{align-self:flex-end; text-align:right;}
+  .msg.user .bubble{background:var(--brand-tint); border:1px solid #FFE3C8;}
+  .msg.assistant{align-self:flex-start;}
+  .msg.assistant .bubble{background:var(--card); border:1px solid var(--border);}
+  .msg .bubble b{font-weight:700;}
+
+  /* 打字中 */
+  .typing{display:flex; gap:5px; align-items:center; height:24px;}
+  .typing span{width:7px; height:7px; border-radius:50%; background:var(--ink3); animation:blink 1.2s infinite;}
+  .typing span:nth-child(2){animation-delay:.2s;}
+  .typing span:nth-child(3){animation-delay:.4s;}
+  @keyframes blink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
+
+  /* 引导卡片 */
+  .cards{align-self:flex-start; width:100%; display:flex; flex-direction:column; gap:10px;}
+  .cards .hint{font-size:16px; color:var(--ink2); margin-bottom:2px;}
+  .card{
+    width:100%; min-height:48px; background:var(--card); border:1px solid var(--border);
+    border-radius:16px; font-size:18px; color:var(--ink); padding:12px 16px;
+    cursor:pointer; text-align:left; transition:.15s;
+  }
+  .card:active{background:var(--brand-tint); border-color:var(--brand);}
+  .card.picked{background:var(--brand-tint); border-color:var(--brand);}
+  .card b{color:var(--brand);}
+
+  /* 确认单 */
+  .confirm-card{align-self:flex-start; width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,.05);}
+  .confirm-card .cc-title{font-size:22px; font-weight:700; color:var(--ink);}
+  .cc-row{display:flex; justify-content:space-between; align-items:center; font-size:18px; color:var(--ink2);}
+  .cc-row b{color:var(--ink); font-weight:700;}
+  .cc-row.amount b{font-size:28px; font-weight:700; color:var(--ink);}
+  .cc-btns{display:flex; flex-direction:column; gap:10px; margin-top:4px;}
+  .btn{
+    width:100%; min-height:56px; border-radius:12px; font-size:18px; font-weight:700;
+    cursor:pointer; border:none; transition:.15s;
+  }
+  .btn.primary{background:var(--brand); color:var(--ink);}
+  .btn.primary:active{background:var(--brand-press);}
+  .btn.ghost{background:var(--card); color:var(--ink); border:1px solid var(--border);}
+  .btn.ghost:active{background:var(--bg);}
+  .btn:disabled{background:var(--border); color:var(--ink3); cursor:not-allowed;}
+
+  /* 验证码 */
+  .code-card{align-self:flex-start; width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:14px;}
+  .code-demo{font-size:16px; color:var(--ink2); background:var(--brand-tint); border-radius:10px; padding:10px 12px;}
+  .code-demo b{font-size:20px; color:var(--brand); letter-spacing:2px;}
+  .code-boxes{display:flex; gap:8px; justify-content:space-between;}
+  .cb{
+    width:46px; height:56px; text-align:center; font-size:24px; font-weight:700; color:var(--ink);
+    border:1px solid var(--border); border-radius:12px; background:var(--bg);
+  }
+  .cb:focus{outline:none; border-color:var(--brand); background:var(--brand-tint);}
+  .code-err{font-size:16px; color:var(--danger); min-height:20px;}
+
+  /* 处理中 */
+  .prog{display:flex; align-items:center; gap:10px; font-size:18px; color:var(--ink2); padding:16px; justify-content:center;}
+  .spinner{width:20px; height:20px; border:3px solid var(--brand-tint); border-top-color:var(--brand); border-radius:50%; animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* 结果卡 */
+  .result-card{align-self:flex-start; width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:8px; text-align:center;}
+  .rc-status{display:inline-flex; align-items:center; gap:8px; font-size:18px; font-weight:700; justify-content:center; padding:8px 12px; border-radius:10px;}
+  .rc-status.success{background:#E7F6EF; color:var(--success);}
+  .rc-status .ico{width:22px; height:22px; border-radius:50%; background:var(--success); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:14px;}
+  .rc-amount{font-size:32px; font-weight:700; color:var(--ink); margin:6px 0;}
+  .rc-line{font-size:18px; color:var(--ink2);}
+  .rc-line b{color:var(--ink);}
+  .rc-note{font-size:16px; color:var(--ink2); margin-top:6px;}
+
+  /* 输入栏 */
+  .inputbar{
+    flex:0 0 auto; height:68px; background:var(--card); border-top:1px solid var(--border);
+    display:flex; align-items:center; gap:8px; padding:0 12px;
+  }
+  .mic{
+    width:48px; height:48px; border-radius:50%; background:var(--card); border:1px solid var(--border);
+    font-size:22px; cursor:pointer; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+  }
+  .mic.recording{background:var(--brand); color:#fff; border-color:var(--brand);}
+  #msginput{
+    flex:1 1 auto; height:56px; border:1px solid var(--border); border-radius:12px;
+    font-size:18px; color:var(--ink); padding:0 14px; background:var(--bg); outline:none;
+  }
+  #msginput:focus{border-color:var(--brand); background:var(--card);}
+  .send{
+    width:56px; height:56px; border-radius:12px; background:var(--brand); color:var(--ink);
+    font-size:18px; font-weight:700; border:none; cursor:pointer; flex:0 0 auto;
+  }
+  .send:active{background:var(--brand-press);}
+  .send:disabled{background:var(--border); color:var(--ink3);}
+
+  /* 录音浮层 */
+  #recording{
+    position:absolute; left:0; right:0; bottom:68px; background:rgba(17,24,39,.92);
+    padding:18px; display:none; align-items:center; justify-content:center; gap:14px; z-index:10;
+  }
+  #recording.show{display:flex;}
+  #recording .label{color:#fff; font-size:19px; font-weight:700;}
+  .wave{display:flex; gap:4px; align-items:center; height:26px;}
+  .wave i{width:4px; border-radius:2px; background:var(--brand); animation:wave 1s infinite ease-in-out;}
+  .wave i:nth-child(1){height:8px; animation-delay:0s;}
+  .wave i:nth-child(2){height:18px; animation-delay:.15s;}
+  .wave i:nth-child(3){height:26px; animation-delay:.3s;}
+  .wave i:nth-child(4){height:16px; animation-delay:.45s;}
+  .wave i:nth-child(5){height:8px; animation-delay:.6s;}
+  @keyframes wave{0%,100%{transform:scaleY(.6);} 50%{transform:scaleY(1.3);}}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="topbar">
+      <div class="title">AI 银行助手</div>
+      <div class="status"><span class="dot"></span>已连接</div>
+      <button class="reset" onclick="resetDemo()">↻ 重来</button>
+    </div>
+
+    <div class="chat" id="chat"></div>
+
+    <div id="recording">
+      <div class="wave"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="label">正在听，您请说…</div>
+    </div>
+
+    <div class="inputbar">
+      <button class="mic" id="mic" title="按住说话">🎤</button>
+      <input id="msginput" placeholder="说点什么…" autocomplete="off">
+      <button class="send" id="send">发送</button>
+    </div>
+  </div>
+
+<script>
+  var chat = document.getElementById('chat');
+  var input = document.getElementById('msginput');
+  var sendBtn = document.getElementById('send');
+  var mic = document.getElementById('mic');
+  var rec = document.getElementById('recording');
+  var busy = false;
+
+  function esc(s){ return s.replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function scrollBottom(){ chat.scrollTop = chat.scrollHeight; }
+
+  function addMsg(role, inner){
+    var d = document.createElement('div');
+    d.className = 'msg ' + role;
+    d.innerHTML = '<div class="bubble">' + inner + '</div><div class="time">' + now() + '</div>';
+    chat.appendChild(d); scrollBottom(); return d;
+  }
+  function now(){
+    var t = new Date(); var h = t.getHours(), m = t.getMinutes();
+    if(m < 10) m = '0' + m; return h + ':' + m;
+  }
+  function addUser(text){ addMsg('user', esc(text)); }
+  function addAssistant(text){ addMsg('assistant', esc(text)); }
+
+  function typing(){
+    var d = document.createElement('div');
+    d.className = 'msg assistant';
+    d.innerHTML = '<div class="bubble typing"><span></span><span></span><span></span></div>';
+    chat.appendChild(d); scrollBottom(); return d;
+  }
+
+  /* 引导卡片 */
+  function addCards(){
+    var wrap = document.createElement('div');
+    wrap.className = 'cards';
+    wrap.innerHTML =
+      '<div class="hint">您是不是想问：</div>' +
+      '<button class="card" onclick="pickCard(this)">转 <b>500 元</b> 给「妈妈 · 尾号 6688」</button>' +
+      '<button class="card" onclick="pickOther(this)">不是，我要改一下收款人</button>';
+    chat.appendChild(wrap); scrollBottom();
+  }
+
+  async function pickCard(el){
+    if(busy) return; busy = true;
+    el.classList.add('picked');
+    var others = el.parentNode.querySelectorAll('.card');
+    for(var i=0;i<others.length;i++){ if(others[i]!==el) others[i].style.display='none'; }
+    await sleep(500);
+    addAssistant('好，我确认一下这笔转账。');
+    await sleep(500);
+    addConfirmCard();
+    busy = false;
+  }
+
+  function pickOther(el){
+    if(busy) return;
+    addAssistant('好的，这笔转账先不办。');
+  }
+
+  /* 确认单 */
+  function addConfirmCard(){
+    var wrap = document.createElement('div');
+    wrap.className = 'confirm-card';
+    wrap.innerHTML =
+      '<div class="cc-title">请确认这笔转账</div>' +
+      '<div class="cc-row"><span>收款人</span><b>妈妈（尾号 6688）</b></div>' +
+      '<div class="cc-row"><span>转出账户</span><b>主账户（尾号 1234）</b></div>' +
+      '<div class="cc-row amount"><span>金额</span><b>¥500.00</b></div>' +
+      '<div class="cc-row"><span>到账</span><b>实时到账</b></div>' +
+      '<div class="cc-btns">' +
+        '<button class="btn primary" onclick="goCode(this)">确认办理</button>' +
+        '<button class="btn ghost" onclick="cancelFlow()">取消</button>' +
+      '</div>';
+    chat.appendChild(wrap); scrollBottom();
+  }
+
+  function goCode(btn){
+    if(busy) return; busy = true;
+    btn.closest('.confirm-card').remove();
+    addCodeCard();
+    busy = false;
+  }
+
+  function cancelFlow(){
+    addAssistant('好的，这笔转账已取消。');
+  }
+
+  /* 验证码 */
+  function addCodeCard(){
+    var wrap = document.createElement('div');
+    wrap.className = 'code-card';
+    var boxes = '';
+    for(var i=0;i<6;i++) boxes += '<input class="cb" maxlength="1" inputmode="numeric">';
+    wrap.innerHTML =
+      '<div class="cc-title">为了安全，请输入验证码</div>' +
+      '<div class="code-demo">模拟验证码：<b>123456</b></div>' +
+      '<div class="code-boxes">' + boxes + '</div>' +
+      '<div class="code-err" id="codeErr"></div>' +
+      '<button class="btn primary" onclick="submitCode(this)">提交验证码</button>';
+    chat.appendChild(wrap); scrollBottom();
+    var cb = wrap.querySelectorAll('.cb');
+    for(var i=0;i<cb.length;i++){
+      (function(i){
+        cb[i].addEventListener('input', function(){
+          if(this.value){ if(i<5) cb[i+1].focus(); }
+        });
+        cb[i].addEventListener('keydown', function(e){
+          if(e.key==='Backspace' && !this.value && i>0) cb[i-1].focus();
+        });
+      })(i);
+    }
+    cb[0].focus();
+  }
+
+  async function submitCode(btn){
+    if(busy) return; busy = true;
+    var wrap = btn.closest('.code-card');
+    var cb = wrap.querySelectorAll('.cb');
+    var code = '';
+    for(var i=0;i<cb.length;i++) code += cb[i].value;
+    if(code !== '123456'){
+      var err = wrap.querySelector('#codeErr');
+      err.textContent = '验证码不对，请再输一次';
+      for(var i=0;i<cb.length;i++) cb[i].value = '';
+      cb[0].focus();
+      busy = false; return;
+    }
+    wrap.innerHTML = '<div class="prog"><span class="spinner"></span>正在转账，请稍等…</div>';
+    await sleep(1300);
+    wrap.remove();
+    addResult();
+    busy = false;
+  }
+
+  /* 结果卡 */
+  function addResult(){
+    var wrap = document.createElement('div');
+    wrap.className = 'result-card';
+    wrap.innerHTML =
+      '<div class="rc-status success"><span class="ico">✓</span>转账成功</div>' +
+      '<div class="rc-amount">¥500.00</div>' +
+      '<div class="rc-line">已转给 <b>妈妈</b>（尾号 6688）</div>' +
+      '<div class="rc-line">转出账户：主账户（尾号 1234）</div>' +
+      '<div class="rc-note">已经办好了，500 块转给妈妈了。</div>';
+    chat.appendChild(wrap); scrollBottom();
+    setTimeout(function(){ addAssistant('还有什么要我帮忙的吗？'); }, 600);
+  }
+
+  /* 主流程 */
+  async function runFlow(text){
+    if(busy) return; busy = true;
+    addUser(text);
+    input.value = ''; updateSend();
+    await sleep(500);
+    var t = typing();
+    await sleep(1000);
+    t.remove();
+    addAssistant('好的，我帮您办一笔转账。');
+    await sleep(400);
+    addCards();
+    busy = false;
+  }
+
+  function updateSend(){
+    sendBtn.disabled = input.value.trim().length === 0;
+  }
+
+  function send(){
+    var v = input.value.trim();
+    if(!v || busy) return;
+    runFlow(v);
+  }
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('input', updateSend);
+  input.addEventListener('keydown', function(e){ if(e.key==='Enter') send(); });
+  updateSend();
+
+  /* 话筒：长按说话，松开转写 */
+  function micDown(e){ e.preventDefault(); mic.classList.add('recording'); rec.classList.add('show'); }
+  function micUp(e){
+    if(e.cancelable) e.preventDefault();
+    mic.classList.remove('recording'); rec.classList.remove('show');
+    input.value = '转给妈妈500块'; updateSend(); input.focus();
+  }
+  mic.addEventListener('mousedown', micDown);
+  mic.addEventListener('mouseup', micUp);
+  mic.addEventListener('mouseleave', function(){ mic.classList.remove('recording'); rec.classList.remove('show'); });
+  mic.addEventListener('touchstart', micDown, {passive:false});
+  mic.addEventListener('touchend', micUp, {passive:false});
+
+  /* 重来 */
+  function resetDemo(){
+    busy = false;
+    chat.innerHTML = '';
+    input.value = ''; updateSend();
+    addAssistant('您好，我是您的银行小助手。您想办点什么？');
+  }
+
+  /* 初始 */
+  resetDemo();
+</script>
+</body>
+</html>
