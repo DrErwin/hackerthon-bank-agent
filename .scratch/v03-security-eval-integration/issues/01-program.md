@@ -6,7 +6,7 @@ Spec: [安全评测接入规格](../spec.md)
 Type: 开发
 Owner: 用户授权AI接入；Ringo专业审查待记录
 Directory: evals/security/
-Status: ready-for-agent
+Status: claimed
 Blocked by: None
 Core scenarios: SI01—SI05
 Verification: 本票自动断言、故障及缺口反例、相关离线流程；联合验收仍归原票12。
@@ -25,5 +25,7 @@ Accepted at: 2026-10-07
 - [ ] 本票专项及受影响核心路径验证、有独立分支/PR和双轴AI审查证据。
 
 ## Comments
+
+2026-10-07 新会话用户明确授权 implement-spec 实施，AI 接入工作开始；不代表 Ringo 本人领取或专业批准。所有子代理显式使用 gpt-6-luna / max，主代理协调与最终审查。代码仅 evals/security/，独立 PR；不调用付费模型。
 
 2026-10-07沿用三票拆分，本轮只交付规格与票据。用户随后明确要求“只执行到拆票，实施先不做”；本票未领取实施，未写代码、未运行评测。实施须等待用户后续明确启动。
