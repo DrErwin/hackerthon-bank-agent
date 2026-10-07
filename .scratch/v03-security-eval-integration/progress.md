@@ -1,6 +1,6 @@
 # 安全评测接入实施记录
 
-更新：2026-10-07。用户授权 AI 实施，不代表 Ringo 本人领取、专业签核或 v0.3 联合验收。
+更新：2026-10-08。用户授权 AI 实施，不代表 Ringo 本人领取、专业签核或 v0.3 联合验收。
 
 ## 任务图与边界
 
@@ -12,8 +12,8 @@
 
 | 实施票 | 状态 | 证据 |
 |---|---|---|
-| [01 程序安全评测](issues/01-program.md) | claimed | 隔离实现及 TDD 进行中，未完成代码交付 |
-| [02 联合执行与证据共用](issues/02-joint.md) | ready-for-agent，待01代码 | 尚未实施 |
+| [01 程序安全评测](issues/01-program.md) | implemented-awaiting-review | [PR #80](https://github.com/DrErwin/hackerthon-bank-agent/pull/80)；33项测试通过，实际产品失败关联[Issue #79](https://github.com/DrErwin/hackerthon-bank-agent/issues/79)，待最终AI审查、PR检查及专业批准 |
+| [02 联合执行与证据共用](issues/02-joint.md) | claimed | 01代码已交付，开始独立安全判定与共用兼容条件 |
 | [03 真实模型入口与报告](issues/03-live.md) | ready-for-agent，待02代码 | 能力探索已完成，尚未实施或调用模型 |
 
 ## 已核对的证据
