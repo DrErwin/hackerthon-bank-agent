@@ -48,6 +48,8 @@ Work spec: [v03-transfer-eval-fixes修复规格](../../v03-transfer-eval-fixes/s
 
 ### 2026-10-07 安全评测接入
 
+实施启动：2026-10-07 新会话用户授权 AI 按 [既有规格](../../v03-security-eval-integration/spec.md) 与三票实施。代码接入进行中；仅 evals/security/，离线验证及每票独立 PR，真实模型本次不实跑。Ringo 本人领取与专业批准仍未记录；原票12联合验收保持 blocked。下文仅拆票记录为此前阶段。
+
 Accepted by: 用户授权AI整理安全评测接入规格与票据；不记录为Ringo本人领取或签核
 Accepted at: 2026-10-07
 Work spec: [安全执行接入工作组](../../v03-security-eval-integration/spec.md)

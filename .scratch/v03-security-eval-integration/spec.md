@@ -1,6 +1,6 @@
 # v0.3 安全评测执行接入
 
-Status: ready-for-agent
+Status: in_progress
 Package: [交付包03：v0.3评测与专业审查](../transfer-agent-framework/packages/03-v03-evaluation.md)
 Owner: 用户授权AI接入；Ringo保留目录归属与专业审查
 Directory: evals/security/
@@ -10,6 +10,8 @@ Directory: evals/security/
 安全集已有118主用例、253参数实例和309行历史运行模板，但没有执行入口。重复跑相同功能、安全流程会浪费真实模型调用；只复用功能Passed又会漏掉安全禁止项。
 
 ## Solution
+
+2026-10-07 实施启动：新会话用户最新授权已解除下文历史“仅拆票”限制。按 implement-spec 顺序交付 01 → 02 → 03，使用独立分支/PR与本地 integration branch；测试接缝沿用以下已确认规格。仅完成代码接入和离线验证，不调用付费模型。未经 Ringo 批准或本次明确豁免，安全代码不合入 main；历史停止记录保留作追踪。
 
 计划复用普通转账隔离环境，在同一实际运行中观察API、安全记录、银行操作和账本。程序分支离线运行；精确相容的功能与安全实例共享证据但分别判定。真实模型入口先核对依赖，缺检测器、业务或观察端的实例在调用前阻塞。用户最新要求本轮只执行到规格与拆票，实施先不做；以下为后续实施要求。
 
