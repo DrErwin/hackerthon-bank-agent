@@ -1,0 +1,29 @@
+# 03：真实模型入口与报告
+
+Ticket ID: v03-security-eval-integration/03
+Package: [交付包03](../../transfer-agent-framework/packages/03-v03-evaluation.md)
+Spec: [安全评测接入规格](../spec.md)
+Type: 开发
+Owner: 用户授权AI接入；Ringo专业审查待记录
+Directory: evals/security/
+Status: ready-for-agent
+Blocked by: [v03-security-eval-integration/02](./02-joint.md) 的代码交付；未合时依赖Draft PR
+Core scenarios: SI07
+Verification: 本票自动断言、故障及缺口反例、相关离线流程；联合验收仍归原票12。
+Accepted by: 用户授权AI
+Accepted at: 2026-10-07
+
+## What to build
+
+枚举19实例57轮及共享三轮；入口默认离线并支持独立采样，缺检测/资源/观察能力调用前Blocked，报告不可覆盖和秘密不落盘。
+
+## Acceptance criteria
+
+- [ ] 枚举19实例57轮及共享三轮；入口默认离线并支持独立采样，缺检测/资源/观察能力调用前Blocked，报告不可覆盖和秘密不落盘。
+- [ ] 不修改原JSONL、历史模板或后端业务规则；本票代码只落evals/security/。
+- [ ] 保存真实执行与离线替代边界；未调用付费真实模型，Ringo审查单列。
+- [ ] 本票专项及受影响核心路径验证、有独立分支/PR和双轴AI审查证据。
+
+## Comments
+
+2026-10-07沿用用户已确认的三票推进方式，本次为接入开发，不沿用编排文档resolved结论。

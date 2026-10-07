@@ -45,3 +45,12 @@ Accepted at: 2026-10-05\
 Work spec: [v03-transfer-eval-fixes修复规格](../../v03-transfer-eval-fixes/spec.md)
 
 当前票implemented、独立PR待审查/合入；完整包仍in_progress，不改为accepted，不恢复模型10。详见[诊断与交付记录](../../v03-transfer-eval-fixes/online-diagnosis-20261005.md)。
+
+### 2026-10-07 安全评测接入
+
+Accepted by: 用户授权AI执行安全评测接入；不记录为Ringo本人领取或签核
+Accepted at: 2026-10-07
+Work spec: [安全执行接入工作组](../../v03-security-eval-integration/spec.md)
+
+本次按01程序评测、02联合证据、03真实模型入口顺序实现，只改evals/security/。不实跑付费模型，Ringo专业审查和原联合验收仍待。
+
