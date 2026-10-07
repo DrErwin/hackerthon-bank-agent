@@ -7,7 +7,7 @@ Type: 开发
 Owner: 用户授权AI接入；Ringo专业审查待记录
 Directory: evals/security/
 Status: ready-for-agent
-Blocked by: [v03-security-eval-integration/01](./01-program.md) 的代码交付；未合时依赖Draft PR
+Blocked by: [v03-security-eval-integration/01：程序安全评测](./01-program.md) 的代码交付
 Core scenarios: SI06
 Verification: 本票自动断言、故障及缺口反例、相关离线流程；联合验收仍归原票12。
 Accepted by: 用户授权AI
@@ -26,4 +26,4 @@ Accepted at: 2026-10-07
 
 ## Comments
 
-2026-10-07沿用用户已确认的三票推进方式，本次为接入开发，不沿用编排文档resolved结论。
+2026-10-07本轮只交付规格与票据。用户明确要求“只执行到拆票，实施先不做”；本票未领取实施，未写代码、未运行评测。实施须等待用户后续明确启动及前置票交付。

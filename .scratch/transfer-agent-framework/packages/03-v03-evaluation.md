@@ -48,9 +48,8 @@ Work spec: [v03-transfer-eval-fixes修复规格](../../v03-transfer-eval-fixes/s
 
 ### 2026-10-07 安全评测接入
 
-Accepted by: 用户授权AI执行安全评测接入；不记录为Ringo本人领取或签核
+Accepted by: 用户授权AI整理安全评测接入规格与票据；不记录为Ringo本人领取或签核
 Accepted at: 2026-10-07
 Work spec: [安全执行接入工作组](../../v03-security-eval-integration/spec.md)
 
-本次按01程序评测、02联合证据、03真实模型入口顺序实现，只改evals/security/。不实跑付费模型，Ringo专业审查和原联合验收仍待。
-
+规格与三张票已建立：01程序评测、02联合证据、03真实模型入口。用户最新要求只执行到拆票，实施先不做；未写代码、未运行评测、未创建代码PR或调用付费模型。后续实施目录仅evals/security/，需用户明确启动。Ringo专业审查和原联合验收仍待。
