@@ -6,8 +6,8 @@ Spec: [安全评测接入规格](../spec.md)
 Type: 开发
 Owner: 用户授权AI接入；Ringo专业审查待记录
 Directory: evals/security/
-Status: ready-for-agent
-Blocked by: [v03-security-eval-integration/01：程序安全评测](./01-program.md) 的代码交付
+Status: claimed
+Blocked by: None（01已交付PR #80；依赖代码仅汇入本地integration，尚未合入main）
 Core scenarios: SI06
 Verification: 本票自动断言、故障及缺口反例、相关离线流程；联合验收仍归原票12。
 Accepted by: 用户授权AI
@@ -25,5 +25,7 @@ Accepted at: 2026-10-07
 - [ ] 本票专项及受影响核心路径验证、有独立分支/PR和双轴AI审查证据。
 
 ## Comments
+
+2026-10-08 用户的新会话实施授权有效；01已完成代码交付，AI按依赖顺序启动本票。独立分支/PR仅改evals/security/；后继Draft PR以01分支为base，不调用付费模型，专业审批单列。
 
 2026-10-07本轮只交付规格与票据。用户明确要求“只执行到拆票，实施先不做”；本票未领取实施，未写代码、未运行评测。实施须等待用户后续明确启动及前置票交付。
