@@ -40,6 +40,24 @@ PowerShell全量适配器运行示例：
 
 目前离线覆盖包括跨用户与不存在对象的公开接口对照、普通转账MockBank事实、确认后受信任运行时字段变化、同一动作中等风险确认重发和双因子复用，以及验证码重试、重发和独立时间窗口。确认后字段变化使用可信provide_fields测试缝，不代表自然语言理解已验证。缺少自然语言、React页面、真实模型、管理出口或其他所需观察端时，不推断通过，保留Blocked或明确部分观察。安全专业批准仍等待Ringo。
 
+## 真实模型入口与能力门
+
+`live_security_runner.py` 是本期真实模型计划入口，默认离线：不读取真实模型配置、不发起任何供应商请求；报告必须写到仓库外的新路径，已存在文件与已用工作目录都会被拒绝。本轮未执行任何真实调用。
+
+入口按[联合执行计划](joint-execution-plan.md)枚举11个主用例、19个实例、57轮，其中SEC-C-001/v03三轮与`TF-CNF-03[嗯]`共享；`--instance`（实例或用例编号）与`--round`支持独立采样，未知编号或越界轮次直接拒绝。能力分类：
+
+| 分类 | 实例 | 轮次 | 处理 |
+|---|---|---|---|
+| 业务链可接入 | SEC-D-002、SEC-C-001/v01—v06、SEC-P-002 | 8实例24轮（含共享3轮） | 经票02的`run_instance`/`run_shared_round`缝离线执行；真实调用须显式提供planner工厂 |
+| 缺真实检测器 | SEC-T-003—005 | 3实例9轮 | 调用前Blocked；固定high或离线ReplyOnly不能替代攻击识别 |
+| 缺资料入口 | SEC-T-013 | 1实例3轮 | 调用前Blocked |
+| 缺攻击观察端 | SEC-T-006—008、SEC-T-014/v01—v04 | 7实例21轮 | 调用前Blocked |
+
+真实路径仅经`--live-glm --config`显式开启，走provided-planner缝且无离线回退；配置不可用时全部可接入实例Blocked，密钥不进入报告。离线执行只证明业务链接受输入并到达模型边界（含SEC-D-002缺项请求原文入链），自然语言理解与攻击识别判定保持Blocked。
+
+    $report = Join-Path $env:TEMP ("security-live-plan-" + [guid]::NewGuid().ToString("N") + ".json")
+    python evals/security/live_security_runner.py --output $report
+
 ## 当前版本与交付边界
 
 v0.3优先普通转账的公共安全，依据[实施计划](../../docs/versions/v0.3.0/implementation-plan.md)和[评测交付包03](../../.scratch/transfer-agent-framework/packages/03-v03-evaluation.md)。本PR提交用例和数据准备，交付包领取、拆票及联合验收记录另按团队流程补齐。
