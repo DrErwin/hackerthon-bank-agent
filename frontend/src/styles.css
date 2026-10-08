@@ -224,6 +224,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .interaction-heading { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
 .interaction-heading h4 { margin: 0 0 3px; font-size: 16px; }
 .interaction-heading p { margin: 0; color: var(--muted); font-size: 14px; }
+.interaction-heading > div { flex: 1; }
+.interaction-panel-readonly { background: #f5f6f6; border-color: #d8dfdb; }
+.readonly-stamp { flex: 0 0 auto; padding: 6px 9px; color: #315c4d; background: #e5f0eb; border: 1px solid #bdd4ca; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.exception-card { margin-top: 15px; padding: 18px; border: 1px solid; border-radius: 16px; }
+.exception-card h4 { margin: 0; font-size: 18px; }
+.exception-card > p { margin: 10px 0 0; line-height: 1.65; }
+.exception-card-warning { color: #6e4100; background: #fff8e8; border-color: #e9c873; }
+.exception-card-danger { color: #7d2019; background: #fff1ef; border-color: #e3aaa5; }
 .step-number { flex: 0 0 28px; width: 28px; height: 28px; display: grid; place-items: center; color: var(--green-dark); background: #dff0e6; border-radius: 50%; font-size: 13px; font-weight: 800; }
 .field-list { margin: 0; padding: 0; border: 1px solid #e0e8e2; border-radius: 12px; overflow: hidden; background: white; }
 .field-row { display: grid; grid-template-columns: minmax(110px, 34%) 1fr; gap: 15px; padding: 10px 13px; border-bottom: 1px solid #edf1ee; }

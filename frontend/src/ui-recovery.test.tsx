@@ -130,7 +130,8 @@ describe("recovery and retry controls", () => {
 
   it("clears entered codes and demo hints when a new challenge replaces the old one", async () => {
     vi.mocked(api.get).mockImplementation(async (path) => path.endsWith("/demo-code")
-      ? { code: "123456", expires_at: timestamp } as never : codeVerification as never);
+      ? { code: "123456", expires_at: timestamp } as never
+      : { ...codeVerification, challenge_id: path.split("/")[2] } as never);
     const props = makeTaskCardProps(codeTask());
     const view = render(<TaskCard {...props} />);
     fireEvent.change(await screen.findByLabelText("验证码（专用输入）"), { target: { value: "654321" } });
@@ -145,7 +146,8 @@ describe("recovery and retry controls", () => {
   it("ignores a delayed demo code from a previous challenge", async () => {
     let finishHint!: (value: never) => void;
     vi.mocked(api.get).mockImplementation(async (path) => path.endsWith("/demo-code")
-      ? await new Promise<never>((resolve) => { finishHint = resolve; }) : codeVerification as never);
+      ? await new Promise<never>((resolve) => { finishHint = resolve; })
+      : { ...codeVerification, challenge_id: path.split("/")[2] } as never);
     const props = makeTaskCardProps(codeTask());
     const view = render(<TaskCard {...props} />);
     fireEvent.click(await screen.findByRole("button", { name: "打开模拟验证码提示区" }));
@@ -310,5 +312,99 @@ describe("recovery and retry controls", () => {
     render(<TaskCard {...makeTaskCardProps(task)} />);
     expect(await screen.findByRole("button", { name: "确认办理" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "修改" })).toBeNull();
+  });
+
+  it("keeps an approved confirmation visible as a read-only record during verification", async () => {
+    const confirmationTask = makeTask({
+      status: "waiting_approval",
+      allowed_actions: ["confirm", "cancel"],
+      interaction: {
+        interaction_id: "confirmation-interaction",
+        kind: "confirmation",
+        prompt: "核对确认单",
+        required_fields: [],
+        options: [],
+        record_ref: "confirmation-1",
+      },
+    });
+    const verificationTask = codeTask("challenge-1");
+    const confirmation = {
+      confirmation_id: "confirmation-1",
+      task_id: "task-1",
+      confirmation_version: 1,
+      display_fields: [
+        { name: "bank", label: "收款银行", value_text: "演示银行" },
+        { name: "fee", label: "手续费", value_text: "0.00 元" },
+      ],
+      created_at: timestamp,
+      expires_at: "2026-10-01T00:05:00.000Z",
+      decision: "pending",
+    };
+    const verification = {
+      ...codeVerification,
+      summary: {
+        operation_id: "operation-1",
+        action_revision: 1,
+        source_confirmation_id: "confirmation-1",
+        source_confirmation_version: 1,
+        action_name: "bank.submit_transfer",
+        amount_fen: 50_000,
+        payee: null,
+        display_fields: confirmation.display_fields,
+      },
+    } as VerificationView;
+    vi.mocked(api.get).mockImplementation(async (path) => path.startsWith("/confirmations/")
+      ? confirmation as never : verification as never);
+    vi.mocked(api.post).mockResolvedValue(verificationTask as never);
+    const props = makeTaskCardProps(confirmationTask);
+    const view = render(<TaskCard {...props} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "确认办理" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    view.rerender(<TaskCard {...props} task={verificationTask} />);
+
+    expect(await screen.findByRole("heading", { name: "确认单记录" })).toBeTruthy();
+    expect(screen.getByText("已确认办理")).toBeTruthy();
+    expect(screen.getAllByText("收款银行").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("手续费").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "确认办理" })).toBeNull();
+    expect(await screen.findByRole("heading", { name: "专用验证" })).toBeTruthy();
+  });
+
+  it("shows actionable insufficient-funds guidance without claiming submission", async () => {
+    const onModifyDraft = vi.fn();
+    const task = makeTask({
+      status: "waiting_input",
+      error: {
+        code: "BANK_REJECTED",
+        source: "bank",
+        field: null,
+        reason: "可用余额不足，当前可用 320.00 元",
+        upstream_code: "INSUFFICIENT_FUNDS",
+      },
+    });
+    render(<TaskCard {...makeTaskCardProps(task)} onModifyDraft={onModifyDraft} />);
+
+    expect(screen.getByRole("heading", { name: "这笔转账尚未提交" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "修改金额" }));
+    expect(onModifyDraft).toHaveBeenCalledWith("请修改这笔转账金额为：");
+  });
+
+  it("shows a terminal anti-fraud warning with no continuation action", () => {
+    const task = makeTask({
+      status: "failed",
+      error: {
+        code: "HIGH_RISK",
+        source: "security",
+        field: null,
+        reason: "高风险已阻断",
+        upstream_code: null,
+      },
+    });
+    render(<TaskCard {...makeTaskCardProps(task)} />);
+
+    expect(screen.getByRole("heading", { name: "这笔转账已终止" })).toBeTruthy();
+    expect(screen.getByText(/请立即停止共享屏幕/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /继续/ })).toBeNull();
   });
 });

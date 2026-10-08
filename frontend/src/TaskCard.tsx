@@ -69,10 +69,36 @@ function Fields({ fields }: { fields: DisplayField[] }) {
   );
 }
 
+function upsertRecord<T>(records: T[], record: T, key: (item: T) => string): T[] {
+  const recordKey = key(record);
+  const index = records.findIndex((item) => key(item) === recordKey);
+  if (index < 0) return [...records, record];
+  const next = [...records];
+  next[index] = record;
+  return next;
+}
+
+function confirmationDecision(decision: ConfirmationView["decision"]): string {
+  if (decision === "approved") return "已确认办理";
+  if (decision === "cancelled") return "已取消";
+  if (decision === "expired") return "已过期";
+  if (decision === "superseded") return "已被新版替代";
+  return "等待确认";
+}
+
+function verificationDecision(verification: VerificationView): string {
+  if (verification.challenge_status === "passed") return "已完成验证";
+  if (verification.challenge_status === "failed") return "验证未通过";
+  if (verification.challenge_status === "expired") return "验证已过期";
+  if (verification.challenge_status === "cancelled") return "验证已取消";
+  if (verification.challenge_status === "superseded") return "已被新验证替代";
+  return "等待验证";
+}
+
 export default function TaskCard(props: TaskCardProps) {
   const { task } = props;
-  const [confirmation, setConfirmation] = useState<ConfirmationView | null>(null);
-  const [verification, setVerification] = useState<VerificationView | null>(null);
+  const [confirmations, setConfirmations] = useState<ConfirmationView[]>([]);
+  const [verifications, setVerifications] = useState<VerificationView[]>([]);
   const [recordLoading, setRecordLoading] = useState(false);
   const [recordError, setRecordError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -106,8 +132,6 @@ export default function TaskCard(props: TaskCardProps) {
   }, [recordRef, interactionKind, task.recovery_required]);
 
   useEffect(() => {
-    setConfirmation(null);
-    setVerification(null);
     setRecordError("");
     setConfirmingCancel(false);
     if (!recordRef || !interactionKind || (interactionKind !== "confirmation" && interactionKind !== "verification")) return;
@@ -117,8 +141,13 @@ export default function TaskCard(props: TaskCardProps) {
     void get<ConfirmationView | VerificationView>(path + encodeURIComponent(recordRef))
       .then((record) => {
         if (cancelled) return;
-        if (interactionKind === "confirmation") setConfirmation(record as ConfirmationView);
-        else setVerification(record as VerificationView);
+        if (interactionKind === "confirmation") {
+          const confirmationRecord = record as ConfirmationView;
+          setConfirmations((current) => upsertRecord(current, confirmationRecord, (item) => item.confirmation_id));
+        } else {
+          const verificationRecord = record as VerificationView;
+          setVerifications((current) => upsertRecord(current, verificationRecord, (item) => item.challenge_id));
+        }
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -221,7 +250,7 @@ export default function TaskCard(props: TaskCardProps) {
         "/verifications/" + encodeURIComponent(verification.challenge_id) + "/code",
         { request_id: newId(), submission_id: newId(), code: submittedCode },
       );
-      setVerification(result.verification);
+      setVerifications((current) => upsertRecord(current, result.verification, (item) => item.challenge_id));
       props.onTask(result.task);
       if (result.error) setActionError(result.error.reason);
       await props.onRefresh();
@@ -231,7 +260,7 @@ export default function TaskCard(props: TaskCardProps) {
         setActionError("验证码提交结果尚未确认，正在查询原任务。验证码不会自动重传。");
         try {
           const current = await get<VerificationView>("/verifications/" + encodeURIComponent(verification.challenge_id));
-          setVerification(current);
+          setVerifications((records) => upsertRecord(records, current, (item) => item.challenge_id));
           const currentTask = await get<TaskView>("/tasks/" + encodeURIComponent(task.task_id));
           props.onTask(currentTask);
         } catch {
@@ -263,7 +292,7 @@ export default function TaskCard(props: TaskCardProps) {
       "/verifications/" + encodeURIComponent(verification.challenge_id) + "/face/start",
       {},
     );
-    if (result) setVerification(result);
+    if (result) setVerifications((current) => upsertRecord(current, result, (item) => item.challenge_id));
   }
 
   async function resendCode() {
@@ -274,7 +303,7 @@ export default function TaskCard(props: TaskCardProps) {
       {},
     );
     if (result) {
-      setVerification(result);
+      setVerifications((current) => upsertRecord(current, result, (item) => item.challenge_id));
       setDemoCode(null);
     }
   }
@@ -283,11 +312,17 @@ export default function TaskCard(props: TaskCardProps) {
     if (!confirmation || !task.interaction) return;
     if (choice === "approve" && !task.allowed_actions.includes("confirm")) return;
     if (choice === "cancel" && !task.allowed_actions.includes("cancel")) return;
-    await mutate<TaskView>(
+    const result = await mutate<TaskView>(
       "confirmation:" + confirmation.confirmation_id + ":" + choice,
       "/confirmations/" + encodeURIComponent(confirmation.confirmation_id) + "/answer",
       { confirmation_version: confirmation.confirmation_version, choice },
     );
+    if (result) {
+      setConfirmations((current) => upsertRecord(current, {
+        ...confirmation,
+        decision: choice === "approve" ? "approved" : "cancelled",
+      }, (item) => item.confirmation_id));
+    }
     if (choice === "cancel") setConfirmingCancel(false);
   }
 
@@ -329,6 +364,8 @@ export default function TaskCard(props: TaskCardProps) {
   const receipt = operation?.receipt;
   const activeConfirmation = task.interaction?.kind === "confirmation";
   const activeVerification = task.interaction?.kind === "verification";
+  const confirmation = activeConfirmation ? confirmations.find((item) => item.confirmation_id === recordRef) ?? null : null;
+  const verification = activeVerification ? verifications.find((item) => item.challenge_id === recordRef) ?? null : null;
   const activeInput = task.interaction?.kind === "input";
   const canConfirm = task.allowed_actions.includes("confirm");
   const canCancel = task.allowed_actions.includes("cancel");
@@ -456,17 +493,19 @@ export default function TaskCard(props: TaskCardProps) {
         </div>
       )}
 
-      {activeConfirmation && (
-        <div className="interaction-panel confirmation-panel">
+      {confirmations.map((confirmationRecord) => {
+        const isActive = activeConfirmation && confirmationRecord.confirmation_id === recordRef;
+        return (
+        <div className={"interaction-panel confirmation-panel" + (isActive ? "" : " interaction-panel-readonly")} key={confirmationRecord.confirmation_id}>
           <div className="interaction-heading">
             <span className="step-number">2</span>
-            <div><h4>请核对确认单</h4><p>聊天里的“确认”不会批准资金操作。</p></div>
+            <div><h4>{isActive ? "请核对确认单" : "确认单记录"}</h4><p>{isActive ? "聊天里的“确认”不会批准资金操作。" : "该记录已转为只读，供您回溯核对。"}</p></div>
+            {!isActive && <span className="readonly-stamp">{confirmationDecision(confirmationRecord.decision)}</span>}
           </div>
-          {recordLoading && <p className="muted-copy">正在读取当前确认版本…</p>}
-          {confirmation && <>
-            <Fields fields={confirmation.display_fields} />
-            <p className="expiry-note">确认有效期至 {displayTime(confirmation.expires_at)} · 当前版本 {confirmation.confirmation_version}</p>
-            {(canConfirm || canCancel) && confirmation.decision === "pending" && (
+          {isActive && recordLoading && <p className="muted-copy">正在读取当前确认版本…</p>}
+          <Fields fields={confirmationRecord.display_fields} />
+            <p className="expiry-note">确认有效期至 {displayTime(confirmationRecord.expires_at)} · 当前版本 {confirmationRecord.confirmation_version}</p>
+            {isActive && (canConfirm || canCancel) && confirmationRecord.decision === "pending" && (
               <div className="button-row action-row">
                 {canConfirm && <button className="button button-primary" disabled={Boolean(busyKey)} onClick={() => void answerConfirmation("approve")}>
                   {busyKey.startsWith("confirmation:") ? "提交中…" : "确认办理"}
@@ -494,25 +533,31 @@ export default function TaskCard(props: TaskCardProps) {
                 </button>
               </form>
             )}
-          </>}
-          {recordError && <p className="notice notice-error">{recordError}</p>}
+          {isActive && recordError && <p className="notice notice-error">{recordError}</p>}
         </div>
+        );
+      })}
+
+      {activeConfirmation && recordLoading && confirmations.every((item) => item.confirmation_id !== recordRef) && (
+        <p className="muted-copy">正在读取当前确认版本…</p>
       )}
 
-      {activeVerification && (
-        <div className="interaction-panel verification-panel">
+      {verifications.map((verificationRecord) => {
+        const isActive = activeVerification && verificationRecord.challenge_id === recordRef;
+        return (
+        <div className={"interaction-panel verification-panel" + (isActive ? "" : " interaction-panel-readonly")} key={verificationRecord.challenge_id}>
           <div className="interaction-heading">
             <span className="step-number">3</span>
-            <div><h4>专用验证</h4><p>验证码不进入聊天，也不会保存在浏览器。</p></div>
+            <div><h4>{isActive ? "专用验证" : "验证记录"}</h4><p>{isActive ? "验证码不进入聊天，也不会保存在浏览器。" : "验证结果已转为只读，不会再次提交。"}</p></div>
+            {!isActive && <span className="readonly-stamp">{verificationDecision(verificationRecord)}</span>}
           </div>
-          {recordLoading && <p className="muted-copy">正在读取当前验证状态…</p>}
-          {verification && <>
-            {verification.summary && <Fields fields={verification.summary.display_fields} />}
+          {isActive && recordLoading && <p className="muted-copy">正在读取当前验证状态…</p>}
+            {verificationRecord.summary && <Fields fields={verificationRecord.summary.display_fields} />}
             <div className="verification-status-grid">
-              <div><span>验证码</span><strong>{verification.code_result === "passed" ? "已通过" : verification.code_result === "failed" ? "未通过" : "等待输入"}</strong><small>有效期至 {displayTime(verification.code_expires_at)}</small></div>
-              {verification.required_methods.includes("mock_face") && <div><span>模拟人脸核验</span><strong>{verification.face_started_at ? verification.face_result === "pending" ? "等待管理员处理" : verification.face_result === "passed" ? "已通过" : "未通过" : "尚未开始"}</strong><small>{verification.face_started_at ? "等待时间以服务端记录为准" : "需要管理员会话作答"}</small></div>}
+              <div><span>验证码</span><strong>{verificationRecord.code_result === "passed" ? "已通过" : verificationRecord.code_result === "failed" ? "未通过" : "等待输入"}</strong><small>有效期至 {displayTime(verificationRecord.code_expires_at)}</small></div>
+              {verificationRecord.required_methods.includes("mock_face") && <div><span>模拟人脸核验</span><strong>{verificationRecord.face_started_at ? verificationRecord.face_result === "pending" ? "等待管理员处理" : verificationRecord.face_result === "passed" ? "已通过" : "未通过" : "尚未开始"}</strong><small>{verificationRecord.face_started_at ? "等待时间以服务端记录为准" : "需要管理员会话作答"}</small></div>}
             </div>
-            {canVerify && verification.challenge_status === "pending" && verification.required_methods.includes("code") && (
+            {isActive && canVerify && verificationRecord.challenge_status === "pending" && verificationRecord.required_methods.includes("code") && (
               <form className="stack-form code-form" onSubmit={(event) => void submitCode(event)}>
                 <label htmlFor={"code-" + task.task_id}>验证码（专用输入）</label>
                 <div className="inline-form-row">
@@ -526,18 +571,41 @@ export default function TaskCard(props: TaskCardProps) {
                 {demoCode && <div className="demo-code-panel" aria-live="polite"><span>本次模拟验证码</span><strong>{demoCode.code}</strong><small>仅在此处显示，30 秒后清除；有效期至 {displayTime(demoCode.expires_at)}</small></div>}
               </form>
             )}
-            {canVerify && verification.challenge_status === "pending" && verification.required_methods.includes("mock_face") && !verification.face_started_at && (
+            {isActive && canVerify && verificationRecord.challenge_status === "pending" && verificationRecord.required_methods.includes("mock_face") && !verificationRecord.face_started_at && (
               <button className="button button-secondary face-start-button" disabled={submittingCode || Boolean(busyKey)} onClick={() => void startFace()}>
                 {busyKey.startsWith("face-start:") ? "正在开始…" : "开始模拟人脸等待"}
               </button>
             )}
-            {verification.face_started_at && verification.face_result === "pending" && (
-              <a className="admin-face-link" href={administratorUrl({ taskId: task.task_id, challengeId: verification.challenge_id, demoRoundId: task.demo_round_id })}>
+            {isActive && verificationRecord.face_started_at && verificationRecord.face_result === "pending" && (
+              <a className="admin-face-link" href={administratorUrl({ taskId: task.task_id, challengeId: verificationRecord.challenge_id, demoRoundId: task.demo_round_id })}>
                 打开独立管理员会话处理模拟人脸 <span aria-hidden="true">↗</span>
               </a>
             )}
-          </>}
-          {recordError && <p className="notice notice-error">{recordError}</p>}
+          {isActive && recordError && <p className="notice notice-error">{recordError}</p>}
+        </div>
+        );
+      })}
+
+      {activeVerification && recordLoading && verifications.every((item) => item.challenge_id !== recordRef) && (
+        <p className="muted-copy">正在读取当前验证状态…</p>
+      )}
+
+      {(task.error?.upstream_code === "INSUFFICIENT_FUNDS" || task.error?.code === "INSUFFICIENT_FUNDS") && (
+        <div className="exception-card exception-card-warning" role="status">
+          <div><p className="eyebrow">余额不足</p><h4>这笔转账尚未提交</h4></div>
+          <p>{task.error.reason}。您可以修改金额、更换转出账户，或取消本次操作。</p>
+          <div className="button-row">
+            <button className="button button-secondary" onClick={() => props.onModifyDraft("请修改这笔转账金额为：")}>修改金额</button>
+            <button className="button button-secondary" onClick={() => props.onModifyDraft("请更换这笔转账的转出账户为：")}>更换账户</button>
+          </div>
+        </div>
+      )}
+
+      {(task.error?.code === "HIGH_RISK" || task.error?.code === "RISK_REJECTED" || task.error?.upstream_code === "RISK_REJECTED") && (
+        <div className="exception-card exception-card-danger" role="alert">
+          <div><p className="eyebrow">反诈高风险阻断</p><h4>这笔转账已终止</h4></div>
+          <p>请立即停止共享屏幕，不要告诉任何人验证码。请通过原来保存的电话联系本人，或联系银行官方客服核实。</p>
+          <p className="expiry-note">本任务不提供继续办理入口。</p>
         </div>
       )}
 
