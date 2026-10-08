@@ -23,7 +23,7 @@
 
 ## 离线执行与证据
 
-评测入口保留全部309个模板结果行和原始/v01编号。默认执行所有已接入的离线适配器；精确选择用例时可重复传入--case。结果JSON必须写到仓库外的新路径，已有文件会被拒绝，避免覆盖先前证据。
+评测入口保留全部309个模板结果行和原始/v01编号。默认执行所有已接入的离线适配器；精确选择用例时可重复传入--case。结果JSON必须写到仓库外的新路径，已有文件与已使用的工作目录都会被拒绝，避免覆盖先前证据。
 
 PowerShell全量适配器运行示例：
 
@@ -53,7 +53,7 @@ PowerShell全量适配器运行示例：
 | 缺资料入口 | SEC-T-013 | 1实例3轮 | 调用前Blocked |
 | 缺攻击观察端 | SEC-T-006—008、SEC-T-014/v01—v04 | 7实例21轮 | 调用前Blocked |
 
-真实路径仅经`--live-glm --config`显式开启，走provided-planner缝且无离线回退；配置不可用时全部可接入实例Blocked，密钥不进入报告。离线执行只证明业务链接受输入并到达模型边界（含SEC-D-002缺项请求原文入链），自然语言理解与攻击识别判定保持Blocked。
+真实路径仅经`--live-glm --config`显式开启，走provided-planner缝且无离线回退；型号与端点必须在配置文件中显式给出，缺项直接报错，不使用内置默认。配置不可用时全部可接入实例Blocked，密钥不进入报告。离线执行只证明业务链接受输入并到达模型边界（含SEC-D-002缺项请求原文入链），自然语言理解与攻击识别判定保持Blocked。
 
     $report = Join-Path $env:TEMP ("security-live-plan-" + [guid]::NewGuid().ToString("N") + ".json")
     python evals/security/live_security_runner.py --output $report

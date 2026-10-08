@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -23,7 +22,9 @@ from uuid import uuid4
 from security_runner import (
     ROOT,
     _artifact_metadata,
+    _git_head_revision,
     _observation,
+    _output_inside_repository,
     _result,
     _runtime_artifacts,
     _transfer_environment_class,
@@ -80,10 +81,9 @@ _EXPECTED_TOTALS = {
 }
 
 
-def enumerate_live_plan(catalog=None) -> dict:
+def enumerate_live_plan() -> dict:
     """Expand the confirmed live-model plan from the unmodified catalog."""
-    catalog = catalog or load_security_catalog()
-    ordered = select_cases(catalog, list(LIVE_PLAN_CASE_IDS))
+    ordered = select_cases(load_security_catalog(), list(LIVE_PLAN_CASE_IDS))
     instances = []
     for case in ordered:
         gate = _GATES.get(case["id"])
@@ -154,12 +154,6 @@ def _select_rounds(rounds: list[int] | None, max_rounds: int) -> list[int]:
     if any(not 1 <= round_index <= max_rounds for round_index in rounds):
         raise ValueError("LIVE_ROUND_OUT_OF_RANGE")
     return sorted(set(rounds))
-
-
-def _code_revision() -> str:
-    result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
-                            capture_output=True, text=True, check=False)
-    return result.stdout.strip() if result.returncode == 0 else "unavailable"
 
 
 _D002_REQUEST = "帮我转一笔钱"
@@ -301,7 +295,7 @@ def run_live_plan(work_dir: Path, *, instances: list[str] | None = None,
         "real_model_calls": real_calls,
         "provider_request_count": real_calls,
         "model_config_read": config_read,
-        "code_revision": _code_revision(),
+        "code_revision": _git_head_revision(),
         "live_plan": plan,
         "selection": {"instances": list(instances or []), "rounds": selected_rounds},
         "status_counts": status_counts,
@@ -309,41 +303,48 @@ def run_live_plan(work_dir: Path, *, instances: list[str] | None = None,
     }
 
 
+def _explicit_model_settings(config_path: Path) -> dict:
+    """Require the real model and endpoint to be stated explicitly in --config.
+
+    LocalDemoConfig fills vendor defaults when the keys are absent; the live
+    evaluation must instead fail loudly, so explicitness is checked on the raw
+    file before any heavy import or provider client is constructed.
+    """
+    raw = json.loads(Path(config_path).read_text(encoding="utf-8-sig"))
+    missing = [field for field in ("model_name", "base_url")
+               if not str(raw.get(field) or "").strip()]
+    if missing:
+        raise ValueError(f"LIVE_MODEL_CONFIG_REQUIRES_EXPLICIT_FIELDS: {', '.join(missing)}")
+    return {"model_name": str(raw["model_name"]), "base_url": str(raw["base_url"])}
+
+
 def live_planner(config_path: Path):
-    """Build the real GLM planner factory; only called with an explicit --live-glm."""
+    """Build the real-model planner factory from the explicit --config file."""
     import sys
+    from urllib.parse import urlparse
 
     for path in (ROOT, ROOT / "backend", ROOT / "evals" / "transfer"):
         if str(path) not in sys.path:
             sys.path.insert(0, str(path))
+    _explicit_model_settings(config_path)
     from app.agent_platform.local_demo import load_config
     from app.agent_platform.model import DeepAgentPlanner, ModelSettings
     from langchain_openai import ChatOpenAI
 
     config = load_config(config_path)
-    if config.model_name != "glm-5.3" or config.base_url.rstrip("/") != "https://open.bigmodel.cn/api/coding/paas/v4":
-        raise ValueError("EXPECTED_EXPLICIT_GLM_5_3_CODING_ENDPOINT")
     model = ChatOpenAI(model=config.model_name, api_key=config.api_key, base_url=config.base_url,
                        temperature=0, max_retries=0, timeout=60, use_responses_api=False)
 
     def factory():
         return DeepAgentPlanner(ModelSettings(model, "openai", config.model_name,
-                                              "security-live-glm-v1"))
+                                              "security-live-v1"))
 
     return factory, {
-        "provider": "智谱Coding Plan", "client_provider": "openai-compatible",
+        "provider": urlparse(config.base_url).hostname, "client_provider": "openai-compatible",
         "model": config.model_name, "endpoint": config.base_url,
         "stores": "per-round temporary; config.data_directory is never used",
         "risk": "per-action evaluation fixtures; not production fraud detection",
     }
-
-
-def _output_inside_repository(output: Path) -> bool:
-    try:
-        output.resolve().relative_to(ROOT.resolve())
-        return True
-    except ValueError:
-        return False
 
 
 def main(argv: list[str] | None = None) -> int:

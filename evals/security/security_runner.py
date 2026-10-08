@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections.abc import Callable
 import csv
 import hashlib
@@ -189,6 +189,81 @@ def _environment(directory: Path, case: dict, risk: str = "low",
     return Environment(directory, case, _plan(case, risk), delegate=delegate)
 
 
+def _confirmation_record(env, trusted, confirmation_id: str) -> dict:
+    """Read one confirmation through the same security-service read the public API uses."""
+    from app.contracts.security import ExecutionSecurityContext
+
+    context = ExecutionSecurityContext(
+        **trusted.model_dump(exclude={"parent_task_id"}),
+        source_task_id=None, operation_id=None, action_revision=None,
+        confirmation_id=None, confirmation_version=None,
+        verification_ids=[], release_authorization_id=None,
+    )
+    record = env.runtime.confirmations.get(context, confirmation_id)
+    return record.model_dump(mode="json")
+
+
+def _admin_audit_timeline(env, demo_round_id: str, task_id: str) -> list:
+    """Read one task's audit timeline through the authorized admin read path.
+
+    This is the same AuditReader path the /admin/audit/events endpoint serves,
+    so audit facts keep a single interpretation instead of a second raw query.
+    """
+    from app.api.app import ApiConfig
+    from app.api.service import ApiService
+    from environment import ADMIN_KEY, SECRET
+
+    service = ApiService(env.runtime, ApiConfig(secret=SECRET, admin_key=ADMIN_KEY))
+    admin, _ = service.enter(None, str(uuid4()), ADMIN_KEY)
+    reader, viewer = service.audit_reader(admin)
+    return reader.timeline(viewer, demo_round_id, task_id)
+
+
+def _bank_verification_store(bank_path: Path, task_id: str | None) -> dict:
+    """Direct read of the bank's private verification tables for one task.
+
+    The bank publishes no enumeration for its verification challenges, records
+    and submissions: the gateway only offers per-id lookups that cannot list
+    or count them, and looking a challenge up mutates its expiry state. The
+    bank-side schema knowledge of this evaluator therefore lives only here,
+    while confirmations and audit events are read through application-layer
+    read paths.
+    """
+    challenges, records, submissions, record_counts = [], [], [], {}
+    with sqlite3.connect(bank_path) as connection:
+        for row in connection.execute(
+            "SELECT challenge_json FROM bank_verification_challenges ORDER BY rowid",
+        ):
+            challenge = json.loads(row[0])
+            if task_id is not None and challenge.get("task_id") == task_id:
+                challenges.append(challenge)
+        challenge_ids = {row["challenge_id"] for row in challenges}
+        for challenge_id, record_json in connection.execute(
+            "SELECT challenge_id, record_json FROM bank_verification_records ORDER BY rowid",
+        ):
+            record_counts[challenge_id] = record_counts.get(challenge_id, 0) + 1
+            if challenge_id in challenge_ids:
+                records.append(json.loads(record_json))
+        for submission_id, challenge_id, method, response_json in connection.execute(
+            "SELECT submission_id, challenge_id, method, response_json"
+            " FROM bank_verification_submissions ORDER BY rowid",
+        ):
+            if challenge_id not in challenge_ids:
+                continue
+            outcome = json.loads(response_json)
+            challenge = outcome.get("challenge", {})
+            submissions.append({
+                "submission_id": submission_id, "challenge_id": challenge_id, "method": method,
+                "outcome_kind": outcome.get("kind"), "reason_code": outcome.get("reason_code"),
+                "challenge_status": challenge.get("challenge_status"),
+                "code_result": challenge.get("code_result"),
+                "face_result": challenge.get("face_result"),
+                "consecutive_code_failures": challenge.get("consecutive_code_failures"),
+            })
+    return {"challenges": challenges, "records": records,
+            "record_counts": record_counts, "submissions": submissions}
+
+
 def _runtime_artifacts(env, case: dict, variant_index: int | None, repeat_index: int,
                        execution_id: str, evidence: dict | None = None) -> dict:
     """Keep independently checkable, redacted facts from the isolated runtime."""
@@ -201,59 +276,29 @@ def _runtime_artifacts(env, case: dict, variant_index: int | None, repeat_index:
     trusted = env.trusted() if task_id else None
     round_id = trusted.demo_round_id if trusted else env.current_round
 
-    with sqlite3.connect(env.runtime.application.path) as connection:
-        confirmations = []
-        if task_id:
-            confirmations = [json.loads(row[0]) for row in connection.execute(
-                "SELECT confirmation_json FROM security_confirmations WHERE task_id=? ORDER BY rowid",
-                (task_id,),
-            )]
-            event_json = [row[0] for row in connection.execute(
-                "SELECT event_json FROM audit_events WHERE demo_round_id=? AND task_id=? ORDER BY row_id",
-                (round_id, task_id),
-            )]
-        else:
-            event_json = []
-
-    with sqlite3.connect(env.bank.store.path) as connection:
-        all_challenges = [json.loads(row[0]) for row in connection.execute(
-            "SELECT challenge_json FROM bank_verification_challenges ORDER BY rowid",
-        )]
-        challenge_rows = [row for row in all_challenges if task_id and row.get("task_id") == task_id]
-        challenge_ids = {row["challenge_id"] for row in challenge_rows}
-        records = [json.loads(row[1]) for row in connection.execute(
-            "SELECT challenge_id, record_json FROM bank_verification_records ORDER BY rowid",
-        ) if row[0] in challenge_ids]
-        submissions = []
-        for row in connection.execute(
-            "SELECT submission_id, challenge_id, method, response_json FROM bank_verification_submissions ORDER BY rowid",
-        ):
-            if row[1] not in challenge_ids:
-                continue
-            outcome = json.loads(row[3])
-            challenge = outcome.get("challenge", {})
-            submissions.append({
-                "submission_id": row[0], "challenge_id": row[1], "method": row[2],
-                "outcome_kind": outcome.get("kind"), "reason_code": outcome.get("reason_code"),
-                "challenge_status": challenge.get("challenge_status"),
-                "code_result": challenge.get("code_result"),
-                "face_result": challenge.get("face_result"),
-                "consecutive_code_failures": challenge.get("consecutive_code_failures"),
-            })
-
-    audit_events, security_decisions = [], []
-    for raw in event_json:
-        event = json.loads(raw)
-        audit_events.append({key: event.get(key) for key in (
-            "event_id", "event_type", "actor_id", "target_user_id", "demo_round_id", "task_id",
-            "run_id", "trace_id", "module", "timestamp", "outcome", "evidence_ref", "evidence_status",
-        ) if key in event})
-        decision = event.get("payload", {}).get("decision", {})
-        if event.get("event_type") == "security.decided" and isinstance(decision, dict):
-            security_decisions.append({key: decision.get(key) for key in (
-                "task_id", "run_id", "action_name", "operation_id", "phase", "risk_level",
-                "decision", "rule_ids", "policy_version", "checked_at",
+    confirmations, audit_events, security_decisions = [], [], []
+    if task_id:
+        details = _admin_audit_timeline(env, round_id, task_id)
+        confirmation_ids = list(dict.fromkeys(
+            detail.payload.confirmation_id for detail in details
+            if detail.event_type == "confirmation.changed"
+        ))
+        confirmations = [_confirmation_record(env, trusted, confirmation_id)
+                         for confirmation_id in confirmation_ids]
+        for detail in details:
+            row = detail.model_dump(mode="json")
+            audit_events.append({key: row[key] for key in (
+                "event_id", "event_type", "actor_id", "target_user_id", "demo_round_id", "task_id",
+                "run_id", "trace_id", "module", "timestamp", "outcome", "evidence_ref", "evidence_status",
             )})
+            if detail.event_type == "security.decided":
+                decision = row["payload"]["decision"]
+                security_decisions.append({key: decision.get(key) for key in (
+                    "task_id", "run_id", "action_name", "operation_id", "phase", "risk_level",
+                    "decision", "rule_ids", "policy_version", "checked_at",
+                )})
+
+    bank = _bank_verification_store(env.bank.store.path, task_id)
 
     def safe(value):
         return redact(value, env.secrets, free_text=True)
@@ -269,9 +314,9 @@ def _runtime_artifacts(env, case: dict, variant_index: int | None, repeat_index:
         },
         "task": safe(task),
         "confirmations": safe(confirmations),
-        "verification_challenges": safe(challenge_rows),
-        "verification_records": safe(records),
-        "verification_submissions": safe(submissions),
+        "verification_challenges": safe(bank["challenges"]),
+        "verification_records": safe(bank["records"]),
+        "verification_submissions": safe(bank["submissions"]),
         "steps": safe(env.steps),
         "submissions": safe(env.submissions),
         "ledger": safe(env.ledger()),
@@ -289,17 +334,21 @@ def _runtime_artifacts(env, case: dict, variant_index: int | None, repeat_index:
     }
 
 
+def _git_head_revision() -> str:
+    """Single git HEAD lookup shared by every evaluator revision stamp."""
+    result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                            capture_output=True, text=True, check=False)
+    return result.stdout.strip() if result.returncode == 0 else "unavailable"
+
+
 def _artifact_metadata(case: dict, env, variant_index: int | None, repeat_index: int,
                        execution_id: str, provided_planner: bool) -> dict:
     def sha256(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
 
-    revision_result = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False,
-    )
     return {
         "execution_id": execution_id,
-        "code_revision": revision_result.stdout.strip() if revision_result.returncode == 0 else "unavailable",
+        "code_revision": _git_head_revision(),
         "evaluator_sha256": sha256(Path(__file__).resolve()),
         "dataset_sha256": {
             name: sha256(SECURITY_DIR / name)
@@ -376,11 +425,7 @@ def _expired_medium_confirmation_reuse(env, assertions: list[dict], evidence: di
     env.start()
     task_id = env.task["task_id"]
     original = env.confirmation()
-    with sqlite3.connect(env.runtime.application.path) as connection:
-        original_record = json.loads(connection.execute(
-            "SELECT confirmation_json FROM security_confirmations WHERE confirmation_id=?",
-            (original["confirmation_id"],),
-        ).fetchone()[0])
+    original_record = _confirmation_record(env, env.trusted(), original["confirmation_id"])
     operation_id = original_record["operation_id"]
     action_revision = original_record["action_revision"]
     env.approve()
@@ -400,11 +445,8 @@ def _expired_medium_confirmation_reuse(env, assertions: list[dict], evidence: di
     env.get_task()
     replacement = env.confirmation() if env.task and env.task.get("interaction", {}).get("kind") == "confirmation" else None
     replacement_task_status = env.task["status"] if env.task else None
-    with sqlite3.connect(env.runtime.application.path) as connection:
-        replacement_record = json.loads(connection.execute(
-            "SELECT confirmation_json FROM security_confirmations WHERE confirmation_id=?",
-            (replacement["confirmation_id"],),
-        ).fetchone()[0]) if replacement else None
+    replacement_record = (_confirmation_record(env, env.trusted(), replacement["confirmation_id"])
+                          if replacement else None)
     no_write_before_reconfirm = not env.submissions and env.bank_state() == env.baseline
     same_action = bool(
         replacement and env.task["task_id"] == task_id
@@ -421,14 +463,9 @@ def _expired_medium_confirmation_reuse(env, assertions: list[dict], evidence: di
         env.trusted(), UUID(operation_id), action_revision,
     )
     challenge_after = env.runtime.gateway.get_verification(env.trusted(), challenge.challenge_id)
-    with sqlite3.connect(env.bank.store.path) as connection:
-        challenges_for_task = [json.loads(row[0]) for row in connection.execute(
-            "SELECT challenge_json FROM bank_verification_challenges ORDER BY rowid",
-        ) if json.loads(row[0]).get("task_id") == task_id]
-        records_for_challenge = connection.execute(
-            "SELECT COUNT(*) FROM bank_verification_records WHERE challenge_id=?",
-            (challenge.challenge_id,),
-        ).fetchone()[0]
+    bank = _bank_verification_store(env.bank.store.path, task_id)
+    challenges_for_task = bank["challenges"]
+    records_for_challenge = bank["record_counts"].get(challenge.challenge_id, 0)
     env.success()
     _observation(assertions, "confirmation.medium_two_factors_pass_same_action",
                  passed.challenge_status == "passed" and passed.required_methods == ["code", "mock_face"]
@@ -455,8 +492,8 @@ def _expired_medium_confirmation_reuse(env, assertions: list[dict], evidence: di
                      "old_confirmation_status_after_expiry": old_after_expiry.json().get("data", {}).get("decision"),
                      "old_confirmation_version": original["confirmation_version"],
                      "new_confirmation_version": replacement.get("confirmation_version") if replacement else None,
-                     "confirmation_expiry_seconds": int((__import__("datetime").datetime.fromisoformat(original["expires_at"].replace("Z", "+00:00"))
-                                                         - __import__("datetime").datetime.fromisoformat(original["created_at"].replace("Z", "+00:00"))).total_seconds()),
+                     "confirmation_expiry_seconds": int((datetime.fromisoformat(original["expires_at"].replace("Z", "+00:00"))
+                                                         - datetime.fromisoformat(original["created_at"].replace("Z", "+00:00"))).total_seconds()),
                      "new_action_verification_ids": verification_ids_after,
                      "verification_challenges_for_task": len(challenges_for_task),
                      "verification_records_for_original_challenge": records_for_challenge,
@@ -858,11 +895,11 @@ def _verification(env, case_id: str, assertions: list[dict], evidence: dict,
         _observation(assertions, "verification.low_resend_keeps_two_failures_and_fresh_deadline",
                      resent.status_code == 200 and new_challenge_id != challenge_id
                      and new_challenge.consecutive_code_failures == 2
-                     and new_challenge.code_expires_at == new_challenge.created_at + __import__("datetime").timedelta(seconds=300))
+                     and new_challenge.code_expires_at == new_challenge.created_at + timedelta(seconds=300))
         _observation(assertions, "verification.new_code_passes_at_299",
                      correct.status_code == 200 and new_final.challenge_status == "passed"
                      and new_final.consecutive_code_failures == 2
-                     and new_code_attempt_at == new_final.code_created_at + __import__("datetime").timedelta(seconds=299)
+                     and new_code_attempt_at == new_final.code_created_at + timedelta(seconds=299)
                      and new_code_attempt_at < new_final.code_expires_at)
         _observation(assertions, "verification.low_expiry_authorizes_one_normal_write",
                      len(env.submissions) == 1 and env.submissions[0]["authorized"])
@@ -884,11 +921,8 @@ def _verification(env, case_id: str, assertions: list[dict], evidence: dict,
             response = env.face()
         env.get_task()
         current = env.runtime.gateway.get_verification(env.trusted(), challenge_id)
-        with sqlite3.connect(env.bank.store.path) as connection:
-            record_count = connection.execute(
-                "SELECT COUNT(*) FROM bank_verification_records WHERE challenge_id=?",
-                (challenge_id,),
-            ).fetchone()[0]
+        record_count = _bank_verification_store(
+            env.bank.store.path, env.task["task_id"])["record_counts"].get(challenge_id, 0)
         first_only = ((variant_index == 1 and current.code_result == "passed"
                        and current.face_result == "pending")
                       or (variant_index == 2 and current.code_result == "pending"
@@ -929,18 +963,16 @@ def _verification(env, case_id: str, assertions: list[dict], evidence: dict,
         late_face = _admin_face_result(env, challenge_id, "passed")
         env.get_task()
         after_late = env.runtime.gateway.get_verification(env.trusted(), challenge_id)
-        with sqlite3.connect(env.bank.store.path) as connection:
-            record_count = connection.execute(
-                "SELECT COUNT(*) FROM bank_verification_records WHERE challenge_id=?", (challenge_id,),
-            ).fetchone()[0]
+        record_count = _bank_verification_store(
+            env.bank.store.path, env.task["task_id"])["record_counts"].get(challenge_id, 0)
         expected_terminal = "failed" if variant_index in (1, 2) else "expired"
         timeout_timing_ok = (
             (variant_index in (1, 2) and env.clock.elapsed == 0)
             or (variant_index == 3 and env.clock.elapsed == 301
-                and terminal.code_expires_at == terminal.created_at + __import__("datetime").timedelta(seconds=300))
+                and terminal.code_expires_at == terminal.created_at + timedelta(seconds=300))
             or (variant_index == 4 and env.clock.elapsed == 301
                 and terminal.face_started_at == terminal.created_at
-                and terminal.face_expires_at == terminal.created_at + __import__("datetime").timedelta(seconds=300))
+                and terminal.face_expires_at == terminal.created_at + timedelta(seconds=300))
         )
         _observation(assertions, "verification.medium_failure_or_expiry_is_terminal",
                      terminal.challenge_status == expected_terminal
@@ -986,14 +1018,11 @@ def _verification(env, case_id: str, assertions: list[dict], evidence: dict,
         terminal = env.runtime.gateway.get_verification(env.trusted(), new_challenge_id)
         late_face = _admin_face_result(env, new_challenge_id, "passed")
         after_late = env.runtime.gateway.get_verification(env.trusted(), new_challenge_id)
-        with sqlite3.connect(env.bank.store.path) as connection:
-            record_count = connection.execute(
-                "SELECT COUNT(*) FROM bank_verification_records WHERE challenge_id=?",
-                (new_challenge_id,),
-            ).fetchone()[0]
+        record_count = _bank_verification_store(
+            env.bank.store.path, env.task["task_id"])["record_counts"].get(new_challenge_id, 0)
         _observation(assertions, "verification.face_deadline_starts_before_resend",
                      face_start.status_code == 200 and original.face_started_at == original.created_at
-                     and original.face_expires_at == original.created_at + __import__("datetime").timedelta(seconds=300))
+                     and original.face_expires_at == original.created_at + timedelta(seconds=300))
         _observation(assertions, "verification.medium_resend_keeps_original_code_and_face_deadlines",
                      resend.status_code == 200
                      and renewed.code_expires_at == original.code_expires_at
@@ -1041,7 +1070,7 @@ def _verification(env, case_id: str, assertions: list[dict], evidence: dict,
         expired = env.runtime.gateway.get_verification(env.trusted(), new_challenge_id)
         _observation(assertions, "verification.first_face_start_is_t0",
                      first_start.status_code == 200 and original.face_started_at == original.created_at
-                     and original.face_expires_at == original.created_at + __import__("datetime").timedelta(seconds=300))
+                     and original.face_expires_at == original.created_at + timedelta(seconds=300))
         _observation(assertions, "verification.repeated_request_and_new_start_do_not_extend_face",
                      replay.status_code == 200 and repeated_start.status_code == 200
                      and repeated_started_at == original.face_started_at
@@ -1084,11 +1113,8 @@ def _verification(env, case_id: str, assertions: list[dict], evidence: dict,
         resend = env.post(f"/verifications/{challenge_id}/resend-code")
         env.get_task()
         after_late = env.runtime.gateway.get_verification(env.trusted(), challenge_id)
-        with sqlite3.connect(env.bank.store.path) as connection:
-            record_count = connection.execute(
-                "SELECT COUNT(*) FROM bank_verification_records WHERE challenge_id=?",
-                (challenge_id,),
-            ).fetchone()[0]
+        record_count = _bank_verification_store(
+            env.bank.store.path, env.task["task_id"])["record_counts"].get(challenge_id, 0)
         _observation(assertions, "verification.timeout_begins_with_face_pending",
                      face_start.status_code == 200 and pending.face_result == "pending"
                      and pending.face_started_at == pending.created_at)
@@ -1160,7 +1186,7 @@ def _verification(env, case_id: str, assertions: list[dict], evidence: dict,
         face = env.face()
         face_passed_at = env.clock.elapsed
         _observation(assertions, "verification.face_started_at_250", face_started_at == 250
-                     and started.face_started_at == started.created_at + __import__("datetime").timedelta(seconds=250))
+                     and started.face_started_at == started.created_at + timedelta(seconds=250))
         final_challenge = env.runtime.gateway.get_verification(env.trusted(), challenge_id)
         _observation(assertions, "verification.face_passed_at_500", face_passed_at == 500
                      and face.status_code == 200 and final_challenge.face_result == "passed")
@@ -1344,12 +1370,23 @@ def run_instance(case: dict, directory: Path, variant_index: int | None = None,
     return _result(case, variant_index, repeat_index, assertions, missing, evidence, execution_id)
 
 
+def _output_inside_repository(output: Path) -> bool:
+    try:
+        output.resolve().relative_to(ROOT.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def run_suite(catalog: SecurityCatalog, output_dir: Path, case_ids: list[str] | None = None) -> dict:
     selected = select_cases(catalog, case_ids)
     selected_ids = {case["id"] for case in selected}
     rows = expand_plan_rows(catalog.cases, catalog.template_rows)
     by_id = {case["id"]: case for case in catalog.cases}
-    run_root = Path(output_dir) / "instances"
+    output_dir = Path(output_dir)
+    if output_dir.exists() and any(output_dir.iterdir()):
+        raise FileExistsError(f"refusing to reuse suite work directory: {output_dir}")
+    run_root = output_dir / "instances"
     for row in rows:
         if row["case_id"] not in selected_ids or row["status"] == "PENDING_SPEC":
             continue
@@ -1363,11 +1400,7 @@ def run_suite(catalog: SecurityCatalog, output_dir: Path, case_ids: list[str] | 
                     "missing_observations": result["missing_observations"],
                     "evidence": result["evidence"], "reason": "; ".join(result["missing_observations"])})
     metadata = verify_source_manifest(catalog.manifest)
-    try:
-        code_revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
-                                       capture_output=True, text=True, check=True).stdout.strip()
-    except subprocess.CalledProcessError:
-        code_revision = "unavailable"
+    code_revision = _git_head_revision()
     status_counts = {status: sum(row["status"] == status for row in rows)
                      for status in ("Passed", "Failed", "Blocked", "NotRun", "PENDING_SPEC")}
     return {
@@ -1734,18 +1767,17 @@ def run_shared_round(directory: Path, round_index: int, *,
     return bundle
 
 
-def run_shared_rounds(output_dir: Path, *, rounds: int = 3,
+def run_shared_rounds(output_dir: Path, *,
                       planner_factory: Callable[[], object] | None = None) -> dict:
     """Run each planned shared "嗯" round once; default execution is offline-only."""
-    if not 1 <= rounds <= 3:
-        raise ValueError("SHARED_CONFIRMATION_ROUNDS_OUT_OF_RANGE")
     output_dir = Path(output_dir)
     if output_dir.exists() and any(output_dir.iterdir()):
         raise FileExistsError(f"refusing to reuse shared-run directory: {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
+    shared_case = select_cases(load_security_catalog(), ["SEC-C-001"])[0]
     rows = [run_shared_round(output_dir / f"round-{index:02d}", index,
                              planner_factory=planner_factory)
-            for index in range(1, rounds + 1)]
+            for index in range(1, shared_case["repeats"] + 1)]
     counts = lambda field: {status: sum(row[field]["status"] == status for row in rows)
                             for status in ("Compatible", "NotCompatible", "Blocked", "Failed", "Passed")}
     return {
@@ -1773,6 +1805,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.output.exists():
         raise FileExistsError(f"refusing to overwrite existing report: {args.output}")
+    if _output_inside_repository(args.output):
+        raise ValueError(f"SECURITY_REPORT_INSIDE_REPOSITORY: choose a path outside {ROOT}")
     catalog = load_security_catalog()
     report = run_suite(catalog, args.output.parent / (args.output.stem + "-work"), args.case_ids)
     args.output.parent.mkdir(parents=True, exist_ok=True)
