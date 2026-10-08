@@ -274,6 +274,45 @@ def test_cli_refuses_to_overwrite_existing_report(tmp_path: Path, monkeypatch):
         security_runner.main(["--output", str(output)])
 
     assert output.read_text(encoding="utf-8") == "preserve-existing-report"
+
+
+def test_cli_refuses_report_path_inside_repository(monkeypatch):
+    import security_runner
+    from security_runner import ROOT
+
+    inside_repo = ROOT / ".mnemon" / "would-pollute-repo.json"
+
+    monkeypatch.setattr(security_runner, "run_suite",
+                        lambda *_args, **_kwargs: pytest.fail("must refuse before running"))
+    with pytest.raises(ValueError, match="INSIDE_REPOSITORY"):
+        security_runner.main(["--output", str(inside_repo)])
+    assert not inside_repo.exists()
+
+
+def test_run_suite_refuses_non_empty_work_directory(tmp_path: Path, monkeypatch):
+    import security_runner
+
+    work = tmp_path / "report-work"
+    work.mkdir()
+    (work / "stale").write_text("leftover", encoding="utf-8")
+
+    monkeypatch.setattr(security_runner, "run_instance",
+                        lambda *_args, **_kwargs: pytest.fail("must refuse before running"))
+    with pytest.raises(FileExistsError, match="work directory"):
+        security_runner.run_suite(security_runner.load_security_catalog(), work)
+
+
+def test_backend_table_schema_lives_only_in_the_shared_bank_read_helper():
+    import security_runner
+
+    source = Path(security_runner.__file__).read_text(encoding="utf-8")
+    assert "FROM audit_events" not in source
+    assert "security_confirmations" not in source
+    for table in ("bank_verification_challenges", "bank_verification_records",
+                  "bank_verification_submissions"):
+        assert source.count(table) == 1, table
+
+
 def test_recorded_runtime_violation_survives_later_adapter_exception(tmp_path: Path, monkeypatch):
     import security_runner
 
@@ -390,15 +429,11 @@ def test_shared_planner_factory_error_never_falls_back_to_offline(tmp_path: Path
 
 
 def test_live_model_plan_enumerates_confirmed_19_instances_57_rounds_and_shared_three():
-    from live_security_runner import enumerate_live_plan
+    from live_security_runner import _EXPECTED_TOTALS, enumerate_live_plan
 
     plan = enumerate_live_plan()
 
-    assert plan["totals"] == {
-        "main_cases": 11, "instances": 19, "rounds": 57, "shared_rounds": 3,
-        "attachable_instances": 8, "attachable_rounds": 24,
-        "gated_instances": 11, "gated_rounds": 33,
-    }
+    assert plan["totals"] == _EXPECTED_TOTALS
     attachable = {row["instance_id"] for row in plan["instances"] if not row["blocking_reasons"]}
     assert attachable == {"SEC-D-002/v01", "SEC-P-002/v01"} | {
         f"SEC-C-001/v{index:02d}" for index in range(1, 7)
@@ -598,3 +633,57 @@ def test_live_cli_unavailable_live_config_blocks_without_offline_fallback(tmp_pa
     assert row["status"] == "Blocked" and row["called"] is False
     assert any("未调用离线回退" in reason for reason in row["blocking_reasons"])
     assert "api_key" not in json_module.dumps(report)
+
+
+def _write_live_config(path: Path, **fields) -> Path:
+    import json
+
+    config = {
+        "api_key": "sk-eval-dummy-not-a-real-key",
+        "api_secret": "x" * 40,
+        "bank_secret": "y" * 40,
+        "admin_key": "z" * 40,
+        "model_name": "glm-4.7",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4/",
+        "data_directory": str(path / "data"),
+        "facts_version": "evalv1",
+        "read_fixture": {"fixture_id": "eval-read", "signals": ["familiar_payee"],
+                         "checked_signals": ["familiar_payee"]},
+        "transfer_fixtures": [{"fixture_id": "eval-t1", "signals": ["new_payee"],
+                               "checked_signals": ["new_payee"], "payer_account_id": "A1",
+                               "payee_id": "A2", "amount_fen": 50000}],
+    }
+    for key, value in fields.items():
+        if value is None:
+            config.pop(key, None)
+        else:
+            config[key] = value
+    path.write_text(json.dumps(config, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_live_planner_requires_explicit_model_and_endpoint_fields(tmp_path: Path):
+    from live_security_runner import live_planner
+
+    config_path = _write_live_config(tmp_path / "config.json", model_name=None, base_url=None)
+
+    with pytest.raises(ValueError, match="LIVE_MODEL_CONFIG_REQUIRES_EXPLICIT_FIELDS"):
+        live_planner(config_path)
+
+
+def test_live_model_settings_come_from_config_without_hardcoded_defaults(tmp_path: Path):
+    import live_security_runner
+    from live_security_runner import _explicit_model_settings
+
+    config_path = _write_live_config(
+        tmp_path / "config.json",
+        model_name="glm-4.7",
+        base_url="https://open.bigmodel.cn/api/coding/paas/v4",
+    )
+
+    settings = _explicit_model_settings(config_path)
+    assert settings == {"model_name": "glm-4.7",
+                        "base_url": "https://open.bigmodel.cn/api/coding/paas/v4"}
+    source = Path(live_security_runner.__file__).read_text(encoding="utf-8")
+    assert "glm-5.3" not in source
+    assert "bigmodel.cn/api" not in source
