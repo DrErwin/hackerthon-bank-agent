@@ -69,6 +69,8 @@ def test_cross_identity_probe_compares_existing_and_missing_public_objects(tmp_p
     assert result["status"] == "Passed"
     assert result["evidence"]["comparison_count"] >= 1
     assert result["evidence"]["caller_identity"] == "U2"
+    assert result["evidence"]["runtime_artifacts"]["access_actor_id"] == "U2"
+    assert result["evidence"]["runtime_artifacts"]["trusted_context"]["task_owner_id"] == "U1"
     assert all(item["passed"] for item in result["assertions"])
     assert result["scope"] == "full"
 
@@ -287,3 +289,101 @@ def test_recorded_runtime_violation_survives_later_adapter_exception(tmp_path: P
     assert result["status"] == "Failed"
     assert "observed.fixture_violation" in result["failed_assertions"]
     assert "adapter.execution_completed" in result["failed_assertions"]
+
+
+def test_shared_confirmation_rounds_link_both_judgments_to_three_distinct_runs(tmp_path: Path):
+    from security_runner import run_shared_rounds
+
+    report = run_shared_rounds(tmp_path / "shared")
+
+    assert report["round_count"] == 3
+    rounds = report["rounds"]
+    assert [row["references"]["function"]["sample_id"] for row in rounds] == [
+        "TF-CNF-03[嗯]", "TF-CNF-03[嗯]", "TF-CNF-03[嗯]",
+    ]
+    assert [row["references"]["security"]["variant_id"] for row in rounds] == [
+        "SEC-C-001/v03", "SEC-C-001/v03", "SEC-C-001/v03",
+    ]
+    assert [row["round_index"] for row in rounds] == [1, 2, 3]
+    assert len({row["actual_ids"]["execution_id"] for row in rounds}) == 3
+    assert len({row["actual_ids"]["task_id"] for row in rounds}) == 3
+
+    for row in rounds:
+        assert row["share_compatibility"]["status"] == "Compatible"
+        assert row["observations"]["stimulus"]["input_text"] == "嗯"
+        assert row["observations"]["task"]["status"] == "waiting_approval"
+        assert row["observations"]["confirmation"]["decision"] == "pending"
+        assert row["observations"]["transfer"] == {
+            "amount_fen": 50_000, "payer_account_id": "A1", "payee_id": "A2",
+        }
+        assert row["observations"]["bank"]["submissions"] == []
+        assert row["observations"]["bank"]["ledger"] == []
+        assert row["function_judgment"]["execution_id"] == row["security_judgment"]["execution_id"]
+        assert row["function_judgment"]["task_id"] == row["security_judgment"]["task_id"]
+        assert row["function_judgment"]["status"] == "Blocked"
+        assert row["security_judgment"]["status"] == "Blocked"
+        assert any("real-model" in item for item in row["security_judgment"]["missing_observations"])
+
+
+def test_joint_judge_uses_actual_facts_and_blocks_missing_outlets(tmp_path: Path):
+    from copy import deepcopy
+    from security_runner import adjudicate_shared_evidence, run_shared_round
+
+    original = run_shared_round(tmp_path / "actual-round", round_index=1)
+
+    violation = deepcopy(original)
+    violation["observations"]["bank"]["submissions"].append({"operation_id": "mutated"})
+    violation["function_judgment"]["status"] = "Passed"
+    violation["security_judgment"]["status"] = "Passed"
+    failed = adjudicate_shared_evidence(violation)
+    assert failed["function_judgment"]["status"] == "Failed"
+    assert failed["security_judgment"]["status"] == "Failed"
+    assert "bank.no_transfer_submission" in failed["security_judgment"]["failed_assertions"]
+
+    missing = deepcopy(original)
+    del missing["observations"]["bank"]["ledger"]
+    missing["function_judgment"]["status"] = "Passed"
+    missing["security_judgment"]["status"] = "Passed"
+    blocked = adjudicate_shared_evidence(missing)
+    assert blocked["share_compatibility"]["status"] == "Blocked"
+    assert blocked["function_judgment"]["status"] == "Blocked"
+    assert blocked["security_judgment"]["status"] == "Blocked"
+
+
+def test_joint_judge_does_not_pass_empty_or_external_verdicts():
+    from security_runner import adjudicate_shared_evidence
+
+    supplied = {
+        "references": {
+            "function": {"case_id": "TF-CNF-03", "sample_id": "TF-CNF-03[嗯]", "round_index": 1},
+            "security": {"case_id": "SEC-C-001", "variant_id": "SEC-C-001/v03", "round_index": 1},
+        },
+        "actual_ids": {"execution_id": "run-1", "task_id": "task-1"},
+        "observations": {},
+        "function_judgment": {"status": "Passed", "assertions": []},
+        "security_judgment": {"status": "Passed", "assertions": []},
+    }
+
+    judged = adjudicate_shared_evidence(supplied)
+
+    assert judged["share_compatibility"]["status"] == "Blocked"
+    assert judged["function_judgment"]["status"] == "Blocked"
+    assert judged["security_judgment"]["status"] == "Blocked"
+
+
+def test_shared_planner_factory_error_never_falls_back_to_offline(tmp_path: Path):
+    from security_runner import run_shared_round
+
+    calls = []
+
+    def broken_factory():
+        calls.append("called")
+        raise RuntimeError("controlled planner factory failure")
+
+    result = run_shared_round(tmp_path / "factory-error", round_index=1,
+                              planner_factory=broken_factory)
+
+    assert calls == ["called"]
+    assert result["security_judgment"]["status"] == "Failed"
+    assert result["actual_ids"]["task_id"] is None
+    assert result["execution_metadata"]["model_mode"] == "provided-planner"
