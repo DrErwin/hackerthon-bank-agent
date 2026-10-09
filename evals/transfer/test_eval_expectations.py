@@ -118,8 +118,12 @@ def test_precision_requirement_alone_is_not_a_refusal(tmp_path, message):
 
 
 def test_failed_payer_selection_keeps_business_failure_and_common_checks(tmp_path):
+    # Use an id that is genuinely invalid. Do NOT use the literal string
+    # "null" here: model.py normalizes "null" to None (real models emit the
+    # string "null" for optional fields), which correctly asks the user to
+    # pick an account instead of failing.
     result = run_case(case_for("TF-INP-03"), tmp_path, Planner(TransferProposal(
-        payee_hint="妈妈", amount_fen=50000, payer_account_id="null")))
+        payee_hint="妈妈", amount_fen=50000, payer_account_id="NO_SUCH_ACCOUNT")))
     assert result["status"] == "Failed", result.get("error_type")
     assert result["task"]["status"] == "failed"
     assert result["task"]["error"]["code"] == "ACCESS_DENIED"
