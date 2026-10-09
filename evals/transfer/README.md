@@ -167,7 +167,7 @@ python evals/transfer/run_live_eval.py --live-glm --config D:/hackerthon-bank-ag
 python -m pytest -q evals/transfer/ --live-glm --glm-config D:/hackerthon-bank-agent/.env.local-demo.json
 ```
 
-真实GLM限定GLM-5.3和智谱Coding Plan的`coding/paas/v4`入口；配置读取既有`load_config`，报告只保留模型与端点摘要，API Key不入库。连接失败逐样本Blocked，不回退固定规划。TF-INP-17明确注入供应商故障，故意不调用模型。
+真实GLM读取`--config`显式配置的模型与智谱端点（`load_config`校验glm-前缀与open.bigmodel.cn入口，代码不限定具体型号）；报告只保留模型与端点摘要，API Key不入库。连接失败逐样本Blocked，不回退固定规划。TF-INP-17明确注入供应商故障，故意不调用模型。
 
 默认离线模式固定公开proposal，随后执行真实Harness、转账流程、安全门、网关及MockBankService。按动作参数绑定受控风险事实，银行规则只由真实银行实现判定。指定故障、可控真实计时和固定银行业务日均在报告替身栏列明；不冒充真实反诈、真实短信/人脸或真实网络4秒超时证明。
 

@@ -29,8 +29,9 @@ def live_planner(config_path):
     from app.agent_platform.model import DeepAgentPlanner, ModelSettings
     from langchain_openai import ChatOpenAI
     config = load_config(config_path)
-    if config.model_name != "glm-5.3" or config.base_url.rstrip("/") != "https://open.bigmodel.cn/api/coding/paas/v4":
-        raise ValueError("EXPECTED_EXPLICIT_GLM_5_3_CODING_ENDPOINT")
+    # LocalDemoConfig already enforces the glm- model prefix and the Zhipu
+    # https chat-completion endpoints, so the explicit model/endpoint pair
+    # comes from the config file instead of being hardcoded here.
     model = ChatOpenAI(model=config.model_name, api_key=config.api_key, base_url=config.base_url,
                        temperature=0, max_retries=0, timeout=60, use_responses_api=False)
     return DeepAgentPlanner(ModelSettings(model, "openai", config.model_name, "transfer-live-glm-v1")), {
