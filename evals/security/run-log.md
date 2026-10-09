@@ -1,12 +1,12 @@
 # 安全评测运行台账
 
-原始 JSON 报告正本入库于 [reports/](reports/)（文件名自带日期/入口/范围，唯一且不可覆盖）；评测入口运行时仍先写仓库外新路径（防覆盖保护），完成后归档进 `reports/` 并在本表登记。运行命令与判定口径见 [README](README.md) 与 [用例正文](安全评测集-v0.1-2026-10-07.md)。
+原始 JSON 报告正本入库于 [evidence/](evidence/)（按日期分目录，gzip 压缩，sha256 为解压后内容；文件名自带日期/入口/范围，唯一且不可覆盖）；评测入口运行时仍先写仓库外新路径（防覆盖保护），完成后归档进 evidence/ 并在本表登记。各模块统一遵循[评测集指南](../README.md)的运行报告归档约定。运行命令与判定口径见 [README](README.md) 与 [用例正文](安全评测集-v0.1-2026-10-07.md)。
 
 | 日期 | 入口 | 范围 | 状态分布 | 断言 | 报告文件（sha256 前16位） |
 |---|---|---|---|---|---|
-| 2026-10-09 | GLM-4.7 @ Coding Plan（`/api/coding/paas/v4/`） | 全量 57 轮（24 真实执行 + 33 能力门拦截） | 0 Passed / 0 Failed / 57 Blocked | 真实轮 99/99 通过、0 失败 | [reports/2026-10-09-glm47-coding-full-57rounds.json](reports/2026-10-09-glm47-coding-full-57rounds.json)（2EA194E951632A91） |
-| 2026-10-09 | GLM-4.7 @ Coding Plan | 共享轮 SEC-C-001/v03 第 1 轮（冒烟） | 0/0/1 Blocked | 全部通过；仅剩模型解释口径与 React 证据两项已知缺口 | [reports/2026-10-09-glm47-coding-shared-v03-round1.json](reports/2026-10-09-glm47-coding-shared-v03-round1.json)（6132F5A5F4B430C5） |
-| 2026-10-09 | GLM-4.7 @ 普通API（`/api/paas/v4/`，失败） | 共享轮 SEC-C-001/v03 第 1 轮 | 规划全部 PlanningError | 429 错误码 1113：账户无普通API资源包 | [reports/2026-10-09-glm47-paas-endpoint-429-failed.json](reports/2026-10-09-glm47-paas-endpoint-429-failed.json)（4DBFD5CBF3A21B4D） |
+| 2026-10-09 | GLM-4.7 @ Coding Plan（`/api/coding/paas/v4/`） | 全量 57 轮（24 真实执行 + 33 能力门拦截） | 0 Passed / 0 Failed / 57 Blocked | 真实轮 99/99 通过、0 失败 | [evidence/2026-10-09/…full-57rounds.json.gz](evidence/2026-10-09/2026-10-09-glm47-coding-full-57rounds.json.gz)（2EA194E951632A91） |
+| 2026-10-09 | GLM-4.7 @ Coding Plan | 共享轮 SEC-C-001/v03 第 1 轮（冒烟） | 0/0/1 Blocked | 全部通过；仅剩模型解释口径与 React 证据两项已知缺口 | [evidence/2026-10-09/…shared-v03-round1.json.gz](evidence/2026-10-09/2026-10-09-glm47-coding-shared-v03-round1.json.gz)（6132F5A5F4B430C5） |
+| 2026-10-09 | GLM-4.7 @ 普通API（`/api/paas/v4/`，失败） | 共享轮 SEC-C-001/v03 第 1 轮 | 规划全部 PlanningError | 429 错误码 1113：账户无普通API资源包 | [evidence/2026-10-09/…429-failed.json.gz](evidence/2026-10-09/2026-10-09-glm47-paas-endpoint-429-failed.json.gz)（4DBFD5CBF3A21B4D） |
 
 ## 2026-10-09 全量运行备注
 
