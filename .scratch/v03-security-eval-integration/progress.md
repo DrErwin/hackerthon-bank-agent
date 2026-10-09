@@ -29,4 +29,4 @@
 
 ## 下一步
 
-三票已全部合入 main。真实模型运行（--live-glm）启用前置条件：①在具备 langchain_openai 的环境运行（本机缺失）；②提供显式 --config（model_name、base_url 等，代码无默认值）；③首次启用前建议 Ringo 复核 live 判定断言口径；④确认付费预算（全计划 53 样本 91 轮：安全 19 实例 57 轮 + 功能 35 样本 37 轮 + 共享 3 轮）。11 个缺能力实例继续调用前 Blocked，直到对应检测器/资料入口/观察端建成。共享3轮的功能侧实跑引用待功能侧37轮真实运行后回填；版本联合验收仍走原 `v03-erwin-vertical-backend/12`。
+三票已全部合入 main。2026-10-09 用户指示以 GLM-4.7 完成本期真实运行：安全侧 57 轮（24 真实执行断言 99/99 通过、33 能力门拦截）与功能侧重点 37 轮（35/35 Passed + "嗯"两追加轮，红线零违规）均已执行并按[归档约定](../../evals/README.md)入库（[security evidence](../../evals/security/evidence/2026-10-09/)、[transfer evidence](../../evals/transfer/evidence/2026-10-09/)）；共享 3 轮的功能侧引用已回填至安全运行台账。剩余启用前置条件：①React 页面证据（需 frontend/dist 构建）；②Ringo live 判定断言口径复核与专业签核；③11 个缺能力实例继续调用前 Blocked，直到对应检测器/资料入口/观察端建成。另有存量问题待查：evals/transfer 离线套件 TF-INP-03 期望非法 payer 被拒、实际 Passed（与真实运行无关，建议单独开票）。版本联合验收仍走原 `v03-erwin-vertical-backend/12`。

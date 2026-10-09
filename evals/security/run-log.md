@@ -13,4 +13,5 @@
 - 依据项目负责人当日指示以 GLM-4.7 运行；普通 API 入口因无资源包余额失败（429/1113），改经 Coding Plan 入口完成，按 [LOCAL-DEV](../../backend/app/agent_platform/LOCAL-DEV.md) 约定该入口证据标注 Coding Plan，不作为普通 API 或生产部署可用证据。
 - 24 个真实执行轮断言 99/99 通过、0 失败：确认门拦截、审计与安全决策留痕、验证码与重复请求行为均符合预期；银行侧零未确认写入。
 - 57 轮全部 Blocked 的构成：真实执行轮为模型解释口径、React 页面证据、D002 缺项澄清判定等待专项口径（诚实缺口）；33 轮为缺真实检测器（9）、资料入口（3）、攻击观察端（21），调用前拦截、零花费。
+- 共享 3 轮（SEC-C-001/v03 ↔ TF-CNF-03[嗯]）的功能侧对应实跑已于同日完成并归档：[转账侧 evidence/2026-10-09](../transfer/evidence/2026-10-09/)（`glm47-focused-full` 含"嗯"第 1 轮，`-um-round2/3` 为第 2、3 轮，均 Passed，同用 GLM-4.7 @ Coding Plan）。
 - Ringo live 判定断言口径复核与专业签核仍未发生；本表不改变用例整体 Blocked/NotRun 状态。
