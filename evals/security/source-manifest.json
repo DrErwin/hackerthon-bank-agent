@@ -63,14 +63,14 @@
     }
   ],
   "counts": {
-    "main_cases": 121,
-    "baseline_main_cases": 121,
+    "main_cases": 122,
+    "baseline_main_cases": 122,
     "pending_rule": 0,
     "pending_spec": 0,
-    "parameter_instances": 270,
-    "baseline_parameter_instances": 270,
-    "planned_result_rows": 326,
-    "baseline_planned_rows": 326
+    "parameter_instances": 274,
+    "baseline_parameter_instances": 274,
+    "planned_result_rows": 330,
+    "baseline_planned_rows": 330
   },
   "group_counts": {
     "D": 8,
@@ -81,7 +81,7 @@
     "R": 11,
     "M": 8,
     "L": 9,
-    "X": 7,
+    "X": 8,
     "N": 8,
     "T": 15,
     "P": 7
