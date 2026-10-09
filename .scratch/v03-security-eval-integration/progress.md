@@ -29,4 +29,4 @@
 
 ## 下一步
 
-三票已全部合入 main。2026-10-09 用户指示以 GLM-4.7 完成本期真实运行：安全侧 57 轮（24 真实执行断言 99/99 通过、33 能力门拦截）与功能侧重点 37 轮（35/35 Passed + "嗯"两追加轮，红线零违规）均已执行并按[归档约定](../../evals/README.md)入库（[security evidence](../../evals/security/evidence/2026-10-09/)、[transfer evidence](../../evals/transfer/evidence/2026-10-09/)）；共享 3 轮的功能侧引用已回填至安全运行台账。剩余启用前置条件：①React 页面证据（需 frontend/dist 构建）；②Ringo live 判定断言口径复核与专业签核；③11 个缺能力实例继续调用前 Blocked，直到对应检测器/资料入口/观察端建成。另有存量问题待查：evals/transfer 离线套件 TF-INP-03 期望非法 payer 被拒、实际 Passed（与真实运行无关，建议单独开票）。版本联合验收仍走原 `v03-erwin-vertical-backend/12`。
+三票已全部合入 main。2026-10-09 用户指示以 GLM-4.7 完成本期真实运行：安全侧 57 轮（24 真实执行断言 99/99 通过、33 能力门拦截）、功能侧重点 37 轮（35/35 Passed + "嗯"两追加轮，红线零违规）、以及离线全集 + React 页面证据（152/153 Passed，标准任务 21/21 达标，TF-OBS-03—07 五项浏览器场景 Passed 含截图/DOM/请求指纹）均已执行并按[归档约定](../../evals/README.md)入库（[security evidence](../../evals/security/evidence/2026-10-09/)、[transfer evidence](../../evals/transfer/evidence/2026-10-09/)）；共享 3 轮的功能侧引用已回填至安全运行台账。剩余事项：①Ringo live 判定断言口径复核与专业签核（含 TF-VFY-16 真实攻击语料提供）；②11 个缺能力实例继续调用前 Blocked，直到对应检测器/资料入口/观察端建成；③存量问题待查：evals/transfer 离线套件 TF-INP-03 期望非法 payer 被拒、实际 Passed（与真实运行无关，建议单独开票）。版本联合验收仍走原 `v03-erwin-vertical-backend/12`。

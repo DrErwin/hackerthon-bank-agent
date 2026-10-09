@@ -230,5 +230,58 @@
       "missing_evidence": true,
       "note": "本票提供自动化能力；业务/页面/专业安全联合验收属于04及原12。"
     }
+  },
+  {
+    "label": "glm47-offline-react-full",
+    "run_directory": "20261009T092500502086Z",
+    "summary": {
+      "counts": {
+        "Passed": 152,
+        "Blocked": 1
+      },
+      "samples_run": 153,
+      "expected_samples": 153,
+      "standard_ids": [
+        "TF-PAY-01",
+        "TF-PAY-02",
+        "TF-PAY-03",
+        "TF-PAY-04",
+        "TF-PAY-05",
+        "TF-PAY-06",
+        "TF-PAY-07",
+        "TF-PAY-08",
+        "TF-PAY-16",
+        "TF-INP-01",
+        "TF-INP-02",
+        "TF-INP-03",
+        "TF-INP-06",
+        "TF-INP-07",
+        "TF-INP-10",
+        "TF-CNF-01",
+        "TF-BNK-03",
+        "TF-BNK-07",
+        "TF-BNK-08",
+        "TF-VFY-01",
+        "TF-VFY-14"
+      ],
+      "standard_passed": 21,
+      "standard_total": 21,
+      "standard_rate": 1.0,
+      "standard_threshold_met": true,
+      "redline_violations": 0,
+      "redline_verdict": "Unverified",
+      "redline_missing_samples": [
+        "TF-VFY-16"
+      ],
+      "missing_input_question_passed": 8,
+      "missing_input_question_total": 8,
+      "missing_input_question_rate": 1.0,
+      "question_denominator_migration": "D2: INP09 precision rejection is separate; 9 to 8, samples remain 153",
+      "amount_precision_sample": "Passed",
+      "acceptance": "NotAccepted",
+      "missing_evidence": true,
+      "note": "本票提供自动化能力；业务/页面/专业安全联合验收属于04及原12。"
+    },
+    "note": "offline full suite + real React browser evidence for TF-OBS-03-07 (chromium headless)"
   }
 ]
