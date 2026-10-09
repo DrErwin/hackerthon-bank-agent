@@ -219,9 +219,92 @@ def _run_d002_instance(case: dict, directory: Path, repeat_index: int,
     return _result(case, None, repeat_index, assertions, missing, evidence, execution_id)
 
 
+_REACT_MISSING_MARKERS = (
+    "React confirmation display and button-state evidence was not observed.",
+    "Live-model intent understanding and React confirmation display were not "
+    "observed in the offline API run.",
+)
+
+
+def load_react_evidence(path: Path) -> dict:
+    """Load an archived React-evidence report as a reference for live runs."""
+    import gzip
+
+    decompressed = gzip.decompress(Path(path).read_bytes())
+    raw = json.loads(decompressed.decode("utf-8"))
+    if raw.get("schema_version") != "security-react-evidence-v1":
+        raise ValueError("REACT_EVIDENCE_UNSUPPORTED_SCHEMA")
+    coverage = sorted(
+        scenario["case_id"] for scenario in raw.get("scenarios", [])
+        if scenario.get("status") == "Passed"
+    )
+    if not coverage:
+        raise ValueError("REACT_EVIDENCE_HAS_NO_PASSED_SCENARIOS")
+    import hashlib
+
+    return {
+        "coverage": set(coverage),
+        "reference": {
+            "file": str(path),
+            "sha256": hashlib.sha256(decompressed).hexdigest(),
+            "date": raw.get("date"),
+            "passed_scenarios": coverage,
+        },
+    }
+
+
+def _readjudicate(judgment: dict) -> None:
+    failed = [item["name"] for item in judgment["assertions"] if not item["passed"]]
+    missing = judgment["missing_observations"]
+    judgment["failed_assertions"] = failed
+    judgment["status"] = ("Failed" if failed
+                          else "Blocked" if missing or not judgment["assertions"]
+                          else "Passed")
+    judgment["scope"] = "full" if not missing and judgment["assertions"] else "partial"
+
+
+def _apply_react_evidence(row: dict, react_evidence: dict | None,
+                          planner_factory) -> None:
+    """Close the React-display gap with the archived React evidence batch.
+
+    Only a real-model round may cite it: an offline fixed proposal cannot
+    demonstrate live intent understanding, so the marker stays in offline runs.
+    """
+    if not react_evidence or planner_factory is None or not row.get("called"):
+        return
+    if row["case_id"] not in react_evidence["coverage"]:
+        return
+    reference = react_evidence["reference"]
+
+    def treat(judgment: dict) -> bool:
+        react_items = [item for item in judgment["missing_observations"]
+                       if any(marker in item for marker in _REACT_MISSING_MARKERS)]
+        if not react_items:
+            return False
+        judgment["missing_observations"] = [
+            item for item in judgment["missing_observations"] if item not in react_items
+        ]
+        judgment["assertions"].append(
+            {"name": "react.confirmation_display_evidence_ref", "passed": True})
+        judgment.setdefault("evidence_refs", {}).setdefault("react", []).append(reference)
+        _readjudicate(judgment)
+        return True
+
+    if "result" in row:
+        if treat(row["result"]):
+            row["result"]["evidence"]["react_evidence"] = reference
+            row["status"] = row["result"]["status"]
+    else:
+        changed = treat(row["security_judgment"])
+        changed = treat(row["function_judgment"]) or changed
+        if changed:
+            row["status"] = row["security_judgment"]["status"]
+
+
 def run_live_plan(work_dir: Path, *, instances: list[str] | None = None,
                   rounds: list[int] | None = None, planner_factory=None,
-                  blocker: str | None = None, model_summary: dict | None = None) -> dict:
+                  blocker: str | None = None, model_summary: dict | None = None,
+                  react_evidence: dict | None = None) -> dict:
     """Execute the planned real-model instances; default execution is offline-only."""
     plan = enumerate_live_plan()
     selected = _select_instances(plan, instances)
@@ -274,6 +357,7 @@ def run_live_plan(work_dir: Path, *, instances: list[str] | None = None,
                                           repeat_index=round_index,
                                           planner_factory=planner_factory)
                     row.update({"called": True, "status": result["status"], "result": result})
+            _apply_react_evidence(row, react_evidence, planner_factory)
             rows.append(row)
 
     status_counts = {status: sum(row["status"] == status for row in rows)
@@ -296,6 +380,7 @@ def run_live_plan(work_dir: Path, *, instances: list[str] | None = None,
         "provider_request_count": real_calls,
         "model_config_read": config_read,
         "code_revision": _git_head_revision(),
+        "react_evidence": react_evidence["reference"] if react_evidence else None,
         "live_plan": plan,
         "selection": {"instances": list(instances or []), "rounds": selected_rounds},
         "status_counts": status_counts,
@@ -362,6 +447,10 @@ def main(argv: list[str] | None = None) -> int:
                              "never falls back to offline proposals.")
     parser.add_argument("--config", type=Path,
                         default=Path(os.environ.get("BANK_LOCAL_CONFIG", ROOT / ".env.local-demo.json")))
+    parser.add_argument("--react-evidence", type=Path,
+                        help="Archived React-evidence report (json.gz). In real-model rounds it "
+                             "closes the React confirmation-display gap by explicit reference; "
+                             "offline runs keep the gap.")
     args = parser.parse_args(argv)
 
     output = args.output
@@ -378,10 +467,14 @@ def main(argv: list[str] | None = None) -> int:
             blocker = f"真实GLM配置/依赖不可用：{type(exc).__name__}；未调用离线回退"
             model_summary = {"mode": "live-glm-blocked", "error_type": type(exc).__name__}
 
+    react_evidence = None
+    if args.react_evidence is not None:
+        react_evidence = load_react_evidence(args.react_evidence)
+
     work_dir = output.parent / (output.stem + "-work")
     report = run_live_plan(work_dir, instances=args.instances, rounds=args.rounds,
                            planner_factory=planner_factory, blocker=blocker,
-                           model_summary=model_summary)
+                           model_summary=model_summary, react_evidence=react_evidence)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("x", encoding="utf-8") as report_file:
         report_file.write(json.dumps(report, ensure_ascii=False, indent=2) + chr(10))

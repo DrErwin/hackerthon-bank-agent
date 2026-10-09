@@ -2,7 +2,7 @@
 
 负责人：Ringo\
 版本：v0.1，2026-10-07（2026-10-10扩充S07至S09并收口SEC-N-008）\
-交付状态：离线真实服务适配器和代表性自动化已接入；真实模型57轮证据与解释口径首轮复核已归档（2026-10-09/10）。全量适用性核查、React页面证据和Ringo专业安全批准仍未完成。
+交付状态：离线真实服务适配器和代表性自动化已接入；真实模型57轮证据、解释口径复核、React页面证据（C-001/P-002代表场景）与转正实跑已归档（2026-10-09/10）。全量适用性核查和Ringo专业安全批准仍未完成。
 
 各次实际运行的摘要与报告指纹见[运行台账](run-log.md)；原始JSON报告正本按日期入库于 [evidence/](evidence/)，运行时先写仓库外新路径再归档。
 
@@ -59,6 +59,8 @@ PowerShell全量适配器运行示例：
 
     $report = Join-Path $env:TEMP ("security-live-plan-" + [guid]::NewGuid().ToString("N") + ".json")
     python evals/security/live_security_runner.py --output $report
+
+React页面证据入口为 `react_evidence.py`：以构建版前端 + 真实API + Playwright 驱动代表场景（2026-10-10批次：SEC-C-001聊天不批准、SEC-P-002按钮批准→验证码→成功），截图与检查项随报告归档。live入口支持`--react-evidence <归档报告>`：仅在真实模型轮次以显式引用关闭React确认展示缺口，离线轮保持缺口。
 
 ## 当前版本与交付边界
 
