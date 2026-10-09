@@ -1,6 +1,6 @@
 # 安全评测接入实施记录
 
-更新：2026-10-09。用户授权 AI 实施，不代表 Ringo 本人领取、专业签核或 v0.3 联合验收。
+更新：2026-10-09（三票已由用户批准合入 main）。用户授权 AI 实施，不代表 Ringo 本人领取、专业签核或 v0.3 联合验收。
 
 ## 任务图与边界
 
@@ -12,9 +12,11 @@
 
 | 实施票 | 状态 | 证据 |
 |---|---|---|
-| [01 程序安全评测](issues/01-program.md) | implemented-awaiting-review | [PR #80](https://github.com/DrErwin/hackerthon-bank-agent/pull/80) ready；双轴AI审查完成（修复经 #83 入链）；待 Ringo 专业批准 |
-| [02 联合执行与证据共用](issues/02-joint.md) | implemented-awaiting-review | [PR #82](https://github.com/DrErwin/hackerthon-bank-agent/pull/82) ready；提交 4485dd3；离线基线 19/1/288/1 保持；待 Ringo 专业批准 |
-| [03 真实模型入口与报告](issues/03-live.md) | implemented-awaiting-review | [PR #83](https://github.com/DrErwin/hackerthon-bank-agent/pull/83) ready；提交 92d51dc + 审查修复；57轮默认离线 0/0/57；待 Ringo 专业批准与 live 口径复核 |
+| [01 程序安全评测](issues/01-program.md) | completed | [PR #80](https://github.com/DrErwin/hackerthon-bank-agent/pull/80) squash 合入 `3ca78be`；双轴AI审查完成 |
+| [02 联合执行与证据共用](issues/02-joint.md) | completed | [PR #82](https://github.com/DrErwin/hackerthon-bank-agent/pull/82) squash 合入 `86b2ba4`；离线基线 19/1/288/1 保持 |
+| [03 真实模型入口与报告](issues/03-live.md) | completed | [PR #83](https://github.com/DrErwin/hackerthon-bank-agent/pull/83) squash 合入 `c840c88`；57轮默认离线 0/0/57 |
+
+三票均于 2026-10-09 由用户（项目负责人）明确批准合入；Ringo 专业签核未发生，以规格"用户明确豁免"条款记录。合入后 main 上 50 项测试全绿。
 
 ## 已核对的证据
 
@@ -27,4 +29,4 @@
 
 ## 下一步
 
-等 Ringo 审查三张 PR（合并顺序 80→82→83）或用户明确豁免；代码合入 main 前不宣称完成。--live-glm 首次启用前由 Ringo 复核 live 判定断言口径，完整 planner 构建需在具备 langchain_openai 的环境验证；共享3轮的功能侧实跑引用待功能侧37轮真实运行后回填。原 `v03-erwin-vertical-backend/12` 仍为版本联合验收入口。
+三票已全部合入 main。真实模型运行（--live-glm）启用前置条件：①在具备 langchain_openai 的环境运行（本机缺失）；②提供显式 --config（model_name、base_url 等，代码无默认值）；③首次启用前建议 Ringo 复核 live 判定断言口径；④确认付费预算（全计划 53 样本 91 轮：安全 19 实例 57 轮 + 功能 35 样本 37 轮 + 共享 3 轮）。11 个缺能力实例继续调用前 Blocked，直到对应检测器/资料入口/观察端建成。共享3轮的功能侧实跑引用待功能侧37轮真实运行后回填；版本联合验收仍走原 `v03-erwin-vertical-backend/12`。

@@ -6,7 +6,7 @@ Spec: [安全评测接入规格](../spec.md)
 Type: 开发
 Owner: 用户授权AI接入；Ringo专业审查待记录
 Directory: evals/security/
-Status: implemented-awaiting-review
+Status: completed（用户批准合入 2026-10-09；Ringo 专业签核未发生，以用户明确豁免为准）
 Blocked by: None
 Core scenarios: SI01—SI05
 Verification: 本票自动断言、故障及缺口反例、相关离线流程；联合验收仍归原票12。
@@ -19,12 +19,14 @@ Accepted at: 2026-10-07
 
 ## Acceptance criteria
 
-- [ ] 复用隔离环境跑通代表越权、确认、验证码、重复请求、审计及秘密入口；逐项标明完整与局部观察，全部未接入变体可追踪。
-- [ ] 不修改原JSONL、历史模板或后端业务规则；本票代码只落evals/security/。
-- [ ] 保存真实执行与离线替代边界；未调用付费真实模型，Ringo审查单列。
-- [ ] 本票专项及受影响核心路径验证、有独立分支/PR和双轴AI审查证据。
+- [x] 复用隔离环境跑通代表越权、确认、验证码、重复请求、审计及秘密入口；逐项标明完整与局部观察，全部未接入变体可追踪。
+- [x] 不修改原JSONL、历史模板或后端业务规则；本票代码只落evals/security/。
+- [x] 保存真实执行与离线替代边界；未调用付费真实模型，Ringo审查单列。
+- [x] 本票专项及受影响核心路径验证、有独立分支/PR和双轴AI审查证据。
 
 ## Comments
+
+2026-10-09 用户（项目负责人）明确批准本批 PR，squash 合入 main（#80 → `3ca78be`）。合入前 main 侧测试 50/0 全绿。Ringo 专业签核未发生，依据规格"Ringo 批准或用户明确豁免"条款以用户豁免记录。本票关闭。
 
 2026-10-09 集成分支双轴AI审查（Standards/Spec 并行子代理）完成：发现本票代码的SQL契约复制（audit_events/security_confirmations 直读）、入口仓库外路径校验缺失等，已在修复提交 a5ba300/aacee87 解决并经 PR 链末端 #83 进入合并路径；终态50项测试全绿、309行离线基线不变。PR #80 已标记 ready，待 Ringo 专业批准。
 
