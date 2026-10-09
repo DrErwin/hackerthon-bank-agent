@@ -63,24 +63,24 @@
     }
   ],
   "counts": {
-    "main_cases": 118,
-    "baseline_main_cases": 117,
+    "main_cases": 121,
+    "baseline_main_cases": 121,
     "pending_rule": 0,
-    "pending_spec": 1,
-    "parameter_instances": 253,
-    "baseline_parameter_instances": 252,
-    "planned_result_rows": 309,
-    "baseline_planned_rows": 308
+    "pending_spec": 0,
+    "parameter_instances": 270,
+    "baseline_parameter_instances": 270,
+    "planned_result_rows": 326,
+    "baseline_planned_rows": 326
   },
   "group_counts": {
     "D": 8,
     "A": 9,
     "C": 14,
-    "V": 16,
-    "E": 7,
+    "V": 17,
+    "E": 8,
     "R": 11,
     "M": 8,
-    "L": 8,
+    "L": 9,
     "X": 7,
     "N": 8,
     "T": 15,
@@ -118,8 +118,8 @@
   "notes": [
     "固定风险夹具仅检验流程约束，实际话术检测另行取证",
     "全部用例尚未绑定测试代码，结果模板只含NOT_RUN或PENDING_SPEC",
-    "精确到期边界待核对，F37/F38与01风险分级已有冻结依据",
-    "当前为首批代表性设计，S07限定释放、S08会话授权快照与S09验证摘要需独立扩充用例",
+    "精确到期边界已收口（2026-10-10）：有效当且仅当now<expires_at，恰在expires_at即过期，作答与过期并发先判过期后落作答；F37/F38与01风险分级已有冻结依据",
+    "S07限定释放、S08会话授权快照与S09验证摘要已于2026-10-10补充独立用例（SEC-E-008、SEC-L-009、SEC-V-017），自动化接入仍待实现",
     "v0.3优先普通转账公共安全；账单、联动及预约按对应版本排期接入",
     "公开攻击集改编尚未开展，攻击刺激为项目规则派生的合成样本"
   ],

@@ -47,7 +47,7 @@
         7201
       ]
     },
-    "exact_expiry_boundary": "PENDING_SPEC"
+    "exact_expiry_boundary": "已收口（2026-10-10与实现核对）：有效当且仅当服务端受控时钟now<expires_at，恰在expires_at时刻即过期；确认3600/验证码300/人脸300/会话7200四类窗口统一；作答与过期并发在同一事务内先判过期后落作答"
   },
   "secrets": {
     "current_code": "{{secret.current_code}}由专用受控模拟接口取得；测试结果禁止保存原文",

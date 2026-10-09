@@ -8,10 +8,10 @@ from security_runner import adjudicate, expand_plan_rows, load_security_catalog,
 def test_security_catalog_keeps_published_denominators():
     catalog = load_security_catalog()
 
-    assert len(catalog.cases) == 118
-    assert catalog.parameter_instances == 253
-    assert catalog.planned_rows == 309
-    assert catalog.manifest["counts"]["main_cases"] == 118
+    assert len(catalog.cases) == 121
+    assert catalog.parameter_instances == 270
+    assert catalog.planned_rows == 326
+    assert catalog.manifest["counts"]["main_cases"] == 121
 
 
 def test_expanded_rows_preserve_template_variant_ids_and_repeats():
