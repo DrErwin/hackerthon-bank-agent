@@ -6,8 +6,8 @@ Spec: [安全评测接入规格](../spec.md)
 Type: 开发
 Owner: 用户授权AI接入；Ringo专业审查待记录
 Directory: evals/security/
-Status: ready-for-agent
-Blocked by: [v03-security-eval-integration/02：联合执行与证据共用](./02-joint.md) 的代码交付；实际用例还须具备对应检测、资源和观察能力
+Status: implemented-awaiting-review
+Blocked by: None（02代码已交付并汇入PR链）；实际用例仍须具备对应检测、资源和观察能力
 Core scenarios: SI07
 Verification: 本票自动断言、故障及缺口反例、相关离线流程；联合验收仍归原票12。
 Accepted by: 用户授权AI
@@ -25,5 +25,7 @@ Accepted at: 2026-10-07
 - [ ] 本票专项及受影响核心路径验证、有独立分支/PR和双轴AI审查证据。
 
 ## Comments
+
+2026-10-09 真实模型入口已交付 [PR #83](https://github.com/DrErwin/hackerthon-bank-agent/pull/83)，代码提交 92d51dc + 审查修复 a5ba300/aacee87，base 指向 02 分支。45项专项测试（终态50）。枚举19实例57轮+共享3轮：可接入8实例24轮默认离线真实执行（D002业务链直连、C001六变体含v03共享缝、P002独立夹具），缺检测器/资料入口/观察端的11实例33轮调用前Blocked。入口默认离线（real_model_calls=0、model_config_read=False、零供应商请求）；--instance/--round 独立采样；报告强制仓库外新路径、拒覆盖；秘密不落盘。审查修复后供应商/型号/端点一律来自 --config 显式配置，代码无硬编码。遗留：--live-glm 首次启用前建议 Ringo 复核 live 判定断言口径；本机无 langchain_openai，完整 planner 构建需在有依赖环境验证；共享3轮功能侧实跑引用待功能侧37轮真实运行后回填。待 Ringo 专业批准。
 
 2026-10-07本轮只交付规格与票据。用户明确要求“只执行到拆票，实施先不做”；本票未领取实施，未写代码、未运行评测。实施须等待用户后续明确启动及前置票交付。缺能力的真实样本须在调用前Blocked，本轮不调用付费模型。
