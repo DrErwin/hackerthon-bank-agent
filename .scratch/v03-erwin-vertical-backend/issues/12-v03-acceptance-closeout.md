@@ -1,7 +1,7 @@
 # 12：执行 v0.3 联合验收并收口版本
 
 Type: task\
-Status: blocked\
+Status: resolved\
 Owner: Erwin\
 Directory: `docs/versions/v0.3.0/`\
 Blocked by: AF01—AF14完整联合验收、T01—T18覆盖说明及专业安全/转账评测证据\
@@ -50,3 +50,7 @@ Unlocks: v0.4 启动判断
 执行[联合验收证据表](../../../docs/versions/v0.3.0/acceptance-evidence-2026-10-10.md)：AF01—AF14 中 13 项证据齐全通过，AF11 主体通过、TF-VFY-16 真实攻击材料待 Ringo；T01—T18 本期适用项（T01—T07、T12—T17）覆盖说明完成，T08—T11、T18 为预约/AA 明确排除；红线 0 违规、标准任务 21/21、缺项 8/8。问题回归：#79 记为差异遗留、#84/#85 为底座已知缺口（暂缓/增强）、#86 为 Ringo 收口前置（安全/转账专业结论+全量核查，含 TF-VFY-16 材料）。
 
 证据齐全后本票仍保持 blocked：专业安全/转账审查结论依赖 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)，完成后汇总 `completion.md` 作 v0.3 收口决定；未通过项如实保留，不进入 v0.4。
+
+## 2026-10-11 v0.3 收口（含明示例外）
+
+项目负责人决定收口：AF01—AF14 与 T01—T18 证据已齐（13 项通过、AF11 主体通过）；[安全评测全量适用性核查](../../../evals/security/coverage-audit-2026-10-11.md)由项目负责人代行完成（全量离线 20 Passed / 0 Failed / 310 Blocked；R06 差 2 条、8 个维度组低于 10 条，按代表性评测集记录）。Ringo 本人专业签核**未发生**，本次核查与验收决定记录为项目负责人代行、不冒名；`TF-VFY-16` 真实攻击材料与真实风险检测器保留 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 待补验加回。例外与后续项见 `completion.md`"收口例外与后续项"。本票转 resolved；v0.4 启动由项目负责人按例外清单判断。

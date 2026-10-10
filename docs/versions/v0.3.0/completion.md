@@ -1,7 +1,18 @@
 # v0.3.0 完成情况：普通转账纵向链路
 
-> 状态：进行中\
-> 最后更新：2026-10-10
+> 状态：已收口（含明示例外，2026-10-11）\
+> 最后更新：2026-10-11
+
+## 收口决定（2026-10-11）
+
+项目负责人（Erwin）决定：**v0.3 收口，并明示下列例外**——这不是"全部验收项通过"。依据本页证据、[联合验收证据表](acceptance-evidence-2026-10-10.md)与[安全评测全量适用性核查](../../../evals/security/coverage-audit-2026-10-11.md)。
+
+- **AF01—AF14**：13 项证据齐全通过；AF11 主体通过，`TF-VFY-16` 的公开来源与原创改编材料已由 Ringo 侧提供（[attack-source-materials-2026-10-10](../../../evals/security/attack-source-materials-2026-10-10.md)），**待接入复跑**，原 Blocked 与红线 Unverified 保持并记为已知缺口，不写成通过。
+- **T01—T18**：本期适用项（T01—T07、T12—T17）覆盖说明完成；T08—T11、T18 为预约/AA，本轮明确排除。
+- **全量适用性核查（项目负责人代行）**：R01—R05、R07—R09 与四类异常类型达标；**R06 差 2 条**、8 个维度组低于 10 条，按"代表性评测集"记录缺口；全量离线 **20 Passed / 0 Failed / 310 Blocked**。
+- **专业审查处置**：Ringo 本人最终签核**仍待确认**；Ringo 侧已完成全部 122 主编号适用性复核与限定范围专业意见（[applicability-review](../../../evals/security/applicability-review-2026-10-10.md)、[issue-86-professional-review](../../../evals/security/issue-86-professional-review-2026-10-10.md)，Codex 按 Ringo 授权执行，非本人签署）。本次 v0.3 收口决定由项目负责人作出，记录为代行、不冒名。`TF-VFY-16` 材料接入复跑、Ringo 本人签署与真实风险检测器保留在 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)，完成后补验加回。
+- **验收边界**：真实威胁检测移出本次验收（2026-10-10 决定）；规划入口上下文问题归底座后续（[Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)）。
+- **下一步**：v0.4 启动由项目负责人按本页例外清单判断；完整前端按原计划在 v0.3 收口后接入替换。
 
 ## 本轮最新状态（2026-10-10）
 
@@ -21,13 +32,14 @@
 - 本机GLM运行组合、完整确认展示、恢复终态提示及前端修复已由PR #43/#44/#45/#42合入；真实GLM 5.3/Coding Plan与React/API联调通过，原票10六项验收满足，Issue24已关闭。
 - 本轮代码主线eabc682的CI通过：后端269项、MockBank14项；前端10项及build、主线启动专项10项通过。详细证据见下方2026-10-02收口。
 
-## 仍待完成
+## 收口例外与后续项（2026-10-11）
 
-- ~~梁爽、六水的普通转账关键流程原型图~~ → **已交付（2026-10-06）**：前端设计规范、用户体验规范与[转账-交互原型 v0.1](../../../frontend/转账-交互原型-v0.1.html) 已入库（提交 `31de4c9`、[PR #77](https://github.com/DrErwin/hackerthon-bank-agent/pull/77)）；**未覆盖**收款人候选、等待态、模拟人脸、刷新恢复与修改画面，按交付包 02 的原型验收口径待补齐并走查。Erwin 简易前端已交付，不代填负责人完成记录。
-- Ringo本人专业安全签核与全量适用性核查（安全评测前置已完成并归档，交接见 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)）；核定R06是否扩充至10条下限。
-- 转账业务评测的专业审查结论（套件已交付：离线与真实GLM各153样本152 Passed/1专业材料Blocked，标准21/21、缺项8/8；按用户2026-10-10指示，专业结论与TF-VFY-16材料并入 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 由Ringo完成）。
-- 原票12：AF01—AF14完整联合验收、T01—T18覆盖说明、问题回归和v0.3收口决定。
-- 已知缺口（不阻塞本次签核，结论需引用）：规划入口上下文问题（底座，暂缓+已记录方案方向）；真实威胁检测（按用户决定移出v0.3验收，Ringo交付后补验加回）。
+- 原型图：梁爽、六水的普通转账关键流程原型图已交付（2026-10-06，提交 `31de4c9`、[PR #77](https://github.com/DrErwin/hackerthon-bank-agent/pull/77)）；**未覆盖面**（收款人候选、等待态、模拟人脸、刷新恢复与修改画面）按交付包 02 口径列为后续补齐项。
+- ~~Ringo 本人专业安全签核与全量适用性核查~~ → **全量适用性核查完成**（项目负责人代行核查报告 + Ringo 侧 2026-10-10 适用性复核）；Ringo **本人最终签核**仍待确认，保留在 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)。
+- ~~原票 12 联合验收与收口决定~~ → **已执行**（[联合验收证据表](acceptance-evidence-2026-10-10.md)）；AF11 的 `TF-VFY-16` 材料接入复跑与预约/AA 排除项作为例外保留。
+- 后续补验：`TF-VFY-16` 材料接入复跑（材料已由 Ringo 侧提供）、Ringo 本人签署、真实风险检测器（含 SEC-T-003~005 等 33 轮 gated）——Issue #86，完成后再更新对应状态。
+- 底座后续：规划入口上下文（[Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)，用户决定暂缓）、确认/验证历史只读回放（[Issue #85](https://github.com/DrErwin/hackerthon-bank-agent/issues/85)）。
+- 数量下限差额：R06 差 2 条、8 个维度组低于 10 条，记入 v0.4 及以后扩充计划，不写成当前达标。
 
 ## 补票 01—04 初验与修复（2026-10-01）
 

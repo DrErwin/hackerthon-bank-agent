@@ -12,6 +12,7 @@
 | 2026-10-10 | GLM-4.7 @ Coding Plan 转正实跑（挂 React 证据引用） | 24 轮：D-002×3、C-001 六变体×3、P-002×3 | 3 Passed / 0 Failed / 21 Blocked | 全部断言通过、零失败；P-002×3 经 React 引用（a25580c4d9d9d34d）在报告内转正 | [evidence/2026-10-10/…coding-confirm-24rounds.json.gz](evidence/2026-10-10/2026-10-10-glm47-coding-confirm-24rounds.json.gz)（8CC45A33CAD031AD） |
 | 2026-10-10 | §4.4 解释复核（对上述转正实跑） | 24 轮模型回复逐轮判定 | 7 符合 / 11 不符合 / 3 规划失败；另有报告内3 Passed，共24轮 | 2 轮回复否认存在待确认业务（事实矛盾）；9 轮上下文盲；3 轮 PlanningError 后端兜底成立 | [evidence/2026-10-10/…confirm-explanation-review-24rounds.json.gz](evidence/2026-10-10/2026-10-10-glm47-confirm-explanation-review-24rounds.json.gz)（9F0246151F065AED） |
 | 2026-10-10 | 离线适配器单例（SEC-V-002，Issue #79 修复后验证） | SEC-V-002/v01 | 1 Passed / 0 Failed | 断言全过：同号异内容409 REQUEST_CONFLICT、原计数不变、新编号加至2、去重不含原文、银行零写 | [evidence/2026-10-10/…offline-sec-v002-conflict-fix.json.gz](evidence/2026-10-10/2026-10-10-offline-sec-v002-conflict-fix.json.gz)（578B25719CE08EC4） |
+| 2026-10-11 | 离线适配器全量（全量适用性核查基线） | 全部 330 行（122 用例 / 274 实例） | 20 Passed / 0 Failed / 310 Blocked / 0 NotRun / 0 PENDING_SPEC | 13 个用例通过；310 Blocked 中 269 行无适配器、41 行缺观察端或真实模型证据；来源七份摘要通过 | [evidence/2026-10-11/…offline-full-330rows-audit.json.gz](evidence/2026-10-11/2026-10-11-offline-full-330rows-audit.json.gz)（FCBE92173C4A8CF3） |
 
 ## 2026-10-09 全量运行备注
 

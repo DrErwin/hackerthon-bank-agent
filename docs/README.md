@@ -4,11 +4,11 @@
 
 ## 当前进度
 
-- 最新完成里程碑：**v0.2.0 · 公共契约与架构基线**
-- 当前里程碑：**v0.3.0 · 普通转账纵向链路**（进行中）
-- 下一计划里程碑：**v0.4.0 · 账单、联动与完整安全扩展**
+- 最新完成里程碑：**v0.3.0 · 普通转账纵向链路**（2026-10-11 收口，含明示例外）
+- 当前里程碑：**v0.4.0 · 账单、联动与完整安全扩展**（启动由项目负责人按例外清单判断）
+- 上一里程碑：**v0.2.0 · 公共契约与架构基线**
 
-截至2026-10-10，本机运行组合、真实GLM 5.3/4.7 Coding Plan与React简易前端联调已交付；转账评测套件（153样本152 Passed/1专业Blocked）与安全评测证据链（离线全集、真实GLM 24轮转正、React页面证据、解释口径复核、S07—S09与导出失败分支用例补齐、SEC-N-008收口）已入库。按用户决定，真实威胁检测移出v0.3验收范围（Ringo交付后补验加回），规划入口上下文问题归底座暂缓；给Ringo的交接已开 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)。剩余：Ringo专业签核与全量适用性核查、转账评测专业结论、原票12联合验收（AF01—AF14/T01—T18），v0.3保持进行中。前端规范与普通转账原型 v0.1 已于2026-10-06入库（[前端-设计规范](../frontend/前端-设计规范-v0.1.md) · [前端-用户体验规范](../frontend/前端-用户体验规范-v0.1.md) · [转账-交互原型-v0.1.html](../frontend/转账-交互原型-v0.1.html)）；收款人候选、等待态、模拟人脸、刷新恢复与修改画面待补齐走查。完整前端在v0.3收口后接入替换，尚未开始。具体证据和遗留见[v0.3完成情况](versions/v0.3.0/completion.md)。
+截至2026-10-11，v0.3 已收口（含明示例外）：转账评测（153样本152 Passed/1专业Blocked）与安全评测证据链（全量离线20 Passed/0 Failed/310 Blocked、真实GLM 57轮与转正24轮、React页面证据、解释口径复核、S07—S09与导出失败分支补齐、SEC-N-008收口、Issue #79修复）均已入库；[AF01—AF14与T01—T18联合验收证据表](versions/v0.3.0/acceptance-evidence-2026-10-10.md)、[安全评测全量适用性核查](../evals/security/coverage-audit-2026-10-11.md)与 Ringo 侧[适用性复核/专业意见/攻击来源材料](../evals/security/applicability-review-2026-10-10.md)已出具。**例外**：Ringo 本人最终签核仍待确认（适用性复核与专业意见已由 Ringo 侧按授权完成，非本人签署）；`TF-VFY-16` 材料已提供待接入复跑；R06 差 2 条、8 个维度组低于 10 条；规划入口上下文与确认/验证历史回放为底座后续；真实威胁检测移出本次验收。上述待补项保留在 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 等，完成后补验加回。前端规范与普通转账原型 v0.1 已于2026-10-06入库；完整前端在v0.3收口后接入替换，尚未开始。具体证据、例外与遗留见[v0.3完成情况](versions/v0.3.0/completion.md)。
 
 这里的版本号是需求里程碑号，不等同于软件包或对外发布版本。PRD、架构和契约仍使用日期文件名，并作为跨版本事实来源。
 
@@ -18,7 +18,7 @@
 |---|---|---|---|---|---|
 | v0.1.0 | PRD 与业务范围基线 | 已完成 | [需求](versions/v0.1.0/requirements.md) | [完成情况](versions/v0.1.0/completion.md) | — |
 | v0.2.0 | 公共契约与架构基线 | 已完成 | [需求](versions/v0.2.0/requirements.md) | [完成情况](versions/v0.2.0/completion.md) | — |
-| v0.3.0 | 普通转账纵向链路（目标 10-12 收口） | 进行中 | [需求](versions/v0.3.0/requirements.md) | [完成情况](versions/v0.3.0/completion.md) | [实施计划](versions/v0.3.0/implementation-plan.md) |
+| v0.3.0 | 普通转账纵向链路（目标 10-12 收口） | 已收口（含明示例外） | [需求](versions/v0.3.0/requirements.md) | [完成情况](versions/v0.3.0/completion.md) | [实施计划](versions/v0.3.0/implementation-plan.md) |
 | v0.4.0 | 账单、联动与完整安全扩展（目标 10-20） | 计划中 | [需求](versions/v0.4.0/requirements.md) | [完成情况](versions/v0.4.0/completion.md) | — |
 | v0.5.0 | 系统验收与体验打磨（目标 10-30） | 计划中 | [需求](versions/v0.5.0/requirements.md) | [完成情况](versions/v0.5.0/completion.md) | — |
 | v1.0.0 | 比赛交付（截止 11-02） | 计划中 | [需求](versions/v1.0.0/requirements.md) | [完成情况](versions/v1.0.0/completion.md) | — |
