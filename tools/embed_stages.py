@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -150,6 +151,20 @@ def create_embedded_table(doc_id):
             "app_token": app_token, "table_id": table_id}
 
 
+def set_view_group(app_token, table_id, view_id, field):
+    payload = json.dumps({"group_config": [{"field": field, "desc": False}]}, ensure_ascii=False)
+    for attempt in range(3):
+        try:
+            cli(["base", "+view-set-group", "--base-token", app_token, "--table-id", table_id,
+                 "--view-id", view_id, "--as", "user", "--json", payload])
+            return
+        except RuntimeError as exc:
+            if attempt == 2:
+                print(f"警告：视图「{view_id}」按 {field} 分组失败（不影响任务数据）：{exc}")
+            else:
+                time.sleep(5)
+
+
 def setup_schema(app_token, table_id):
     fields = f.list_fields(app_token, table_id)
     primary = next((field for field in fields if field.get("is_primary")), fields[0])
@@ -179,18 +194,10 @@ def setup_schema(app_token, table_id):
     cli(["base", "+view-set-timebar", "--base-token", app_token, "--table-id", table_id,
          "--view-id", "进度甘特图", "--as", "user",
          "--json", '{"start_time":"开始日期","end_time":"截止日期","title":"任务名称"}'])
-    cli(["base", "+view-set-group", "--base-token", app_token, "--table-id", table_id,
-         "--view-id", "进度甘特图", "--as", "user",
-         "--json", '{"group_config":[{"field":"工作线","desc":false}]}'])
-    cli(["base", "+view-set-group", "--base-token", app_token, "--table-id", table_id,
-         "--view-id", "状态看板", "--as", "user",
-         "--json", '{"group_config":[{"field":"状态","desc":false}]}'])
-    cli(["base", "+view-set-group", "--base-token", app_token, "--table-id", table_id,
-         "--view-id", "按工作线", "--as", "user",
-         "--json", '{"group_config":[{"field":"工作线","desc":false}]}'])
-    cli(["base", "+view-set-group", "--base-token", app_token, "--table-id", table_id,
-         "--view-id", "按负责人", "--as", "user",
-         "--json", '{"group_config":[{"field":"负责人","desc":false}]}'])
+    set_view_group(app_token, table_id, "进度甘特图", "工作线")
+    set_view_group(app_token, table_id, "状态看板", "状态")
+    set_view_group(app_token, table_id, "按工作线", "工作线")
+    set_view_group(app_token, table_id, "按负责人", "负责人")
 
 
 def write_records_once(state):
@@ -229,6 +236,7 @@ def main():
         print("复用现有甘特图")
     else:
         state = create_embedded_table(doc_id)
+        save_json(GANTT_STATE, state)  # 先落盘：后续步骤失败时重跑可复用，不再重复建表
         setup_schema(state["app_token"], state["table_id"])
         state["schema_version"] = 2
         save_json(GANTT_STATE, state)
