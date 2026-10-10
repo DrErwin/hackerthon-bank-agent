@@ -87,6 +87,29 @@ def test_basic_code_scope_retries_and_persistent_record(tmp_path):
     assert reopened.verification.get_record(user, passed.verification_id).source_challenge_id == challenge.challenge_id
 
 
+def test_same_submission_id_with_different_code_raises_submission_conflict(tmp_path):
+    bank, gateway, clock = ready(tmp_path)
+    try:
+        user = context()
+        challenge = gateway.create_verification(user, "basic_identity")
+        code = gateway.get_demo_code_for_api(user, challenge.challenge_id)
+        wrong1 = "111111" if code != "111111" else "222222"
+        wrong2 = "333333" if code != "333333" else "444444"
+        submission = uuid4()
+        gateway.verify_code(user, challenge.challenge_id, submission, wrong1)
+        # 同 submission_id 换不同内容：明确的提交冲突码，而不是通用的范围错误
+        with pytest.raises(ValueError, match="VERIFICATION_SUBMISSION_CONFLICT"):
+            gateway.verify_code(user, challenge.challenge_id, submission, wrong2)
+        # 原提交结果不变，重放仍命中原结果
+        assert gateway.verify_code(user, challenge.challenge_id, submission, wrong1).reason_code == "CODE_MISMATCH"
+        # 新编号的真实错误正常计数
+        assert gateway.verify_code(
+            user, challenge.challenge_id, uuid4(), wrong2,
+        ).challenge.consecutive_code_failures == 2
+    finally:
+        gateway.close()
+
+
 def test_expired_basic_code_can_be_resent_without_losing_failures(tmp_path):
     bank, gateway, clock = ready(tmp_path)
     try:

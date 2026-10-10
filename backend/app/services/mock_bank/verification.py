@@ -206,7 +206,7 @@ class MockBankVerification:
                 if (previous["challenge_id"], previous["method"], previous["input_digest"]) != (
                     challenge_id, "resend", digest,
                 ):
-                    raise ValueError("VERIFICATION_SCOPE_MISMATCH")
+                    raise ValueError("VERIFICATION_SUBMISSION_CONFLICT")
                 return VerificationChallenge.model_validate_json(previous["response_json"])
             old = self._expire(connection, old)
             basic_expired = (
@@ -251,7 +251,7 @@ class MockBankVerification:
         if (row["challenge_id"], row["method"], row["input_digest"]) != (
             challenge_id, method, input_digest,
         ):
-            raise ValueError("VERIFICATION_SCOPE_MISMATCH")
+            raise ValueError("VERIFICATION_SUBMISSION_CONFLICT")
         return VerificationOutcome.model_validate_json(row["response_json"])
 
     @staticmethod
