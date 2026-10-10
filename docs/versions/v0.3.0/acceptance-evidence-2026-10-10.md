@@ -1,6 +1,6 @@
 # v0.3 联合验收证据：AF01—AF14 与 T01—T18（2026-10-10）
 
-> 对应原票 [v03-erwin-vertical-backend/12：执行 v0.3 联合验收并收口版本](../../.scratch/v03-erwin-vertical-backend/issues/12-v03-acceptance-closeout.md)。
+> 对应原票 [v03-erwin-vertical-backend/12：执行 v0.3 联合验收并收口版本](../../../.scratch/v03-erwin-vertical-backend/issues/12-v03-acceptance-closeout.md)。
 > 本表汇总转账、安全、页面（React）与真实 GLM 四类证据；专业安全/转账审查结论由 Ringo 在 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 补齐后，再作 v0.3 收口决定。
 
 证据来源（均已入库 git，正本路径见各模块台账）：
@@ -18,7 +18,7 @@
 | AF03 | 两名同名收款人 → 展示候选等待选择 | TF-PAY-07—10、TF-OBS-07（Passed，OBS-07 含React选择） | 真实GLM TF-PAY-07/09/10 Passed | ✅ |
 | AF04 | 确认后 500→600 → 旧确认失效、重新预检查出新版本 | TF-CNF-07—12（Passed，改金额/对象/账户/时间各分支） | 安全SEC-C-004/005/006（受控修改后旧确认失效，离线断言通过，`trusted-provide-fields`缝；自然语言链随#84修复后补） | ✅（同任务参数版本修改路径；10-02旧记录的“取消另建不能替代”已由TF-CNF-07—12覆盖） |
 | AF05 | 取消或确认过期 → 未提交明确结束 | TF-CNF-06/13—16/18/19、TF-VFY-13（Passed） | 安全SEC-C-013（仅确认过期保留有效验证，409+重发）、SEC-C-014 | ✅ |
-| AF06 | 确认前刷新/后端重启 → 恢复同一任务 | TF-RCV-01—04、TF-OBS-03/04（Passed，React真实浏览器刷新/重启恢复） | 既有 10-02 联调（[acceptance-2026-10-02](../../.scratch/v03-local-demo/acceptance-2026-10-02.md)）同库后端重建恢复一致；#85（确认/验证历史只读回放）列为增强遗留，不阻塞本项 | ✅ |
+| AF06 | 确认前刷新/后端重启 → 恢复同一任务 | TF-RCV-01—04、TF-OBS-03/04（Passed，React真实浏览器刷新/重启恢复） | 既有 10-02 联调（[acceptance-2026-10-02](../../../.scratch/v03-local-demo/acceptance-2026-10-02.md)）同库后端重建恢复一致；#85（确认/验证历史只读回放）列为增强遗留，不阻塞本项 | ✅ |
 | AF07 | 提交附近服务中断 → 按原operation_id核对 | TF-RCV-05—08/22/23、TF-OBS-16（Passed） | 安全SEC-R-002/003/004（回查不重提、10秒窗口、提交后过期只回查） | ✅ |
 | AF08 | 重复点击“确认办理” → 最多一次资金动作 | TF-CNF-20、TF-OBS-01/02（Passed，重复请求/同号去重） | 安全SEC-R-005（同请求号重复建任务冲突）、SEC-V-016（整体通过后重发不改写） | ✅ |
 | AF09 | 银行预检查或提交明确拒绝 | TF-BNK-04—16（Passed） | — | ✅ |
