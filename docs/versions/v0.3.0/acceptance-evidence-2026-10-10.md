@@ -52,16 +52,16 @@ AF01—AF14 汇总：13 项证据齐全通过；AF11 主体通过、TF-VFY-16 �
 | T17 提交中断 | 本期 | TF-RCV-05—08、TF-OBS-15/16 通过（同 AF07） | ✅ |
 | T18 预约改金额 | v0.3 不适用（预约后续） | 普通转账修改按 AF04 检查通过 | 🔵 明确排除 |
 
-验收通过条件核对：P0 用例执行路径明确 ✅（T01—T07、T12—T17 均有可执行路径与通过证据）；失败/超时/未知不误报成功 ✅（TF-QRY/BNK/RCV 各分支 0 违规）；任何动钱动作经确认+验证+安全检查+模拟银行 ✅（安全评测 24 真实轮 + 转移侧红线 0 违规）；任务状态符合框架 ✅；首版成功指标 ✅（标准任务 21/21）。
+验收条件核对：T01到T07及T14到T17有已测路径证据；T12仅可信裁决响应通过，实际检测本期暂缓；T13的TF-VFY-16仍Blocked。失败/超时/未知表达和已测资金约束有相关报告支持，完整红线为Unverified。标准任务21/21与缺项8/8属于离线全量，真实GLM重点集分别为13/21、7/8；本表不据此认定全部P0通过或版本验收完成。
 
 ## 三、问题回归（2026-10-10 开放 Issue）
 
 | Issue | 内容 | 影响判定 |
 |---|---|---|
-| [#79](https://github.com/DrErwin/hackerthon-bank-agent/issues/79) | 验证码同号异内容返回 503 而非 409（SEC-V-002 1 Failed） | 安全侧已观测差异，未修复；记为版本差异遗留，跟踪修复（验证服务域） |
+| [#79](https://github.com/DrErwin/hackerthon-bank-agent/issues/79) | 验证码同号异内容返回 503 而非 409（SEC-V-002 1 Failed） | 已于2026-10-10修复并有SEC-V-002/v01专项1 Passed、6/6断言，返回409 REQUEST_CONFLICT；旧Failed保留历史，全量回归本轮未重跑 |
 | [#84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84) | 规划入口无对话历史与待办状态 | 已知缺口：交互质量（非安全违规），用户拍板暂缓；修复后重跑 SEC-C-001 余 14 轮转正 |
 | [#85](https://github.com/DrErwin/hackerthon-bank-agent/issues/85) | 缺按任务查询确认/验证历史的只读接口 | 增强遗留：服务端回放重建，不阻塞本表 AF06/12 既有证据（页面内/快照回放已通过） |
-| [#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) | Ringo 需补：安全/转账专业审查+全量核查（立即）；检测器（后续） | 本次收口前置依赖：完成即齐专业门槛 |
+| [#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) | Ringo 需补：安全/转账专业审查+全量核查（立即）；检测器（后续） | 已补AI辅助专业意见、适用性和真实来源材料；Ringo最终签核与TF-VFY-16接入执行仍待，完整红线Unverified |
 
 ## 四、结论
 
@@ -69,3 +69,9 @@ AF01—AF14 汇总：13 项证据齐全通过；AF11 主体通过、TF-VFY-16 �
 - T01—T18：本期适用项 T01—T07、T12—T17 覆盖说明完成；T08—T11、T18 为预约/AA，v0.3 明确排除。
 - 红线 0 违规、标准任务 21/21、缺项追问 8/8；银行侧零未确认写入（安全 24 真实轮）。
 - 收口决定：待 Ringo 完成 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 四项立即项（含转账专业结论）后，由版本负责人按本表证据汇总 `completion.md` 作 v0.3 收口决定；未通过项如实保留，不进入 v0.4。
+
+## 五、Issue #86 专业复核补充
+
+Ringo在本会话授权Codex复核的[详细意见](../../../evals/security/issue-86-professional-review-2026-10-10.md)已补入；[真实攻击来源与项目改编材料](../../../evals/security/attack-source-materials-2026-10-10.md)已提供。原TF-VFY-16仍未接入材料执行，AF11/T13相应未验证部分继续保留。
+
+上述第一至四节的对勾代表既有报告支持范围，不能替代Ringo最终专业签核。未通过项、后续业务能力、真实检测暂缓和已知覆盖缺口见[全量适用性登记](../../../evals/security/applicability-review-2026-10-10.md)。#79专项复测已更正；R06仍8条低于10条目标。版本最终决定归Erwin，本轮不作v0.3已验收结论。
