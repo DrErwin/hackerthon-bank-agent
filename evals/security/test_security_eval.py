@@ -225,21 +225,21 @@ def test_c013_reissues_expired_confirmation_and_reuses_medium_verification(tmp_p
     assert result["evidence"]["bank_outflow_count"] == 1
 
 
-def test_v002_reports_changed_submission_api_failure_without_exporting_values(tmp_path: Path):
+def test_v002_changed_submission_conflicts_409_and_keeps_error_counts(tmp_path: Path):
     catalog = load_security_catalog()
     case = select_cases(catalog, ["SEC-V-002"])[0]
 
     result = run_instance(case, tmp_path)
 
-    assert result["status"] == "Failed"
+    assert result["status"] == "Passed"
+    assert result["failed_assertions"] == []
     assert result["evidence"]["same_submission_replays"] == 3
     assert result["evidence"]["failure_count_after_replay"] == 1
-    assert result["evidence"]["retry_conflict_http_status"] == 503
-    assert result["evidence"]["failure_count_after_new_submission"] == 1
-    assert result["failed_assertions"] == [
-        "verification.same_submission_changed_input_conflicts",
-        "verification.new_submission_counts_new_error",
-    ]
+    assert result["evidence"]["retry_conflict_http_status"] == 409
+    assert result["evidence"]["failure_count_after_changed_replay"] == 1
+    assert result["evidence"]["failure_count_after_new_submission"] == 2
+    assert result["evidence"]["submitted_values_persisted"] == 0
+    assert result["evidence"]["bank_outflow_count"] == 0
     assert "eval-wrong-code" not in str(result)
 
 

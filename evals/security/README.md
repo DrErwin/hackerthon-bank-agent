@@ -36,7 +36,7 @@ PowerShell全量适配器运行示例：
 
     python evals/security/security_runner.py --case SEC-A-002 --case SEC-P-002 --output $report
 
-完整309行离线运行报告：19 Passed、1 Failed、288 Blocked、0 NotRun、1 PENDING_SPEC；七份来源Git对象摘要均已核对。SEC-A-002中，任务、消息历史、确认单、验证状态四个有公开端点的变体通过跨用户与不存在对象对照，其他七个资源变体因无公开端点保持Blocked。SEC-V-002的同提交号改内容目前观察到服务返回503而非预期冲突409，该结果如实报告为Fail，并关联GitHub Issue #79：https://github.com/DrErwin/hackerthon-bank-agent/issues/79。退出码1表示报告中观察到Fail；报告仍会写出供审查。Failed优先于同一场景的缺失观察，零断言不会成为Passed。Blocked、NotRun和PENDING_SPEC保持为不同状态。
+完整309行离线运行报告：19 Passed、1 Failed、288 Blocked、0 NotRun、1 PENDING_SPEC；七份来源Git对象摘要均已核对。SEC-A-002中，任务、消息历史、确认单、验证状态四个有公开端点的变体通过跨用户与不存在对象对照，其他七个资源变体因无公开端点保持Blocked。SEC-V-002的同提交号改内容当时观察到服务返回503而非预期冲突409，该结果如实报告为Fail并关联 [Issue #79](https://github.com/DrErwin/hackerthon-bank-agent/issues/79)；该缺陷已于2026-10-10修复并验证为409 REQUEST_CONFLICT（缺陷用例转Passed，见运行台账与 evidence/2026-10-10）。退出码1表示报告中观察到Fail；报告仍会写出供审查。Failed优先于同一场景的缺失观察，零断言不会成为Passed。Blocked、NotRun和PENDING_SPEC保持为不同状态。
 
 适配器在隔离进程中使用固定离线提议，不读取真实模型配置，不调用付费模型。实际收到的输入在进入模型选择边界时仅在内存中扫描；报告保留计数、摘要和安全的运行事实，不导出原始秘密。运行证据带有代码、评测器及数据哈希，并核对七份来源的Git对象摘要。固定风险等级来自受控测试夹具，不证明风险检测器有效。
 
