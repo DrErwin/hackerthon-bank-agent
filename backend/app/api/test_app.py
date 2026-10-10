@@ -355,6 +355,37 @@ def test_no_secrets_in_chat_validation_errors_or_persisted_receipts(tmp_path):
                 assert all(code not in (row[0] or "") for row in connection.execute(f"SELECT {column} FROM {table}"))
 
 
+def test_same_submission_id_different_code_conflicts_and_new_submission_counts(tmp_path):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        thread, task = start(client)
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        wrong1 = "111111" if code != "111111" else "222222"
+        wrong2 = "333333" if code != "333333" else "444444"
+        s1 = str(uuid4())
+        first = post(client, f"/verifications/{challenge}/code", submission_id=s1, code=wrong1,
+                     request_id=str(uuid4()))
+        assert first.status_code == 200, first.text
+        assert first.json()["data"]["verification"]["consecutive_code_failures"] == 1
+        # 同一银行 submission_id、不同内容、新 API request_id：409 冲突而非 503 依赖故障
+        changed = client.post(f"/api/v1/verifications/{challenge}/code",
+                              json={"request_id": str(uuid4()), "submission_id": s1, "code": wrong2},
+                              headers={"Origin": "http://testserver"})
+        assert changed.status_code == 409, changed.text
+        assert changed.json()["error"]["code"] == "REQUEST_CONFLICT"
+        # 原提交结果与计数不变；重放仍命中原结果
+        replay = post(client, f"/verifications/{challenge}/code", submission_id=s1, code=wrong1,
+                      request_id=str(uuid4()))
+        assert replay.json()["data"]["verification"]["consecutive_code_failures"] == 1
+        # 新编号真实错误正常计入，不再停滞
+        second = post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()),
+                      code=wrong2, request_id=str(uuid4()))
+        assert second.status_code == 200, second.text
+        assert second.json()["data"]["verification"]["consecutive_code_failures"] == 2
+
+
 def test_cookie_origin_ownership_and_expired_session_checks(tmp_path):
     app = make_app(tmp_path)
     with TestClient(app) as client:

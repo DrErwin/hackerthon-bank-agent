@@ -60,6 +60,9 @@ def problem(exc):
         status, code = exc.status, exc.code
     else:
         code = str(exc) if isinstance(exc, (ValueError, PermissionError, TimeoutError)) else "DEPENDENCY_UNAVAILABLE"
+        # The bank keeps its own conflict detail; the public contract exposes the
+        # frozen 409 code for an operation-record conflict.
+        code = {"VERIFICATION_SUBMISSION_CONFLICT": "REQUEST_CONFLICT"}.get(code, code)
         status = {"ACCESS_DENIED": 403, "AUTH_REQUIRED": 401, "TASK_NOT_FOUND": 404,
                   "INVALID_ARGUMENT": 400, "TASK_TERMINATED": 409, "MODEL_CONFIG_CHANGED": 409,
                   "TASK_BUSY": 409, "STALE_ROUND": 409}.get(code, 409 if code.startswith(("CONFIRMATION_", "CHALLENGE_", "SUBMISSION_", "REQUEST_")) else 503)
