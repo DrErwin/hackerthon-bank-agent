@@ -1,6 +1,6 @@
 # 队员开工：领取交付包与通用 Skill
 
-最后更新：2026-09-30。
+最后更新：2026-10-11。
 
 所有工作线统一走：**确认身份 → 领取交付包并记录 → 检查 Skill → to-spec → to-tickets → 按票执行 → 验证与进度更新**。开发票使用 `implement`，评测、设计和文档票按其交付物执行。交付包的业务范围和开始条件以[跨团队交付原则](../principles/04-cross-team-delivery.md)及正式项目跟踪为准。
 
@@ -91,4 +91,4 @@ python <skill-installer目录>/scripts/install-skill-from-github.py --repo mattp
 我确认领取【交付包及本人工作线】，请自动记录领取，检查并安装缺失的通用 Skill，按 to-spec → to-tickets 流程推进；有开发票时再用 implement 按票执行。需要我判断的具体范围或验收问题就在本任务讨论。
 ```
 
-例如 Ethan 当前领取的是交付包 04：可以立即为 `evals/bills/` 和 `evals/cross/` 分别准备规格与评测票；实际账单和跨场景业务实现等 v0.4 启动后再拆实施票。
+例如 2026-10-11 的 v0.4：周恩宇可领取 [v04-bills/01 账单业务能力与评测](../../.scratch/v04-bills/packages/01-bills-backend.md)（ready，接包即拆票）；Ringo 或 PM 代行可领取 [v04-security/01 检测器与评测完整性](../../.scratch/v04-security/packages/01-detector-and-coverage.md)；梁爽、六水的 [frontend-complete/01 完整前端](../../.scratch/frontend-complete/packages/01-v04-complete-frontend.md) 等原型走查确认后领取。

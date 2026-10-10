@@ -6,11 +6,10 @@
 
 ## 当前进度
 
-截至 2026-09-30，PRD 与公共契约基线已完成，**v0.3 普通转账纵向链路仍在开发中**。
+截至 2026-10-11，v0.3 普通转账纵向链路**已收口**（含明示例外）：用户可从简易 React 前端经真实 API 与 GLM 完成转账的确认、验证与结果闭环；转账评测 153/153，AF01—AF14 证据入库。
 
-- 后端已合入公共契约、持久化、模拟银行与接入层、审计、记忆、最小安全门、普通转账流程和主 Agent Harness。后端模块测试及模拟银行评测可独立运行。
-- 任务 API、确认与验证接口及事件流尚未接入；React 前端、专业安全与转账评测、AF01—AF14 全链路联合验收仍待完成。因此当前不能宣称用户已能从页面完成转账。
-- 阶段目标与完成证据见[版本进度](docs/README.md)和[v0.3 完成情况](docs/versions/v0.3.0/completion.md)；负责人和排期见[项目跟踪](docs/01-项目跟踪.md)。
+- v0.4 已于同日启动：账单 + 完整安全 + 完整前端（转账+账单双场景，目标 10-20）；联动移至 v0.5。
+- 阶段目标与完成证据见[版本进度](docs/README.md)、[v0.3 完成情况](docs/versions/v0.3.0/completion.md)与[v0.4 完成情况](docs/versions/v0.4.0/completion.md)；负责人和排期见[项目跟踪](docs/01-项目跟踪.md)。
 
 ## 三条铁律
 
@@ -23,7 +22,7 @@
 | 目录 | 内容 |
 |---|---|
 | [`backend/`](backend/README.md) | Python 后端；FastAPI、Pydantic、Deep Agents / LangGraph |
-| [`frontend/`](frontend/README.md) | React 前端；当前为设计与接入计划 |
+| [`frontend/`](frontend/README.md) | React 前端；简易版已与真实 API 联调，完整版按 v0.4 交付包推进 |
 | [`evals/`](evals/README.md) | 按业务和安全范围组织的评测集 |
 | [`docs/`](docs/README.md) | 项目文档的事实来源，包括[文档索引](docs/00-项目文档索引.md)、[架构](docs/architecture/system-framework-2026-09-19.md)和[公共契约](docs/contracts/公共契约-2026-09-23.md) |
 | `tools/` | 飞书同步等文档工具 |
@@ -31,6 +30,6 @@
 
 ## 本地运行与协作
 
-需要 Python 3.11 或更新版本。后端的安装、测试和启动命令见[后端说明](backend/README.md)。当前 FastAPI 只提供工程入口，业务 API 尚未接入；运行后端不等于跑通完整转账场景。
+需要 Python 3.11 或更新版本。后端的安装、测试和启动命令见[后端说明](backend/README.md)，前端本地运行见 [frontend/LOCAL-DEV.md](frontend/LOCAL-DEV.md)。
 
 开发分工与安全边界见 [AGENTS.md](AGENTS.md)，提交规则见[Git 与提交约定](docs/agents/git-workflow.md)。
