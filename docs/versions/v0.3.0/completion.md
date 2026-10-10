@@ -34,6 +34,8 @@
 
 ## 收口例外与后续项（2026-10-11）
 
+> 跟踪清单与 v0.4 排期输入见 [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issues/87)；Ringo 专属补验见 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)（本人签核、真实风险检测器、TF-VFY-16 检测层）。
+
 - 原型图：梁爽、六水的普通转账关键流程原型图已交付（2026-10-06，提交 `31de4c9`、[PR #77](https://github.com/DrErwin/hackerthon-bank-agent/pull/77)）；**未覆盖面**（收款人候选、等待态、模拟人脸、刷新恢复与修改画面）按交付包 02 口径列为后续补齐项。
 - ~~Ringo 本人专业安全签核与全量适用性核查~~ → **全量适用性核查完成**（项目负责人代行核查报告 + Ringo 侧 2026-10-10 适用性复核）；Ringo **本人最终签核**仍待确认，保留在 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)。
 - ~~原票 12 联合验收与收口决定~~ → **已执行**（[联合验收证据表](acceptance-evidence-2026-10-10.md)）；AF11 的 `TF-VFY-16` 材料接入复跑与预约/AA 排除项作为例外保留。
