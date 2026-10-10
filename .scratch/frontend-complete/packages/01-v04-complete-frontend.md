@@ -1,9 +1,9 @@
 # 交付包 01：v0.4 完整前端实现与替换（转账 + 账单）
 
-Status: planned（开始条件见 Start when；条件满足且负责人确认领取后转 in_progress）
+Status: planned（Start when 仅剩条件①原型走查；负责人确认领取后转 in_progress）
 Owner: 梁爽主责、六水协助；Erwin 集成验收
 Activation: 2026-10-11 Erwin 建立（v0.3 已收口、版本范围调整为账单先行 / 联动 v0.5 之后）
-Start when: ① 原型工作线补齐收款人候选、等待、模拟人脸、刷新恢复、修改五类画面并走查确认（提供方：梁爽、六水，[交付包 02 原型工作线](../../transfer-agent-framework/packages/02-minimal-frontend.md)）；② v0.4 正式启动（项目负责人判断）。开工后：底盘与转账用已冻结契约的 stub 先行，真实 API 就绪即联调；账单插槽在账单公开能力接口形态可用后接入（stub 先行），不等真实后端完成。
+Start when: ① 原型工作线补齐收款人候选、等待、模拟人脸、刷新恢复、修改五类画面并走查确认（提供方：梁爽、六水，[交付包 02 原型工作线](../../transfer-agent-framework/packages/02-minimal-frontend.md)）；② v0.4 正式启动——**已于 2026-10-11 满足**（PM 决定，见 [项目跟踪](../../../docs/01-项目跟踪.md)）。开工后：底盘与转账用已冻结契约的 stub 先行，真实 API 就绪即联调；账单插槽在账单公开能力接口形态可用后接入（[v04-bills/01](../../v04-bills/packages/01-bills-backend.md) 冻结信号），不等真实后端完成。
 Spec: [完整前端工作线规格](../spec.md)
 
 Accepted by: 未记录
