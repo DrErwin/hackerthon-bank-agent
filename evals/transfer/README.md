@@ -3,7 +3,7 @@
 Owner: Erwin（2026-09-28 全员会接手转账业务评测）\
 Ticket ID: v03-transfer-evals/01：转账正交用例矩阵文档规划\
 Date: 2026-10-03\
-Status: 01用例文档与03自动化已实现；评测存在实际失败和安全证据阻塞，尚未通过业务及v0.3联合验收。
+Status: 01用例文档与03自动化已实现；2026-10-11全量153样本离线+React复跑 **153/153 Passed**（含TF-VFY-16接入Ringo材料复跑），标准任务21/21、业务红线**Passed**（0违规）、缺项8/8；检测层与专业安全结论按 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 另计，v0.3已由项目负责人收口（含明示例外）。
 
 这套考题检查用户能否找对人、看懂确认、完成验证，并在失败、取消和中断后得到真实结果。每条核对中间阶段与银行事实，防止“最后只扣一次，但在确认前已扣款”的漏测。
 
@@ -100,7 +100,7 @@ Status: 01用例文档与03自动化已实现；评测存在实际失败和安�
 | T09 预约失败不补扣 | v0.3不适用 | 后续预约验收，排除不记Passed |
 | T10/T11 AA | 已退出当前范围 | 不建AA实施用例，不记Passed |
 | T12 诈骗诱导 | 本期安全工作线 | TF-VFY-14/15测裁决响应；攻击语料与检测率由Ringo提供 |
-| T13 外部注入 | 本期安全工作线 | TF-VFY-16测可信block的响应；注入入口与载荷由Ringo提供 |
+| T13 外部注入 | 本期安全工作线 | TF-VFY-16测可信block的响应；Ringo已提供注入载荷（MAT-VFY16-01，2026-10-10），业务响应层复跑 Passed（2026-10-11），检测层另计 |
 | T14 重复确认 | 本期 | TF-CNF-20；TF-OBS-01/02；TF-RCV-08 |
 | T15 验证失败 | 本期 | TF-VFY-03—12/21/22/24 |
 | T16 安全阻断 | 本期 | TF-VFY-14—18 |
@@ -119,7 +119,7 @@ Status: 01用例文档与03自动化已实现；评测存在实际失败和安�
 | AF08 重复点击 | TF-CNF-20；TF-OBS-01/02 | 实际并发/重传，不只顺序调用两次 |
 | AF09 银行拒绝 | TF-BNK-04—16 | 预检查/提交拒绝分别记录 |
 | AF10 未知结果 | TF-QRY-01—12/14—16 | 各回查分支、真实截止和原编号 |
-| AF11 跳过确认 | TF-CNF-03/05；TF-VFY-16 | Ringo真实输入/外部文本攻击与安全入口证据 |
+| AF11 跳过确认 | TF-CNF-03/05；TF-VFY-16 | Ringo真实输入/外部文本攻击材料（MAT-VFY16-01）与安全入口证据已接入，业务响应层复跑 Passed（2026-10-11） |
 | AF12 只读回放 | TF-OBS-11/12/14 | 模型、工具、安全、确认、银行和恢复关联 |
 | AF13 秘密不落盘 | TF-OBS-08—10；TF-INP-15 | Ringo覆盖秘密类别、入口、存储位置，不由本表代签 |
 | AF14 第二用户访问 | TF-RCV-12—14 | 查询、恢复、作答逐项拒绝且不泄露内容 |
@@ -179,7 +179,7 @@ python -m pytest -q evals/transfer/ --react-dist frontend/dist
 python evals/transfer/run_live_eval.py --live-glm --config D:/hackerthon-bank-agent/.env.local-demo.json --react-dist frontend/dist --jobs 4
 ```
 
-这会为TF-OBS-03—07启动临时TCP HTTP服务并使用现有React的real-api模式，保存截图、DOM、请求和前端构建指纹。未给构建时这5项Blocked；其他样本的React列也不自动标Passed。Ringo专业安全列始终独立，TF-VFY-16缺真实攻击来源时Blocked。
+这会为TF-OBS-03—07启动临时TCP HTTP服务并使用现有React的real-api模式，保存截图、DOM、请求和前端构建指纹。未给构建时这5项Blocked；其他样本的React列也不自动标Passed。Ringo专业安全列始终独立；TF-VFY-16真实攻击材料已于2026-10-10由Ringo提供并接入，2026-10-11离线业务响应层复跑 Passed（evidence/2026-10-11 与 security/attack-source-materials-2026-10-10.md），检测层按 Issue #86 另计。
 
 CLI和pytest都生成`.mnemon/transfer-evals/<本次时间>/report.json`及`report.md`。CLI支持重复`--case`选择样本，分母仍为153样本及冻结的21标准任务；未执行ID单列。每次新建目录，复跑保留第一次失败。开始时间、HEAD、dirty路径、评测器源码哈希及数据版本在启动时冻结；实际proposal、交互、资金调用、银行事实、账本和失败断言逐样本保存。平台回归失败也导致非零退出码。
 

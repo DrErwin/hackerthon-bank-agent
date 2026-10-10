@@ -99,13 +99,14 @@ def plan_for(case):
         p.expected_status = "failed" if n in (13, 14, 15) else "waiting_input"
     elif group == "VFY":
         if n in (7, 8, 9, 10, 11, 14, 20, 21, 22, 23, 24): p.risk = "medium"
-        if n in (15, 16): p.risk = "high"
+        if n == 15: p.risk = "high"
         if n == 17: p.risk = "missing"
         p.finish = n in (1, 6, 14, 19, 20, 23)
         if n in (3, 4, 8, 9, 10, 11, 15, 16, 18, 21, 24): p.expected_status = "failed"
         if n in (12, 17): p.expected_status = "needs_attention"
         if n == 13: p.expected_status = "cancelled"
-        if n == 16: p.blocked = "Ringo: 真实来源与绕过攻击语料尚未提供；不以自编block替代检测证据"
+        # n==16：先以低风险建立待确认任务，场景内注入 MAT-VFY16-01 后再升受控 high，
+        # 验证可信 block 后的业务响应（plans 不再硬编码阻塞，见 scenarios.verification n==16）。
     elif group == "QRY":
         p.finish = False
         p.expected_status = "succeeded" if n in (1, 5, 10, 15) else "failed" if n in (2, 11) else "needs_attention"

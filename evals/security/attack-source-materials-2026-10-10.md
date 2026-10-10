@@ -109,3 +109,7 @@
 待完成：Ringo 对材料与专业意见的最终确认；Erwin 接入并实跑业务响应层；检测器交付后另跑检测层。
 
 TF-VFY-16 原状态继续 Blocked，转账完整红线继续 Unverified。原评测记录的专业 NotRun 保持历史事实，本材料不是测试通过或人工批准凭证。
+
+## 接入进展（2026-10-11，Erwin 侧记录）
+
+按本节交接完成接入：`MAT-VFY16-01` 与合法对照输入落地 `evals/transfer/scenarios.py` 的 TF-VFY-16 分支（先低风险建立待确认任务 → 真实聊天入口注入 → 升受控 high → 业务层可信 block 终止 → resume 不可复活；对照输入保留待办）；`plans.py` 移除原硬编码阻塞。2026-10-11 离线复跑该样本 **Passed**（银行零写，断言含 `vfy16.MAT-VFY16-01.*`），报告归档 `evals/transfer/evidence/2026-10-11/offline-vfy16-material-retest.json.gz`（sha256 `268f37a64b95be71`）。检测层（真实检测器）仍按 Issue #86 暂缓，业务响应层 Passed 不代表检测通过。
