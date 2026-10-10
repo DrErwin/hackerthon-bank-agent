@@ -7,7 +7,7 @@ Core scenarios: 转账纵向场景 AF08（重复确认/幂等）；转账 PRD �
 Verification: 银行验证提交层区分"冲突"与"越权/范围"：同 `submission_id` 已被同挑战同方法占用且内容不同 → 专用冲突码（如 `VERIFICATION_SUBMISSION_CONFLICT`），不改原提交结果、不计新错误；越权仍回 `ACCESS_DENIED`；重发/人脸路径同规则。同号同内容重传仍读原结果一次。
 Owner: Erwin
 Directory: `backend/app/services/mock_bank/`
-Status: pending
+Status: resolved
 Blocked by: None
 Source issue: [Issue #79](https://github.com/DrErwin/hackerthon-bank-agent/issues/79)
 
@@ -32,3 +32,5 @@ Source issue: [Issue #79](https://github.com/DrErwin/hackerthon-bank-agent/issue
 ## Comments
 
 - 2026-10-10：由 Issue #79 拆出，先于 api 映射票。
+- 2026-10-10 实现完成（本地验证）：`_previous_submission`（verify_code/verify_face）与 `resend_code` 的同号异内容改为抛 `VERIFICATION_SUBMISSION_CONFLICT`，与 `VERIFICATION_SCOPE_MISMATCH`（挑战摘要守卫，行156）分离；先写红测试 `test_same_submission_id_with_different_code_raises_submission_conflict`（红：实际抛 SCOPE_MISMATCH）后转绿；`pytest backend/app/services/` 25 通过。
+- 2026-10-10 合入：用户授权直推 main（本次不建 PR），提交 `7718633`。转 resolved。

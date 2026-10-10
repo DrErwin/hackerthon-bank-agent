@@ -7,7 +7,7 @@ Core scenarios: 转账纵向场景 AF08（重复点击只动一次钱）、AF11�
 Verification: 验证码提交入口识别票01的专用冲突码 → HTTP **409 REQUEST_CONFLICT**（按[安全与审计字段 §6](docs/contracts/安全与审计字段-2026-09-24.md)操作记录冲突语义）；冲突**不**发布"待核实"快照（`verification_fault` 不触发），后续新编号提交可正常到达银行并计入错误（1→2）；同号同内容重传仍只读原结果一次。
 Owner: Erwin
 Directory: `backend/app/api/`
-Status: pending
+Status: resolved
 Blocked by: [v03-verification-conflict-fix/01](01-mock-bank-submission-conflict.md)
 Source issue: [Issue #79](https://github.com/DrErwin/hackerthon-bank-agent/issues/79)
 
@@ -29,3 +29,5 @@ Source issue: [Issue #79](https://github.com/DrErwin/hackerthon-bank-agent/issue
 ## Comments
 
 - 2026-10-10：依赖票01的专用冲突码。
+- 2026-10-10 实现完成（本地验证）：`problem()` 将银行内部码 `VERIFICATION_SUBMISSION_CONFLICT` 翻译为契约冻结码 `REQUEST_CONFLICT` 并落 409（公开码不暴露银行内部码）；守卫走 `status != 503` 分支，不再发布待核实快照。先写红测试 `test_same_submission_id_different_code_conflicts_and_new_submission_counts`（红：503 DEPENDENCY_UNAVAILABLE）后转绿；后端全量 348 passed、模拟银行 14 passed。
+- 2026-10-10 合入：用户授权直推 main（本次不建 PR），提交 `a09312c`。转 resolved。

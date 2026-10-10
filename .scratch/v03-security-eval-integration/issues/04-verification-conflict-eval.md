@@ -7,7 +7,7 @@ Core scenarios: 安全用例 SEC-V-002（验证码同号异内容冲突）；纵
 Verification: 安全评测断言与实现对齐：同 `submission_id` 异内容 → 409 冲突、原结果与计数不变、不转入待核实；新编号真实错误计数 1→2；重传只计一次；去重不含原文；银行零提交。
 Owner: Ringo（按用户 2026-10-10 指示由 Erwin 代行，记录代行、不冒名）
 Directory: `evals/security/`
-Status: pending
+Status: resolved
 Blocked by: [v03-verification-conflict-fix/02](../v03-verification-conflict-fix/issues/02-api-conflict-mapping.md)
 Source issue: [Issue #79](https://github.com/DrErwin/hackerthon-bank-agent/issues/79)
 Note: 本票沿用既有组 v03-security-eval-integration 的规格；只在票01/02合入后执行，不改产品代码。
@@ -26,3 +26,5 @@ Note: 本票沿用既有组 v03-security-eval-integration 的规格；只在票0
 ## Comments
 
 - 2026-10-10：由 Issue #79 拆出，追加到既有安全评测组，等待票02冲突映射合入。
+- 2026-10-10 执行完成（本地验证）：`test_security_eval.py` 的 V-002 用例由"记录 503 失败"改为"验证 409 + 计数 1/1/2"（`test_v002_changed_submission_conflicts_409_and_keeps_error_counts`）；单例实跑 SEC-V-002 **Passed**（0 Failed、0 Blocked），报告归档 `evidence/2026-10-10/2026-10-10-offline-sec-v002-conflict-fix.json.gz`（578B25719CE08EC4），台账与 README 已登记；安全评测套件 50/50 通过。
+- 2026-10-10 合入：用户授权直推 main（本次不建 PR），提交 `6b9de7a`。转 resolved；GitHub Issue #79 按验证结果关闭。
