@@ -10,7 +10,7 @@
 - **AF01—AF14**：13 项证据齐全通过；AF11 主体通过，`TF-VFY-16` 公开来源与原创改编材料由 Ringo 侧提供并已于 2026-10-11 **接入复跑完成**：TF-VFY-16 离线业务响应层 Passed，且**全量 153 样本复跑 153/153 Passed**（标准任务 21/21、业务红线 Passed、0 违规、缺项 8/8；报告 [evidence/2026-10-11](../../../evals/transfer/evidence/2026-10-11/offline-react-full-20261011.json.gz)，sha256 `f8866c8e3c90d06a`）。检测层按 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 另计，不写成整体通过。
 - **T01—T18**：本期适用项（T01—T07、T12—T17）覆盖说明完成；T08—T11、T18 为预约/AA，本轮明确排除。
 - **全量适用性核查（项目负责人代行）**：R01—R05、R07—R09 与四类异常类型达标；**R06 差 2 条**、8 个维度组低于 10 条，按"代表性评测集"记录缺口；全量离线 **20 Passed / 0 Failed / 310 Blocked**。
-- **专业审查处置**：Ringo 本人最终签核**仍待确认**；Ringo 侧已完成全部 122 主编号适用性复核与限定范围专业意见（[applicability-review](../../../evals/security/applicability-review-2026-10-10.md)、[issue-86-professional-review](../../../evals/security/issue-86-professional-review-2026-10-10.md)，Codex 按 Ringo 授权执行，非本人签署）。本次 v0.3 收口决定由项目负责人作出，记录为代行、不冒名。`TF-VFY-16` 材料接入复跑、Ringo 本人签署与真实风险检测器保留在 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)，完成后补验加回。
+- **专业审查处置**：Ringo 本人最终签核按项目负责人 2026-10-11 决定**豁免**（PM 规则：免审即豁免；记录为豁免、非 Ringo 本人签署）；Ringo 侧适用性复核、限定范围专业意见与攻击来源材料已入库（[applicability-review](../../../evals/security/applicability-review-2026-10-10.md)、[issue-86-professional-review](../../../evals/security/issue-86-professional-review-2026-10-10.md)、[attack-source-materials](../../../evals/security/attack-source-materials-2026-10-10.md)）可供追溯。`TF-VFY-16` 材料接入复跑完成（全量 153/153、业务红线 Passed）；真实风险检测器保留 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86) 后续交付。
 - **验收边界**：真实威胁检测移出本次验收（2026-10-10 决定）；规划入口上下文问题归底座后续（[Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)）。
 - **下一步**：v0.4 启动由项目负责人按本页例外清单判断；完整前端按原计划在 v0.3 收口后接入替换。
 
@@ -37,7 +37,7 @@
 > 跟踪总索引见 [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issues/87)，分派至：[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)（Ringo 补验）、[#84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)/[#85](https://github.com/DrErwin/hackerthon-bank-agent/issues/85)（底座）、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)（安全评测完整性）、[#89](https://github.com/DrErwin/hackerthon-bank-agent/issues/89)（前端工作线）、[#90](https://github.com/DrErwin/hackerthon-bank-agent/issues/90)（版本进度与同步）。
 
 - 原型图：梁爽、六水的普通转账关键流程原型图已交付（2026-10-06，提交 `31de4c9`、[PR #77](https://github.com/DrErwin/hackerthon-bank-agent/pull/77)）；**未覆盖面**（收款人候选、等待态、模拟人脸、刷新恢复与修改画面）按交付包 02 口径列为后续补齐项。
-- ~~Ringo 本人专业安全签核与全量适用性核查~~ → **全量适用性核查完成**（项目负责人代行核查报告 + Ringo 侧 2026-10-10 适用性复核）；Ringo **本人最终签核**仍待确认，保留在 [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)。
+- ~~Ringo 本人专业安全签核与全量适用性核查~~ → **全量适用性核查完成**（项目负责人代行核查报告 + Ringo 侧 2026-10-10 适用性复核）；**Ringo 本人最终签核已由项目负责人豁免**（2026-10-11，PM 规则免审即豁免；非本人签署，材料供追溯）。
 - ~~原票 12 联合验收与收口决定~~ → **已执行**（[联合验收证据表](acceptance-evidence-2026-10-10.md)）；AF11 的 `TF-VFY-16` 材料接入复跑与预约/AA 排除项作为例外保留。
 - 后续补验：`TF-VFY-16` 已接入复跑完成（全量 153/153、业务红线 Passed，2026-10-11）；剩余为整体专业签署与真实风险检测器（含 SEC-T-003~005 等 33 轮 gated），按 Issue #86 收尾，完成后再更新对应状态。
 - 底座后续：规划入口上下文（[Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)，用户决定暂缓）、确认/验证历史只读回放（[Issue #85](https://github.com/DrErwin/hackerthon-bank-agent/issues/85)）。
