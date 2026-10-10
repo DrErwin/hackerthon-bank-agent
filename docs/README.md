@@ -19,8 +19,8 @@
 | v0.1.0 | PRD 与业务范围基线 | 已完成 | [需求](versions/v0.1.0/requirements.md) | [完成情况](versions/v0.1.0/completion.md) | — |
 | v0.2.0 | 公共契约与架构基线 | 已完成 | [需求](versions/v0.2.0/requirements.md) | [完成情况](versions/v0.2.0/completion.md) | — |
 | v0.3.0 | 普通转账纵向链路（目标 10-12 收口） | 已收口（含明示例外） | [需求](versions/v0.3.0/requirements.md) | [完成情况](versions/v0.3.0/completion.md) | [实施计划](versions/v0.3.0/implementation-plan.md) |
-| v0.4.0 | 账单、联动与完整安全扩展（目标 10-20） | 计划中 | [需求](versions/v0.4.0/requirements.md) | [完成情况](versions/v0.4.0/completion.md) | — |
-| v0.5.0 | 系统验收与体验打磨（目标 10-30） | 计划中 | [需求](versions/v0.5.0/requirements.md) | [完成情况](versions/v0.5.0/completion.md) | — |
+| v0.4.0 | 账单、完整安全与完整前端（目标 10-20；联动移至 v0.5） | 计划中 | [需求](versions/v0.4.0/requirements.md) | [完成情况](versions/v0.4.0/completion.md) | — |
+| v0.5.0 | 联动、系统验收与体验打磨（目标 10-30） | 计划中 | [需求](versions/v0.5.0/requirements.md) | [完成情况](versions/v0.5.0/completion.md) | — |
 | v1.0.0 | 比赛交付（截止 11-02） | 计划中 | [需求](versions/v1.0.0/requirements.md) | [完成情况](versions/v1.0.0/completion.md) | — |
 
 ## 项目总体文档
