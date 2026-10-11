@@ -1,4 +1,5 @@
 """Unknown verification outcomes stay visible and recover by original submission."""
+import re
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -7,6 +8,27 @@ from fastapi.testclient import TestClient
 from app.api.test_app import make_app, start, approve, post
 from app.storage.database import connect
 from app.storage.mock_bank.repository import MockBankStore
+
+
+def stored_code_leak(rows, code: str):
+    """Return the first stored cell carrying the demo code as its own token.
+
+    Comparing whole rows as one string flags coincidences: six random digits show up
+    inside timestamps, UUIDs, amounts and durations all the time. Every column is
+    still checked, but the code must appear as a token rather than inside a longer
+    digit run; blobs (LangGraph state) are matched at byte level.
+    """
+    text_pattern = re.compile(rf"(?<!\d){re.escape(code)}(?!\d)")
+    blob_pattern = re.compile(rb"(?<!\d)" + re.escape(code.encode("ascii")) + rb"(?!\d)")
+    for row in rows:
+        for value in tuple(row):
+            if isinstance(value, bytes):
+                leaked = blob_pattern.search(value)
+            else:
+                leaked = text_pattern.search("" if value is None else str(value))
+            if leaked:
+                return value
+    return None
 
 
 @pytest.mark.parametrize("bank_saved", [False, True])
@@ -60,8 +82,20 @@ def test_verification_fault_updates_task_and_replays_original_submission(tmp_pat
         assert len(calls) == 1
         connection = connect(app.state.api.runtime.application.path)
         for table in ("api_requests", "api_events", "tasks", "audit_events", "checkpoint_writes", "checkpoint_blobs"):
-            assert all(code not in str(tuple(row)) for row in connection.execute(f"SELECT * FROM {table}")), table
+            rows = list(connection.execute(f"SELECT * FROM {table}"))
+            leak = stored_code_leak(rows, code)
+            assert leak is None, f"{table}: {leak!r}"
         connection.close()
+
+
+def test_stored_code_check_separates_a_token_from_a_digit_run():
+    assert stored_code_leak([("2026-10-12T18:03:30.8499763Z",)], "499763") is None
+    assert stored_code_leak([(1234567,)], "123456") is None
+    assert stored_code_leak([(b"\xa61234567\xa4x",)], "123456") is None
+    assert stored_code_leak([('{"code": "123456"}',)], "123456") == '{"code": "123456"}'
+    assert stored_code_leak([("code=123456&x=1",)], "123456") == "code=123456&x=1"
+    assert stored_code_leak([(123456,)], "123456") == 123456
+    assert stored_code_leak([(b"\xa6123456\xa4x",)], "123456") == b"\xa6123456\xa4x"
 
 
 @pytest.mark.parametrize("method", ["get", "post"])
