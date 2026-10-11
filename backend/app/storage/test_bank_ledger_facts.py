@@ -77,6 +77,42 @@ def test_fresh_bank_database_is_created_at_the_fact_schema(tmp_path):
     assert set(LEDGER_FACT_COLUMNS) <= columns
 
 
+def test_bank_v1_database_without_ledger_table_reaches_the_fact_schema(tmp_path):
+    path = StoragePaths(tmp_path).bank
+    with sqlite3.connect(path) as connection:
+        connection.executescript(f"""
+            CREATE TABLE bank_operations (
+                operation_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, action_name TEXT NOT NULL,
+                parameters_digest TEXT NOT NULL, status TEXT NOT NULL, result_json TEXT NOT NULL,
+                recorded_at TEXT NOT NULL
+            );
+            INSERT INTO bank_operations VALUES
+                ('old', 'U1', 'bank.submit_transfer', 'digest', 'processing', '{{}}', '{NOW}');
+            PRAGMA user_version = 1;
+        """)
+    store = MockBankStore(path)
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(ledger_entries)")}
+    assert set(LEDGER_FACT_COLUMNS) <= columns
+    assert store.get_operation("U1", "old").updated_at == NOW
+
+
+def test_newer_bank_database_is_refused(tmp_path):
+    path = StoragePaths(tmp_path).bank
+    with sqlite3.connect(path) as connection:
+        connection.execute("PRAGMA user_version = 4")
+    with pytest.raises(RuntimeError, match="newer"):
+        MockBankStore(path)
+
+
+def test_seed_ledger_rows_does_not_mistake_a_rejected_row_for_an_existing_one(tmp_path):
+    store = seeded_store(tmp_path)
+    with pytest.raises(ValueError, match="rejected"):
+        store.seed_ledger_rows([ledger_row(amount_fen=None)])
+    assert store.list_ledger("U1", "A1") == []
+
+
 def test_bank_v2_ledger_migrates_to_v3_without_losing_rows(tmp_path):
     path = StoragePaths(tmp_path).bank
     with sqlite3.connect(path) as connection:

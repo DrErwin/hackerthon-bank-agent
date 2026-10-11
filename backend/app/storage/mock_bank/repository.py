@@ -14,6 +14,34 @@ LEDGER_FACT_COLUMNS = (
     "counterparty_id", "counterparty_name", "counterparty_account_masked",
     "channel", "summary", "original_transaction_id", "original_occurred_at",
 )
+LEDGER_SCHEMA = """
+    CREATE TABLE ledger_entries (
+        transaction_id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(account_id),
+        user_id TEXT NOT NULL,
+        operation_id TEXT NOT NULL,
+        amount_fen INTEGER NOT NULL,
+        direction TEXT NOT NULL,
+        nature TEXT NOT NULL,
+        category TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        counterparty_id TEXT,
+        counterparty_name TEXT,
+        counterparty_account_masked TEXT,
+        channel TEXT,
+        summary TEXT,
+        original_transaction_id TEXT,
+        original_occurred_at TEXT
+    )
+"""
+
+
+def _require_owned_account(connection, user_id: str, account_id: str) -> None:
+    owned = connection.execute(
+        "SELECT 1 FROM accounts WHERE account_id = ? AND user_id = ?", (account_id, user_id),
+    ).fetchone()
+    if owned is None:
+        raise ValueError("account is not in scope")
 
 
 @dataclass(frozen=True)
@@ -61,26 +89,7 @@ class MockBankStore:
                         version INTEGER NOT NULL DEFAULT 0
                     )
                 """)
-                connection.execute("""
-                    CREATE TABLE ledger_entries (
-                        transaction_id TEXT PRIMARY KEY,
-                        account_id TEXT NOT NULL REFERENCES accounts(account_id),
-                        user_id TEXT NOT NULL,
-                        operation_id TEXT NOT NULL,
-                        amount_fen INTEGER NOT NULL,
-                        direction TEXT NOT NULL,
-                        nature TEXT NOT NULL,
-                        category TEXT NOT NULL,
-                        occurred_at TEXT NOT NULL,
-                        counterparty_id TEXT,
-                        counterparty_name TEXT,
-                        counterparty_account_masked TEXT,
-                        channel TEXT,
-                        summary TEXT,
-                        original_transaction_id TEXT,
-                        original_occurred_at TEXT
-                    )
-                """)
+                connection.execute(LEDGER_SCHEMA)
                 connection.execute("""
                     CREATE TABLE bank_operations (
                         operation_id TEXT PRIMARY KEY,
@@ -100,11 +109,14 @@ class MockBankStore:
                 connection.execute("UPDATE bank_operations SET updated_at = recorded_at")
                 version = 2
             if version == 2:
-                # An early v1 fixture may predate the ledger table; there is nothing to widen then.
-                existing = {row["name"] for row in connection.execute("PRAGMA table_info(ledger_entries)")}
-                for column in LEDGER_FACT_COLUMNS:
-                    if existing and column not in existing:
-                        connection.execute(f"ALTER TABLE ledger_entries ADD COLUMN {column} TEXT")
+                columns = {row["name"] for row in connection.execute("PRAGMA table_info(ledger_entries)")}
+                if not columns:
+                    # An early v1 database may predate the ledger table; create it in the v3 shape.
+                    connection.execute(LEDGER_SCHEMA)
+                else:
+                    for column in LEDGER_FACT_COLUMNS:
+                        if column not in columns:
+                            connection.execute(f"ALTER TABLE ledger_entries ADD COLUMN {column} TEXT")
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     def seed_account(self, account: BankAccount) -> None:
@@ -223,12 +235,7 @@ class MockBankStore:
             if changed != 1:
                 raise ValueError("account is out of scope or changed concurrently")
         for transaction_id, account_id, amount_fen, direction, nature, category, occurred_at in ledger_entries:
-            owned = connection.execute(
-                "SELECT 1 FROM accounts WHERE account_id = ? AND user_id = ?",
-                (account_id, user_id),
-            ).fetchone()
-            if owned is None:
-                raise ValueError("ledger account is not in scope")
+            _require_owned_account(connection, user_id, account_id)
             connection.execute(
                 """INSERT INTO ledger_entries (transaction_id, account_id, user_id, operation_id,
                    amount_fen, direction, nature, category, occurred_at)
@@ -248,13 +255,8 @@ class MockBankStore:
         with transaction(self.path) as connection:
             for row in rows:
                 account_id, user_id = row["account_id"], row["user_id"]
-                owned = connection.execute(
-                    "SELECT 1 FROM accounts WHERE account_id = ? AND user_id = ?",
-                    (account_id, user_id),
-                ).fetchone()
-                if owned is None:
-                    raise ValueError("seeded ledger account is not in scope")
-                written += connection.execute(
+                _require_owned_account(connection, user_id, account_id)
+                changed = connection.execute(
                     """INSERT OR IGNORE INTO ledger_entries (
                        transaction_id, account_id, user_id, operation_id, amount_fen, direction,
                        nature, category, occurred_at, counterparty_id, counterparty_name,
@@ -271,17 +273,17 @@ class MockBankStore:
                         row.get("original_occurred_at"),
                     ),
                 ).rowcount
+                if changed == 0 and connection.execute(
+                    "SELECT 1 FROM ledger_entries WHERE transaction_id = ?", (row["transaction_id"],),
+                ).fetchone() is None:
+                    raise ValueError("seeded ledger row was rejected: " + str(row["transaction_id"]))
+                written += changed
         return written
 
     def list_ledger(self, user_id: str, account_id: str) -> list[dict]:
         connection = connect(self.path)
         try:
-            owned = connection.execute(
-                "SELECT 1 FROM accounts WHERE account_id = ? AND user_id = ?",
-                (account_id, user_id),
-            ).fetchone()
-            if owned is None:
-                raise ValueError("account is not in scope")
+            _require_owned_account(connection, user_id, account_id)
             return [dict(row) for row in connection.execute(
                 """SELECT * FROM ledger_entries WHERE account_id = ? AND user_id = ?
                    ORDER BY occurred_at, transaction_id""", (account_id, user_id),
