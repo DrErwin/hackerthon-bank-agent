@@ -7,7 +7,7 @@ Core scenarios: 支撑 BF01/BF03/BF05/BF06 的真实取数（账单侧通过统�
 Verification: `python -m pytest -q app/contracts/`（backend/ 下）全绿；模型校验用例覆盖必填/枚举/等式/退款原单/区间非法；公开导入路径可用
 Owner: Erwin
 Directory: backend/app/contracts/
-Status: open
+Status: done（2026-10-12 实现并合入，PR [#97](https://github.com/DrErwin/hackerthon-bank-agent/pull/97)，squash `c371cf0`；`app/contracts/` 43 passed、后端全量 384 passed、双轴 code-review 后合入）
 Blocked by: None（可立即开始）
 Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91)
 
@@ -27,7 +27,7 @@ Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 ## Acceptance criteria
 
-- [ ] `from app.contracts.bank import Transaction`（及查询结果模型）、`from app.contracts.bills import BillScope, SpendingSummary, BillDetails` 可用
-- [ ] 模型校验测试覆盖：必填与枚举、`consumption_net_fen = gross − refund`、退款必填 `original_transaction_id`/`original_occurred_at`、`BillScope` 空/重复/`start_at >= end_at` 拒绝
-- [ ] `python -m pytest -q app/contracts/` 全绿；PR 合入、CI 通过
-- [ ] 完成后 [02 银行接缝票](02-bank-seam-list-transactions.md)解除阻塞
+- [x] `from app.contracts.bank import Transaction`（及查询结果模型）、`from app.contracts.bills import BillScope, SpendingSummary, BillDetails` 可用
+- [x] 模型校验测试覆盖：必填与枚举、`consumption_net_fen = gross − refund`、退款必填 `original_transaction_id`/`original_occurred_at`、`BillScope` 空/重复/`start_at >= end_at` 拒绝（另补 `share_bps` 空值规则、对照期账户集合、`categories` rank 顺序）
+- [x] `python -m pytest -q app/contracts/` 全绿；PR 合入、CI 通过
+- [x] 完成后 [02 银行接缝票](02-bank-seam-list-transactions.md)解除阻塞
