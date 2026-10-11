@@ -44,10 +44,21 @@ def app_for(config, response_mode="transfer"):
     ))
 
 
-def ledger_count(app):
-    """Rows this demo run actually produced; seeded history rows are not counted."""
+SEEDED_OPERATION_PREFIX = "seed:"
+
+
+def month_start(at, months_back=0):
+    """First instant of the month that many months before ``at``."""
+    month_index = at.month - 1 - months_back
+    year = at.year + month_index // 12
+    month = month_index % 12 + 1
+    return at.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def submitted_ledger_count(app):
+    """Ledger rows this demo run produced; seeded history rows use the storage marker."""
     rows = app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")
-    return len([row for row in rows if not row["operation_id"].startswith("seed:")])
+    return len([row for row in rows if not row["operation_id"].startswith(SEEDED_OPERATION_PREFIX)])
 
 
 def test_missing_or_invalid_config_never_echoes_credentials(tmp_path, monkeypatch):
@@ -95,7 +106,7 @@ def test_reply_only_and_invalid_model_create_no_task_or_bank_submission(tmp_path
             assert client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"] == []
             messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
             assert len(messages) == (2 if mode == "reply" else 1)
-            assert ledger_count(app) == 0
+            assert submitted_ledger_count(app) == 0
             if mode == "none":
                 assert app.state.api.store.rows("SELECT status FROM api_message_jobs ORDER BY created_at DESC LIMIT 1")[0]["status"] == "error_completed"
 
@@ -129,23 +140,30 @@ def test_nonpositive_proposal_publishes_durable_amount_refusal(tmp_path, amount)
             assert api.store.rows("SELECT status FROM api_message_jobs WHERE request_id=?", (request,))[0]["status"] == "reply_completed"
             assert planner.call_count == 1
             assert submit.call_count == 0
-            assert ledger_count(app) == 0
+            assert submitted_ledger_count(app) == 0
 
 
 def test_demo_runtime_seeds_shared_flow_history_for_bills(tmp_path):
     config = configuration(tmp_path)
     app = app_for(config)
-    bank = app.state.api.runtime.gateway._bank
-    rows = bank.store.list_ledger("U1", "A1") + bank.store.list_ledger("U1", "A5")
-    assert rows and all(row["operation_id"].startswith("seed:") for row in rows)
+    gateway = app.state.api.runtime.gateway
+    bank = gateway._bank
+    for account_id in ("A1", "A5"):
+        rows = bank.store.list_ledger("U1", account_id)
+        assert rows and all(row["operation_id"].startswith(SEEDED_OPERATION_PREFIX) for row in rows)
     at = datetime.now(timezone(timedelta(hours=8)))
     user = TrustedContext(
         user_id="U1", session_id="S1", task_id="T1", run_id="R1",
         parent_task_id=None, demo_round_id=config.demo_round_id,
     )
-    result = app.state.api.runtime.gateway.list_transactions(user, "A1", at - timedelta(days=60), at)
-    assert result.kind == "ok" and result.data.transactions
-    assert all(row.counterparty_name and row.summary for row in result.data.transactions)
+    for account_id in ("A1", "A5"):
+        last_month = gateway.list_transactions(user, account_id, month_start(at, 1), month_start(at, 0))
+        assert last_month.kind == "ok" and last_month.data.transactions
+        assert all(row.counterparty_name and row.summary for row in last_month.data.transactions)
+        assert gateway.list_transactions(user, account_id, month_start(at, 0), at).kind == "ok"
+    current_month = gateway.list_transactions(user, "A1", month_start(at, 0), at)
+    if at.day >= 6:
+        assert current_month.data.transactions, "a past-day sample exists from the 6th on"
     restarted = app_for(config)
     assert len(restarted.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == len(
         bank.store.list_ledger("U1", "A1"))
@@ -157,7 +175,7 @@ def test_confirm_verify_repeat_and_rebuild_use_one_original_operation(tmp_path):
     with TestClient(app) as client:
         _, task = start(client)
         assert task["interaction"]["kind"] == "confirmation"
-        assert ledger_count(app) == 0
+        assert submitted_ledger_count(app) == 0
         waiting = approve(client, task)
         assert waiting["interaction"]["kind"] == "verification"
         challenge = waiting["interaction"]["record_ref"]
@@ -169,7 +187,7 @@ def test_confirm_verify_repeat_and_rebuild_use_one_original_operation(tmp_path):
         assert first.json() == second.json()
         done = first.json()["data"]["task"]
         assert done["status"] == "succeeded"
-        assert ledger_count(app) == 1
+        assert submitted_ledger_count(app) == 1
         original_cookie = client.cookies.get("bank_session")
     restarted = app_for(config)
     with TestClient(restarted) as client:
@@ -177,7 +195,7 @@ def test_confirm_verify_repeat_and_rebuild_use_one_original_operation(tmp_path):
         recovered = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
         assert recovered["data"]["operation_id"] == done["data"]["operation_id"]
         assert recovered["data"]["operation"]["receipt"] == done["data"]["operation"]["receipt"]
-        assert ledger_count(restarted) == 1
+        assert submitted_ledger_count(restarted) == 1
 
 
 @pytest.mark.parametrize("amount,payee,expected", [(50100, "妈妈", "waiting_approval"), (50200, "妈妈", "failed"), (60100, "妈妈", "needs_attention")])
@@ -197,17 +215,17 @@ def test_bound_medium_high_and_missing_facts_never_submit(tmp_path, amount, paye
         with TestClient(app) as client:
             _, task = start(client)
             assert task["status"] == expected
-            assert ledger_count(app) == 0
+            assert submitted_ledger_count(app) == 0
             if amount == 50100:
                 waiting = approve(client, task)
                 challenge = waiting["interaction"]["record_ref"]
                 view = client.get(f"/api/v1/verifications/{challenge}").json()["data"]
                 assert set(view["required_methods"]) == {"code", "mock_face"}
-                assert ledger_count(app) == 0
+                assert submitted_ledger_count(app) == 0
                 code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
                 coded = post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code)
                 assert coded.json()["data"]["task"]["status"] == "waiting_approval"
-                assert ledger_count(app) == 0
+                assert submitted_ledger_count(app) == 0
                 assert post(client, f"/verifications/{challenge}/face/start").status_code == 200
                 denied = post(client, f"/admin/verifications/{challenge}/face-result",
                               submission_id=str(uuid4()), demo_round_id="D1", result="passed")
@@ -220,4 +238,4 @@ def test_bound_medium_high_and_missing_facts_never_submit(tmp_path, amount, paye
                                     submission_id=str(uuid4()), demo_round_id="D1", result="passed")
                     assert answered.status_code == 200
                     assert answered.json()["data"]["task"]["status"] == "succeeded"
-                    assert ledger_count(app) == 1
+                    assert submitted_ledger_count(app) == 1

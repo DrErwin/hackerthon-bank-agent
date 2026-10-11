@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from app.api.test_app import start
 from .model import DeepAgentPlanner, ModelSettings, TransferProposal
 from .test_harness import ScriptedChatModel, trusted
-from .test_local_demo import ConnectorTestModel, app_for, configuration, ledger_count
+from .test_local_demo import ConnectorTestModel, app_for, configuration, submitted_ledger_count
 
 
 class PlanningSequenceModel(ScriptedChatModel):
@@ -140,4 +140,4 @@ def test_missing_fields_reach_http_task_without_bank_submission(tmp_path, amount
             _, task = start(client, text="给妈妈转钱")
             assert task["status"] == "waiting_input"
             assert missing in task["interaction"]["required_fields"]
-            assert ledger_count(app) == 0
+            assert submitted_ledger_count(app) == 0
