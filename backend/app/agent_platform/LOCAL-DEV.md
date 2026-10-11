@@ -1,5 +1,17 @@
 # v0.3 本机 GLM 运行组合
 
+## 一键启动（推荐）
+
+首次配置后，用仓库根目录的一个命令同时拉起后端与前端：
+
+```powershell
+pwsh tools/start_local_dev.ps1            # 后端(8000) + 前端(5173)
+pwsh tools/start_local_dev.ps1 -SkipNpmInstall   # 依赖已装好时更快
+pwsh tools/start_local_dev.ps1 -BackendOnly      # 只起后端（调试）
+```
+
+脚本会校验首次配置（`.env.local-demo.json`、`backend/.venv`、`frontend/node_modules`），缺失时按本页指引处理；两个服务各自开窗口运行，脚本等待期间**按任意键或 Ctrl+C 停止两者**（含子进程树）。用户在 `http://127.0.0.1:5173/`，管理员在 `http://localhost:5173/admin`。演示剧本见下文"演示事实的范围"。脚本源 `tools/start_local_dev.ps1`，与本节保持同步修改。
+
 从仓库根目录操作，使用票02声明的依赖：
 
 ```powershell
