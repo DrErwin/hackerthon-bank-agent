@@ -11,12 +11,16 @@ from .bank import (
     AccountDetail, AccountList, AccountSummary, BalanceSnapshot, BankError, BankWriteResponse, ManualPayee,
     OperationFound, OperationLookup, OperationNotFound, OperationResult, OwnPayee,
     PayeeCandidate, PayeeDisplay, PayeeInput, PayeeList, PayeeVerification, QueryFailure, QueryOk, QueryResult,
-    SavedPayee, TransferLimits, TransferPrecheck, TransferQuote, TransferReceipt,
+    SavedPayee, Transaction, TransactionList, TransferLimits, TransferPrecheck, TransferQuote, TransferReceipt,
+)
+from .bills import (
+    AccountSourceAsOf, BillDetails, BillScope, BillSummarizeInput, CategoryTotal,
+    SpendingComparison, SpendingSummary,
 )
 from .common import (
-    ContractModel, DisplayField, ID, Money, NonNegativeInt, OperationId,
+    Category, ContractModel, DisplayField, ID, Money, NonNegativeInt, OperationId,
     OperationLevel, OperationStatus, Phase, PositiveInt, PositiveMoney, RiskLevel,
-    RequestId, SecurityDecisionCode, SubmissionId, TaskStatus, Timestamp,
+    RequestId, SecurityDecisionCode, SignedMoney, SubmissionId, TaskStatus, Timestamp,
 )
 from .platform import (
     CapabilityCall, CapabilityDefinition, GetTransferStatusInput,
