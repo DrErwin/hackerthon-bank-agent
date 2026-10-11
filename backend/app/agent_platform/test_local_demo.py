@@ -1,6 +1,7 @@
 """HTTP proof of local composition with controlled model responses, never real GLM."""
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -10,6 +11,7 @@ import pytest
 
 from app.api.app import ApiConfig, create_app
 from app.api.test_app import approve, enter, post, start
+from app.contracts.platform import TrustedContext
 
 from .local_demo import LocalDemoConfig, build_runtime, create_local_app, load_config
 from .test_harness import ScriptedChatModel
@@ -43,7 +45,9 @@ def app_for(config, response_mode="transfer"):
 
 
 def ledger_count(app):
-    return len(app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1"))
+    """Rows this demo run actually produced; seeded history rows are not counted."""
+    rows = app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")
+    return len([row for row in rows if not row["operation_id"].startswith("seed:")])
 
 
 def test_missing_or_invalid_config_never_echoes_credentials(tmp_path, monkeypatch):
@@ -126,6 +130,25 @@ def test_nonpositive_proposal_publishes_durable_amount_refusal(tmp_path, amount)
             assert planner.call_count == 1
             assert submit.call_count == 0
             assert ledger_count(app) == 0
+
+
+def test_demo_runtime_seeds_shared_flow_history_for_bills(tmp_path):
+    config = configuration(tmp_path)
+    app = app_for(config)
+    bank = app.state.api.runtime.gateway._bank
+    rows = bank.store.list_ledger("U1", "A1") + bank.store.list_ledger("U1", "A5")
+    assert rows and all(row["operation_id"].startswith("seed:") for row in rows)
+    at = datetime.now(timezone(timedelta(hours=8)))
+    user = TrustedContext(
+        user_id="U1", session_id="S1", task_id="T1", run_id="R1",
+        parent_task_id=None, demo_round_id=config.demo_round_id,
+    )
+    result = app.state.api.runtime.gateway.list_transactions(user, "A1", at - timedelta(days=60), at)
+    assert result.kind == "ok" and result.data.transactions
+    assert all(row.counterparty_name and row.summary for row in result.data.transactions)
+    restarted = app_for(config)
+    assert len(restarted.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == len(
+        bank.store.list_ledger("U1", "A1"))
 
 
 def test_confirm_verify_repeat_and_rebuild_use_one_original_operation(tmp_path):

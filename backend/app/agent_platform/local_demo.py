@@ -151,10 +151,14 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
         demo_user_id=config.demo_user_id, admin_actor_id=config.admin_actor_id,
         current_demo_round=lambda: config.demo_round_id, risk_facts=risk_facts,
     )
+    bank = MockBankService(
+        MockBankStore(paths.bank), demo_secret=config.bank_secret.get_secret_value().encode(),
+    )
+    # The bills line reads real flows; the demo bank carries the shared sample history.
+    bank.seed_flow_history()
     return TransferRuntime(
         application, MemoryAdapter(application, active_round=lambda: config.demo_round_id),
-        AuditJournal(paths.application),
-        MockBankService(MockBankStore(paths.bank), demo_secret=config.bank_secret.get_secret_value().encode()),
+        AuditJournal(paths.application), bank,
         planner, authorize_capability=policy.authorize_capability,
         authorize_tool=policy.authorize_tool, assess_risk=policy.assess_risk,
         authorize_face=policy.authorize_face,
