@@ -20,12 +20,13 @@ def shift_months(at: datetime, months: int) -> datetime:
 
 
 def _occurred_at(at: datetime, month_offset: int, day: int, time_text: str) -> datetime | None:
-    """Resolve one seed row onto the bank clock; the current month keeps only past days."""
+    """Resolve one seed row onto the bank clock; nothing may lie after that clock."""
     shifted = shift_months(at, month_offset)
-    if day > monthrange(shifted.year, shifted.month)[1] or (month_offset == 0 and day > at.day):
+    if day > monthrange(shifted.year, shifted.month)[1]:
         return None
     hour, minute = (int(part) for part in time_text.split(":"))
-    return shifted.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+    occurred_at = shifted.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+    return occurred_at if occurred_at <= at else None
 
 
 def build_flow_rows(at: datetime, *, seeds_dir: Path = SEEDS_DIR) -> list[dict]:
