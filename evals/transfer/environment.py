@@ -56,7 +56,7 @@ class RecordingPlanner:
         self.config_version = delegate.config_version if delegate else "transfer-matrix-v1"
         self.records = []
 
-    def select(self, intent_text, trusted, catalog, memory, thread_id):
+    def select(self, intent_text, trusted, catalog, memory, thread_id, context_summary=None):
         record = {"input": redact(intent_text), "provider": self.provider,
                   "model": self.model_name, "outcome": None}
         self.records.append(record)
@@ -65,7 +65,11 @@ class RecordingPlanner:
             raise TimeoutError("injected provider outage")
         try:
             if self.delegate:
-                outcome = self.delegate.select(intent_text, trusted, catalog, memory, thread_id)
+                # The harness passes the trusted pending-business summary only when
+                # there is one; forward it in the same conditional shape so a real
+                # model actually sees it and an older five-argument delegate still runs.
+                options = {"context_summary": context_summary} if context_summary is not None else {}
+                outcome = self.delegate.select(intent_text, trusted, catalog, memory, thread_id, **options)
             elif self.plan.variant in ("INP-16", "INP-18") or intent_text in ("嗯", "好", "行", "确认，直接转吧", "再转一次", "结果怎么样"):
                 outcome = ReplyOnly(message="请使用当前任务的专用入口，资金尚未新增提交。")
             else:
