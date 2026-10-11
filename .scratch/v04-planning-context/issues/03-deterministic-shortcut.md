@@ -7,7 +7,7 @@ Core scenarios: 同 01（SEC-C-001 固定话术类变体）；本票为 [01 基�
 Verification: 等待确认/验证期的固定话术（嗯/确认/催促类）零模型调用即得到与待办一致的确定性回复；运行时间线可区分确定性应答与模型应答；离线缝断言同 01
 Owner: Erwin
 Directory: backend/app/agent_platform/
-Status: optional（采纳判据见下）
+Status: closed（2026-10-12 按 YAGNI 关闭「不需要」：[02 票](02-live-retest-handoff.md) 基线复验 18 轮 §4.4 解释口径全部合格、功能侧共享轮三轮全 Passed，等待期应答已由受控上下文满足，不做确定性短路）
 Blocked by: [v04-planning-context/02：真实运行复验与移交](02-live-retest-handoff.md) 的复验结论
 Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)
 

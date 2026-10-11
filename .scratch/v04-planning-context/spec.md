@@ -62,8 +62,10 @@ Deadline: **不晚于 2026-10-15**（为安全线 33+14 轮全量转正复跑留
 
 - [v04-planning-context/01：受控上下文基线（历史与待办摘要注入）](issues/01-planner-context.md)——必做，**resolved**（PR #96）
 - [v04-planning-context/04：会话任务列表（storage 前置）](issues/04-storage-session-tasks.md)——**resolved**（PR #95）
-- [v04-planning-context/03：确定性等待应答短路](issues/03-deterministic-shortcut.md)——可选增强
-- [v04-planning-context/02：真实运行复验与移交](issues/02-live-retest-handoff.md)——**open**（2026-10-12 起可执行；及 03 若采纳）
+- [v04-planning-context/03：确定性等待应答短路](issues/03-deterministic-shortcut.md)——**closed（YAGNI 不需要）**：02 复验全绿
+- [v04-planning-context/02：真实运行复验与移交](issues/02-live-retest-handoff.md)——**done**（2026-10-12：18 轮真实模型复验 + 共享轮三轮，证据归档、安全线移交、#84 关闭）
+- [v04-planning-context/05：评测缝适配规划上下文（RecordingPlanner）](issues/05-eval-seam-context-summary.md)——02 复验发现，**修复后 02 才可真跑**（PR [#104](https://github.com/DrErwin/hackerthon-bank-agent/pull/104)）
+- [v04-planning-context/06：API 测试替身适配规划上下文](issues/06-api-planner-double.md)——02 复验发现，API 层回归守卫
 
 ## Further Notes
 
@@ -71,3 +73,5 @@ Deadline: **不晚于 2026-10-15**（为安全线 33+14 轮全量转正复跑留
 - 票号沿用组内既有编号：01 重写为基线票、02 保留为复验票、03 为追加票（编号不复用规则）；04 为实施中新增的 storage 前置票（一票一目录，PR #95）。
 - **实施结果（2026-10-11 实现 / 10-12 合入）**：PR #95（`storage.list_session_tasks`）+ PR #96（harness 摘要构建与条件传参、`Planner`/`DeepAgentPlanner.select` 增可选 `context_summary`、系统提示注入「当前会话背景」段）。测试：agent_platform 113/113、api 57/57、后端全量 357/357；双轴 code-review Standards 0 硬违规。**遗留**：「最近对话」原始轮次摘要需 api 接缝（threads/messages 归 API 层），由 [02 票](issues/02-live-retest-handoff.md) 复验结论决定是否为主路径必要项并另开 api 票；User Story 8 在有待办任务时可由摘要中的原请求文本满足，无待办时不覆盖。
 - 顺带修复了阻断全部 PR 的既有断链（`0edfcdb`，证据文档链接多一层父目录），周恩宇的两张账单 PR rebase 后即可过 CI。
+- **02 复验发现的接口适配缺口（2026-10-12，立 05/06 票）**：01 票把「存在待办上下文时多传 `context_summary=`」作为规划入口的新调用形态，仓库内测试替身已更新，但两处旧五参替身没跟上——评测缝 `evals/transfer/environment.py` 的 `RecordingPlanner`（它还负责把调用透传给真实模型）与 `backend/app/api/test_app.py` 的替身。后果：**等待期聊天应答这一待修场景**在评测与 API 测试里都直接失败（离线 `SEC-C-001/v01` Failed、真实模型首跑 18 轮 15 Failed/3 Blocked、API 层 `stream_error DEPENDENCY_UNAVAILABLE`、`planner.calls` 停在 1），而 API 既有用例看的是 task_id，恰好漏判。生产路径（`DeepAgentPlanner`）不受影响。[05 票](issues/05-eval-seam-context-summary.md) 修评测缝（含条件透传，否则复验会假通过）、[06 票](issues/06-api-planner-double.md) 修 API 替身并补真正的回归断言。
+- **02 复验结论（2026-10-12）**：GLM-5.3 @ Coding Plan 跑 SEC-C-001 六变体×3（18 轮）——断言全过、零失败、零资金动作，§4.4 逐轮复核 **18 符合 / 0 不符合 / 0 证据不足**（修复前 10-10 基线的「11 轮脱节、2 轮否认业务」形态未再现）；功能侧共享轮 `TF-CNF-03[嗯]`×3 全 Passed（19/19 断言、回复引用待办并说明聊天不算确认）。证据：`evals/security/evidence/2026-10-12/`、`evals/transfer/evidence/2026-10-12/`；台账：`evals/security/run-log.md`。**03 票按 YAGNI 关闭为「不需要」**；安全线全量转正复跑移交见 run-log 备注与 Issue #86 回帖。
