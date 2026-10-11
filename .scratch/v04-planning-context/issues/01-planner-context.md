@@ -1,32 +1,30 @@
-# v04-planning-context/01：规划入口上下文实现
+# v04-planning-context/01：受控上下文基线（历史与待办摘要注入）
 
 Ticket ID: v04-planning-context/01
 Package: PM 自拆（不开交付包）；Source issue [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)
 Spec: [v04-planning-context 规格链接](../spec.md)
-Core scenarios: SEC-C-001（聊天同意与模糊回答均不代替按钮）· TF-CNF-03[嗯]（共享轮）——修复目标为回答与待办一致且仍不构成批准
-Verification: ① `python -m pytest -q app/agent_platform/`（backend/ 下）全绿；② 定向复现：等待确认时输入「嗯/确认/快多久」，回答引用当前待办、不否认业务、确认单仍待按钮、银行零写；③ 若采用受控注入方向：秘密扫描确认原始消息与秘密不落盘、不入审计长期存储
+Core scenarios: SEC-C-001（聊天同意与模糊回答均不代替按钮）· TF-CNF-03[嗯]（共享轮）——修复目标：回答与待办一致且仍不构成批准
+Verification: ① `python -m pytest -q app/agent_platform/`（backend/ 下）全绿；② 定向复现（离线缝，scripted 工厂驱动 harness）：等待确认时输入「嗯/确认/快多久/我刚才已经同意了」，回复引用当前待办、不否认业务、确认单仍待按钮、银行零写；③ 秘密检查：注入仅结构化摘要，原始消息与秘密不落长期存储、不入审计正文
 Owner: Erwin
 Directory: backend/app/agent_platform/
 Status: open
-Blocked by: None
+Blocked by: None（可立即开始）
 Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)
 
-## 任务
+## What to build
 
-按[规格候选方向](../spec.md#候选方向issue-84-已登记本规格不指定实现票内定稿)定稿并实现其一（或组合）：
-
-1. 确定性层短路——确认/验证等待期的固定话术走确定性分支，不依赖模型；
-2. 受控上下文注入——结构化待办摘要（非原始消息）+ 固定会话 checkpoint_ns。
+等待确认/验证期间的用户应答（确认、催促、模糊回复、引用前文）得到与当前待办一致、结合最近对话历史的回答——端到端效果：页面显示待确认单时，无论用户怎么应答，助理不再答非所问或否认业务，聊天仍不构成批准。这是用户 2026-10-10 拍板的必做基线。
 
 ## 实现要点
 
 - 根因位置：`model.py` `DeepAgentPlanner.select`——只传当前一条消息、`checkpoint_ns=f"harness-{uuid4()}"` 随机且不挂 checkpointer（有意设计：规划期原始消息可能含秘密）、业务状态不注入。
-- 方向 2 的秘密边界口径（哪些结构化字段可进规划上下文）先取得 Ringo 确认，或 PM 代行并如实记录；方向 1 不改变模型路径，优先评估其覆盖面是否足够（仅固定话术场景 vs 更广的等待期应答）。
-- 方案若改变公开行为/字段（尤其确定性短路的对外回复形态）：先判断是否触及公共契约或 API 契约，触及则先走契约变更流程，另开票实现 `contracts/` 或 `api/` 改动，不混入本票 PR。
-- 涉及 `memory/`（上下文存储）或 `modules/transfer/`（受控待办摘要来源）的接缝改动：登记依赖，需要改动的部分另开票，本票只落 `agent_platform/`。
+- 注入**结构化摘要**（最近对话要点 + 当前待确认单要点 + 验证状态），不是原始消息；`checkpoint_ns` 改为稳定会话标识。规划期不持久化原始模型消息的原则保持。
+- 秘密口径（哪些结构化字段可进规划上下文）开工前取得 Ringo 确认，或 PM 代行并如实记录。
+- 接缝纪律：需要动 `memory/`（摘要存储）、`modules/transfer/`（待办摘要来源）时登记依赖另开票；本票只落 `agent_platform/`。
 
-## 完成判据
+## Acceptance criteria
 
-- Verification 三项全部满足并有证据；
-- 分支 rebase 最新 `origin/main`，PR 合入（squash），CI 通过；
-- 本票完成不等于 Issue #84 关闭——复验与移交见 [02 票](02-live-retest-handoff.md)。
+- [ ] 离线定向复现四类应答全部与待办一致、不否认业务、零资金副作用
+- [ ] pytest 全绿；秘密检查通过（无原始消息/秘密落盘）
+- [ ] 分支 rebase 最新 `origin/main`、PR 合入（squash）、CI 通过
+- [ ] 完成后 [02 复验票](02-live-retest-handoff.md)解除阻塞；本票完成不等于关 issue

@@ -8,8 +8,9 @@ Verification: 真实模型运行（GLM Coding Plan 入口）重点子集全部�
 Owner: Erwin
 Directory: 运行与证据归档（不改运行代码；证据按 evals 运行台账既有格式落对应 evidence 目录）
 Status: blocked
-Blocked by: [v04-planning-context/01：规划入口上下文实现](01-planner-context.md)
+Blocked by: [v04-planning-context/01：受控上下文基线](01-planner-context.md)（必做）；[03：确定性短路](03-deterministic-shortcut.md) 若被采纳则一并等待
 Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)
+Note: 本票复验结论同时是 [03 票](03-deterministic-shortcut.md) 的 YAGNI 门——基线复验全绿则 03 关闭为「不需要」，仍有余留问题才采纳 03。
 
 ## 任务
 
