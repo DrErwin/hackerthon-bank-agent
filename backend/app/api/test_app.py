@@ -25,12 +25,18 @@ class Planner:
 
     def __init__(self, proposal=None):
         self.calls = 0
+        self.contexts = []
         self.proposal = proposal or TransferProposal(
             payee_hint="妈妈", amount_fen=50_000, payer_account_id="A1",
         )
 
-    def select(self, intent_text, trusted, catalog, memory, thread_id):
+    def select(self, intent_text, trusted, catalog, memory, thread_id, context_summary=None):
         self.calls += 1
+        self.contexts.append(context_summary)
+        if context_summary is not None:
+            # Scripted stand-in for the fixed planner: while a task waits, the
+            # assistant answers from the trusted pending summary instead of proposing.
+            return ReplyOnly(message=f"请核对并点击当前确认单的按钮。当前待办：{context_summary}")
         return self.proposal
 
 
@@ -127,7 +133,16 @@ def test_message_retries_and_plain_chat_assent_never_duplicate_business(tmp_path
         assert app.state.api.runtime.harness.planner.calls == 1
         assent = post(client, f"/threads/{thread}/messages", text="确认")
         assert assent.json()["data"]["task_id"] is None
+        planner = app.state.api.runtime.harness.planner
+        assert planner.contexts[0] is None
+        assert "等待用户在确认单上确认办理" in planner.contexts[1]
+        assert not any(event["event_type"] == "stream_error"
+                       for event in app.state.api.store.events(thread, None))
+        messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
+        replies = [item for item in messages if item["role"] == "assistant"]
+        assert len(replies) == 2 and "等待用户在确认单上确认办理" in replies[-1]["text"]
         tasks = client.get("/api/v1/tasks").json()["data"]["items"]
+        assert len(tasks) == 1
         original = next(task for task in tasks if task["task_id"] == first_task_id)
         assert original["interaction"]["kind"] == "confirmation"
         assert original["data"]["operation"] is None
