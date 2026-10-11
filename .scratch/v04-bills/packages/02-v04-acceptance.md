@@ -10,7 +10,7 @@ Accepted by: 未记录
 Accepted at: 未记录
 Work spec: 待启动时建立（Erwin 自拆）
 
-Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issues/87) · [#90](https://github.com/DrErwin/hackerthon-bank-agent/issues/90)（飞书同步与版本进度）
+Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issues/87)（总索引；飞书同步按 [git-workflow §4](../../../docs/agents/git-workflow.md) 执行，#90 已于 2026-10-11 完成）
 
 ## 业务目标
 
@@ -22,7 +22,7 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 2. 前端替换简易前端后的回归汇总（FE-01—FE-06，重点：确认、验证、刷新恢复、重复点击、真实结果展示不回退）。
 3. 安全补验：#86 检测器与检测层交付后，v0.3 遗留的 gated 项补验加回（记录为补验，不追溯改写 v0.3 收口结论）。
 4. 底座 #84/#85 完成情况并入证据（规划入口上下文、确认/验证历史只读回放）。
-5. `docs/versions/v0.4.0/completion.md` 更新、docs/README 与 ROADMAP 状态翻转、飞书 publish 判断（#90）。
+5. `docs/versions/v0.4.0/completion.md` 更新、docs/README 与 ROADMAP 状态翻转、飞书同步与甘特图重建按 [git-workflow §4](../../../docs/agents/git-workflow.md) 执行。
 6. v0.5 启动条件确认（联动线：业务能力、评测与前端接入）。
 
 ## 验收标准
