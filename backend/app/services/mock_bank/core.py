@@ -23,7 +23,7 @@ from app.contracts.platform import TrustedContext
 from app.storage.database import connect, parameter_digest, transaction
 from app.storage.mock_bank.repository import BankAccount, MockBankStore
 
-from .flow_seeds import build_flow_rows
+from .flow_seeds import build_flow_rows, shift_months
 from .verification import MockBankVerification
 
 
@@ -74,15 +74,6 @@ def _is_aware(value) -> bool:
 
 
 FLOW_RANGE_MONTHS = 24
-
-
-def _months_before(at: datetime, months: int) -> datetime:
-    """Calendar months back from the bank clock, clamped to the target month's length."""
-    month_index = at.month - 1 - months
-    year = at.year + month_index // 12
-    month = month_index % 12 + 1
-    day = min(at.day, monthrange(year, month)[1])
-    return at.replace(year=year, month=month, day=day)
 
 
 class MockBankService:
@@ -279,24 +270,36 @@ class MockBankService:
             return _error("INVALID_ARGUMENT", field="account_id")
         if self.store.get_account(user_id, account_id) is None:
             return _error("ACCESS_DENIED")
-        earliest = _months_before(at, FLOW_RANGE_MONTHS)
+        earliest = shift_months(at, FLOW_RANGE_MONTHS)
         if start_at < earliest:
-            return _error("RANGE_UNSUPPORTED", months=FLOW_RANGE_MONTHS, earliest=earliest.isoformat())
+            return _error("RANGE_UNSUPPORTED", earliest_supported_at=earliest.isoformat())
         transactions = []
         for row in self.store.list_ledger(user_id, account_id):
-            occurred_at = datetime.fromisoformat(row["occurred_at"])
-            if not start_at <= occurred_at < end_at:
-                continue
             try:
+                occurred_at = self._row_occurred_at(row)
+                if not start_at <= occurred_at < end_at:
+                    continue
                 transactions.append(self._flow_fact(user_id, row))
-            except _LedgerFactMissing as missing:
-                return _error(
-                    "STATE_CONFLICT", reason="ledger_fact_missing", transaction_id=missing.transaction_id,
-                )
+            except _LedgerFactMissing:
+                return _error("BANK_UNAVAILABLE")
         transactions.sort(key=lambda item: (item.occurred_at, item.account_id, item.transaction_id))
         return QueryOk(kind="ok", data=TransactionList(transactions=transactions, as_of=at))
 
+    @staticmethod
+    def _row_occurred_at(row: dict) -> datetime:
+        try:
+            occurred_at = datetime.fromisoformat(row["occurred_at"])
+        except ValueError as invalid:
+            raise _LedgerFactMissing(row["transaction_id"]) from invalid
+        if not _is_aware(occurred_at):
+            raise _LedgerFactMissing(row["transaction_id"])
+        return occurred_at
+
     def _flow_fact(self, user_id: str, row: dict) -> Transaction:
+        if row["nature"] == "refund" and (
+            row["original_transaction_id"] is None or row["original_occurred_at"] is None
+        ):
+            raise _LedgerFactMissing(row["transaction_id"])
         if row["counterparty_name"] is None or row["summary"] is None:
             counterparty_id, name, masked, channel, summary = self._runtime_transfer_facts(user_id, row)
         else:
@@ -313,21 +316,26 @@ class MockBankService:
         )
 
     def _runtime_transfer_facts(self, user_id: str, row: dict) -> tuple:
-        """A transfer made in this session keeps its counterparty in the bank's own receipt."""
+        """A transfer made in this session keeps its counterparty in the bank's own receipt.
+
+        The receipt carries no channel, so the channel stays unknown (the frozen table
+        returns null rather than guessing); "转账" names the action the bank recorded.
+        """
         if row["nature"] != "transfer":
             raise _LedgerFactMissing(row["transaction_id"])
         operation = self.store.get_operation(user_id, row["operation_id"])
         receipt = (operation.result.get("receipt") or {}) if operation is not None else {}
         if row["direction"] == "inflow":
-            label = ACCOUNT_LABELS.get(receipt.get("payer_account_id"), ())
-            if len(label) != 4:
+            label = ACCOUNT_LABELS.get(receipt.get("payer_account_id"))
+            if label is None:
                 raise _LedgerFactMissing(row["transaction_id"])
-            return (receipt["payer_account_id"], label[2], label[1], "手机银行", "转账")
+            _, masked, name, _ = label
+            return (receipt["payer_account_id"], name, masked, None, "转账")
         payee = receipt.get("payee") or {}
         if not payee.get("name_masked"):
             raise _LedgerFactMissing(row["transaction_id"])
         return (payee.get("payee_id"), payee["name_masked"], payee.get("account_masked"),
-                "手机银行", "转账")
+                None, "转账")
 
     def quote_transfer(self, user_id: str, payer_account_id: str, payee, amount_fen: int):
         if self.store.get_account(user_id, payer_account_id) is None:

@@ -11,22 +11,28 @@ SEEDS_DIR = Path(__file__).parent / "seeds"
 FLOW_SEED_FILE = "flow_history.json"
 
 
-def _occurred_at(at: datetime, month_offset: int, day: int, time_text: str) -> datetime | None:
-    """Resolve one seed row onto the bank clock; the current month keeps only past days."""
-    month_index = at.month - 1 - month_offset
+def shift_months(at: datetime, months: int) -> datetime:
+    """Calendar months back from ``at``, clamped to the target month's length."""
+    month_index = at.month - 1 - months
     year = at.year + month_index // 12
     month = month_index % 12 + 1
-    if day > monthrange(year, month)[1] or (month_offset == 0 and day > at.day):
+    return at.replace(year=year, month=month, day=min(at.day, monthrange(year, month)[1]))
+
+
+def _occurred_at(at: datetime, month_offset: int, day: int, time_text: str) -> datetime | None:
+    """Resolve one seed row onto the bank clock; the current month keeps only past days."""
+    shifted = shift_months(at, month_offset)
+    if day > monthrange(shifted.year, shifted.month)[1] or (month_offset == 0 and day > at.day):
         return None
     hour, minute = (int(part) for part in time_text.split(":"))
-    return at.replace(year=year, month=month, day=day, hour=hour, minute=minute, second=0, microsecond=0)
+    return shifted.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
 
 
 def build_flow_rows(at: datetime, *, seeds_dir: Path = SEEDS_DIR) -> list[dict]:
     """Turn the relative seed file into fully-formed ledger facts for ``at``.
 
-    Seeded transfers never land on the bank's current day: they would silently eat
-    the demo's daily transfer limit (``get_limits`` counts them like any transfer).
+    Seeded transfer *outflows* never land on the bank's current day: the daily limit
+    counts them like any transfer and the demo would lose room for its own transfer.
     """
     seeds = json.loads((seeds_dir / FLOW_SEED_FILE).read_text(encoding="utf-8"))
     resolved: dict[str, tuple[str, datetime]] = {}
@@ -34,7 +40,8 @@ def build_flow_rows(at: datetime, *, seeds_dir: Path = SEEDS_DIR) -> list[dict]:
         occurred_at = _occurred_at(at, seed["month_offset"], seed["day"], seed["time"])
         if occurred_at is None:
             continue
-        if seed["nature"] == "transfer" and occurred_at.date() == at.date():
+        if (seed["nature"] == "transfer" and seed["direction"] == "outflow"
+                and occurred_at.date() == at.date()):
             continue
         resolved[seed["ref"]] = (
             f"SEED-{seed['account_id']}-{occurred_at:%Y%m%d}-{seed['ref']}", occurred_at,

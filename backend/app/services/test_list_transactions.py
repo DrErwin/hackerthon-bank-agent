@@ -10,6 +10,7 @@ from app.contracts.bank import (
 )
 from app.services.bank_gateway.gateway import BankGateway
 from app.services.mock_bank.core import MockBankService
+from app.services.mock_bank.flow_seeds import build_flow_rows
 from app.services.test_bank import DEMO_SECRET, context
 from app.storage import StoragePaths
 from app.storage.mock_bank.repository import MockBankStore
@@ -102,7 +103,7 @@ def test_invalid_arguments_and_the_24_month_boundary(tmp_path):
     too_early = earliest - timedelta(seconds=1)
     failure = gateway.list_transactions(context(), "A1", too_early, END)
     assert failure.kind == "error" and failure.error.code == "RANGE_UNSUPPORTED"
-    assert failure.error.details["months"] == 24
+    assert failure.error.details == {"earliest_supported_at": earliest.isoformat()}
     gateway.close()
 
 
@@ -138,7 +139,7 @@ def test_runtime_transfer_facts_come_from_the_bank_receipt(tmp_path):
     assert (rows[0].counterparty_id, rows[0].counterparty_name, rows[0].counterparty_account_masked) == (
         "A2", "王*", "****0002")
     assert (rows[0].channel, rows[0].summary, rows[0].nature, rows[0].category) == (
-        "手机银行", "转账", "transfer", "transfer")
+        None, "转账", "transfer", "transfer")
     gateway.close()
 
 
@@ -151,9 +152,28 @@ def test_unreadable_ledger_row_fails_the_query_instead_of_dropping_it(tmp_path):
         [("TX-BROKEN", "A1", 50000, "outflow", "transfer", "transfer", INSIDE.isoformat())],
     )
     failure = gateway.list_transactions(context(), "A1", START, END)
-    assert failure.kind == "error" and failure.error.code == "STATE_CONFLICT"
-    assert failure.error.details == {"reason": "ledger_fact_missing", "transaction_id": "TX-BROKEN"}
+    assert failure.kind == "error" and failure.error.code == "BANK_UNAVAILABLE"
+    assert failure.error.details == {}
     gateway.close()
+
+
+def test_refund_without_its_original_fails_instead_of_raising(tmp_path):
+    bank, gateway, _ = ready(tmp_path)
+    bank.store.seed_ledger_rows([ledger_row(
+        transaction_id="TX-REFUND", nature="refund", direction="inflow",
+        occurred_at=INSIDE.isoformat(),
+    )])
+    failure = gateway.list_transactions(context(), "A1", START, END)
+    assert failure.kind == "error" and failure.error.code == "BANK_UNAVAILABLE"
+    gateway.close()
+
+
+def test_flow_seed_ids_follow_the_bank_month():
+    this_month = [row["transaction_id"] for row in build_flow_rows(NOW)]
+    same_day = [row["transaction_id"] for row in build_flow_rows(NOW + timedelta(hours=3))]
+    next_month = [row["transaction_id"] for row in build_flow_rows(NOW + timedelta(days=25))]
+    assert this_month == same_day
+    assert not set(this_month) & set(next_month)
 
 
 def test_seed_flow_history_is_idempotent_and_covers_the_demo_scenarios(tmp_path):
@@ -166,12 +186,14 @@ def test_seed_flow_history_is_idempotent_and_covers_the_demo_scenarios(tmp_path)
     assert {"dining", "transport", "medical", "shopping", "housing", "other"} <= {
         row["category"] for row in rows}
     assert any(row["nature"] == "interest" for row in rows)
-    assert any(row["channel"] is None for row in rows)
+    assert any(row["channel"] is None and row["nature"] == "consumption" for row in rows)
     refunds = [row for row in rows if row["nature"] == "refund"]
     assert refunds and all(row["original_transaction_id"] for row in refunds)
     occurred = [datetime.fromisoformat(row["occurred_at"]) for row in rows]
     assert max(occurred) <= clock()
     assert any(at.month == clock().month for at in occurred)
-    assert all(at.date() != clock().date() for at, row in zip(occurred, rows) if row["nature"] == "transfer")
+    transfers_out = [at for at, row in zip(occurred, rows)
+                     if row["nature"] == "transfer" and row["direction"] == "outflow"]
+    assert transfers_out and all(at.date() != clock().date() for at in transfers_out)
     assert gateway.list_transactions(context(), "A1", START, END).kind == "ok"
     gateway.close()

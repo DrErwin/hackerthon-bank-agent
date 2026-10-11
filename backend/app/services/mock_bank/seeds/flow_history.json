@@ -75,7 +75,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -219,7 +219,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -363,7 +363,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -491,7 +491,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -635,7 +635,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -779,7 +779,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -907,7 +907,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -1051,7 +1051,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -1195,7 +1195,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -1323,7 +1323,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -1467,7 +1467,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -1611,7 +1611,7 @@
     "nature": "consumption",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "晚餐",
     "counterparty_id": "M-CANTEEN"
   },
@@ -1707,7 +1707,7 @@
     "nature": "refund",
     "category": "dining",
     "counterparty_name": "社区食堂",
-    "channel": "扫码支付",
+    "channel": null,
     "summary": "退款",
     "counterparty_id": "M-CANTEEN",
     "original_ref": "a1-m2-canteen"
