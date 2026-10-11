@@ -7,7 +7,7 @@ Core scenarios: SEC-C-001 变体与 TF-CNF-03[嗯] 的真实运行复验（02 �
 Verification: `evals/transfer` 侧用例断言上下文转发；离线安全入口 `SEC-C-001/v01` 从「规划器只调用 1 次、断言 Failed」回到「调用 2 次、解释待评定（Blocked）」
 Owner: Erwin
 Directory: `evals/transfer/`
-Status: open（2026-10-12 起可执行；阻塞 02 票）
+Status: done（2026-10-12 实现并合入，PR [#104](https://github.com/DrErwin/hackerthon-bank-agent/pull/104)，squash `2e5a9e8`；评测侧用例 + 离线对拍 + 02 票真跑复验均通过）
 Blocked by: None
 Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)
 
@@ -34,8 +34,8 @@ Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 ## Acceptance criteria
 
-- [ ] `RecordingPlanner` 接受 `context_summary` 并在有 delegate 时条件透传
-- [ ] 评测侧用例固定该转发行为，且不带关键字时仍可用
-- [ ] 离线 `SEC-C-001/v01` 单轮：规划调用 2 次、断言无 Failed、解释缺口以 Blocked 保留
-- [ ] `evals/transfer` 既有用例全绿；PR 合入、CI 通过
-- [ ] 完成后 02 票可重跑真跑复验
+- [x] `RecordingPlanner` 接受 `context_summary` 并在有 delegate 时条件透传
+- [x] 评测侧用例固定该转发行为，且不带关键字时仍可用
+- [x] 离线 `SEC-C-001/v01` 单轮：规划调用 2 次、断言无 Failed、解释缺口以 Blocked 保留
+- [x] `evals/transfer` 既有用例全绿；PR 合入、CI 通过
+- [x] 完成后 02 票可重跑真跑复验（2026-10-12 完成：18 轮 0 Failed、§4.4 全符合）

@@ -7,7 +7,7 @@ Core scenarios: 等待确认期聊天应答（User Story 1/2/3）在 API 层的�
 Verification: `python -m pytest -q app/api/`（backend/ 下）全绿；`test_message_retries_and_plain_chat_assent_never_duplicate_business` 断言应答轮真的产生了引用待办的回复，且不再出现 `stream_error`
 Owner: Erwin
 Directory: `backend/app/api/`
-Status: open（2026-10-12 起可执行）
+Status: done（2026-10-12 实现并合入，PR [#105](https://github.com/DrErwin/hackerthon-bank-agent/pull/105)，squash `b823c7a`；`app/api/` 58 passed、CI 绿、只读审查后按意见收紧替身分支与断言）
 Blocked by: None
 Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)
 
@@ -28,6 +28,6 @@ Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 ## Acceptance criteria
 
-- [ ] 规划器替身接受 `context_summary`；`app/api/` 全部用例通过
-- [ ] 用例断言应答轮产生助手回复且无 `stream_error`（在修好替身之前该断言必须失败——TDD 红）
-- [ ] 后端全量无回归；PR 合入、CI 通过
+- [x] 规划器替身接受 `context_summary`；`app/api/` 全部用例通过
+- [x] 用例断言应答轮产生助手回复且无 `stream_error`（修签名前的探针即 `stream_error DEPENDENCY_UNAVAILABLE`、`planner.calls=1`，新断言在该状态下必红）
+- [x] 后端全量无回归；PR 合入、CI 通过
