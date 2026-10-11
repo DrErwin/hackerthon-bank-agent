@@ -446,3 +446,29 @@ def test_task_reference_session_scope_migrates_from_application_v1(tmp_path):
     store.create_session("S2", "U1", "D1", created_at, expires_at)
     store.transition_task_session("U1", "D1", "T1", "S1", "S2", 0)
     assert not store.has_ref("U1", "D1", "T1", "confirmation", "C1")
+
+
+def test_list_session_tasks_orders_active_first_and_scopes_by_session(tmp_path):
+    paths = StoragePaths(tmp_path)
+    store = ApplicationStore(paths.application)
+    store.create_session("S1", "U1", "D1", NOW, "2026-09-28T12:00:00+08:00")
+    store.create_task("T1", "U1", "S1", "D1", "R1", "waiting_approval", {"step": 1})
+    store.create_task("T2", "U1", "S1", "D1", "R2", "succeeded", {"step": 2})
+    store.create_task("T3", "U1", "S1", "D1", "R3", "running", {"step": 3})
+    store.create_session("S2", "U1", "D1", NOW, "2026-09-28T12:00:00+08:00")
+    store.create_task("T4", "U1", "S2", "D1", "R4", "running", {"step": 4})
+    assert [task.task_id for task in store.list_session_tasks("U1", "D1", "S1")] == [
+        "T3", "T1", "T2",
+    ]
+    assert [task.task_id for task in store.list_session_tasks("U1", "D1", "S2")] == ["T4"]
+
+
+def test_list_session_tasks_follows_session_transition(tmp_path):
+    # A recovered task belongs to its new session: planning context there must
+    # see it instead of denying the user's business exists.
+    store, _ = prepared_task(StoragePaths(tmp_path).application)
+    created_at, expires_at = active_session_window()
+    store.create_session("S9", "U1", "D1", created_at, expires_at)
+    store.transition_task_session("U1", "D1", "T1", "S1", "S9", 0)
+    assert [task.task_id for task in store.list_session_tasks("U1", "D1", "S9")] == ["T1"]
+    assert store.list_session_tasks("U1", "D1", "S1") == []
