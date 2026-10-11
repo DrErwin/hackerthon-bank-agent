@@ -7,8 +7,8 @@ Core scenarios: BF01/BF03/BF05/BF06 取数前置；关闭 #91 的验收面（本
 Verification: `python -m pytest -q app/services/`（backend/ 下）全绿；接通测试从 `BankGateway.list_transactions` 进入，覆盖成功/他人账户拒绝/半开边界/24 个月拒绝/空成功/失败区分/as_of 随银行时钟变化
 Owner: Erwin
 Directory: backend/app/services/
-Status: open
-Blocked by: [v04-bills-bank-seam/03：模拟银行账本事实列与种子写入机制](03-ledger-facts-and-seed-write.md)（票 01 契约模型已合入）
+Status: done（2026-10-12 实现并合入，PR [#100](https://github.com/DrErwin/hackerthon-bank-agent/pull/100)，squash `4306591`；`app/services/` 35 passed、后端全量 404 passed、双轴 code-review 后按意见收敛再合入；已向 [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91) 回帖公开路径与验证方式）
+Blocked by: [v04-bills-bank-seam/03：模拟银行账本事实列与种子写入机制](03-ledger-facts-and-seed-write.md)（已合入 `2907ec2`；票 01 契约模型已合入）
 Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91)
 
 ## What to build
@@ -30,9 +30,9 @@ Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 ## Acceptance criteria
 
-- [ ] 本人账户指定范围返回完整流水 + `as_of`；排序稳定
-- [ ] 他人账户 `ACCESS_DENIED`；`start_at >= end_at` 或时间格式非法 `INVALID_ARGUMENT`；超出最近 24 个月 `RANGE_UNSUPPORTED`
-- [ ] 半开区间边界样本不重复计账；空区间成功 `[]` 且与失败可区分；失败不得伪装成空成功
-- [ ] `as_of` 随注入时钟前进而变化（银行侧时钟，不用调用方时间）
-- [ ] `python -m pytest -q app/services/` 全绿；PR 合入、CI 通过
-- [ ] 完成后向 [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91) 回帖：公开导入路径 + 合入 PR + 验证方式，供账单侧接真实取数
+- [x] 本人账户指定范围返回完整流水 + `as_of`；排序稳定
+- [x] 他人账户 `ACCESS_DENIED`；`start_at >= end_at` 或时间格式非法 `INVALID_ARGUMENT`；超出最近 24 个月 `RANGE_UNSUPPORTED`（details 用冻结键 `earliest_supported_at`）
+- [x] 半开区间边界样本不重复计账；空区间成功 `[]` 且与失败可区分；失败不得伪装成空成功（拿不到可靠事实时整查询 `BANK_UNAVAILABLE`）
+- [x] `as_of` 随注入时钟前进而变化（银行侧时钟，不用调用方时间）
+- [x] `python -m pytest -q app/services/` 全绿；PR 合入、CI 通过
+- [x] 完成后向 [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91) 回帖：公开导入路径 + 合入 PR + 验证方式，供账单侧接真实取数
