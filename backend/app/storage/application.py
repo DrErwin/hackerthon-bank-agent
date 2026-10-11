@@ -260,6 +260,23 @@ class ApplicationStore:
         finally:
             connection.close()
 
+    def list_session_tasks(self, user_id: str, demo_round_id: str,
+                           session_id: str) -> list[TaskRecord]:
+        """Trusted planning context: this session's tasks, active first, newest first."""
+        connection = connect(self.path)
+        try:
+            rows = connection.execute(
+                """SELECT rowid AS row_order, * FROM tasks
+                   WHERE user_id = ? AND demo_round_id = ? AND session_id = ?""",
+                (user_id, demo_round_id, session_id),
+            ).fetchall()
+        finally:
+            connection.close()
+        terminal = {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}
+        records = [(row["row_order"], self._task_record(row)) for row in rows]
+        records.sort(key=lambda item: (item[1].status in terminal, -item[0]))
+        return [record for _, record in records]
+
     @staticmethod
     def _task_record(row) -> TaskRecord:
         return TaskRecord(
