@@ -6,8 +6,8 @@ Spec: [v04-bills-bank-seam 规格](../spec.md)
 Core scenarios: BF01/BF03/BF05/BF06 的统计与判断必须来自银行自己的流水事实，不能由上层补造
 Verification: `python -m pytest -q app/storage/`（backend/ 下）全绿；覆盖 v2→v3 迁移不丢数据、事实列可写可读、种子写入幂等、既有排序与 7 元组写入路径不变
 Owner: Erwin
-Directory: `backend/app/storage/mock_bank/`
-Status: open
+Directory: `backend/app/storage/`（实现落在 `mock_bank/`，测试与既有存储测试同级）
+Status: done（2026-10-12 实现并合入，PR [#98](https://github.com/DrErwin/hackerthon-bank-agent/pull/98)，squash `2907ec2`；`app/storage/` 25 passed、后端全量 394 passed、双轴 code-review 后合入；CI 首次红为既有 flake [Issue #99](https://github.com/DrErwin/hackerthon-bank-agent/issues/99)，同提交重跑绿）
 Blocked by: None（可立即开始）
 Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91)
 
@@ -30,9 +30,9 @@ Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 ## Acceptance criteria
 
-- [ ] v2 库迁移到 v3 后既有数据完整、新列存在且为 NULL；重复初始化幂等
-- [ ] `seed_ledger_rows` 幂等、写入行含全部事实列、返回新写入条数
-- [ ] `list_ledger` 返回事实列，排序与既有行为不变
-- [ ] `commit_operation` / `finalize_operation` 的既有 7 元组调用不变，同编号幂等与原子性不变
-- [ ] `python -m pytest -q app/storage/` 全绿、后端全量无回归；PR 合入、CI 通过
-- [ ] 完成后 [02 银行接缝票](02-bank-seam-list-transactions.md)解除阻塞
+- [x] v2 库迁移到 v3 后既有数据完整、新列存在且为 NULL；重复初始化幂等（另补：全新库一次初始化即落 v3；早期无账本表的 v1 库按 v3 形状补建；更新版本的库拒绝打开）
+- [x] `seed_ledger_rows` 幂等、写入行含全部事实列、返回新写入条数（另补：缺必填事实或负金额整批回滚；被约束拒绝的行不伪装成已存在）
+- [x] `list_ledger` 返回事实列，排序与既有行为不变
+- [x] `commit_operation` / `finalize_operation` 的既有 7 元组调用不变，同编号幂等与原子性不变
+- [x] `python -m pytest -q app/storage/` 全绿、后端全量无回归；PR 合入、CI 通过
+- [x] 完成后 [02 银行接缝票](02-bank-seam-list-transactions.md)解除阻塞
