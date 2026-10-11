@@ -4,8 +4,8 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.contracts import (
-    BillDetails, BillScope, BillSummarizeInput, Category, CategoryTotal, QueryResult,
-    SpendingComparison, SpendingSummary, Transaction, TransactionList,
+    AccountSourceAsOf, BillDetails, BillScope, BillSummarizeInput, Category, CategoryTotal,
+    QueryResult, SpendingComparison, SpendingSummary, Transaction, TransactionList,
 )
 from app.contracts import bank as bank_contracts
 from app.contracts import bills as bills_contracts
@@ -82,7 +82,6 @@ def test_transaction_carries_bank_facts_without_guessing_unknowns():
     {"nature": "refund"},
     {"nature": "refund", "original_transaction_id": "TX1"},
     {"nature": "refund", "original_occurred_at": "2026-09-05T12:30:00+08:00"},
-    {"original_transaction_id": "TX1", "original_occurred_at": "2026-09-05T12:30:00+08:00"},
     {"nature": "payment"},
     {"category": "food"},
     {"direction": "in"},
@@ -153,6 +152,7 @@ def test_summarize_input_defaults_to_summary_and_keeps_mode_options_apart():
         {"scope": scope(), "category": "dining"},
         {"scope": scope(), "mode": "summary", "category": "dining"},
         {"scope": scope(), "mode": "details", "comparison_scope": comparison_scope},
+        {"scope": scope(), "mode": "summary", "comparison_scope": scope(account_ids=["A9"])},
         {"scope": scope(), "mode": "details", "category": "餐饮"},
         {"scope": scope(), "mode": "summary", "unexpected_option": 1},
     ):
@@ -175,6 +175,8 @@ def test_spending_summary_equals_gross_minus_refund_and_covers_each_account():
         {"source_as_of": source_as_of(("A1", AS_OF))},
         {"source_as_of": source_as_of(("A1", AS_OF), ("A5", EARLIER), ("A9", EARLIER))},
         {"source_as_of": source_as_of(("A1", AS_OF), ("A5", EARLIER), ("A5", EARLIER))},
+        {"categories": [category_total(), category_total()]},
+        {"categories": [category_total(rank=2)]},
         {"transaction_count": -1},
         {"transaction_count": True},
     ):
@@ -183,7 +185,8 @@ def test_spending_summary_equals_gross_minus_refund_and_covers_each_account():
 
 
 def test_category_total_keeps_the_signed_equation_and_share_bounds():
-    assert CategoryTotal.model_validate(category_total(net_fen=-300, outflow_fen=0, refund_fen=300)).net_fen == -300
+    refunded = category_total(net_fen=-300, outflow_fen=0, refund_fen=300, share_bps=None)
+    assert CategoryTotal.model_validate(refunded).net_fen == -300
     assert CategoryTotal.model_validate(category_total(share_bps=None, category="transfer")).share_bps is None
     for broken in (
         {"net_fen": 50000},
@@ -193,6 +196,8 @@ def test_category_total_keeps_the_signed_equation_and_share_bounds():
         {"rank": 0},
         {"category": "餐饮"},
         {"category": "interest"},
+        {"category": "transfer"},
+        {"net_fen": -300, "outflow_fen": 0, "refund_fen": 300},
     ):
         with pytest.raises(ValidationError):
             CategoryTotal.model_validate(category_total() | broken)
@@ -246,6 +251,7 @@ def test_public_import_paths_and_signed_money_are_available():
     assert bank_contracts.Transaction is Transaction
     assert bank_contracts.TransactionList is TransactionList
     assert bills_contracts.BillScope is BillScope
+    assert bills_contracts.AccountSourceAsOf is AccountSourceAsOf
     assert bills_contracts.SpendingSummary is SpendingSummary
     assert bills_contracts.BillDetails is BillDetails
     adapter = TypeAdapter(SignedMoney)

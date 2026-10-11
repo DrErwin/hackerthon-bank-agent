@@ -1,4 +1,4 @@
-"""Bank-facing facts needed by the ordinary-transfer path."""
+"""Bank-facing facts for the ordinary-transfer path and the read-only queries (B01—B08)."""
 
 from __future__ import annotations
 
@@ -200,9 +200,10 @@ class Transaction(ContractModel):
 
     @model_validator(mode="after")
     def match_refund_to_its_original(self) -> "Transaction":
-        has_origin = self.original_transaction_id is not None and self.original_occurred_at is not None
-        if has_origin != (self.nature == "refund"):
-            raise ValueError("only a refund carries the original transaction id and time, and it must carry both")
+        if self.nature == "refund" and (
+            self.original_transaction_id is None or self.original_occurred_at is None
+        ):
+            raise ValueError("a refund carries the original transaction id and time")
         return self
 
 

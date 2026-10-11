@@ -11,8 +11,10 @@ from .common import (
     Category, ContractModel, ID, Money, NonNegativeInt, PositiveInt, SignedMoney, Timestamp,
 )
 
+ShareBps = Annotated[int, Field(strict=True, ge=0, le=10000)]
 
-class AccountAsOf(ContractModel):
+
+class AccountSourceAsOf(ContractModel):
     """When the bank data of one account was read; never claimed as an atomic snapshot."""
 
     account_id: ID
@@ -48,12 +50,23 @@ class BillSummarizeInput(ContractModel):
         if self.mode == "summary":
             if self.category is not None:
                 raise ValueError("summary mode does not take a category filter")
+            if self.comparison_scope is not None and (
+                set(self.comparison_scope.account_ids) != set(self.scope.account_ids)
+            ):
+                raise ValueError("the comparison period reuses the account set of the scope")
         elif self.comparison_scope is not None:
             raise ValueError("details mode does not take a comparison scope")
         return self
 
 
-def _require_complete_source(scope: BillScope, source_as_of: list[AccountAsOf], as_of: Timestamp) -> None:
+def _require_net_equation(net: int, gross: int, refund: int, label: str) -> None:
+    if net != gross - refund:
+        raise ValueError(f"{label} net must equal gross minus refund")
+
+
+def _require_complete_source(scope: BillScope, source_as_of: list[AccountSourceAsOf], as_of: Timestamp) -> None:
+    """A summary or a details list may only claim completeness over the whole scope (§5.3)."""
+
     if sorted(item.account_id for item in source_as_of) != sorted(scope.account_ids):
         raise ValueError("source_as_of must cover exactly the accounts in scope")
     if as_of != min(item.as_of for item in source_as_of):
@@ -65,13 +78,14 @@ class CategoryTotal(ContractModel):
     outflow_fen: Money
     refund_fen: Money
     net_fen: SignedMoney
-    share_bps: Annotated[int, Field(strict=True, ge=0, le=10000)] | None
+    share_bps: ShareBps | None
     rank: PositiveInt
 
     @model_validator(mode="after")
-    def match_net_to_outflow_and_refund(self) -> "CategoryTotal":
-        if self.net_fen != self.outflow_fen - self.refund_fen:
-            raise ValueError("category net must equal outflow minus refund")
+    def match_net_and_share_to_facts(self) -> "CategoryTotal":
+        _require_net_equation(self.net_fen, self.outflow_fen, self.refund_fen, "category")
+        if self.share_bps is not None and (self.category is Category.TRANSFER or self.net_fen <= 0):
+            raise ValueError("share_bps stays empty for transfers and non-positive net amounts")
         return self
 
 
@@ -87,7 +101,7 @@ class SpendingComparison(ContractModel):
 class SpendingSummary(ContractModel):
     scope: BillScope
     as_of: Timestamp
-    source_as_of: list[AccountAsOf]
+    source_as_of: list[AccountSourceAsOf]
     transaction_count: NonNegativeInt
     consumption_gross_fen: Money
     consumption_refund_fen: Money
@@ -98,9 +112,15 @@ class SpendingSummary(ContractModel):
     comparison: SpendingComparison | None
 
     @model_validator(mode="after")
-    def match_consumption_and_source(self) -> "SpendingSummary":
-        if self.consumption_net_fen != self.consumption_gross_fen - self.consumption_refund_fen:
-            raise ValueError("consumption net must equal gross minus refund")
+    def match_consumption_categories_and_source(self) -> "SpendingSummary":
+        _require_net_equation(
+            self.consumption_net_fen, self.consumption_gross_fen, self.consumption_refund_fen, "consumption",
+        )
+        ranks = [item.rank for item in self.categories]
+        if len({item.category for item in self.categories}) != len(self.categories):
+            raise ValueError("each category is totalled once")
+        if ranks != list(range(1, len(ranks) + 1)):
+            raise ValueError("categories are listed in rank order and ranked once each")
         _require_complete_source(self.scope, self.source_as_of, self.as_of)
         return self
 
@@ -109,7 +129,7 @@ class BillDetails(ContractModel):
     scope: BillScope
     category: Category | None
     transactions: list[Transaction]
-    source_as_of: list[AccountAsOf]
+    source_as_of: list[AccountSourceAsOf]
     as_of: Timestamp
 
     @model_validator(mode="after")

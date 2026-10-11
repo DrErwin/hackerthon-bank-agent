@@ -14,7 +14,7 @@ from .bank import (
     SavedPayee, Transaction, TransactionList, TransferLimits, TransferPrecheck, TransferQuote, TransferReceipt,
 )
 from .bills import (
-    AccountAsOf, BillDetails, BillScope, BillSummarizeInput, CategoryTotal,
+    AccountSourceAsOf, BillDetails, BillScope, BillSummarizeInput, CategoryTotal,
     SpendingComparison, SpendingSummary,
 )
 from .common import (
