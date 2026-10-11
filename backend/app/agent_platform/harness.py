@@ -230,9 +230,13 @@ class AgentHarness:
     def _select_outcome(self, trusted: TrustedContext, intent_text: str,
                         thread_id: str) -> TransferProposal | ReplyOnly:
         context = self._scope(trusted)
+        summary = self._session_context_summary(trusted)
+        # Only pass the keyword when there is a summary: injected planners with
+        # the older five-argument signature keep working for plain messages.
+        planning_options = {"context_summary": summary} if summary is not None else {}
         outcome = self.planner.select(
-            intent_text, trusted, self.registry.public_catalog(), self.memory,
-            thread_id,
+            intent_text, trusted, self.registry.public_catalog(), self.memory, thread_id,
+            **planning_options,
         )
         if not isinstance(outcome, (TransferProposal, ReplyOnly)):
             raise ValueError("MODEL_OUTCOME_INVALID")
@@ -242,6 +246,45 @@ class AgentHarness:
             self._check_intent_text(outcome.message)
             outcome = ReplyOnly.model_validate(redact(outcome.model_dump(mode="json")))
         return outcome
+
+    _SUMMARY_TASK_LIMIT = 3
+
+    def _session_context_summary(self, trusted: TrustedContext) -> str | None:
+        """Trusted structured pending-business summary for the planning prompt (#84)."""
+        lines: list[str] = []
+        for task in self.application.list_session_tasks(
+            trusted.user_id, trusted.demo_round_id, trusted.session_id,
+        ):
+            if task.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED,
+                               TaskStatus.CANCELLED}:
+                continue
+            phrase = self._pending_phrase(task)
+            if phrase is None:
+                continue
+            intent = str(task.snapshot.get("intent_text") or "").strip()
+            lines.append(f"- {phrase}：{intent}" if intent else f"- {phrase}")
+            if len(lines) >= self._SUMMARY_TASK_LIMIT:
+                break
+        if not lines:
+            return None
+        summary = str(redact("\n".join(lines), free_text=True))
+        return summary or None
+
+    @staticmethod
+    def _pending_phrase(task: TaskRecord) -> str | None:
+        if task.status is TaskStatus.WAITING_APPROVAL:
+            result = task.snapshot.get("result")
+            interaction = result.get("interaction") if isinstance(result, dict) else None
+            if isinstance(interaction, dict) and interaction.get("kind") == "verification":
+                return "有一笔业务等待身份验证，验证须走专用通道，聊天不能代替"
+            return "有一笔业务等待用户在确认单上确认办理，聊天确认不算数"
+        if task.status is TaskStatus.WAITING_INPUT:
+            return "有一笔业务等待用户补充信息"
+        if task.status is TaskStatus.RUNNING:
+            return "有一笔业务办理中"
+        if task.status is TaskStatus.NEEDS_ATTENTION:
+            return "有一笔业务结果待核实，只能查询原操作"
+        return None
 
     def _understand_with_trace(self, trusted: TrustedContext, intent_text: str,
                                trace: RunTrace) -> TransferProposal | ReplyOnly:
