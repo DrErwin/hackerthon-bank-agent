@@ -1,6 +1,6 @@
 # v0.4 账单银行接缝（B08 + L01 公共模型）
 
-Status: in_progress
+Status: done（2026-10-12 收口：票 01/03/02/04 全部合入，[Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91) 关闭条件满足并关闭）
 Owner: Erwin（PM 自拆，不开交付包）
 Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91)（账单依赖：落地冻结契约的 B08 流水查询与 L01—L03 公共模型）
 Deadline: **不晚于 2026-10-16**（给账单侧真实取数联调留 10-17～10-19 窗口；v0.4 收口 10-20 硬截止）

@@ -7,7 +7,7 @@ Core scenarios: BF01/BF03/BF05/BF06 在本机演示里能查到真实月份流�
 Verification: `python -m pytest -q app/agent_platform/`（backend/ 下）全绿；测试从演示启动链路进入，经 `BankGateway.list_transactions` 读到当前月与上月样本；未启用时既有演示行为不变
 Owner: Erwin
 Directory: `backend/app/agent_platform/`
-Status: open
+Status: done（2026-10-12 实现并合入，PR [#102](https://github.com/DrErwin/hackerthon-bank-agent/pull/102)，squash `47650b7`；`app/agent_platform/` 114 passed、后端全量 406 passed、只读审查后按意见补强分月/分账户断言再合入）
 Blocked by: [v04-bills-bank-seam/02：银行接缝 list_transactions](02-bank-seam-list-transactions.md)
 Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91)
 
@@ -26,7 +26,7 @@ Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 ## Acceptance criteria
 
-- [ ] 本机演示启动后有共用种子流水，`BankGateway.list_transactions` 可查到当前月与上月样本
-- [ ] 重复启动幂等，不重复写入、不报错
-- [ ] 未调用播种入口的既有测试路径行为不变
-- [ ] `python -m pytest -q app/agent_platform/` 全绿、后端全量无回归；PR 合入、CI 通过
+- [x] 本机演示启动后有共用种子流水，`BankGateway.list_transactions` 可查到当前月与上月样本
+- [x] 重复启动幂等，不重复写入、不报错
+- [x] 未调用播种入口的既有测试路径行为不变
+- [x] `python -m pytest -q app/agent_platform/` 全绿、后端全量无回归；PR 合入、CI 通过
