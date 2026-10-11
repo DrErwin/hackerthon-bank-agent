@@ -9,7 +9,11 @@ from pathlib import Path
 from app.storage.database import connect, parameter_digest, transaction
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+LEDGER_FACT_COLUMNS = (
+    "counterparty_id", "counterparty_name", "counterparty_account_masked",
+    "channel", "summary", "original_transaction_id", "original_occurred_at",
+)
 
 
 @dataclass(frozen=True)
@@ -67,7 +71,14 @@ class MockBankStore:
                         direction TEXT NOT NULL,
                         nature TEXT NOT NULL,
                         category TEXT NOT NULL,
-                        occurred_at TEXT NOT NULL
+                        occurred_at TEXT NOT NULL,
+                        counterparty_id TEXT,
+                        counterparty_name TEXT,
+                        counterparty_account_masked TEXT,
+                        channel TEXT,
+                        summary TEXT,
+                        original_transaction_id TEXT,
+                        original_occurred_at TEXT
                     )
                 """)
                 connection.execute("""
@@ -83,10 +94,18 @@ class MockBankStore:
                     )
                 """)
                 connection.execute("PRAGMA user_version = 2")
+                version = 2
             elif version == 1:
                 connection.execute("ALTER TABLE bank_operations ADD COLUMN updated_at TEXT")
                 connection.execute("UPDATE bank_operations SET updated_at = recorded_at")
-                connection.execute("PRAGMA user_version = 2")
+                version = 2
+            if version == 2:
+                # An early v1 fixture may predate the ledger table; there is nothing to widen then.
+                existing = {row["name"] for row in connection.execute("PRAGMA table_info(ledger_entries)")}
+                for column in LEDGER_FACT_COLUMNS:
+                    if existing and column not in existing:
+                        connection.execute(f"ALTER TABLE ledger_entries ADD COLUMN {column} TEXT")
+            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     def seed_account(self, account: BankAccount) -> None:
         with transaction(self.path) as connection:
@@ -211,10 +230,48 @@ class MockBankStore:
             if owned is None:
                 raise ValueError("ledger account is not in scope")
             connection.execute(
-                "INSERT INTO ledger_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                """INSERT INTO ledger_entries (transaction_id, account_id, user_id, operation_id,
+                   amount_fen, direction, nature, category, occurred_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (transaction_id, account_id, user_id, operation_id, amount_fen,
                  direction, nature, category, occurred_at),
             )
+
+    def seed_ledger_rows(self, rows: list[dict]) -> int:
+        """Insert already-formed bank facts; idempotent per transaction_id.
+
+        Seeded rows have no real operation, so their ``operation_id`` marks the
+        origin, and the caller owns the bank clock: ``occurred_at`` arrives as an
+        ISO string. Returns how many rows were newly written.
+        """
+        written = 0
+        with transaction(self.path) as connection:
+            for row in rows:
+                account_id, user_id = row["account_id"], row["user_id"]
+                owned = connection.execute(
+                    "SELECT 1 FROM accounts WHERE account_id = ? AND user_id = ?",
+                    (account_id, user_id),
+                ).fetchone()
+                if owned is None:
+                    raise ValueError("seeded ledger account is not in scope")
+                written += connection.execute(
+                    """INSERT OR IGNORE INTO ledger_entries (
+                       transaction_id, account_id, user_id, operation_id, amount_fen, direction,
+                       nature, category, occurred_at, counterparty_id, counterparty_name,
+                       counterparty_account_masked, channel, summary, original_transaction_id,
+                       original_occurred_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        row["transaction_id"], account_id, user_id,
+                        "seed:" + row["transaction_id"], row["amount_fen"], row["direction"],
+                        row["nature"], row["category"], row["occurred_at"],
+                        row.get("counterparty_id"), row.get("counterparty_name"),
+                        row.get("counterparty_account_masked"), row.get("channel"),
+                        row.get("summary"), row.get("original_transaction_id"),
+                        row.get("original_occurred_at"),
+                    ),
+                ).rowcount
+        return written
 
     def list_ledger(self, user_id: str, account_id: str) -> list[dict]:
         connection = connect(self.path)
