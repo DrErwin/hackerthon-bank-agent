@@ -7,8 +7,8 @@ Core scenarios: SEC-C-001（聊天同意与模糊回答均不代替按钮）· T
 Verification: ① `python -m pytest -q app/agent_platform/`（backend/ 下）全绿；② 定向复现（离线缝，scripted 工厂驱动 harness）：等待确认时输入「嗯/确认/快多久/我刚才已经同意了」，回复引用当前待办、不否认业务、确认单仍待按钮、银行零写；③ 秘密检查：注入仅结构化摘要，原始消息与秘密不落长期存储、不入审计正文
 Owner: Erwin
 Directory: backend/app/agent_platform/
-Status: open
-Blocked by: None（可立即开始）
+Status: resolved（PR #96 合入 2026-10-12；前置 PR #95 storage）
+Blocked by: None（已开始并完成）
 Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)
 
 ## What to build
@@ -18,13 +18,21 @@ Source issue: [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issue
 ## 实现要点
 
 - 根因位置：`model.py` `DeepAgentPlanner.select`——只传当前一条消息、`checkpoint_ns=f"harness-{uuid4()}"` 随机且不挂 checkpointer（有意设计：规划期原始消息可能含秘密）、业务状态不注入。
-- 注入**结构化摘要**（最近对话要点 + 当前待确认单要点 + 验证状态），不是原始消息；`checkpoint_ns` 改为稳定会话标识。规划期不持久化原始模型消息的原则保持。
-- 秘密口径（哪些结构化字段可进规划上下文）开工前取得 Ringo 确认，或 PM 代行并如实记录。
-- 接缝纪律：需要动 `memory/`（摘要存储）、`modules/transfer/`（待办摘要来源）时登记依赖另开票；本票只落 `agent_platform/`。
+- 注入**受控摘要**（当前待办状态要点 + 该业务的原请求文本，经 `redact(free_text=True)` 打码），不是原始模型消息。
+- **实现修正**：`checkpoint_ns` 保持每次随机——规划 backend 为 `StateBackend` 且每次调用新建，稳定 ns 无实际效果；反而在将来误挂持久 checkpointer 时会让原始消息落盘，故不改（规格 Further Notes 已记录）。
+- 秘密口径以 PM 代行记录为准（注入字段清单见[规格 Implementation Decisions](../spec.md)），Ringo 可复核。
+- 接缝纪律：本次新增 storage 前置方法单独成票（[04 票](04-storage-session-tasks.md)，PR #95 独立目录合入），本票只落 `agent_platform/`。
 
 ## Acceptance criteria
 
-- [ ] 离线定向复现四类应答全部与待办一致、不否认业务、零资金副作用
-- [ ] pytest 全绿；秘密检查通过（无原始消息/秘密落盘）
-- [ ] 分支 rebase 最新 `origin/main`、PR 合入（squash）、CI 通过
-- [ ] 完成后 [02 复验票](02-live-retest-handoff.md)解除阻塞；本票完成不等于关 issue
+- [x] 离线定向复现四类应答全部与待办一致、不否认业务、零资金副作用（test_planning_context.py 7 例）
+- [x] pytest 全绿（agent_platform 113/113、api 57/57、后端全量 357/357）；秘密检查通过（仅打码摘要，无原始消息落盘）
+- [x] 分支 rebase 最新 `origin/main`、PR 合入（squash）、CI 通过（PR #95/#96 Repository checks 绿）
+- [x] [02 复验票](02-live-retest-handoff.md)解除阻塞（2026-10-12）
+
+## 完成证据（2026-10-11 实现，2026-10-12 合入）
+
+- **PR #96**（`agent_platform`）：harness `_session_context_summary` 生成受控摘要，`_select_outcome` 条件传参（兼容旧五参 planner）；`Planner`/`DeepAgentPlanner.select` 增可选 `context_summary`，注入系统提示「当前会话背景」段并声明非用户指令。
+- **PR #95**（`storage`，前置）：`list_session_tasks` 按会话列任务（活跃优先、会话转换归属新会话）。
+- 双轴 code-review：Standards 0 硬违规（双调用分支按建议合并为单调用点）；Spec 差距两条——「最近对话」半边待 api 接缝、「稳定 checkpoint_ns」按代码事实修正，均登记于规格。
+- 定向复现为**输入侧**证据（模型能看见待办）；**回复质量**以真实模型复验为准 → [02 票](02-live-retest-handoff.md)。

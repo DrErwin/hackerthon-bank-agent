@@ -32,9 +32,11 @@ Deadline: **不晚于 2026-10-15**（为安全线 33+14 轮全量转正复跑留
 
 ## Implementation Decisions
 
-- **基线（必做；用户 2026-10-10 拍板「交互最起码要带上历史数据」）**：规划入口注入受控上下文——最近对话的结构化摘要 + 当前待办状态（待确认单要点、验证状态）——并改用稳定的会话 `checkpoint_ns`。注入的是结构化摘要而非原始消息；规划期不持久化原始模型消息的既有原则保持。
+- **基线（必做；用户 2026-10-10 拍板「交互最起码要带上历史数据」）**：规划入口注入受控上下文——当前待办状态摘要（状态短语 + 该业务的原请求文本，经 `redact(free_text=True)` 打码）。注入的是摘要而非原始模型消息；规划期不持久化原始模型消息的既有原则保持。
+- **实现修正（2026-10-11，#95/#96）**：原决定的「稳定会话 `checkpoint_ns`」**不采纳**——规划 backend 是 `StateBackend` 且每次调用新建，稳定 ns 无实际效果；反而在将来误挂持久 checkpointer 时会让原始模型消息落盘，与秘密边界冲突。上下文改由摘要注入单独交付。「最近对话」原始轮次摘要（User Story 8 的完整覆盖）需 api 接缝，见 Further Notes。
+- **秘密边界口径（PM 代行记录，2026-10-11；Ringo 可复核）**：注入字段 = 待办状态短语 + 该业务原请求文本（已 redact：电话/账号/地址打码，姓名仅前缀规则命中）；不含原始模型消息、不含验证码/凭据、不含银行账号原文。
 - **可选增强：确定性等待应答短路**——等待确认/验证期的固定话术（嗯/确认/催促类）走确定性分支不经模型。采纳判据：基线复验后仍余留问题才做；基线复验全绿则按 YAGNI 不做。
-- **秘密边界口径**（哪些结构化字段可进规划上下文）：由 Ringo 定；PM 代行时如实记录代行。
+- **秘密边界口径**（哪些结构化字段可进规划上下文）：由 Ringo 定；PM 代行时如实记录代行（执行记录见上）。
 - 修复不改变确认、验证、权限与资金安全语义；聊天文字仍不构成批准；不新增模型可调用的资金/授权工具。
 - 单一实施目录：`backend/app/agent_platform/`；涉及 `memory/`（摘要存储）、`modules/transfer/`（待办摘要来源）、`contracts/`/`api/`（仅当公开行为变化）的接缝改动另开票，不混入基线票。
 - 短路若改变对外回复形态，先判断是否触及公共契约/API 契约，触及先走契约变更流程。
@@ -58,11 +60,14 @@ Deadline: **不晚于 2026-10-15**（为安全线 33+14 轮全量转正复跑留
 
 ## Tickets
 
-- [v04-planning-context/01：受控上下文基线（历史与待办摘要注入）](issues/01-planner-context.md)——必做
+- [v04-planning-context/01：受控上下文基线（历史与待办摘要注入）](issues/01-planner-context.md)——必做，**resolved**（PR #96）
+- [v04-planning-context/04：会话任务列表（storage 前置）](issues/04-storage-session-tasks.md)——**resolved**（PR #95）
 - [v04-planning-context/03：确定性等待应答短路](issues/03-deterministic-shortcut.md)——可选增强
-- [v04-planning-context/02：真实运行复验与移交](issues/02-live-retest-handoff.md)——blocked by 01（及 03 若采纳）
+- [v04-planning-context/02：真实运行复验与移交](issues/02-live-retest-handoff.md)——**open**（2026-10-12 起可执行；及 03 若采纳）
 
 ## Further Notes
 
 - 2026-10-11 建组（`5b3fa9e`）；同日按用户显式调用的 `to-spec` / `to-tickets` 复查后重写本规格：把用户 10-10 拍板（至少带历史数据）从「候选方向」提升为必做基线，补齐 User Stories / 测试缝 / Out of Scope，并把「可选短路」拆为独立票使其不挡截止。
-- 票号沿用组内既有编号：01 重写为基线票、02 保留为复验票、03 为追加票（编号不复用规则）。
+- 票号沿用组内既有编号：01 重写为基线票、02 保留为复验票、03 为追加票（编号不复用规则）；04 为实施中新增的 storage 前置票（一票一目录，PR #95）。
+- **实施结果（2026-10-11 实现 / 10-12 合入）**：PR #95（`storage.list_session_tasks`）+ PR #96（harness 摘要构建与条件传参、`Planner`/`DeepAgentPlanner.select` 增可选 `context_summary`、系统提示注入「当前会话背景」段）。测试：agent_platform 113/113、api 57/57、后端全量 357/357；双轴 code-review Standards 0 硬违规。**遗留**：「最近对话」原始轮次摘要需 api 接缝（threads/messages 归 API 层），由 [02 票](issues/02-live-retest-handoff.md) 复验结论决定是否为主路径必要项并另开 api 票；User Story 8 在有待办任务时可由摘要中的原请求文本满足，无待办时不覆盖。
+- 顺带修复了阻断全部 PR 的既有断链（`0edfcdb`，证据文档链接多一层父目录），周恩宇的两张账单 PR rebase 后即可过 CI。
