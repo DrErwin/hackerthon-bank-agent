@@ -42,6 +42,9 @@ class BankGateway:
     def get_limits(self, context: TrustedContext, account_id: str):
         return self._bank.get_limits(context.user_id, account_id)
 
+    def list_transactions(self, context: TrustedContext, account_id: str, start_at, end_at):
+        return self._bank.list_transactions(context.user_id, account_id, start_at, end_at)
+
     def quote_transfer(self, context: TrustedContext, payer_account_id: str, payee, amount_fen: int):
         return self._bank.quote_transfer(context.user_id, payer_account_id, payee, amount_fen)
 
