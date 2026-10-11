@@ -40,6 +40,35 @@ def test_catalog_has_all_current_samples():
     assert all(plan_for(c).variant for c in CASES)
 
 
+def test_recording_planner_forwards_the_planning_context():
+    """The waiting-period reply needs the trusted summary to reach the real model."""
+    from types import SimpleNamespace
+
+    from app.agent_platform.model import ReplyOnly
+    from environment import RecordingPlanner
+
+    class Delegate:
+        provider, model_name, config_version = "scripted", "delegate", "v1"
+
+        def __init__(self):
+            self.contexts = []
+
+        def select(self, intent_text, trusted, catalog, memory, thread_id, context_summary=None):
+            self.contexts.append(context_summary)
+            return ReplyOnly(message="请核对并点击当前确认单的按钮。")
+
+    plan = SimpleNamespace(variant="INP-18", hint="妈妈", amount=50000, payer="A1")
+    delegate = Delegate()
+    planner = RecordingPlanner(plan, delegate)
+
+    outcome = planner.select("嗯", None, None, None, "T1",
+                             context_summary="有一笔业务等待用户在确认单上确认办理，聊天确认不算数")
+    assert delegate.contexts == ["有一笔业务等待用户在确认单上确认办理，聊天确认不算数"]
+    assert outcome.message
+    planner.select("嗯", None, None, None, "T1")
+    assert delegate.contexts[-1] is None
+
+
 @pytest.mark.parametrize("case", CASES, ids=[c["id"] for c in CASES])
 def test_transfer_eval(case, tmp_path, request, evidence):
     delegate, blocker = None, None
