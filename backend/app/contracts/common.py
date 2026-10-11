@@ -18,8 +18,11 @@ class ContractModel(BaseModel):
 ID = Annotated[str, StringConstraints(strict=True, min_length=1, pattern=r"^\S+$")]
 Money = Annotated[int, Field(strict=True, ge=0)]
 PositiveMoney = Annotated[int, Field(strict=True, gt=0)]
+SignedMoney = Annotated[int, Field(strict=True)]
 NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
 PositiveInt = Annotated[int, Field(strict=True, gt=0)]
+
+
 def _iso_timestamp(value: object) -> object:
     if isinstance(value, datetime):
         return value
@@ -76,6 +79,18 @@ class Phase(StrEnum):
     ADMISSION = "admission"
     EXECUTION = "execution"
     RECOVERY = "recovery"
+
+
+class Category(StrEnum):
+    """Bank flow categories (bank fields §3); bills display names map one to one."""
+
+    DINING = "dining"
+    TRANSPORT = "transport"
+    MEDICAL = "medical"
+    SHOPPING = "shopping"
+    HOUSING = "housing"
+    TRANSFER = "transfer"
+    OTHER = "other"
 
 
 class DisplayField(ContractModel):

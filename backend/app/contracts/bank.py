@@ -7,7 +7,9 @@ from typing import Annotated, Generic, Literal, TypeVar
 from pydantic import Field, JsonValue, model_validator
 from typing_extensions import TypeAliasType
 
-from .common import ContractModel, ID, Money, OperationId, OperationStatus, PositiveMoney, Timestamp
+from .common import (
+    Category, ContractModel, ID, Money, OperationId, OperationStatus, PositiveMoney, Timestamp,
+)
 
 
 class OwnPayee(ContractModel):
@@ -176,3 +178,34 @@ class TransferReceipt(ContractModel):
     arrival_mode: Literal["instant"]
     completed_at: Timestamp
     balance: BalanceSnapshot
+
+
+class Transaction(ContractModel):
+    """One bank-recorded flow row as B08 returns it (bank fields §3)."""
+
+    transaction_id: ID
+    account_id: ID
+    occurred_at: Timestamp
+    amount_fen: Money
+    nature: Literal["consumption", "transfer", "refund", "interest"]
+    category: Category
+    direction: Literal["inflow", "outflow"]
+    counterparty_id: ID | None
+    counterparty_name: str
+    counterparty_account_masked: str | None
+    channel: str | None
+    summary: str
+    original_transaction_id: ID | None
+    original_occurred_at: Timestamp | None
+
+    @model_validator(mode="after")
+    def match_refund_to_its_original(self) -> "Transaction":
+        has_origin = self.original_transaction_id is not None and self.original_occurred_at is not None
+        if has_origin != (self.nature == "refund"):
+            raise ValueError("only a refund carries the original transaction id and time, and it must carry both")
+        return self
+
+
+class TransactionList(ContractModel):
+    transactions: list[Transaction]
+    as_of: Timestamp
