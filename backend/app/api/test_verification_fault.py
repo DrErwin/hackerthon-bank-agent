@@ -1,4 +1,5 @@
 """Unknown verification outcomes stay visible and recover by original submission."""
+import re
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -7,6 +8,22 @@ from fastapi.testclient import TestClient
 from app.api.test_app import make_app, start, approve, post
 from app.storage.database import connect
 from app.storage.mock_bank.repository import MockBankStore
+
+
+def stored_code_leak(rows, code: str) -> str | None:
+    """Return the first stored cell carrying the demo code as its own token.
+
+    Comparing whole rows as one string flags coincidences: six random digits show up
+    inside timestamps, UUIDs, amounts and durations all the time. A stored code is a
+    string value that is not part of a longer digit run, and a numeric column cannot
+    be the code as text.
+    """
+    pattern = re.compile(rf"(?<!\d){re.escape(code)}(?!\d)")
+    for row in rows:
+        for value in tuple(row):
+            if isinstance(value, str) and pattern.search(value):
+                return value
+    return None
 
 
 @pytest.mark.parametrize("bank_saved", [False, True])
@@ -60,8 +77,17 @@ def test_verification_fault_updates_task_and_replays_original_submission(tmp_pat
         assert len(calls) == 1
         connection = connect(app.state.api.runtime.application.path)
         for table in ("api_requests", "api_events", "tasks", "audit_events", "checkpoint_writes", "checkpoint_blobs"):
-            assert all(code not in str(tuple(row)) for row in connection.execute(f"SELECT * FROM {table}")), table
+            rows = list(connection.execute(f"SELECT * FROM {table}"))
+            assert stored_code_leak(rows, code) is None, table
         connection.close()
+
+
+def test_stored_code_check_separates_a_token_from_a_digit_run():
+    digits_run = [("2026-10-12T18:03:30.8499763Z", 123456, "E1")]
+    assert stored_code_leak(digits_run, "499763") is None
+    assert stored_code_leak(digits_run, "123456") is None
+    assert stored_code_leak([('{"code": "123456"}',)], "123456") == '{"code": "123456"}'
+    assert stored_code_leak([("code=123456&x=1",)], "123456") == "code=123456&x=1"
 
 
 @pytest.mark.parametrize("method", ["get", "post"])
