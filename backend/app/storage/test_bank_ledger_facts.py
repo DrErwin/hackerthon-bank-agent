@@ -109,7 +109,17 @@ def test_newer_bank_database_is_refused(tmp_path):
 def test_seed_ledger_rows_does_not_mistake_a_rejected_row_for_an_existing_one(tmp_path):
     store = seeded_store(tmp_path)
     with pytest.raises(ValueError, match="rejected"):
-        store.seed_ledger_rows([ledger_row(amount_fen=None)])
+        store.seed_ledger_rows([ledger_row(nature=None)])
+    assert store.list_ledger("U1", "A1") == []
+
+
+def test_seeded_rows_must_be_able_to_become_bank_facts(tmp_path):
+    store = seeded_store(tmp_path)
+    missing_summary = {key: value for key, value in ledger_row().items() if key != "summary"}
+    for incomplete in (ledger_row(summary=None), ledger_row(counterparty_name=None),
+                       ledger_row(amount_fen=-1), missing_summary):
+        with pytest.raises(ValueError, match="seeded ledger row"):
+            store.seed_ledger_rows([incomplete])
     assert store.list_ledger("U1", "A1") == []
 
 

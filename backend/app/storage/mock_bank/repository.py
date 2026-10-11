@@ -102,7 +102,6 @@ class MockBankStore:
                         updated_at TEXT NOT NULL
                     )
                 """)
-                connection.execute("PRAGMA user_version = 2")
                 version = 2
             elif version == 1:
                 connection.execute("ALTER TABLE bank_operations ADD COLUMN updated_at TEXT")
@@ -249,13 +248,20 @@ class MockBankStore:
 
         Seeded rows have no real operation, so their ``operation_id`` marks the
         origin, and the caller owns the bank clock: ``occurred_at`` arrives as an
-        ISO string. Returns how many rows were newly written.
+        ISO string. Returns how many rows were newly written. A row that the bank
+        could not later return as a valid flow fact is refused, not silently lost.
         """
         written = 0
         with transaction(self.path) as connection:
             for row in rows:
                 account_id, user_id = row["account_id"], row["user_id"]
                 _require_owned_account(connection, user_id, account_id)
+                amount_fen = row["amount_fen"]
+                if (not isinstance(amount_fen, int) or amount_fen < 0
+                        or not row.get("counterparty_name") or not row.get("summary")):
+                    raise ValueError(
+                        "seeded ledger row needs a non-negative amount, counterparty_name and summary"
+                    )
                 changed = connection.execute(
                     """INSERT OR IGNORE INTO ledger_entries (
                        transaction_id, account_id, user_id, operation_id, amount_fen, direction,
@@ -265,11 +271,11 @@ class MockBankStore:
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         row["transaction_id"], account_id, user_id,
-                        "seed:" + row["transaction_id"], row["amount_fen"], row["direction"],
+                        "seed:" + row["transaction_id"], amount_fen, row["direction"],
                         row["nature"], row["category"], row["occurred_at"],
-                        row.get("counterparty_id"), row.get("counterparty_name"),
+                        row.get("counterparty_id"), row["counterparty_name"],
                         row.get("counterparty_account_masked"), row.get("channel"),
-                        row.get("summary"), row.get("original_transaction_id"),
+                        row["summary"], row.get("original_transaction_id"),
                         row.get("original_occurred_at"),
                     ),
                 ).rowcount
