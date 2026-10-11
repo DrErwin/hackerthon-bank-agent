@@ -8,21 +8,24 @@ Verification: `python -m pytest -q app/services/`（backend/ 下）全绿；接�
 Owner: Erwin
 Directory: backend/app/services/
 Status: open
-Blocked by: [v04-bills-bank-seam/01：契约模型](01-contracts-models.md)
+Blocked by: [v04-bills-bank-seam/03：模拟银行账本事实列与种子写入机制](03-ledger-facts-and-seed-write.md)（票 01 契约模型已合入）
 Source issue: [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91)
 
 ## What to build
 
 账单模块能通过公开入口拿到本人账户在指定时间范围内的**完整**流水事实：
 
-1. **模拟银行（`services/mock_bank/`）**：按 B08 语义实现范围查询——本人账户校验、半开区间（`occurred_at >= start_at` 且 `< end_at`，首尾不重复计账）、最多最近 24 个月、`as_of` 取银行自己的时钟（可注入，沿用 `services/test_verification.py` 的 Clock 模式）、空数据成功返回 `[]`、失败与空严格区分；错误分类 `INVALID_ARGUMENT` / `ACCESS_DENIED` / `RANGE_UNSUPPORTED`。范围过滤在银行服务内基于 `storage/mock_bank` 既有 `list_ledger` 读取完成，本票不改存储层 schema。
+1. **模拟银行（`services/mock_bank/`）**：按 B08 语义实现范围查询——本人账户校验、半开区间（`occurred_at >= start_at` 且 `< end_at`，首尾不重复计账）、最多最近 24 个月、`as_of` 取银行自己的时钟（可注入，沿用 `services/test_verification.py` 的 Clock 模式）、空数据成功返回 `[]`、失败与空严格区分；错误分类 `INVALID_ARGUMENT` / `ACCESS_DENIED` / `RANGE_UNSUPPORTED`。范围过滤在银行服务内基于 `storage/mock_bank` 的 `list_ledger` 读取完成；事实列由[票 03](03-ledger-facts-and-seed-write.md) 提供，本票不改 schema。
 2. **网关（`services/bank_gateway/gateway.py`）**：公开 `list_transactions(context, account_id, start_at, end_at)`，薄转发 + 结果映射（成功 `QueryOk[TransactionList]`、失败 `QueryFailure`），不在网关重写银行规则。
 3. 返回的 `Transaction` 按发生时间、再按 `account_id`/`transaction_id` 稳定排序；保留来源账户与 `as_of` 供多账户统计核对。
+4. **共用种子流水**：`seeds/flow_history.json` 给当前月与既往月份的消费/退款/利息/转账样本（金额、类别、商户、渠道固定，时间写成相对月份），`MockBankService.seed_flow_history()` 用银行时钟换算后交给票 03 的 `seed_ledger_rows` 幂等写入；不被调用时不影响既有行为（本机演示的启用见[票 04](04-demo-seed-history.md)）。
 
 ## 实现要点
 
 - 字段与规则引用冻结文档（[B08 + Transaction](../../../docs/contracts/银行接口字段-2026-09-24.md)、[§5.3](../../../docs/contracts/公共契约-2026-09-23.md)），不复制定义、不新增字段。
 - 确定性：范围与 24 个月判断相对银行时钟，不依赖调用方时间；测试注入时钟覆盖边界两侧。
+- 运行期转账流水的事实：账本新列为空时，按银行自己 `bank_operations` 回执如实组装（收款人脱敏名/账号、渠道、摘要），**不编造**；种子流水的事实来自 JSON。任何一行拿不到必需事实时，按失败如实返回，不用空串或默认值凑。
+- 种子流水的量级避开演示干扰：只种既往与当前月份的消费类样本，转账样本不落在"今天"，避免吃掉既有转账日额度（`get_limits` 只计 `nature=transfer` 的流出）。
 - 不改变 transfer 路径与既有方法行为；账单业务计算（消费/退款/转账拆分、七类归总）仍在 bills 模块。
 
 ## Acceptance criteria
