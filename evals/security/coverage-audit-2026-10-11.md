@@ -55,7 +55,7 @@ Blocked 分类（310 行）：**269 行**无对应离线适配器（程序场景
 | 2 | 规划入口无对话历史与业务状态 | SEC-C-001 等 14 轮解释判定不合格/待转正 | [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84)（底座，用户决定暂缓） |
 | 3 | 观察端/公开端点缺口 | 269 行无离线适配器、41 行缺观察端，多数用例保持 Blocked | 各业务公开能力就绪后按版本接入（v0.4 账单/联动等） |
 | 4 | 数量下限差额 | R06 差 2 条；8 个维度组 <10 条 | 本次按现状收口并记为缺口；如需达标，估约 30—40 条用例扩充（R06 + 组合并维度） |
-| 5 | 转账专业材料 TF-VFY-16 | 材料已由 Ringo 侧提供并接入复跑完成：TF-VFY-16 Passed，全量 153/153、业务红线 Passed（0 违规），报告 [evidence/2026-10-11](../../transfer/evidence/2026-10-11/offline-react-full-20261011.json.gz)；专业本人签署仍待 | [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)（专业签署+检测层另计） |
+| 5 | 转账专业材料 TF-VFY-16 | 材料已由 Ringo 侧提供并接入复跑完成：TF-VFY-16 Passed，全量 153/153、业务红线 Passed（0 违规），报告 [evidence/2026-10-11](../transfer/evidence/2026-10-11/offline-react-full-20261011.json.gz)；专业本人签署仍待 | [Issue #86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)（专业签署+检测层另计） |
 | 6 | 确认/验证历史只读回放 | 页面刷新后回放增强 | [Issue #85](https://github.com/DrErwin/hackerthon-bank-agent/issues/85)（底座后续，不阻塞） |
 
 ## 五、结论
