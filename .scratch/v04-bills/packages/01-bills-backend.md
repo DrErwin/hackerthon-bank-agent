@@ -1,14 +1,14 @@
 # 交付包 01：v0.4 账单业务能力与评测
 
-Status: ready（v0.4 已启动，PRD/契约/代表性用例已冻结；负责人确认领取后拆票）
+Status: in_progress（2026-10-11 周恩宇已接受并开始本模块局部实施；公开链路依赖见 Issue #91）
 Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Activation: 2026-10-11 Erwin 建立（v0.4 正式启动同日）
 Start when: v0.4 已于 2026-10-11 正式启动；[02 账单 PRD](../../../docs/prd/02-账单分析-PRD-2026-09-23.md)与[公共契约](../../../docs/contracts/公共契约-2026-09-23.md)已冻结、[21 条代表性用例](../../../evals/bills/)已合入——接包即可 `to-spec → to-tickets`
 Spec: [v0.4 账单纵向场景规格](../spec.md)
 
-Accepted by: 未记录
-Accepted at: 未记录
-Work spec: 待负责人接包后建立（可关联已有 [v04-ethan-bills-eval 工作组](../../v04-ethan-bills-eval/spec.md) 扩编）
+Accepted by: 周恩宇（Ethan / @zhouey314-cloud；本人本轮明确要求按仓库完成并提交）
+Accepted at: 2026-10-11
+Work spec: [v04-ethan-bills-backend 账单实施规格](../../v04-ethan-bills-backend/spec.md)
 
 Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issues/87) 总索引（账单线）；延续[交付包 04：后续业务评测准备](../../transfer-agent-framework/packages/04-v04-eval-preparation.md)的评测准备成果
 
@@ -51,3 +51,9 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 - 联动（cross）评测准备（23 条）已随联动移至 v0.5，本包不包含、不重开交付包 04。
 - 底座 #84/#85 与安全线 #86/#88 并行推进，与本包无硬依赖；公开契约若有变更按变更流程通知。
+
+## 2026-10-11 本人启动记录与边界
+
+已接受新包，新工作组 [v04-ethan-bills-backend](../../v04-ethan-bills-backend/spec.md)；原代表性评测包和票保持已验收，不重新打开。本人过程台账见 [progress.md](../../v04-ethan-bills-backend/progress.md)。
+
+实际代码检查发现银行接入层 B08 与账单公共类型尚待实现，已登记 [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91) 给 Erwin。先做本模块私有统计内核、局部测试与覆盖/数据，不修改公共目录、不伪造注册入口或权限通过。局部65项模块测试与26个算术黄金样本合跑91项通过；L01—L03真实业务、HTTP/模型/页面未验证，整包仍in_progress。该事实不改变原本BF01—BF07验收要求。
