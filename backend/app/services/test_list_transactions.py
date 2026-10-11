@@ -176,6 +176,16 @@ def test_flow_seed_ids_follow_the_bank_month():
     assert not set(this_month) & set(next_month)
 
 
+def test_flow_seed_rows_never_lie_after_the_bank_clock():
+    early = datetime(2026, 10, 12, 6, 0, tzinfo=BEIJING)
+    rows = build_flow_rows(early)
+    assert rows and all(datetime.fromisoformat(row["occurred_at"]) <= early for row in rows)
+    first_day = datetime(2026, 10, 1, 0, 30, tzinfo=BEIJING)
+    on_first_day = build_flow_rows(first_day)
+    assert all(datetime.fromisoformat(row["occurred_at"]) <= first_day for row in on_first_day)
+    assert not [row for row in on_first_day if row["occurred_at"].startswith("2026-10")]
+
+
 def test_seed_flow_history_is_idempotent_and_covers_the_demo_scenarios(tmp_path):
     bank, gateway, clock = ready(tmp_path)
     written = bank.seed_flow_history()
