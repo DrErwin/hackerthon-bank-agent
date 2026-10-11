@@ -16,7 +16,15 @@
 
 本 PR 合入前若已有旧版演示银行库，其操作没有轮次归属且含明文模拟码；服务会明确拒绝加载。先保留旧库供核对，再由演示管理员显式启用新的银行库，不静默改写原操作或清除数据。
 
-从 `backend/` 验证：`python -m pytest -q app/services/test_bank.py app/services/test_verification.py`。
+从 `backend/` 验证：`python -m pytest -q app/services/`。
+
+## B08 流水查询与共用种子流水（v04-bills-bank-seam/02）
+
+`list_transactions(user_id, account_id, start_at, end_at)` 按冻结附件 B08 返回一个账户在**半开区间**（含开始、不含结束）内的完整流水，不分页：非本人账户一律 `ACCESS_DENIED`；`start_at >= end_at`、时间无时区或账户编号为空返回 `INVALID_ARGUMENT`；起点早于银行时钟往前 24 个月返回 `RANGE_UNSUPPORTED`（终点可晚于当前时刻，账单问「本月」不必自己截断）；范围判定与 `as_of` 都取银行自己的时钟（`MockBankService(..., clock=...)` 可注入，默认真实时钟），不看调用方时间；无数据是成功的空列表，与任何失败严格区分；返回行按发生时间再按 `account_id` / `transaction_id` 稳定排序。
+
+事实来源：账本事实列（票 03）直接给出对手方、渠道、摘要与退款原单；**本次会话里发生的转账**写入时还没有这些列，银行按自己的操作回执补全（收款人脱敏名与账号，渠道记为本机演示的手机银行，摘要「转账」；本人账户互转的入账腿取付款账户的银行侧名称）。拿不到必需事实时整个查询以 `STATE_CONFLICT`（原因 `ledger_fact_missing`）失败，不丢行、不编造。
+
+`seed_flow_history()` 载入 `seeds/flow_history.json`：按银行时钟把「相对月份 + 日 + 时刻」落成绝对时间，当前月只保留已经过去的日子；同一时刻重复调用幂等（按 `transaction_id`），种子行的 `operation_id` 以 `seed:` 标明不是真实操作。样本覆盖 12 个月（A1：消费七类、跨月退款、活期利息、未知渠道、家电大额消费）与 6 个月（A5：转入、门诊、水费、利息）；**转账样本不落在「今天」**，避免吃掉演示的当日转账额度。默认不播种，本机演示的启用见票 04。
 
 ## JSON 种子与转账评测数据（v03-transfer-evals/02）
 
