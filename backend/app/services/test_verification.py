@@ -318,3 +318,37 @@ def test_create_after_resend_failure_exposes_trusted_terminal_fact(tmp_path):
     assert caught.value.challenge.challenge_status == "failed"
     assert caught.value.challenge.consecutive_code_failures == 3
     assert "incorrect" not in caught.value.challenge.model_dump_json()
+
+
+def test_list_task_verifications_is_owner_scoped_and_session_independent(tmp_path):
+    bank, gateway, clock = ready(tmp_path)
+    old_session = gateway.create_verification(context(session="S1"), "basic_identity")
+    other_task = gateway.create_verification(context(session="S2", task="T2"), "basic_identity")
+    operation_id = uuid4()
+    action = gateway.create_verification(
+        context(session="S1"), "action_step_up",
+        operation_id=operation_id, action_revision=1, summary=action_summary(operation_id),
+    )
+    # Replay reads by task owner across sessions: the current session must not
+    # hide challenges created before a session recovery.
+    listed = gateway.list_verifications(context(session="S2"), "T1")
+    assert [c.challenge_id for c in listed] == sorted(
+        [old_session.challenge_id, action.challenge_id],
+    )  # same clock instant, stable challenge_id order
+    assert other_task.challenge_id not in [c.challenge_id for c in listed]
+    # Foreign users or rounds see nothing, without leaking existence.
+    assert gateway.list_verifications(context(user="U2"), "T1") == []
+    assert gateway.list_verifications(context(round_id="D9"), "T1") == []
+    gateway.close()
+
+
+def test_list_task_verifications_expires_stale_pending_like_get(tmp_path):
+    bank, gateway, clock = ready(tmp_path)
+    challenge = gateway.create_verification(context(), "basic_identity")
+    clock.advance(301)
+    listed = gateway.list_verifications(context(), "T1")
+    assert [c.challenge_id for c in listed] == [challenge.challenge_id]
+    assert listed[0].challenge_status == "expired"
+    assert listed[0].code_result == "expired"
+    assert gateway.get_verification(context(), challenge.challenge_id).challenge_status == "expired"
+    gateway.close()

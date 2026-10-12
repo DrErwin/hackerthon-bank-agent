@@ -80,6 +80,10 @@ class BankGateway:
     def get_verification(self, context: TrustedContext, challenge_id: str):
         return self._bank.verification.get_verification(context, challenge_id)
 
+    def list_verifications(self, context: TrustedContext, task_id: str):
+        """Read-only, session-independent challenge replay for the task owner."""
+        return self._bank.verification.list_task_challenges(context, task_id)
+
     def get_demo_code_for_api(self, context: TrustedContext, challenge_id: str) -> str:
         """Dedicated F19 display path; never register as an Agent capability."""
         return self._bank.verification.get_demo_code(context, challenge_id)
