@@ -4,7 +4,8 @@ from .api import (
     ApiError, ApiSuccess, ConfirmationAnswerRequest, DeliveryDetailsFields, DemoCodeView, DetailsResponse,
     InteractionRequired, MessageAccepted, MessageDelta, MessageView, Page, PayeeDetailsFields,
     PayeeSearchFields, ProvideInputRequest, RequestIdOnly, SendMessageRequest, SessionExpired,
-    SessionView, StreamEvent, SubmitDetailsRequest, ThreadView, VerificationCodeRequest, VerificationResponse,
+    SessionView, StreamEvent, SubmitDetailsRequest, TaskRecordsView, ThreadView, VerificationCodeRequest,
+    VerificationResponse,
 )
 from .audit import AuditEvent, AuditEventDetail, AuditEventSummary, AuthorizationSnapshot, EvidenceSnapshot
 from .bank import (

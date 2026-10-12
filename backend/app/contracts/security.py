@@ -211,6 +211,7 @@ class VerificationRecord(ContractModel):
 class VerificationView(ContractModel):
     challenge_id: ID
     task_id: ID
+    created_at: Timestamp
     summary: VerificationSummary | None
     required_methods: list[Literal["code", "mock_face"]]
     code_expires_at: Timestamp

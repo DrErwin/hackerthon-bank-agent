@@ -12,7 +12,8 @@ from app.contracts import (
     AccountList, AuditEvent, CapabilityDefinition, ConfirmationRecord,
     DetailsResponse, OperationResult, PayeeList, PayeeVerification, QueryResult,
     SecurityDecision, StartTransferInput, StreamEvent, SubmitDetailsRequest,
-    TaskView, TransferReceipt, TransferTaskView, VerificationChallenge, VerificationCodeRequest,
+    TaskRecordsView, TaskView, TransferReceipt, TransferTaskView, VerificationChallenge,
+    VerificationCodeRequest,
 )
 
 
@@ -314,3 +315,40 @@ def test_code_request_masks_secret_when_serialized_or_logged():
     assert "123456" not in repr(request)
     assert "123456" not in request.model_dump_json()
     assert request.code.get_secret_value() == "123456"
+
+
+def test_task_records_view_carries_history_without_secrets():
+    records = TaskRecordsView.model_validate({
+        "task_id": "T1",
+        "confirmations": [{
+            "confirmation_id": "C1", "task_id": "T1", "confirmation_version": 1,
+            "display_fields": [
+                {"name": "amount", "label": "金额", "value_text": "500.00 元"},
+                {"name": "payee", "label": "收款人", "value_text": "王*"},
+            ],
+            "created_at": NOW, "expires_at": "2026-09-28T11:00:00+08:00",
+            "decision": "approved",
+        }],
+        "verifications": [{
+            "challenge_id": "V1", "task_id": "T1", "created_at": NOW,
+            "summary": None, "required_methods": ["code"],
+            "code_expires_at": "2026-09-28T10:05:00+08:00",
+            "face_started_at": None, "face_expires_at": None,
+            "code_result": "passed", "face_result": "not_required",
+            "challenge_status": "passed", "consecutive_code_failures": 0,
+        }],
+    })
+    restored = TaskRecordsView.model_validate_json(records.model_dump_json())
+    assert restored == records
+    assert restored.confirmations[0].decision == "approved"
+    assert restored.verifications[0].created_at is not None
+    # Replay views never carry a code value, only its result and expiry.
+    assert "code" not in restored.verifications[0].model_dump()
+    for missing in (
+        {"task_id": ""},
+        {"confirmations": [{"confirmation_id": "C1"}]},
+        {"verifications": [{k: v for k, v in records.verifications[0].model_dump().items()
+                            if k != "created_at"}]},
+    ):
+        with pytest.raises(ValidationError):
+            TaskRecordsView.model_validate(records.model_dump() | missing)
