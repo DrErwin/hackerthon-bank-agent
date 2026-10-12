@@ -5,7 +5,7 @@ Core scenarios: CG-1（`module` 承载）、CG-2（`BillReport`）、CG-3（`Exp
 Verification: 在 `backend/` 下 `python -m pytest -q app/contracts` 通过；新增字段 / 模型的断言先失败后通过；全后端回归无新增失败。合入后通知前端线（[#89](https://github.com/DrErwin/hackerthon-bank-agent/issues/89) 与 [liangshuang-frontend-complete/03](../../liangshuang-frontend-complete/issues/03-transfer-slot.md)）：`api.generated.ts` 重建归其执行。
 Owner: Erwin
 Directory: backend/app/contracts/
-Status: in_review（[PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113)，2026-10-12；契约 47 passed、叠加票 02 的后端全量 391 passed、CI 绿；双轴审查意见已处置）
+Status: resolved（[PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113) squash `c38424d`，2026-10-12 合入；契约 47 passed、后端全量 391 passed、CI 绿；先经双轴 AI 审查、再经独立子代理复审判定「可合并」，两轮意见均已处置）
 Blocked by: None
 Source: 无独立 Issue（缺口来源 [PR #108](https://github.com/DrErwin/hackerthon-bank-agent/pull/108) 审查意见，缺口 ①③）
 

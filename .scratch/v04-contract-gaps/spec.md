@@ -1,6 +1,6 @@
 # v0.4 前端契约缺口闭合规格（v04-contract-gaps）
 
-Status: in_progress
+Status: resolved（两票均于 2026-10-12 合入 main：票 01 [PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113) squash `c38424d`、票 02 [PR #114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114) squash `218eeb3`；剩余缺口 ②⑤ 已按归属登记，不在本组交付）
 Owner: Erwin（PM 自拆，不开交付包）
 Source: [PR #108](https://github.com/DrErwin/hackerthon-bank-agent/pull/108) 申报的 6 条契约缺口，2026-10-12 双轴审查核对「全部属实」
 Deadline: 票 01 / 02 不晚于 2026-10-14（前端线 [liangshuang-frontend-complete/03](../../.scratch/liangshuang-frontend-complete/issues/03-transfer-slot.md) 与账单线 [v04-ethan-bills-backend/05](../../.scratch/v04-ethan-bills-backend/issues/05-report-export.md) 依赖）
@@ -73,3 +73,5 @@ v0.4 通用前端底盘（PR #108）按「前端不造字段」的口径停下�
 - ② 交给前端线的同时，本组票 01 交付后其类型生成即可带上 `BillReport` / `ExportView` 与可空 `module`，不需要等端点。
 - **2026-10-12 晚进展**：两票均已开 PR——票 01 [PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113)（契约，CI 绿）、票 02 [PR #114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114)（api，base 设为 #113 分支，CI 绿）；合并顺序 #113 → #114（#113 合入后 #114 转回 main），等 Erwin 复审。合并后通知前端线（类型生成 + 插槽）与账单线（F21/F22/F23 端点前的模型已可用）。
 - **2026-10-12 晚（双轴审查）**：`code-review` Standards / Spec 两轴子代理审查两票（意见：[#113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113#issuecomment-6127798394) / [#114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114#issuecomment-6127799007)，AI 辅助、非真人审查）共 8 条，全部处置：删只用一处的 `BusinessModule` 公开别名、`ExportView` 补 §6.7 两条正文规则校验、契约 §6.5 把 `module` 填写范围改为「所有对外任务视图（F08—F13、F15、F36 等）」、api 两处重复的 `"transfer"` 提为 `SERVED_MODULE` 常量、补 F11 断言、两个提交补「为什么」正文、两分支 rebase、#114 base 改为 #113 分支。
+- **2026-10-12 晚（合入）**：Erwin 指示「找一个子代理来审查，审查完合并」。独立子代理复审判定 **#113 可合并、#114 有条件合并（阻塞项 0）**，并抓到一条真问题：合完 #113 后只改 #114 的 base 不够，须 `git rebase --onto main <旧父提交>`，否则 #113 的差异会重回 #114；另指出下载路径校验放过 `//host`。两条均已按意见执行/修复（校验改为拒 `//`、拒协议、拒不带头 `/`；#114 rebase 后 base 转回 main）。合并结果：#113 squash `c38424d`（主线 CI 绿）、#114 squash `218eeb3`；本地 main 全量回归复跑 391 passed。
+- **遗留（不属本组）**：② 前端类型生成与插槽（`frontend/scripts/generate_contract_schema.py` 的 PUBLIC_MODELS + `api.generated.ts` 重建，归前端线票 03 前置）；⑤ F15「返回修改」（选项与语义在 `security/`，流程在转账 / 账单模块，等受影响方确认后单独走票）。是否需要向相关线发「轻量修改已合入」通知，由 Erwin 决定（此前口径：不主动催其他线）。
