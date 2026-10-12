@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>转账 · 交互原型 v0.1</title>
+<title>转账 · 交互原型 v0.2</title>
 <style>
   :root{
     --brand:#FF6A00; --brand-press:#E05E00; --brand-tint:#FFF1E6;
@@ -74,6 +74,11 @@
   .card:active{background:var(--brand-tint); border-color:var(--brand);}
   .card.picked{background:var(--brand-tint); border-color:var(--brand);}
   .card b{color:var(--brand);}
+  .card .sub{display:block; margin-top:4px; font-size:15px; color:var(--ink3);}
+  .card[disabled], .btn[disabled]{opacity:.72; cursor:default;}
+  .history-card{opacity:.78; box-shadow:none;}
+  .history-list{display:flex; flex-direction:column; gap:8px; font-size:16px; color:var(--ink2);}
+  .history-list div{padding:8px 10px; border-radius:9px; background:var(--bg);}
 
   /* 确认单 */
   .confirm-card{align-self:flex-start; width:100%; background:var(--card); border:1px solid var(--border);
@@ -105,6 +110,22 @@
   }
   .cb:focus{outline:none; border-color:var(--brand); background:var(--brand-tint);}
   .code-err{font-size:16px; color:var(--danger); min-height:20px;}
+  .verify-choice{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .face-mark{width:92px; height:92px; margin:2px auto; border:3px solid var(--brand); border-radius:28px;
+    display:flex; align-items:center; justify-content:center; font-size:44px; background:var(--brand-tint);}
+  .safe-note{font-size:15px; line-height:1.5; color:var(--ink2); text-align:center;}
+  .admin-zone{border:1px dashed var(--warning); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:10px; background:#FFF9F0;}
+  .admin-zone-title{font-size:16px; font-weight:700; color:var(--warning); text-align:center;}
+
+  /* 修改与恢复 */
+  .edit-grid{display:flex; flex-direction:column; gap:12px;}
+  .field{display:flex; flex-direction:column; gap:6px; font-size:16px; color:var(--ink2);}
+  .field select,.field input{width:100%; min-height:52px; border:1px solid var(--border); border-radius:12px;
+    background:var(--bg); color:var(--ink); font-size:18px; padding:0 12px;}
+  .recovery-card{align-self:flex-start; width:100%; padding:18px; border:2px solid var(--brand); border-radius:16px;
+    background:var(--card); display:flex; flex-direction:column; gap:12px;}
+  .recovery-card .cc-title{font-size:21px; font-weight:700;}
+  .recovery-card p{margin:0; font-size:17px; line-height:1.55; color:var(--ink2);}
 
   /* 处理中 */
   .prog{display:flex; align-items:center; gap:10px; font-size:18px; color:var(--ink2); padding:16px; justify-content:center;}
@@ -121,6 +142,11 @@
   .rc-line{font-size:18px; color:var(--ink2);}
   .rc-line b{color:var(--ink);}
   .rc-note{font-size:16px; color:var(--ink2); margin-top:6px;}
+
+  @media (max-width:430px){
+    body{padding:0; background:var(--bg);}
+    .phone{width:100vw; height:100dvh; min-height:640px; border-radius:0; box-shadow:none;}
+  }
 
   /* 输入栏 */
   .inputbar{
@@ -190,6 +216,10 @@
   var mic = document.getElementById('mic');
   var rec = document.getElementById('recording');
   var busy = false;
+  var storageKey = 'bank-transfer-prototype-v02';
+  var isAdminMode = new URLSearchParams(window.location.search).get('mode') === 'admin';
+  var transfer = {payee:'妈妈', tail:'6688', account:'主账户（尾号 1234）', amount:'500.00'};
+  var taskHistory = [];
 
   function esc(s){ return s.replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
@@ -207,6 +237,35 @@
   }
   function addUser(text){ addMsg('user', esc(text)); }
   function addAssistant(text){ addMsg('assistant', esc(text)); }
+  function money(){ return Number(transfer.amount).toFixed(2); }
+  function saveStage(stage){
+    localStorage.setItem(storageKey, JSON.stringify({stage:stage, transfer:transfer, history:taskHistory}));
+  }
+  function clearStage(){ localStorage.removeItem(storageKey); }
+  function resetTaskData(){
+    clearStage(); taskHistory = [];
+    transfer = {payee:'妈妈', tail:'6688', account:'主账户（尾号 1234）', amount:'500.00'};
+  }
+  function recordHistory(text){ taskHistory.push(text); }
+  function loadSavedState(){
+    var saved;
+    try{ saved = JSON.parse(localStorage.getItem(storageKey)); }catch(e){ return null; }
+    var stages = ['confirmation','verification','face','face_passed','face_failed','processing','result'];
+    if(!saved || stages.indexOf(saved.stage) < 0 || !saved.transfer) return null;
+    var t = saved.transfer;
+    if(typeof t.payee !== 'string' || typeof t.tail !== 'string' || typeof t.account !== 'string' || typeof t.amount !== 'string') return null;
+    if(!/^\d+(\.\d{1,2})?$/.test(t.amount) || Number(t.amount) <= 0) return null;
+    saved.history = Array.isArray(saved.history) ? saved.history.filter(function(item){ return typeof item === 'string'; }).slice(-8) : [];
+    return saved;
+  }
+  function disableCard(wrap, label){
+    wrap.classList.add('history-card');
+    var buttons = wrap.querySelectorAll('button,input,select');
+    for(var i=0;i<buttons.length;i++) buttons[i].disabled = true;
+    if(label){
+      var note = document.createElement('div'); note.className = 'safe-note'; note.textContent = label; wrap.appendChild(note);
+    }
+  }
 
   function typing(){
     var d = document.createElement('div');
@@ -220,27 +279,69 @@
     var wrap = document.createElement('div');
     wrap.className = 'cards';
     wrap.innerHTML =
-      '<div class="hint">您是不是想问：</div>' +
-      '<button class="card" onclick="pickCard(this)">转 <b>500 元</b> 给「妈妈 · 尾号 6688」</button>' +
-      '<button class="card" onclick="pickOther(this)">不是，我要改一下收款人</button>';
+      '<div class="hint">请选择收款人：</div>' +
+      '<button class="card" onclick="pickPayee(this,\'妈妈\',\'6688\')"><b>妈妈</b> · 尾号 6688<span class="sub">常用收款人</span></button>' +
+      '<button class="card" onclick="pickPayee(this,\'张阿姨\',\'3166\')"><b>张阿姨</b> · 尾号 3166<span class="sub">最近转过</span></button>' +
+      '<button class="card" onclick="showEdit(this)">都不是，我要修改信息</button>';
     chat.appendChild(wrap); scrollBottom();
   }
 
-  async function pickCard(el){
+  async function pickPayee(el, name, tail){
     if(busy) return; busy = true;
+    transfer.payee = name; transfer.tail = tail;
     el.classList.add('picked');
     var others = el.parentNode.querySelectorAll('.card');
-    for(var i=0;i<others.length;i++){ if(others[i]!==el) others[i].style.display='none'; }
+    for(var i=0;i<others.length;i++) others[i].disabled = true;
     await sleep(500);
-    addAssistant('好，我确认一下这笔转账。');
+    addAssistant('您选择了' + name + '（尾号 ' + tail + '），请再确认完整信息。');
     await sleep(500);
     addConfirmCard();
     busy = false;
   }
 
-  function pickOther(el){
-    if(busy) return;
-    addAssistant('好的，这笔转账先不办。');
+  function showEdit(el){
+    if(busy) return; busy = true;
+    var cards = el.closest('.cards');
+    if(cards){
+      var options = cards.querySelectorAll('button');
+      for(var i=0;i<options.length;i++) options[i].disabled = true;
+    }
+    var wrap = document.createElement('div');
+    wrap.className = 'confirm-card';
+    wrap.innerHTML =
+      '<div class="cc-title">修改转账信息</div><div class="edit-grid">' +
+      '<label class="field">收款人<select id="editPayee"><option value="妈妈|6688">妈妈 · 尾号 6688</option><option value="张阿姨|3166">张阿姨 · 尾号 3166</option><option value="王师傅|9021">王师傅 · 尾号 9021</option></select></label>' +
+      '<label class="field">转出账户<select id="editAccount"><option>主账户（尾号 1234）</option><option>工资卡（尾号 5208）</option></select></label>' +
+      '<label class="field">金额（元）<input id="editAmount" type="number" inputmode="decimal" min="0.01" step="0.01" value="' + money() + '"></label></div>' +
+      '<div class="code-err" id="editErr"></div>' +
+      '<div class="cc-btns"><button class="btn primary" onclick="applyEdit(this)">保存并重新确认</button><button class="btn ghost" onclick="cancelEdit(this)">返回候选</button></div>';
+    chat.appendChild(wrap); scrollBottom(); busy = false;
+    wrap.querySelector('#editPayee').value = transfer.payee + '|' + transfer.tail;
+    wrap.querySelector('#editAccount').value = transfer.account;
+  }
+
+  function applyEdit(btn){
+    var wrap = btn.closest('.confirm-card');
+    var payee = wrap.querySelector('#editPayee').value.split('|');
+    var amount = Number(wrap.querySelector('#editAmount').value);
+    if(!amount || amount <= 0){ wrap.querySelector('#editErr').textContent = '请输入大于 0 的金额'; return; }
+    transfer.payee = payee[0]; transfer.tail = payee[1];
+    transfer.account = wrap.querySelector('#editAccount').value;
+    transfer.amount = amount.toFixed(2);
+    disableCard(wrap, '修改内容已保存');
+    addAssistant('已按您的修改更新，请重新确认。'); addConfirmCard();
+  }
+
+  function cancelEdit(btn){
+    btn.closest('.confirm-card').remove();
+    var cards = chat.querySelectorAll('.cards');
+    var last = cards[cards.length - 1];
+    if(last){
+      var options = last.querySelectorAll('button');
+      for(var i=0;i<options.length;i++) options[i].disabled = false;
+    }else{
+      addAssistant('已返回恢复后的确认单。'); addConfirmCard();
+    }
   }
 
   /* 确认单 */
@@ -249,26 +350,76 @@
     wrap.className = 'confirm-card';
     wrap.innerHTML =
       '<div class="cc-title">请确认这笔转账</div>' +
-      '<div class="cc-row"><span>收款人</span><b>妈妈（尾号 6688）</b></div>' +
-      '<div class="cc-row"><span>转出账户</span><b>主账户（尾号 1234）</b></div>' +
-      '<div class="cc-row amount"><span>金额</span><b>¥500.00</b></div>' +
+      '<div class="cc-row"><span>收款人</span><b>' + esc(transfer.payee) + '（尾号 ' + esc(transfer.tail) + '）</b></div>' +
+      '<div class="cc-row"><span>转出账户</span><b>' + esc(transfer.account) + '</b></div>' +
+      '<div class="cc-row amount"><span>金额</span><b>¥' + money() + '</b></div>' +
       '<div class="cc-row"><span>到账</span><b>实时到账</b></div>' +
       '<div class="cc-btns">' +
-        '<button class="btn primary" onclick="goCode(this)">确认办理</button>' +
-        '<button class="btn ghost" onclick="cancelFlow()">取消</button>' +
+        '<button class="btn primary" onclick="goVerify(this)">确认办理</button>' +
+        '<button class="btn ghost" onclick="editFromConfirm(this)">返回修改</button>' +
+        '<button class="btn ghost" onclick="cancelFlow(this)">取消</button>' +
       '</div>';
     chat.appendChild(wrap); scrollBottom();
+    saveStage('confirmation');
   }
 
-  function goCode(btn){
+  function editFromConfirm(btn){
+    disableCard(btn.closest('.confirm-card'), '本次确认已撤回，请修改后重新确认');
+    showEdit(btn);
+  }
+
+  function goVerify(btn){
     if(busy) return; busy = true;
-    btn.closest('.confirm-card').remove();
+    disableCard(btn.closest('.confirm-card'));
+    recordHistory('已确认：' + transfer.payee + '（尾号 ' + transfer.tail + '） · ¥' + money());
+    saveStage('verification');
     addCodeCard();
     busy = false;
   }
 
-  function cancelFlow(){
+  function cancelFlow(btn){
+    disableCard(btn.closest('.confirm-card'), '本次转账已取消，旧按钮不可再用');
+    resetTaskData();
     addAssistant('好的，这笔转账已取消。');
+  }
+
+  function addFaceChallenge(){
+    saveStage('face');
+    var wrap = document.createElement('div'); wrap.className = 'code-card';
+    var controls = isAdminMode ?
+      '<div class="admin-zone"><div class="admin-zone-title">管理员演示控制页</div><button class="btn primary" onclick="submitAdminFace(this)">提交模拟成功</button><button class="btn ghost" onclick="adminFaceFailed(this)">提交模拟失败</button></div>' :
+      '<div class="safe-note">请由管理员在独立演示控制页作答。当前用户页没有制造通过或失败的按钮；管理员提交后请刷新本页读取结果。</div>';
+    wrap.innerHTML = '<div class="cc-title">等待模拟人脸验证</div><div class="face-mark">☺</div>' +
+      '<div class="safe-note">不会开启摄像头或采集生物信息。</div>' + controls;
+    chat.appendChild(wrap); scrollBottom();
+  }
+
+  function submitAdminFace(btn){
+    if(!isAdminMode) return;
+    disableCard(btn.closest('.code-card'), '管理员决定已提交，等待用户端读取');
+    recordHistory('安全验证：验证码通过；管理员模拟人脸通过');
+    saveStage('face_passed');
+    addAssistant('模拟成功已提交。用户端刷新后会读取验证结果，不会由本页直接执行转账。');
+  }
+  function adminFaceFailed(btn){
+    if(!isAdminMode) return;
+    var wrap = btn.closest('.code-card'); disableCard(wrap, '管理员决定已提交，等待用户端读取');
+    recordHistory('安全验证终止：模拟人脸未通过'); saveStage('face_failed');
+    addAssistant('模拟失败已提交。用户端刷新后会显示任务终止。');
+  }
+  function addFaceResult(passed){
+    var wrap = document.createElement('div'); wrap.className = 'code-card';
+    if(passed){
+      wrap.innerHTML = '<div class="cc-title">模拟人脸验证已通过</div><div class="safe-note">这是从管理员演示控制页读取的结果。</div><button class="btn primary" onclick="continueAfterFace(this)">继续办理</button>';
+    }else{
+      wrap.innerHTML = '<div class="cc-title">模拟人脸验证未通过</div><div class="safe-note">本次任务已终止，没有发起转账。</div>';
+    }
+    chat.appendChild(wrap); scrollBottom();
+  }
+  function continueAfterFace(btn){
+    var saved = loadSavedState();
+    if(!saved || saved.stage !== 'face_passed') return;
+    disableCard(btn.closest('.code-card'), '验证结果已读取'); runTransfer();
   }
 
   /* 验证码 */
@@ -311,11 +462,20 @@
       cb[0].focus();
       busy = false; return;
     }
-    wrap.innerHTML = '<div class="prog"><span class="spinner"></span>正在转账，请稍等…</div>';
-    await sleep(1300);
-    wrap.remove();
-    addResult();
-    busy = false;
+    disableCard(wrap, '验证码已验证');
+    recordHistory('安全验证：验证码已通过，等待管理员模拟人脸');
+    busy = false; addFaceChallenge();
+  }
+
+  async function runTransfer(){
+    if(busy) return; busy = true; saveStage('processing');
+    var wait = document.createElement('div'); wait.className = 'confirm-card';
+    wait.innerHTML = '<div class="prog"><span class="spinner"></span><span><b>正在办理，请不要重复操作</b><br>正在安全提交这笔转账…</span></div>';
+    chat.appendChild(wait); scrollBottom();
+    await sleep(1600);
+    wait.innerHTML = '<div class="prog"><span class="spinner"></span><span><b>银行正在处理</b><br>请稍等，完成后会显示结果。</span></div>';
+    await sleep(1400);
+    disableCard(wait, '处理已结束'); addResult(); busy = false;
   }
 
   /* 结果卡 */
@@ -324,11 +484,13 @@
     wrap.className = 'result-card';
     wrap.innerHTML =
       '<div class="rc-status success"><span class="ico">✓</span>转账成功</div>' +
-      '<div class="rc-amount">¥500.00</div>' +
-      '<div class="rc-line">已转给 <b>妈妈</b>（尾号 6688）</div>' +
-      '<div class="rc-line">转出账户：主账户（尾号 1234）</div>' +
-      '<div class="rc-note">已经办好了，500 块转给妈妈了。</div>';
+      '<div class="rc-amount">¥' + money() + '</div>' +
+      '<div class="rc-line">已转给 <b>' + esc(transfer.payee) + '</b>（尾号 ' + esc(transfer.tail) + '）</div>' +
+      '<div class="rc-line">转出账户：' + esc(transfer.account) + '</div>' +
+      '<div class="rc-line">交易号：DEMO-20261012-001</div>' +
+      '<div class="rc-note">原型演示结果，不代表真实银行交易。</div>';
     chat.appendChild(wrap); scrollBottom();
+    saveStage('result');
     setTimeout(function(){ addAssistant('还有什么要我帮忙的吗？'); }, 600);
   }
 
@@ -377,14 +539,64 @@
 
   /* 重来 */
   function resetDemo(){
-    busy = false;
+    busy = false; resetTaskData();
     chat.innerHTML = '';
     input.value = ''; updateSend();
     addAssistant('您好，我是您的银行小助手。您想办点什么？');
   }
 
   /* 初始 */
-  resetDemo();
+  function boot(){
+    chat.innerHTML = '';
+    if(isAdminMode){
+      document.querySelector('.topbar .title').textContent = '管理员演示控制页';
+      document.querySelector('.topbar .reset').style.display = 'none';
+      document.querySelector('.inputbar').style.display = 'none';
+      addAssistant('这里仅用于管理员提交模拟人脸结果，不会直接执行转账。');
+    }else addAssistant('您好，我是您的银行小助手。您想办点什么？');
+    var saved = loadSavedState();
+    if(!saved || !saved.stage) return;
+    transfer = saved.transfer; taskHistory = saved.history;
+    if(isAdminMode){
+      if(saved.stage === 'face') addFaceChallenge();
+      else addAssistant('当前没有等待管理员作答的人脸验证。');
+      return;
+    }
+    addAssistant('检测到页面刷新前有一笔未清理的转账任务。为避免重复操作，我不会自动继续。');
+    var wrap = document.createElement('div'); wrap.className = 'recovery-card';
+    wrap.innerHTML = '<div class="cc-title">继续查看原任务</div><p>' + esc(transfer.payee) + '（尾号 ' + esc(transfer.tail) + '） · ¥' + money() + '<br>刷新前状态：' + stageLabel(saved.stage) + '</p>' +
+      '<button class="btn primary" id="resumeTask">查看并继续</button><button class="btn ghost" onclick="discardTask(this)">放弃这次任务</button>';
+    chat.appendChild(wrap); scrollBottom();
+    wrap.querySelector('#resumeTask').addEventListener('click', function(){ resumeTask(this, saved.stage); });
+  }
+
+  function stageLabel(stage){ return {confirmation:'等待确认',verification:'等待验证码',face:'等待管理员模拟人脸',face_passed:'模拟人脸已通过',face_failed:'模拟人脸未通过',processing:'处理中，需查询结果',result:'已显示结果'}[stage] || '待查看'; }
+  function addRecoveredHistory(){
+    if(!taskHistory.length) return;
+    var wrap = document.createElement('div'); wrap.className = 'confirm-card history-card';
+    var rows = '';
+    for(var i=0;i<taskHistory.length;i++) rows += '<div>' + esc(taskHistory[i]) + '</div>';
+    wrap.innerHTML = '<div class="cc-title">已恢复的任务记录</div><div class="history-list">' + rows + '</div>';
+    chat.appendChild(wrap); scrollBottom();
+  }
+  function resumeTask(btn, stage){
+    disableCard(btn.closest('.recovery-card'), '已恢复原任务，不会创建新任务');
+    addRecoveredHistory();
+    if(stage === 'confirmation') addConfirmCard();
+    else if(stage === 'verification') addCodeCard();
+    else if(stage === 'face') addFaceChallenge();
+    else if(stage === 'face_passed') addFaceResult(true);
+    else if(stage === 'face_failed') addFaceResult(false);
+    else if(stage === 'processing'){
+      addAssistant('刷新发生在处理中。原型仅演示只读查询，不会再次提交。');
+      var w = document.createElement('div'); w.className = 'result-card';
+      w.innerHTML = '<div class="rc-status" style="background:#FFF4E5;color:var(--warning)">结果待核实</div><div class="rc-note">请在正式前端通过“查询原操作”获取后端结果。</div>';
+      chat.appendChild(w); scrollBottom();
+    } else addResult();
+  }
+  function discardTask(btn){ resetTaskData(); disableCard(btn.closest('.recovery-card'), '本地原型任务已放弃'); addAssistant('已放弃这次原型任务，没有发起新的转账。'); }
+
+  boot();
 </script>
 </body>
 </html>
