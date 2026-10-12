@@ -4,7 +4,7 @@ Ticket ID: liangshuang-frontend-complete/02
 Type: 开发
 Owner: 梁爽
 Directory: frontend/
-Status: planned
+Status: in_review
 Package: [frontend-complete/packages/01：v0.4 完整前端实现与替换](../../frontend-complete/packages/01-v04-complete-frontend.md)
 Spec: [梁爽完整前端实施规格](../spec.md)
 Core scenarios: [FE-03、FE-04、FE-06](../../frontend-complete/spec.md)
@@ -19,3 +19,5 @@ Verification: 组件测试覆盖会话历史、等待、确认 / 验证只读保
 - 测试和页面能区分局部 stub、契约 demo 与真实 API 状态。
 
 ## Comments
+
+- 2026-10-12：梁爽完成 `/v04` 通用底盘（stub 数据源 + 转账演示插槽），22 项前端测试、类型检查、生产构建通过，390×844 与 1280×800 浏览器走查通过；契约缺口 6 项列在 PR 中。提交 [PR #108](https://github.com/DrErwin/hackerthon-bank-agent/pull/108)，已请求 Erwin 走查；确认前不标记 resolved。
