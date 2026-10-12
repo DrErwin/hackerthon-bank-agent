@@ -1,0 +1,209 @@
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "../App";
+import { AdminDemoPage } from "./AdminDemoPage";
+import { AssistantPage } from "./AssistantPage";
+import { createSlotRegistry, genericSlot } from "./slots";
+import { transferDemoSlot } from "./slots/transferDemoSlot";
+import { createDemoBackend } from "./stub/demoBackend";
+import type { DemoBackend } from "./stub/demoBackend";
+
+const slots = createSlotRegistry([transferDemoSlot]);
+
+function makeBackend(): DemoBackend {
+  return createDemoBackend({ replyDelayMs: 0, submitMs: 30, bankMs: 30, tickMs: 20 });
+}
+
+function renderPage(backend: DemoBackend) {
+  return render(<AssistantPage source={backend.user} slots={slots} />);
+}
+
+async function sendText(text: string) {
+  const input = await screen.findByRole("textbox", { name: "输入您想办的事" });
+  await waitFor(() => expect(input.hasAttribute("disabled")).toBe(false));
+  fireEvent.change(input, { target: { value: text } });
+  fireEvent.click(screen.getByRole("button", { name: "发送" }));
+}
+
+async function reachVerification() {
+  await sendText("转给妈妈500块");
+  fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "确认办理" }));
+  return screen.findByRole("heading", { name: "为了安全，请完成两项验证" });
+}
+
+async function passCode() {
+  fireEvent.change(await screen.findByLabelText("请输入 6 位验证码"), { target: { value: "123456" } });
+  fireEvent.click(screen.getByRole("button", { name: "提交验证码" }));
+  fireEvent.click(await screen.findByRole("button", { name: "开始模拟人脸验证" }));
+  await screen.findByText("正在等待管理员在独立演示端作答。");
+}
+
+async function adminAnswer(backend: DemoBackend, result: "passed" | "failed") {
+  await backend.admin.enterAdmin({ request_id: crypto.randomUUID() });
+  const [challenge] = backend.admin.listPendingFaceChallenges();
+  expect(challenge).toBeTruthy();
+  await backend.admin.answerFace(challenge.challenge_id, {
+    request_id: crypto.randomUUID(),
+    submission_id: crypto.randomUUID(),
+    demo_round_id: challenge.demo_round_id,
+    result,
+  });
+}
+
+beforeEach(() => {
+  localStorage.clear();
+  window.history.replaceState({}, "", "/v04");
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe("v0.4 shell with stub data", () => {
+  it("walks confirm → code → admin face → waiting → result and keeps finished cards read-only", async () => {
+    const backend = makeBackend();
+    renderPage(backend);
+    expect(await screen.findByText("演示数据（stub）")).toBeTruthy();
+
+    await reachVerification();
+    const confirmation = screen.getByRole("heading", { name: "确认单记录" }).closest("section")!;
+    expect(within(confirmation).getByText("已确认办理 · 只读")).toBeTruthy();
+    expect(within(confirmation).queryByRole("button")).toBeNull();
+    expect(screen.getByText("您选择了：妈妈 · 尾号 6688（常用收款人）")).toBeTruthy();
+
+    await passCode();
+    expect(screen.queryByRole("button", { name: /模拟成功|通过/ })).toBeNull();
+
+    await adminAnswer(backend, "passed");
+    expect(await screen.findByRole("heading", { name: "正在办理，请不要重复操作" })).toBeTruthy();
+    expect(await screen.findByText("转账成功")).toBeTruthy();
+    expect(screen.getByText(/演示结果，不代表真实银行交易/)).toBeTruthy();
+    expect(screen.getByText(/^DEMO-/)).toBeTruthy();
+    const verification = screen.getByRole("heading", { name: "安全验证记录" }).closest("section")!;
+    expect(within(verification).getByText("验证已通过 · 只读")).toBeTruthy();
+    expect(within(verification).queryByLabelText("请输入 6 位验证码")).toBeNull();
+  });
+
+  it("sends one confirmation answer even when the button is clicked twice", async () => {
+    const backend = makeBackend();
+    const answer = vi.spyOn(backend.user, "answerConfirmation");
+    renderPage(backend);
+    await sendText("转给妈妈500块");
+    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+    const confirm = await screen.findByRole("button", { name: "确认办理" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    await screen.findByRole("heading", { name: "为了安全，请完成两项验证" });
+    expect(answer).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends the task without a result when the medium-risk code is wrong", async () => {
+    const backend = makeBackend();
+    renderPage(backend);
+    await reachVerification();
+    fireEvent.change(screen.getByLabelText("请输入 6 位验证码"), { target: { value: "000000" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交验证码" }));
+    expect(await screen.findByText("验证码不正确。按安全规则本次办理已终止，没有提交给银行。")).toBeTruthy();
+    expect(screen.getByText("这笔钱没有转出去")).toBeTruthy();
+    expect(screen.queryByText("转账成功")).toBeNull();
+    expect(screen.queryByRole("button", { name: "开始模拟人脸验证" })).toBeNull();
+  });
+
+  it("asks before continuing after a refresh and restores history without a new submission", async () => {
+    const backend = makeBackend();
+    const first = renderPage(backend);
+    await reachVerification();
+    first.unmount();
+
+    const reloaded = makeBackend();
+    const send = vi.spyOn(reloaded.user, "sendMessage");
+    const provide = vi.spyOn(reloaded.user, "provideInput");
+    const answer = vi.spyOn(reloaded.user, "answerConfirmation");
+    renderPage(reloaded);
+    expect(await screen.findByRole("heading", { name: "有一项没办完的任务" })).toBeTruthy();
+    expect(screen.queryByLabelText("请输入 6 位验证码")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
+    expect(await screen.findByText("已恢复原任务，没有创建新任务，也没有重新提交。")).toBeTruthy();
+    expect(await screen.findByText("已确认办理 · 只读")).toBeTruthy();
+    expect(await screen.findByLabelText("请输入 6 位验证码")).toBeTruthy();
+    expect(send).not.toHaveBeenCalled();
+    expect(provide).not.toHaveBeenCalled();
+    expect(answer).not.toHaveBeenCalled();
+    expect(await reloaded.user.listTasks((await reloaded.user.ensureThread()).thread_id)).toHaveLength(1);
+  });
+
+  it("shows needs_attention with a query-only entry and resolves it from the original operation", async () => {
+    const backend = makeBackend();
+    renderPage(backend);
+    await reachVerification();
+    await passCode();
+    await backend.admin.enterAdmin({ request_id: crypto.randomUUID() });
+    backend.admin.setResultUnknownFault(true);
+    const query = vi.spyOn(backend.user, "queryResult");
+    await adminAnswer(backend, "passed");
+
+    expect(await screen.findByText("这笔办理的结果我暂时没查到，我没有再提交一次。")).toBeTruthy();
+    const button = screen.getByRole("button", { name: "查询原操作" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(await screen.findByText("转账成功")).toBeTruthy();
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("locks old buttons when the demo login expires and re-confirms after re-entering", async () => {
+    const backend = makeBackend();
+    renderPage(backend);
+    await reachVerification();
+    await backend.admin.enterAdmin({ request_id: crypto.randomUUID() });
+    await backend.admin.expireUserSession({ request_id: crypto.randomUUID(), demo_round_id: "stub-demo-round" });
+
+    expect(await screen.findByText("演示登录已过期")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "提交验证码" })).toBeNull();
+    expect(screen.getByText("验证已暂停 · 只读")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "输入您想办的事" }).hasAttribute("disabled")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "点这里重新进入" }));
+    expect(await screen.findByText(/登录已更换/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
+    expect(await screen.findByRole("button", { name: "确认办理" })).toBeTruthy();
+    expect(await screen.findByText("已被新验证替代 · 只读")).toBeTruthy();
+    expect(screen.getByText("已确认办理 · 只读")).toBeTruthy();
+  });
+
+  it("refuses a verification code typed into the chat", async () => {
+    const backend = makeBackend();
+    renderPage(backend);
+    await sendText("123456");
+    expect(await screen.findByText("验证码请填在专用验证框里，不要发在聊天里。")).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement).value).toBe("");
+    expect(screen.queryByText("123456", { selector: ".sh-bubble" })).toBeNull();
+  });
+
+  it("only lets the separate admin entry answer a started face check", async () => {
+    const backend = makeBackend();
+    const view = renderPage(backend);
+    await reachVerification();
+    await passCode();
+    view.unmount();
+
+    window.history.replaceState({}, "", "/v04/admin");
+    render(<AdminDemoPage admin={backend.admin} stubExtras={backend.admin} />);
+    fireEvent.click(await screen.findByRole("button", { name: "进入管理员演示端" }));
+    fireEvent.click(await screen.findByRole("button", { name: "提交模拟失败" }));
+    expect(await screen.findByText(/已提交「模拟失败」/)).toBeTruthy();
+    const thread = await backend.user.ensureThread();
+    const [{ task }] = await backend.user.listTasks(thread.thread_id);
+    expect(task.status).toBe("failed");
+    expect(task.data).toMatchObject({ operation: null });
+  });
+
+  it("falls back to the generic slot for an unknown module and mounts under /v04 only", async () => {
+    expect(slots.resolve("bills")).toBe(genericSlot);
+    expect(slots.resolve("transfer")).toBe(transferDemoSlot);
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "AI 银行助手" })).toBeTruthy();
+  });
+});
