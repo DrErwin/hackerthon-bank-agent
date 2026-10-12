@@ -65,7 +65,7 @@ python tools/feishu_sync.py mount     # 把还没进知识库的挂进对应分�
 
 ### Issue tracker
 
-规格与实施票放在 `.scratch/`。新建、引用或领取票据时先读[票据标识规范](docs/agents/issue-tracker.md)：组内分别编号，对外使用完整票号 `<feature-slug>/<NN>`、标题及链接；交付包、实施票、GitHub Issue 与 PR 分别标注。
+规格与实施票放在 `.scratch/`。新建、引用或领取票据时先读[票据标识规范](docs/agents/issue-tracker.md)：组内分别编号，对外使用完整票号 `<feature-slug>/<NN>`、标题及链接；交付包、实施票、GitHub Issue 与 PR 分别标注。**GitHub Issue 建单时必须写明转给谁**（正文 `转给: <姓名>`；有权限时一并设置 Assignee），没有明确接收人不建单。
 
 ### Version progress
 
