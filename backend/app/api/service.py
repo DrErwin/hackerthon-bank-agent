@@ -27,6 +27,11 @@ def now():
     return datetime.now(timezone.utc)
 
 
+# The deployed API serves the one registered business runtime; task views and events
+# both name it, so a second module resolves its name here instead of in two places.
+SERVED_MODULE = "transfer"
+
+
 @dataclass(frozen=True)
 class Identity:
     user_id: str
@@ -153,7 +158,7 @@ class ApiService:
                 ["resume"] if interrupted else ["cancel"] if task is None else [],
                 recovery_required=interrupted and not cancelled,
                 recovery_reason="INTERRUPTED_REQUEST" if interrupted and not cancelled else None)
-        view = TaskView[TransferTaskView](**result.model_dump(), thread_id=link["thread_id"],
+        view = TaskView[TransferTaskView](**result.model_dump(), module=SERVED_MODULE, thread_id=link["thread_id"],
             demo_round_id=identity.demo_round_id, snapshot_at=now(), task_revision=task.revision if task else int(link["cancel_requested"]),
             cancel_requested=bool(link["cancel_requested"]))
         if "query" in view.allowed_actions and "cancel" not in view.allowed_actions:
@@ -171,7 +176,7 @@ class ApiService:
     def stream_event(self, identity, thread_id, event_type, payload, task=None, event_id=None):
         return StreamEvent(event_id=event_id or str(uuid4()), thread_id=thread_id,
             session_id=identity.session_id, task_id=task.task_id if task else None,
-            run_id=task.run_id if task else None, module="transfer" if task else "platform",
+            run_id=task.run_id if task else None, module=SERVED_MODULE if task else "platform",
             event_type=event_type, occurred_at=now(), payload=payload)
 
     def emit(self, identity, thread_id, event_type, payload, task=None, event_id=None):
