@@ -4,7 +4,7 @@ Ticket ID: liangshuang-frontend-complete/01
 Type: 设计
 Owner: 梁爽
 Directory: frontend/
-Status: in_progress
+Status: in_review
 Package: [frontend-complete/packages/01：v0.4 完整前端实现与替换](../../frontend-complete/packages/01-v04-complete-frontend.md)
 Spec: [梁爽完整前端实施规格](../spec.md)
 Core scenarios: P-01；为 [FE-01、FE-03、FE-06](../../frontend-complete/spec.md) 固定交互
@@ -23,3 +23,4 @@ Verification: 在 390×844 浏览器视口逐条走通候选、修改、等待�
 ## Comments
 
 - 2026-10-12：梁爽确认拆票并启动本票。
+- 2026-10-12：原型 v0.2 已通过本地 390×844 走查、13 项既有前端测试、生产构建及 Standards / Spec 双审；提交 [PR #106](https://github.com/DrErwin/hackerthon-bank-agent/pull/106)，已请求 Erwin 走查。CI 中改动空格、文档链接和语法步骤通过，仓库级全量检查仍在运行；Erwin 确认前不标记 resolved。
