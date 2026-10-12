@@ -1331,3 +1331,106 @@ def test_non_ascii_admin_key_and_cookie_are_controlled_denials(tmp_path):
         assert login.status_code == 403, login.text
         denied = client.get("/api/v1/session", headers=[(b"Cookie", b"bank_session=invalid.\xe9")])
         assert denied.status_code == 401, denied.text
+
+
+def records(client, task_id):
+    response = client.get(f"/api/v1/tasks/{task_id}/records")
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    return response.json()["data"]
+
+
+def complete_transfer(client, task):
+    waiting = approve(client, task)
+    challenge = waiting["interaction"]["record_ref"]
+    code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+    result = post(client, f"/verifications/{challenge}/code",
+                  submission_id=str(uuid4()), code=code)
+    assert result.status_code == 200, result.text
+    return result.json()["data"]["task"], challenge, code
+
+
+def test_task_records_replay_history_for_owner_only(tmp_path):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        completed, _, code = complete_transfer(client, task)
+        assert completed["status"] == "succeeded"
+
+        replay = records(client, task["task_id"])
+        # 确认单带状态印章所需字段：状态、金额、收款人、转出账户、时间。
+        assert [item["decision"] for item in replay["confirmations"]] == ["approved"]
+        fields = {field["name"]: field["value_text"]
+                  for field in replay["confirmations"][0]["display_fields"]}
+        assert {"payer_account_id", "amount", "payee"} <= set(fields)
+        assert replay["confirmations"][0]["created_at"]
+        # 验证记录带挑战状态与结果，不含验证码原文。
+        assert [item["challenge_status"] for item in replay["verifications"]] == ["passed"]
+        assert replay["verifications"][0]["code_result"] == "passed"
+        assert replay["verifications"][0]["face_result"] == "not_required"
+        assert replay["verifications"][0]["created_at"]
+        assert code not in json.dumps(replay)
+        # 只读幂等：重复回放内容一致，任务快照与 revision 不被推进。
+        assert records(client, task["task_id"]) == replay
+        after = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert after["status"] == "succeeded"
+        assert after["task_revision"] == completed["task_revision"]
+        # 越权与不存在对象一致拒绝。
+        other = make_app(tmp_path, user="U2")
+        with TestClient(other) as second:
+            enter(second)
+            assert second.get(f"/api/v1/tasks/{task['task_id']}/records").status_code == 404
+        assert client.get(f"/api/v1/tasks/{uuid4()}/records").status_code == 404
+
+
+def test_task_records_survive_session_expiry_and_reentry(tmp_path):
+    from datetime import timedelta
+    from .service import now
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        completed, _, _ = complete_transfer(client, task)
+        assert completed["status"] == "succeeded"
+        replay = records(client, task["task_id"])
+
+        stale = client.get("/api/v1/session").json()["data"]["session_id"]
+        app.state.api.store.write("UPDATE sessions SET expires_at=? WHERE session_id=?",
+                                  ((now() - timedelta(seconds=1)).isoformat(), stale))
+        assert client.get(f"/api/v1/tasks/{task['task_id']}/records").status_code == 401
+        fresh = enter(client)
+        assert fresh["session_id"] != stale
+        # 隔天（新会话）回看：本人仍能完整回放，内容与会话内一致。
+        assert records(client, task["task_id"]) == replay
+
+
+def test_task_records_include_pre_recovery_challenges(tmp_path):
+    from datetime import timedelta
+    from .service import now
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        waiting = approve(client, task)
+        first_challenge = waiting["interaction"]["record_ref"]
+
+        stale = client.get("/api/v1/session").json()["data"]["session_id"]
+        app.state.api.store.write("UPDATE sessions SET expires_at=? WHERE session_id=?",
+                                  ((now() - timedelta(seconds=1)).isoformat(), stale))
+        fresh = enter(client)
+        assert fresh["session_id"] != stale
+        recovered = post(client, f"/tasks/{task['task_id']}/resume").json()["data"]
+        assert recovered["interaction"]["kind"] == "confirmation"
+        completed, second_challenge, _ = complete_transfer(client, recovered)
+        assert completed["status"] == "succeeded"
+        assert second_challenge != first_challenge
+
+        # 恢复前（旧会话）与恢复后的挑战都在回放列表里，时间线有序。
+        replay = records(client, task["task_id"])
+        challenge_ids = [item["challenge_id"] for item in replay["verifications"]]
+        assert {first_challenge, second_challenge} <= set(challenge_ids)
+        timestamps = [item["created_at"] for item in replay["verifications"]]
+        assert timestamps == sorted(timestamps)
+        current = next(item for item in replay["verifications"]
+                       if item["challenge_id"] == second_challenge)
+        assert current["challenge_status"] == "passed"
