@@ -119,6 +119,21 @@ def test_http_transfer_requires_confirmation_and_verification(tmp_path):
         assert client.get("/api/v1/admin/audit/events", params={"task_id": task["task_id"]}).status_code == 403
 
 
+def test_task_views_name_their_business_module_for_slot_selection(tmp_path):
+    """Every task view exit names the business slot: F08 / F09 / F11 / F15 (contract §6.5)."""
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        thread, task = start(client)
+        assert task["module"] == "transfer"
+        listed = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]
+        assert [item["module"] for item in listed] == ["transfer"]
+        assert approve(client, task)["module"] == "transfer"
+        resumed = post(client, f"/tasks/{task['task_id']}/resume")
+        assert resumed.status_code == 200, resumed.text
+        assert resumed.json()["data"]["module"] == "transfer"
+
+
 def test_message_retries_and_plain_chat_assent_never_duplicate_business(tmp_path):
     app = make_app(tmp_path)
     with TestClient(app) as client:
@@ -816,6 +831,7 @@ def test_live_sse_reconnect_replays_events_without_new_task(tmp_path):
                         if event["event_type"] == "task_updated":
                             break
             assert event is not None
+            assert event["payload"]["module"] == "transfer"
             cursor = event["event_id"]
             original_revision = event["payload"]["task_revision"]
             next_event = None
