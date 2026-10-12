@@ -37,6 +37,7 @@ $env:BANK_API_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000'
 | POST / GET `/threads/{id}/messages` | 受理消息，查询完整消息；POST 返回 202 |
 | GET `/threads/{id}/events` | SSE，支持 Last-Event-ID 继续持久事件序列 |
 | GET `/tasks`、GET `/tasks/{id}` | 原任务快照及待恢复列表 |
+| GET `/tasks/{id}/records` | 按任务只读回放确认单与验证历史（本人任务，跨会话可读，不含验证码原文） |
 | POST `/tasks/{id}/inputs` | 回答当前交互或选择服务端候选 |
 | POST `/tasks/{id}/details` | 专用收款人资料、按指定银行字段查询候选；查询本身不选中候选 |
 | POST `/tasks/{id}/resume`、`cancel`、`query-result` | 原任务恢复、停止未执行动作及回查原操作 |

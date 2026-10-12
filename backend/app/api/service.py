@@ -409,11 +409,15 @@ class ApiService:
             confirmation_id=None, confirmation_version=None,
             verification_ids=[], release_authorization_id=None)
 
+    @staticmethod
+    def _confirmation_view(record):
+        return ConfirmationView.model_validate(record.model_dump(include=set(ConfirmationView.model_fields)))
+
     def confirmation(self, identity, confirmation_id):
         trusted = self.record_context(identity, "confirmation", confirmation_id)
         # Read through the public security service.
         record = self.runtime.confirmations.get(self._owner_security_context(trusted), confirmation_id)
-        return trusted, ConfirmationView.model_validate(record.model_dump(include=set(ConfirmationView.model_fields)))
+        return trusted, self._confirmation_view(record)
 
     def task_records(self, identity, task_id):
         """Read-only confirmation and verification replay for the task owner."""
@@ -429,8 +433,7 @@ class ApiService:
             "SELECT record_id FROM api_records WHERE task_id=? AND kind='confirmation'", (task_id,),
         ):
             record = self.runtime.confirmations.get(context, row["record_id"])
-            confirmations.append(((record.created_at, record.confirmation_id), ConfirmationView.model_validate(
-                record.model_dump(include=set(ConfirmationView.model_fields)))))
+            confirmations.append(((record.created_at, record.confirmation_id), self._confirmation_view(record)))
         confirmations.sort(key=lambda item: item[0])
         # Bank errors surface through the shared dependency mapping; unlike the
         # single-challenge read there is no in-flight verification to fault.

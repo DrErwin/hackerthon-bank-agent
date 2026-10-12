@@ -1434,3 +1434,27 @@ def test_task_records_include_pre_recovery_challenges(tmp_path):
         current = next(item for item in replay["verifications"]
                        if item["challenge_id"] == second_challenge)
         assert current["challenge_status"] == "passed"
+
+
+def test_task_records_report_bank_outage_without_side_effects(tmp_path, monkeypatch):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        before = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+
+        with monkeypatch.context() as patch:
+            def unavailable(*args):
+                raise RuntimeError("bank unavailable")
+            patch.setattr(app.state.api.runtime.gateway, "list_verifications", unavailable)
+            failed = client.get(f"/api/v1/tasks/{task['task_id']}/records")
+            assert failed.status_code == 503, failed.text
+            assert failed.json()["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
+
+        # 只读失败不改任务：不标 needs_attention、不推进 revision，银行恢复后即可回放。
+        during = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert during["status"] == before["status"]
+        assert during["task_revision"] == before["task_revision"]
+        replay = records(client, task["task_id"])
+        assert [item["challenge_id"] for item in replay["verifications"]] == [challenge]
