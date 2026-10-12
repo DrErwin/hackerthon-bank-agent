@@ -352,3 +352,20 @@ def test_list_task_verifications_expires_stale_pending_like_get(tmp_path):
     assert listed[0].code_result == "expired"
     assert gateway.get_verification(context(), challenge.challenge_id).challenge_status == "expired"
     gateway.close()
+
+
+def test_list_task_verifications_does_not_touch_foreign_pending(tmp_path):
+    bank, gateway, clock = ready(tmp_path)
+    mine = gateway.create_verification(context(task="T1"), "basic_identity")
+    foreign = gateway.create_verification(context(user="U2", task="T9"), "basic_identity")
+    clock.advance(301)
+    listed = gateway.list_verifications(context(task="T1"), "T1")
+    assert [c.challenge_id for c in listed] == [mine.challenge_id]
+    # 他人挑战不因本次回放被终态化：存储里仍保持 pending 原样。
+    with sqlite3.connect(StoragePaths(tmp_path).bank) as connection:
+        stored = connection.execute(
+            "SELECT challenge_json FROM bank_verification_challenges WHERE challenge_id=?",
+            (foreign.challenge_id,),
+        ).fetchone()
+    assert '"challenge_status":"pending"' in stored[0]
+    gateway.close()

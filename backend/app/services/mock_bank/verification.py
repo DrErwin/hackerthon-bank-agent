@@ -183,18 +183,20 @@ class MockBankVerification:
     def list_task_challenges(self, context: TrustedContext, task_id: str) -> list[VerificationChallenge]:
         """Read-only replay for the task owner; the creating session is irrelevant."""
         with transaction(self.path) as connection:
-            challenges = [
-                self._expire(connection, VerificationChallenge.model_validate_json(row["challenge_json"]))
-                for row in connection.execute(
-                    "SELECT challenge_json FROM bank_verification_challenges",
-                ).fetchall()
-            ]
             owned = [
-                challenge for challenge in challenges
+                challenge for challenge in (
+                    VerificationChallenge.model_validate_json(row["challenge_json"])
+                    for row in connection.execute(
+                        "SELECT challenge_json FROM bank_verification_challenges",
+                    ).fetchall()
+                )
                 if (challenge.user_id, challenge.demo_round_id, challenge.task_id)
                 == (context.user_id, context.demo_round_id, task_id)
             ]
-            return sorted(owned, key=lambda challenge: (challenge.created_at, challenge.challenge_id))
+            # Lazy terminal state only for the replayed task; a foreign task's
+            # stale pending challenge is not this read's business.
+            challenges = [self._expire(connection, challenge) for challenge in owned]
+            return sorted(challenges, key=lambda challenge: (challenge.created_at, challenge.challenge_id))
 
     def get_demo_code(self, context: TrustedContext, challenge_id: str) -> str:
         """For the dedicated demo-code API only; never register as an Agent tool."""
