@@ -8,7 +8,7 @@ from pydantic import Field, SecretStr, model_validator
 
 from .bank import PayeeCandidate
 from .common import ContractModel, DisplayField, ID, PositiveInt, RequestId, SubmissionId, Timestamp
-from .security import VerificationView
+from .security import ConfirmationView, VerificationView
 from .tasks import InteractionRequest, ModuleError, TaskView, TransferTaskView
 
 
@@ -148,6 +148,14 @@ class VerificationResponse(ContractModel, Generic[T]):
     verification: VerificationView
     task: TaskView[T]
     error: ModuleError | None
+
+
+class TaskRecordsView(ContractModel):
+    """Read-only confirmation and verification history for one task."""
+
+    task_id: ID
+    confirmations: list[ConfirmationView]
+    verifications: list[VerificationView]
 
 
 class MessageDelta(ContractModel):
