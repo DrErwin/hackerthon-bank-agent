@@ -5,7 +5,7 @@ Core scenarios: CG-1（任务视图与 `task_updated` 带 `module`）
 Verification: E2E——`backend/` 下 `python -m pytest -q app/api/test_app.py`：既有「真 `TransferRuntime` + 模拟银行 + 安全门」路径上，F09（`GET /tasks/{task_id}`）、F08（`GET /tasks`）响应与 `task_updated` SSE 事件载荷的 `module` 均为 `transfer`。先加断言看到失败，再填实现。
 Owner: Erwin
 Directory: backend/app/api/
-Status: planned
+Status: in_review（[PR #114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114)，2026-10-12；api 53 passed、后端全量 391 passed；依赖 PR #113 先合）
 Blocked by: [v04-contract-gaps/01：任务视图补模块名与报告 / 导出公共模型](01-contract-task-module-and-report-models.md)（`TaskView.module` 未合入前无法填充）
 Source: 无独立 Issue（缺口来源 [PR #108](https://github.com/DrErwin/hackerthon-bank-agent/pull/108) 审查意见，缺口 ①）
 
@@ -20,3 +20,5 @@ Source: 无独立 Issue（缺口来源 [PR #108](https://github.com/DrErwin/hack
 - 不新增「模块名注册表」抽象：现在只有一个运行时，硬编码 `transfer` 并写明接入时改这一处，符合 KISS。
 
 ## Comments
+
+- 2026-10-12 晚：先加断言看到失败（`module` 为 `null`），再在 `service.task_view()` 填 `transfer`；新增 E2E `test_task_views_name_their_business_module_for_slot_selection`（F09 / F08 / F15），并在既有 SSE 重连用例断言 `task_updated` 载荷带 `module`。PR #114 基于 #113 分支开出，`Depends on PR #113`，合并顺序 #113 → #114。

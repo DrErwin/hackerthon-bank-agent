@@ -71,3 +71,4 @@ v0.4 通用前端底盘（PR #108）按「前端不造字段」的口径停下�
 - 现有实现只注册转账运行时（`backend/app/agent_platform/transfer_runtime.py`），api 只服务转账任务；票 02 按此填 `transfer`，接入账单时在同一处按注册表解析。
 - ⑤ 受影响方登记（等确认后单独走票）：Ringo（`security/gate.py` 交互选项、`state.py` `answer()` 语义）、梁爽（转账流程返回收集与重确认）、周恩宇（账单流程同口径）。
 - ② 交给前端线的同时，本组票 01 交付后其类型生成即可带上 `BillReport` / `ExportView` 与可空 `module`，不需要等端点。
+- **2026-10-12 晚进展**：两票均已开 PR——票 01 [PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113)（契约，CI 绿）、票 02 [PR #114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114)（api，依赖 #113）；合并顺序 #113 → #114，等 Erwin 复审。合并后通知前端线（类型生成 + 插槽）与账单线（F21/F22/F23 端点前的模型已可用）。

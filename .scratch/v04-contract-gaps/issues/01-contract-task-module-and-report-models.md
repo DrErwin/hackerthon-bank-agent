@@ -5,7 +5,7 @@ Core scenarios: CG-1（`module` 承载）、CG-2（`BillReport`）、CG-3（`Exp
 Verification: 在 `backend/` 下 `python -m pytest -q app/contracts` 通过；新增字段 / 模型的断言先失败后通过；全后端回归无新增失败。合入后通知前端线（[#89](https://github.com/DrErwin/hackerthon-bank-agent/issues/89) 与 [liangshuang-frontend-complete/03](../../liangshuang-frontend-complete/issues/03-transfer-slot.md)）：`api.generated.ts` 重建归其执行。
 Owner: Erwin
 Directory: backend/app/contracts/
-Status: planned
+Status: in_review（[PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113)，2026-10-12；契约 47 passed、后端全量 390 passed、CI 绿）
 Blocked by: None
 Source: 无独立 Issue（缺口来源 [PR #108](https://github.com/DrErwin/hackerthon-bank-agent/pull/108) 审查意见，缺口 ①③）
 
@@ -26,3 +26,5 @@ Source: 无独立 Issue（缺口来源 [PR #108](https://github.com/DrErwin/hack
 - **旧调用**：`module` 为可空新增字段，`BillReport` / `ExportView` 为新增模型，既有字段与取值不变，属兼容变更；以全后端回归验证。
 
 ## Comments
+
+- 2026-10-12 晚：按票先写失败断言（`ExportView` / `BillReport` 导入即失败），再补模型；`test_contracts.py` 47 passed。改动列表：`tasks.py`（`BusinessModule` + `TaskView.module`）、`bills.py`（`BillReport`）、`api.py`（`ExportView`）、`__init__.py` 导出、两个测试文件、契约正文 §6.5 与顶部修订记录。后端全量 390 passed（排除本机缺 `langchain_openai` 的 2 个真模型模块）。PR #113 已开，等 Erwin 复审合并；合并后通知前端线跑类型生成（票 03 前置）。
