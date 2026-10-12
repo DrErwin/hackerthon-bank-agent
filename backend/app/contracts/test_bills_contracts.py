@@ -4,7 +4,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.contracts import (
-    AccountSourceAsOf, BillDetails, BillScope, BillSummarizeInput, Category, CategoryTotal,
+    AccountSourceAsOf, BillDetails, BillReport, BillScope, BillSummarizeInput, Category, CategoryTotal,
     QueryResult, SpendingComparison, SpendingSummary, Transaction, TransactionList,
 )
 from app.contracts import bank as bank_contracts
@@ -254,7 +254,43 @@ def test_public_import_paths_and_signed_money_are_available():
     assert bills_contracts.AccountSourceAsOf is AccountSourceAsOf
     assert bills_contracts.SpendingSummary is SpendingSummary
     assert bills_contracts.BillDetails is BillDetails
+    assert bills_contracts.BillReport is BillReport
     adapter = TypeAdapter(SignedMoney)
     assert adapter.validate_python(-3000) == -3000 and adapter.validate_python(0) == 0
     with pytest.raises(ValidationError):
         adapter.validate_python("-3000")
+
+
+def bill_report(**overrides):
+    return {
+        "report_id": "R1", "scope": scope(), "summary": summary(),
+        "spoken_summary": "这个月餐饮花得最多，一共 470 元。",
+        "monthly_average_fen": 4700, "statistical_days": 30,
+        "average_basis": "按统计天数折算，每月 30 天", "generated_at": AS_OF,
+    } | overrides
+
+
+def test_bill_report_keeps_the_card_facts_and_allows_a_missing_monthly_average():
+    """F21 returns the §5.3 report: summary block plus its spoken and average facts."""
+
+    report = BillReport.model_validate(bill_report())
+    assert BillReport.model_validate_json(report.model_dump_json()) == report
+    assert report.summary.consumption_net_fen == 47000
+    assert report.average_basis == "按统计天数折算，每月 30 天"
+    without_average = BillReport.model_validate(bill_report(
+        monthly_average_fen=None, statistical_days=0,
+    ))
+    assert without_average.monthly_average_fen is None
+    for broken in (
+        {"monthly_average_fen": "4700"},
+        {"monthly_average_fen": -1},
+        {"statistical_days": -1},
+        {"statistical_days": True},
+        {"generated_at": "2026-10-01T00:00:00"},
+        {"scope": None},
+        {"report_id": ""},
+        {"summary": None},
+        {"unexpected_block": []},
+    ):
+        with pytest.raises(ValidationError):
+            BillReport.model_validate(bill_report() | broken)

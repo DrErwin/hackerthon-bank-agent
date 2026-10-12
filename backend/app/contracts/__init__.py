@@ -2,7 +2,7 @@
 
 from .api import (
     ApiError, ApiSuccess, ConfirmationAnswerRequest, DeliveryDetailsFields, DemoCodeView, DetailsResponse,
-    InteractionRequired, MessageAccepted, MessageDelta, MessageView, Page, PayeeDetailsFields,
+    ExportView, InteractionRequired, MessageAccepted, MessageDelta, MessageView, Page, PayeeDetailsFields,
     PayeeSearchFields, ProvideInputRequest, RequestIdOnly, SendMessageRequest, SessionExpired,
     SessionView, StreamEvent, SubmitDetailsRequest, TaskRecordsView, ThreadView, VerificationCodeRequest,
     VerificationResponse,
@@ -15,7 +15,7 @@ from .bank import (
     SavedPayee, Transaction, TransactionList, TransferLimits, TransferPrecheck, TransferQuote, TransferReceipt,
 )
 from .bills import (
-    AccountSourceAsOf, BillDetails, BillScope, BillSummarizeInput, CategoryTotal,
+    AccountSourceAsOf, BillDetails, BillReport, BillScope, BillSummarizeInput, CategoryTotal,
     SpendingComparison, SpendingSummary,
 )
 from .common import (

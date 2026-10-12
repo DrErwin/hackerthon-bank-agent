@@ -158,6 +158,35 @@ class TaskRecordsView(ContractModel):
     verifications: list[VerificationView]
 
 
+class ExportView(ContractModel):
+    """One export resource and its single current state (§6.7); the download path is an
+    application path such as ``/api/v1/exports/{export_id}/download``, never a host or
+    file-system path."""
+
+    export_id: ID
+    kind: Literal["card", "details", "audit"]
+    status: Literal["preparing", "waiting_verification", "ready", "failed"]
+    task_id: ID | None
+    file_name: str | None
+    media_type: str | None
+    download_path: str | None
+    error: ModuleError | None
+
+    @model_validator(mode="after")
+    def bind_details_to_their_task_and_keep_the_path_local(self) -> "ExportView":
+        # §6.7: a sensitive details export always belongs to the task that verified it,
+        # and a download path stays inside this application instead of the file system.
+        if self.kind == "details" and self.task_id is None:
+            raise ValueError("a details export is bound to the task that requested it")
+        if self.download_path is not None and (
+            not self.download_path.startswith("/")
+            or self.download_path.startswith("//")
+            or "://" in self.download_path
+        ):
+            raise ValueError("download_path must be an application path on this host")
+        return self
+
+
 class MessageDelta(ContractModel):
     message_id: ID
     text_delta: str
