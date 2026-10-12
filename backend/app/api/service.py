@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 from app.audit.journal import AuditReader, AuditViewer, redact
 from app.agent_platform.model import ReplyOnly
 from app.contracts.audit import AuditEvent, TaskTransitionPayload, VerificationChangedPayload
-from app.contracts.api import MessageView, StreamEvent
+from app.contracts.api import MessageView, StreamEvent, TaskRecordsView
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
@@ -400,16 +400,51 @@ class ApiService:
             raise ApiProblem(404, "NOT_FOUND")
         return self.trusted(identity, rows[0]["task_id"])
 
-    def confirmation(self, identity, confirmation_id):
-        trusted = self.record_context(identity, "confirmation", confirmation_id)
-        # Read through the public security service. Lookup only needs the trusted
-        # owner; execution bindings are resolved by TransferRuntime when answering.
-        context = ExecutionSecurityContext(**trusted.model_dump(exclude={"parent_task_id"}),
+    @staticmethod
+    def _owner_security_context(trusted):
+        # Lookup only needs the trusted owner; execution bindings are resolved
+        # by TransferRuntime when answering.
+        return ExecutionSecurityContext(**trusted.model_dump(exclude={"parent_task_id"}),
             source_task_id=None, operation_id=None, action_revision=None,
             confirmation_id=None, confirmation_version=None,
             verification_ids=[], release_authorization_id=None)
-        record = self.runtime.confirmations.get(context, confirmation_id)
-        return trusted, ConfirmationView.model_validate(record.model_dump(include=set(ConfirmationView.model_fields)))
+
+    @staticmethod
+    def _confirmation_view(record):
+        return ConfirmationView.model_validate(record.model_dump(include=set(ConfirmationView.model_fields)))
+
+    def confirmation(self, identity, confirmation_id):
+        trusted = self.record_context(identity, "confirmation", confirmation_id)
+        # Read through the public security service.
+        record = self.runtime.confirmations.get(self._owner_security_context(trusted), confirmation_id)
+        return trusted, self._confirmation_view(record)
+
+    def task_records(self, identity, task_id):
+        """Read-only confirmation and verification replay for the task owner."""
+        link = self.link(identity, task_id)
+        # Replay under the task's own session: history created before a session
+        # recovery must still pass the underlying owner checks. The caller has
+        # already proven ownership; this path never mutates task or audit facts.
+        owner = Identity(identity.user_id, link["session_id"], identity.demo_round_id, "user")
+        trusted = self.trusted(owner, task_id)
+        context = self._owner_security_context(trusted)
+        confirmations = []
+        for row in self.store.rows(
+            "SELECT record_id FROM api_records WHERE task_id=? AND kind='confirmation'", (task_id,),
+        ):
+            record = self.runtime.confirmations.get(context, row["record_id"])
+            confirmations.append(((record.created_at, record.confirmation_id), self._confirmation_view(record)))
+        confirmations.sort(key=lambda item: item[0])
+        # Bank errors surface through the shared dependency mapping; unlike the
+        # single-challenge read there is no in-flight verification to fault.
+        challenges = self.runtime.gateway.list_verifications(trusted, task_id)
+        verifications = sorted(
+            [((challenge.created_at, challenge.challenge_id), self.verification_view(challenge))
+             for challenge in challenges],
+            key=lambda item: item[0])
+        return TaskRecordsView(task_id=task_id,
+                               confirmations=[view for _, view in confirmations],
+                               verifications=[view for _, view in verifications])
 
     def verification(self, identity, challenge_id):
         trusted = self.record_context(identity, "verification", challenge_id)
