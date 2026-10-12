@@ -68,7 +68,8 @@ v0.4 通用前端底盘（PR #108）按「前端不造字段」的口径停下�
 ## Further Notes
 
 - 2026-10-12 晚建组。依据：PR #108 审查意见（契约缺口核对「全部属实」）与 [项目跟踪](../../docs/01-项目跟踪.md) 10-12 行。
-- 现有实现只注册转账运行时（`backend/app/agent_platform/transfer_runtime.py`），api 只服务转账任务；票 02 按此填 `transfer`，接入账单时在同一处按注册表解析。
+- 现有实现只注册转账运行时（`backend/app/agent_platform/transfer_runtime.py`），api 只服务转账任务；票 02 按此用一个常量填模块名，接入账单时只改常量。
 - ⑤ 受影响方登记（等确认后单独走票）：Ringo（`security/gate.py` 交互选项、`state.py` `answer()` 语义）、梁爽（转账流程返回收集与重确认）、周恩宇（账单流程同口径）。
 - ② 交给前端线的同时，本组票 01 交付后其类型生成即可带上 `BillReport` / `ExportView` 与可空 `module`，不需要等端点。
-- **2026-10-12 晚进展**：两票均已开 PR——票 01 [PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113)（契约，CI 绿）、票 02 [PR #114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114)（api，依赖 #113）；合并顺序 #113 → #114，等 Erwin 复审。合并后通知前端线（类型生成 + 插槽）与账单线（F21/F22/F23 端点前的模型已可用）。
+- **2026-10-12 晚进展**：两票均已开 PR——票 01 [PR #113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113)（契约，CI 绿）、票 02 [PR #114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114)（api，base 设为 #113 分支，CI 绿）；合并顺序 #113 → #114（#113 合入后 #114 转回 main），等 Erwin 复审。合并后通知前端线（类型生成 + 插槽）与账单线（F21/F22/F23 端点前的模型已可用）。
+- **2026-10-12 晚（双轴审查）**：`code-review` Standards / Spec 两轴子代理审查两票（意见：[#113](https://github.com/DrErwin/hackerthon-bank-agent/pull/113#issuecomment-6127798394) / [#114](https://github.com/DrErwin/hackerthon-bank-agent/pull/114#issuecomment-6127799007)，AI 辅助、非真人审查）共 8 条，全部处置：删只用一处的 `BusinessModule` 公开别名、`ExportView` 补 §6.7 两条正文规则校验、契约 §6.5 把 `module` 填写范围改为「所有对外任务视图（F08—F13、F15、F36 等）」、api 两处重复的 `"transfer"` 提为 `SERVED_MODULE` 常量、补 F11 断言、两个提交补「为什么」正文、两分支 rebase、#114 base 改为 #113 分支。
