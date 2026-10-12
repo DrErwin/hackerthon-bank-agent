@@ -141,3 +141,16 @@ class BillDetails(ContractModel):
         if self.category is not None and any(item.category != self.category for item in self.transactions):
             raise ValueError("a category filter must match every returned transaction")
         return self
+
+
+class BillReport(ContractModel):
+    """L03 result and the controlled report an F21 card reads (§5.3); no raw detail list."""
+
+    report_id: ID
+    scope: BillScope
+    summary: SpendingSummary
+    spoken_summary: str
+    monthly_average_fen: Money | None
+    statistical_days: NonNegativeInt
+    average_basis: str
+    generated_at: Timestamp

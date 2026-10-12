@@ -10,7 +10,7 @@ from app.contracts.audit import (
 )
 from app.contracts import (
     AccountList, AuditEvent, CapabilityDefinition, ConfirmationRecord,
-    DetailsResponse, OperationResult, PayeeList, PayeeVerification, QueryResult,
+    DetailsResponse, ExportView, OperationResult, PayeeList, PayeeVerification, QueryResult,
     SecurityDecision, StartTransferInput, StreamEvent, SubmitDetailsRequest,
     TaskRecordsView, TaskView, TransferReceipt, TransferTaskView, VerificationChallenge,
     VerificationCodeRequest,
@@ -352,3 +352,62 @@ def test_task_records_view_carries_history_without_secrets():
     ):
         with pytest.raises(ValidationError):
             TaskRecordsView.model_validate(records.model_dump() | missing)
+
+
+def test_task_view_names_the_business_module_and_keeps_old_producers_valid():
+    """F08—F15 views tell the frontend which business slot to render (§6.5)."""
+
+    unnamed = TaskView[TransferTaskView].model_validate(task())
+    assert unnamed.module is None
+    named = TaskView[TransferTaskView].model_validate(task() | {"module": "transfer"})
+    assert named.module == "transfer"
+    assert TaskView[TransferTaskView].model_validate_json(named.model_dump_json()).module == "transfer"
+    event = StreamEvent.model_validate({
+        "event_id": "E1", "thread_id": "TH1", "session_id": "S1",
+        "task_id": "T1", "run_id": "R1", "module": "bills",
+        "event_type": "task_updated", "occurred_at": NOW, "payload": task() | {"module": "bills"},
+    })
+    assert event.payload.module == "bills"
+    for broken in ({"module": "schedule"}, {"module": ""}, {"module": "transfer-agent"}):
+        with pytest.raises(ValidationError):
+            TaskView[TransferTaskView].model_validate(task() | broken)
+
+
+def test_export_view_reports_one_state_with_a_controlled_download_path():
+    waiting = ExportView.model_validate({
+        "export_id": "X1", "kind": "details", "status": "waiting_verification",
+        "task_id": "T1", "file_name": None, "media_type": None,
+        "download_path": None, "error": None,
+    })
+    assert waiting.download_path is None and waiting.task_id == "T1"
+    ready = ExportView.model_validate({
+        "export_id": "X1", "kind": "card", "status": "ready", "task_id": None,
+        "file_name": "report.html", "media_type": "text/html",
+        "download_path": "/api/v1/exports/X1/download", "error": None,
+    })
+    assert ExportView.model_validate_json(ready.model_dump_json()) == ready
+    failed = ExportView.model_validate({
+        "export_id": "X2", "kind": "audit", "status": "failed", "task_id": None,
+        "file_name": None, "media_type": None, "download_path": None,
+        "error": {"code": "DEPENDENCY_UNAVAILABLE", "source": "platform", "field": None,
+                  "reason": "导出资源暂不可用", "upstream_code": None},
+    })
+    assert failed.error.code == "DEPENDENCY_UNAVAILABLE"
+    for broken in (
+        {"kind": "report"},
+        {"status": "pending"},
+        {"export_id": ""},
+        {"file_name": 1},
+        {"download_path": "C:\\tmp\\report.html"},
+        {"download_path": "https://example.test/report.html"},
+        {"download_path": "//example.test/report.html"},
+        {"download_path": "exports/X1/download"},
+    ):
+        with pytest.raises(ValidationError):
+            ExportView.model_validate(ready.model_dump() | broken)
+    # A sensitive details export always belongs to the task that verified it (§6.7).
+    with pytest.raises(ValidationError):
+        ExportView.model_validate({
+            "export_id": "X3", "kind": "details", "status": "preparing", "task_id": None,
+            "file_name": None, "media_type": None, "download_path": None, "error": None,
+        })
