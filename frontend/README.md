@@ -15,9 +15,9 @@
 | 文件 | 来源 | 状态 |
 |---|---|---|
 | [前端-设计规范-v0.1.md](前端-设计规范-v0.1.md) · [前端-用户体验规范-v0.1.md](前端-用户体验规范-v0.1.md) | 提交 `31de4c9`（2026-10-06） | 已交付；两份规范末尾均带「待确认（回『行』或『改 X』）」清单，走查后迭代 |
-| [转账-交互原型-v0.1.html](转账-交互原型-v0.1.html) | [PR #77](https://github.com/DrErwin/hackerthon-bank-agent/pull/77)（2026-10-06）；v0.2 待审查 | v0.2 已补候选、等待、模拟人脸、刷新恢复和修改交互；待 Erwin 按图走查确认 |
+| [转账-交互原型-v0.1.html](转账-交互原型-v0.1.html) | [PR #77](https://github.com/DrErwin/hackerthon-bank-agent/pull/77)（2026-10-06）；v0.2 已走查通过（PR [#106](https://github.com/DrErwin/hackerthon-bank-agent/pull/106)，2026-10-12） | v0.2 已补候选、等待、模拟人脸、刷新恢复和修改交互；Erwin 按图走查通过 |
 | `src/` 简易前端（React） | PR #39/#42，最新修复 [PR #81](https://github.com/DrErwin/hackerthon-bank-agent/pull/81)（2026-10-10，安全记录与异常提示展示） | 已交付并与真实 API/GLM 联调 |
 
-**原型 v0.2 待走查**：收款人候选、等待态、模拟人脸核验、刷新恢复和修改画面已在现有 HTML 原型补齐；390×844 视口下候选 / 修改 / 验证码 / 模拟人脸 / 等待 / 结果路径可点击走通，刷新不会自动重新提交。以上仍是本地原型验证，需 Erwin 按图走查确认后才算原型工作线收口，不代表真实 API 联调。
+**原型 v0.2 已走查通过（2026-10-12）**：收款人候选、等待态、模拟人脸核验、刷新恢复和修改画面已在现有 HTML 原型补齐；390×844 视口下候选 / 修改 / 验证码 / 模拟人脸 / 等待 / 结果路径可点击走通，刷新不会自动重新提交，用户页没有人脸结果按钮。Erwin 在隔离工作区实机按图走查通过并合入（[PR #106](https://github.com/DrErwin/hackerthon-bank-agent/pull/106)），原型工作线据此收口、完整前端按[交付包 01](../.scratch/frontend-complete/packages/01-v04-complete-frontend.md)开工（底盘与转账 stub 先行）。以上仍是本地原型验证，不代表真实 API 联调；`?mode=admin` 只表达演示端分离，不构成真实鉴权。
 
 截至2026-10-10，Erwin简易前端及真实GLM/API联调已交付；完整前端替换尚未开始。实际证据见[v0.3完成情况](../docs/versions/v0.3.0/completion.md)与[项目跟踪](../docs/01-项目跟踪.md)。
