@@ -84,7 +84,7 @@ Write-Host @"
   管理页面 : http://localhost:5173/admin   （管理密钥见 .env.local-demo.json 的 admin_key）
   后端 API : http://127.0.0.1:8000
   演示剧本 : 给妈妈转500元(A1)=低风险 · 501=中风险(需模拟人脸) · 502=高风险终止 · 600=修改演示
-  注意事项 : 风险事实为演示数据；机器人确认阶段可能"失忆"(#84)；账单/联动未上线
+  注意事项 : 风险事实为演示数据（虚构）；账单仍在开发中（v0.4），联动已移至 v0.5
   按任意键（或 Ctrl+C）停止两个服务。
 "@
 $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
