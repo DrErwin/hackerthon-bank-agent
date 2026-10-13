@@ -189,10 +189,17 @@ class AgentHarness:
             raise PermissionError("ACCESS_DENIED")
 
     @staticmethod
-    def _result(task: TaskRecord) -> ModuleResult[TransferTaskView]:
+    def _result(task: TaskRecord) -> ModuleResult:
         if "result" not in task.snapshot:
             raise ValueError("TASK_NOT_READY")
-        return ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
+        # The transfer path keeps its typed payload — its consumers read the fields.
+        # A second module's `data` is its own displayable result (§6.5), which the
+        # platform hands back as-is instead of forcing the transfer view (Issue #122).
+        # The prefix names the module, not the payload type: a later transfer.*
+        # capability returning another view (§5.2 T03/T04) must revisit this dispatch.
+        if task.snapshot.get("capability_name", "transfer.start_transfer").startswith("transfer."):
+            return ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
+        return ModuleResult.model_validate(task.snapshot["result"])
 
     @staticmethod
     def _recovery_result(status: TaskStatus) -> str:
@@ -204,10 +211,20 @@ class AgentHarness:
         return "continue"
 
     @staticmethod
-    def _check_result_scope(result: ModuleResult[TransferTaskView],
+    def _check_result_scope(result: ModuleResult,
                             trusted: TrustedContext) -> None:
         if result.task_id != trusted.task_id or result.run_id != trusted.run_id:
             raise ValueError("CAPABILITY_CONTEXT_MISMATCH")
+
+    @staticmethod
+    def _operation_ids_from(result: ModuleResult) -> list[UUID]:
+        # Today only the transfer payload exposes an operation reference in this
+        # envelope; a module whose payload carries one extends this instead of the
+        # platform guessing transfer fields on it (Issue #122).
+        data = result.data
+        if isinstance(data, TransferTaskView) and data.operation_id:
+            return [data.operation_id]
+        return []
 
     def _trace(self, trusted: TrustedContext, task: TaskRecord) -> RunTrace:
         return RunTrace(self.audit, trusted, task.checkpoint_thread_id,
@@ -346,14 +363,14 @@ class AgentHarness:
         return outcome
 
     def start(self, trusted: TrustedContext, request_id: UUID,
-              intent_text: str) -> ModuleResult[TransferTaskView]:
+              intent_text: str) -> ModuleResult:
         result = self.handle_message(trusted, request_id, intent_text)
         if isinstance(result, ReplyOnly):
             raise ValueError("NO_TRANSFER_INTENT")
         return result
 
     def handle_message(self, trusted: TrustedContext, request_id: UUID,
-                       intent_text: str) -> ModuleResult[TransferTaskView] | ReplyOnly:
+                       intent_text: str) -> ModuleResult | ReplyOnly:
         """Return a controlled chat reply or continue the existing transfer path."""
         with _task_lock(self.application.path, trusted.task_id):
             context = self._scope(trusted)
@@ -488,7 +505,7 @@ class AgentHarness:
         )
         return [UUID(operations[-1].operation_id)] if operations else []
 
-    def recover_session(self, trusted: TrustedContext) -> ModuleResult[TransferTaskView]:
+    def recover_session(self, trusted: TrustedContext) -> ModuleResult:
         """Transfer an owned task to the authenticated session, then resume its public capability."""
         with _task_lock(self.application.path, trusted.task_id):
             self._scope(trusted)
@@ -622,7 +639,7 @@ class AgentHarness:
                 )
                 raise
 
-            operation_ids = [result.data.operation_id] if result.data and result.data.operation_id else []
+            operation_ids = self._operation_ids_from(result)
             trace.record(
                 "recovery.checked",
                 RecoveryCheckedPayload(
@@ -646,7 +663,7 @@ class AgentHarness:
             )
             return result
 
-    def get(self, trusted: TrustedContext) -> ModuleResult[TransferTaskView]:
+    def get(self, trusted: TrustedContext) -> ModuleResult:
         self._scope(trusted)
         task = self.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
         if task is None:
@@ -654,7 +671,7 @@ class AgentHarness:
         self._check_task(task, trusted)
         return self._result(task)
 
-    def resume(self, trusted: TrustedContext, response: dict) -> ModuleResult[TransferTaskView]:
+    def resume(self, trusted: TrustedContext, response: dict) -> ModuleResult:
         with _task_lock(self.application.path, trusted.task_id):
             context = self._scope(trusted)
             task = self.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
@@ -683,7 +700,7 @@ class AgentHarness:
                     RecoveryCheckedPayload(
                         previous_run_id=task.run_id, current_run_id=trusted.run_id,
                         checkpoint_ref=current.checkpoint_id,
-                        operation_ids=[result.data.operation_id] if result.data and result.data.operation_id else [],
+                        operation_ids=self._operation_ids_from(result),
                         result=self._recovery_result(result.status),
                         reason_code="UNFINISHED_TASK_RECOVERED",
                     ), "succeeded",
@@ -709,7 +726,9 @@ class AgentHarness:
                 # Bookkeeping remains possible if its session expires inside it;
                 # this does not authorize another bank read or execution.
                 if result is None:
-                    result = ModuleResult[TransferTaskView](
+                    # Keep the last owned payload readable, whatever module owns it;
+                    # forcing the transfer view here would re-raise inside the handler.
+                    result = ModuleResult(
                         task_id=trusted.task_id, run_id=trusted.run_id,
                         status=TaskStatus.NEEDS_ATTENTION,
                         data=trace.transfer_data if trace.transfer_data is not None else previous.data,
@@ -739,7 +758,7 @@ class AgentHarness:
                     RecoveryCheckedPayload(
                         previous_run_id=task.run_id, current_run_id=trusted.run_id,
                         checkpoint_ref=task.checkpoint_id,
-                        operation_ids=[previous.data.operation_id] if previous.data.operation_id else [],
+                        operation_ids=self._operation_ids_from(previous),
                         result="stop", reason_code="PUBLIC_CAPABILITY_RESUME_FAILED",
                     ), "failed",
                 )
@@ -756,7 +775,7 @@ class AgentHarness:
                 RecoveryCheckedPayload(
                     previous_run_id=task.run_id, current_run_id=trusted.run_id,
                     checkpoint_ref=checkpoint_id,
-                    operation_ids=[previous.data.operation_id] if previous.data.operation_id else [],
+                    operation_ids=self._operation_ids_from(previous),
                     result=self._recovery_result(result.status),
                     reason_code="PUBLIC_CAPABILITY_RESUMED",
                 ), "succeeded",

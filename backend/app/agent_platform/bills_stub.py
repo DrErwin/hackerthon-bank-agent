@@ -14,7 +14,7 @@ from app.contracts.common import OperationLevel, TaskStatus
 from app.contracts.platform import (
     CapabilityDefinition, ModuleManifest, StartTransferInput, TrustedContext,
 )
-from app.contracts.tasks import ModuleResult, TransferTaskView
+from app.contracts.tasks import ModuleResult
 
 from .registry import TransferFactory
 
@@ -75,23 +75,23 @@ class BillsStubEntry:
         self._trace = trace
 
     def start(self, trusted: TrustedContext, request: StartTransferInput, *,
-              thread_id: str | None = None) -> ModuleResult[TransferTaskView]:
+              thread_id: str | None = None) -> ModuleResult:
         return self._result(trusted)
 
     def resume(self, trusted: TrustedContext, response: dict, *,
-               thread_id: str | None = None) -> ModuleResult[TransferTaskView]:
+               thread_id: str | None = None) -> ModuleResult:
         return self._result(trusted)
 
     def recover_session(self, trusted: TrustedContext, *, source_session_id: str,
-                        thread_id: str | None = None) -> ModuleResult[TransferTaskView]:
+                        thread_id: str | None = None) -> ModuleResult:
         return self._result(trusted)
 
     def checkpoint_context(self, trusted: TrustedContext, *,
                            thread_id: str | None = None) -> TrustedContext | None:
         return None
 
-    def _result(self, trusted: TrustedContext) -> ModuleResult[TransferTaskView]:
-        return ModuleResult[TransferTaskView](
+    def _result(self, trusted: TrustedContext) -> ModuleResult:
+        return ModuleResult(
             task_id=trusted.task_id, run_id=trusted.run_id,
             status=TaskStatus.SUCCEEDED, data=None, message=STUB_MESSAGE,
             interaction=None, error=None, allowed_actions=[],
