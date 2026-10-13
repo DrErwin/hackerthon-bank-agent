@@ -388,7 +388,8 @@ class AgentHarness:
                 )
             else:
                 self._check_task(task, trusted)
-                self._authorize(trusted, "transfer.start_transfer")
+                self._authorize(trusted, task.snapshot.get("capability_name",
+                                                           "transfer.start_transfer"))
             if task.run_id != trusted.run_id:
                 raise ValueError("USE_RESUME_FOR_NEW_RUN")
             snapshot = task.snapshot
@@ -491,12 +492,13 @@ class AgentHarness:
         """Transfer an owned task to the authenticated session, then resume its public capability."""
         with _task_lock(self.application.path, trusted.task_id):
             self._scope(trusted)
-            self._authorize(trusted, "transfer.start_transfer")
             task = self.application.get_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
             )
             if task is None:
                 raise PermissionError("ACCESS_DENIED")
+            self._authorize(trusted, task.snapshot.get("capability_name",
+                                                       "transfer.start_transfer"))
 
             marker = task.snapshot.get("session_recovery")
             marker_matches = (
@@ -662,7 +664,8 @@ class AgentHarness:
             if "result" not in task.snapshot:
                 if task.snapshot["config_version"] != self.planner.config_version:
                     raise ValueError("MODEL_CONFIG_CHANGED")
-                self._authorize(trusted, "transfer.start_transfer")
+                self._authorize(trusted, task.snapshot.get("capability_name",
+                                                           "transfer.start_transfer"))
                 if task.run_id != trusted.run_id:
                     self.application.update_task(
                         trusted.user_id, trusted.demo_round_id, trusted.task_id,
