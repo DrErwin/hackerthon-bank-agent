@@ -11,7 +11,7 @@
   - **v04-platform 四票（2026-10-13，独立子代理审查后合入）**：票01 受控报告存储 + F21（PR #115 `b8aa930`）、票02 导出链路 F22—F24（PR #119 `3955abb`，审查出 1 条阻塞当日修复）、票03 第二模块注册点与账单契约形状桩（PR #117 `f40959e`）、票04 账单任务接线 `module`/载荷/`report_ready`（PR #120 `c270abb`）；合并后主线后端全量 **431 passed**（CI 绿）。
   - 遗留已开单留档：真实账单模块接入（[Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) → [v04-platform 票 05](../../../.scratch/v04-platform/issues/05-real-bills-integration.md)，`blocked`）、契约三处接缝（[Issue #122](https://github.com/DrErwin/hackerthon-bank-agent/issues/122)）、F35 管理端审计导出归属（[Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)）。
 - **账单线（周恩宇，[v04-bills/01](../../../.scratch/v04-bills/packages/01-bills-backend.md)）**：in_progress。私有统计内核与局部验证已开 PR（#92，待作者返修；#93 评测覆盖为 Draft）；真实公开能力（L01—L03）、评测下限实跑与前端冻结信号待完成。
-- **安全线（Ringo 或 PM 代行，[v04-security/01](../../../.scratch/v04-security/packages/01-detector-and-coverage.md)）**：`Accepted by` 未记录，按条款 **2026-10-14 24:00 前未确认领取即由 PM 代行**；#86 检测器、#88 评测完整性未完成。
+- **安全线（Ringo，[v04-security/01](../../../.scratch/v04-security/packages/01-detector-and-coverage.md)）**：**Ringo 已于 2026-10-13 本人领取**（PM 代行条款的未领取触发条件解除；#84 关闭使转正复跑前置解除）；#86 检测器与 #88 评测完整性进行中，本人规格与实施票待建。
 - **前端线（梁爽主责、六水协助，[frontend-complete/01](../../../.scratch/frontend-complete/packages/01-v04-complete-frontend.md)）**：in_progress。原型五类画面已走查通过（10-12）；通用底盘 PR #108 待作者返修 + PM 走查；账单插槽接入依赖账单公开能力冻结信号。
 - **联合验收（[v04-bills/02](../../../.scratch/v04-bills/packages/02-v04-acceptance.md)）**：planned；已把平台线纳入参与线与 Start when（第 ④ 条含票 05），条件未齐不启动。
 

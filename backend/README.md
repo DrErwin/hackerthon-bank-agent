@@ -1,6 +1,6 @@
 # 后端开发
 
-本目录是 v0.3 的 Python 工程。需要 Python 3.11 或更新版本。从 `backend/` 目录运行以下命令。
+本目录是后端工程（Python 3.11 或更新版本）：平台 / 底座（`app/api/`、`app/agent_platform/`、`app/contracts/`、`app/audit/`、`app/memory/`、`app/services/`、`app/storage/`）与业务模块（`app/modules/`）。各目录的边界、接口与验证口径见其 README（[api](app/api/README.md) · [agent_platform](app/agent_platform/README.md) · [contracts](app/contracts/README.md) · [security](app/security/README.md) · [services](app/services/README.md) · [modules](app/modules/README.md)）。从 `backend/` 目录运行以下命令。
 
 ## 安装
 
