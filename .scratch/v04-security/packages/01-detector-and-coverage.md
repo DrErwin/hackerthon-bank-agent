@@ -1,16 +1,24 @@
 # 交付包 01：v0.4 检测器与评测完整性（#86 + #88）
 
-Status: ready（检测器规格与用例扩充可立即开始；转正复跑依赖 #84，见 Start when）
+Status: ready（Ringo 已本人领取；规格与用例扩充可开始，本轮仅登记领取）
 Owner: Ringo；**PM 代行条款**（v0.3 先例，含三要素）：**2026-10-14 24:00 前 Ringo 未确认领取本包，即启动 PM（Erwin）代行**——代行期限至 v0.4 收口，代行期间拆票与实施由 PM 承担、审查人 Erwin（自审如实记录），Ringo 回归即交还；始终如实记录为代行，不冒充 Ringo 本人审查
 Activation: 2026-10-11 Erwin 建立（v0.4 正式启动同日）
-Start when: v0.4 已于 2026-10-11 正式启动——#86 检测器规格与 #88 用例扩充**立即可做**；SEC-C-001 余 14 轮与全量转正复跑**等 #84**（规划入口上下文，提供方 Erwin 底座，v0.4 已排、宜早不宜晚）
+Start when: v0.4 已于 2026-10-11 正式启动，#86 检测器规格与 #88 用例扩充可立即开展；前置 [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84) 已于 2026-10-12 关闭（提供方 Erwin，见[规划上下文工作组](../../v04-planning-context/spec.md)）。SEC-C-001 原余 14 轮记录须对照最新台账核对；33 轮 gated 补验仍须满足各自检测与观测能力条件，领取与前置关闭均不代表补验通过。
 Spec: [v0.4 安全完整性规格](../spec.md)
 
-Accepted by: 未记录（Ringo 本人接受，或 PM 代行时如实记录代行）
-Accepted at: 未记录
-Work spec: 待接包后建立
+Accepted by: Ringo（GitHub @RingoDontpanic；本人在本会话明确确认领取）
+Accepted at: 2026-10-13（Asia/Shanghai）
+Work spec: 待建立（共享规格沿用上方 Spec；本人详细规格及实施票尚待后续推进）
 
 Source issue: [#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)（真实风险检测器 + 检测层，33 轮 gated；签核项已按 PM 规则豁免）· [#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)（安全评测完整性：R06 差 2、8 组 <10、SEC-E-006/v06、MAT 攻击集改编）
+
+## 领取登记（2026-10-13）
+
+Ringo 本人确认领取本包的 #86 检测器工作线及 #88 安全评测工作线，范围沿用本包既定交付要求。确认早于 2026-10-14 24:00 的截止时间，顶部 PM 代行预案的未领取触发条件已解除；本次登记为本人领取。
+
+本轮仅登记接受记录并核对开工条件。Status 保留 ready，开始编写本人规格、拆票或执行时再转 in_progress；accepted 留给联合验收通过后使用。领取不作为实现通过、安全测试通过或 Ringo 专业签核的证据，原 v0.3 例外和 PM 豁免记录保持。
+
+开工 Skill 检查：2026-10-13 本机缺失的 to-spec、to-tickets、implement、code-review 已按团队固定来源 mattpocock/skills 提交 d81f3a183412e71a5b1e84ca21bc1a35eea03a60 安装，并读取各自 SKILL.md 核对。新安装项待下一轮加载；本轮未调用规格、拆票或实施技能。后续按队员开工规范显式选择所需 Skill。
 
 ## 业务目标
 
