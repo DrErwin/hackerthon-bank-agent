@@ -54,7 +54,7 @@ def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1", prepare=None
         authorize_face=lambda admin, *_: admin.authorized,
     )
     if prepare is not None:
-        # Ticket 05 的可用性条件发生在 ApiService 装配之前（部署工厂先注册真实模块）。
+        # v04-platform/05 的可用性条件发生在 ApiService 装配之前（部署工厂先注册真实模块）。
         prepare(runtime)
     return create_app(runtime, ApiConfig(
         demo_user_id=user, demo_round_id="D1", secret=b"s" * 32,
@@ -1889,8 +1889,10 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
         assert transfer["interaction"]["kind"] == "confirmation"
 
 
-def test_registered_bills_module_replaces_the_contract_stub(tmp_path):
-    """票 05 可用性条件：runtime 里已有 bills 能力时，平台不再挂契约形状桩。"""
+def test_installed_bills_module_replaces_the_contract_stub(tmp_path):
+    """v04-platform/05 可用性条件：装配前已注册 bills 能力（测试替身代真实模块）时不再挂桩。"""
+
+    from app.agent_platform.bills_stub import STUB_MESSAGE
 
     report = _bill_report()
     app = make_app(
@@ -1900,7 +1902,7 @@ def test_registered_bills_module_replaces_the_contract_stub(tmp_path):
     service = app.state.api
     catalog = [item["name"] for item in service.runtime.harness.registry.public_catalog()]
     assert "bills.test_report" in catalog
-    # 桩整体让位：真实模块注册后，桩的三条能力不会被补上，也不会撞重名（§6.9）。
+    # 桩整体让位：装配前已注册真实工厂时，桩的三条能力不会被补上。
     assert not {"bills.summarize", "bills.detect_anomalies", "bills.generate_report"} & set(catalog)
 
     with TestClient(app) as client:
@@ -1910,7 +1912,30 @@ def test_registered_bills_module_replaces_the_contract_stub(tmp_path):
         assert accepted.status_code == 202, accepted.text
         task = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"][0]
         assert task["module"] == "bills"
+        assert task["status"] == "succeeded"
         assert task["data"]["report_id"] == report.report_id
-        # 服务这条任务的是真实注册的工厂，桩的兜底文案绝不能出现。
-        assert "契约形状桩" not in task["message"]
-        assert client.get(f"/api/v1/reports/{report.report_id}").status_code == 200
+        # 服务这条任务的是装配前注册的工厂，桩的兜底文案绝不能出现。
+        assert task["message"] != STUB_MESSAGE
+        card = client.get(f"/api/v1/reports/{report.report_id}")
+        assert card.status_code == 200, card.text
+        assert card.json()["data"]["report_id"] == report.report_id
+
+
+def test_default_assembly_installs_the_contract_stub(tmp_path):
+    """v04-platform/05 可用性条件的另一向：没有真实 bills 能力时，降级桩必须挂上并服务任务。"""
+
+    from app.agent_platform.bills_stub import BILLS_MANIFEST, STUB_MESSAGE
+
+    app = make_app(tmp_path, proposal=TransferProposal(capability_name="bills.summarize"))
+    catalog = {item["name"] for item in app.state.api.runtime.harness.registry.public_catalog()}
+    assert {definition.name for definition in BILLS_MANIFEST.capabilities} <= catalog
+
+    with TestClient(app) as client:
+        enter(client)
+        thread = post(client, "/threads").json()["data"]["thread_id"]
+        accepted = post(client, f"/threads/{thread}/messages", text="这个月钱花哪了")
+        assert accepted.status_code == 202, accepted.text
+        task = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"][0]
+        assert task["module"] == "bills"
+        assert task["message"] == STUB_MESSAGE
+        assert task["data"] is None
