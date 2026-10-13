@@ -43,7 +43,7 @@ class Planner:
         return self.proposal
 
 
-def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1"):
+def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1", prepare=None):
     application = ApplicationStore(path / "application.sqlite")
     runtime = TransferRuntime(
         application, MemoryAdapter(application, active_round=lambda: "D1"),
@@ -53,6 +53,9 @@ def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1"):
         authorize_tool=lambda *_: True, assess_risk=lambda *_: risk,
         authorize_face=lambda admin, *_: admin.authorized,
     )
+    if prepare is not None:
+        # Ticket 05 的可用性条件发生在 ApiService 装配之前（部署工厂先注册真实模块）。
+        prepare(runtime)
     return create_app(runtime, ApiConfig(
         demo_user_id=user, demo_round_id="D1", secret=b"s" * 32,
         admin_key="test-admin-key", origins=("http://testserver",),
@@ -1813,7 +1816,7 @@ class _ReportEntry:
         return None
 
 
-def _register_report_capability(service, report):
+def _register_report_capability(registry, report):
     from app.contracts.common import OperationLevel
     from app.contracts.platform import CapabilityDefinition, ModuleManifest
 
@@ -1829,7 +1832,7 @@ def _register_report_capability(service, report):
             handler_ref="test",
         )],
     )
-    service.runtime.harness.registry.register_module(
+    registry.register_module(
         manifest, lambda _trusted, _saver, _trace: _ReportEntry(report))
 
 
@@ -1837,7 +1840,7 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
     app = make_app(tmp_path)
     service = app.state.api
     report = _bill_report()
-    _register_report_capability(service, report)
+    _register_report_capability(service.runtime.harness.registry, report)
     service.runtime.harness.planner.proposal = TransferProposal(
         capability_name="bills.test_report")
     with TestClient(app) as client:
@@ -1884,3 +1887,30 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
         _, transfer = start(client, "给妈妈转 500 元")
         assert transfer["module"] == "transfer"
         assert transfer["interaction"]["kind"] == "confirmation"
+
+
+def test_registered_bills_module_replaces_the_contract_stub(tmp_path):
+    """票 05 可用性条件：runtime 里已有 bills 能力时，平台不再挂契约形状桩。"""
+
+    report = _bill_report()
+    app = make_app(
+        tmp_path, proposal=TransferProposal(capability_name="bills.test_report"),
+        prepare=lambda runtime: _register_report_capability(runtime.harness.registry, report),
+    )
+    service = app.state.api
+    catalog = [item["name"] for item in service.runtime.harness.registry.public_catalog()]
+    assert "bills.test_report" in catalog
+    # 桩整体让位：真实模块注册后，桩的三条能力不会被补上，也不会撞重名（§6.9）。
+    assert not {"bills.summarize", "bills.detect_anomalies", "bills.generate_report"} & set(catalog)
+
+    with TestClient(app) as client:
+        enter(client)
+        thread = post(client, "/threads").json()["data"]["thread_id"]
+        accepted = post(client, f"/threads/{thread}/messages", text="给我这个月的账单报告")
+        assert accepted.status_code == 202, accepted.text
+        task = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"][0]
+        assert task["module"] == "bills"
+        assert task["data"]["report_id"] == report.report_id
+        # 服务这条任务的是真实注册的工厂，桩的兜底文案绝不能出现。
+        assert "契约形状桩" not in task["message"]
+        assert client.get(f"/api/v1/reports/{report.report_id}").status_code == 200
