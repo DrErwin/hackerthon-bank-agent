@@ -158,3 +158,26 @@ def test_completed_result_is_saved_before_completion_audit_fails(tmp_path):
         assert resumed.json()["data"]["status"] == "succeeded"
         assert len(restarted.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")) == 1
     restarted.state.api.runtime.close()
+
+
+def test_resume_audit_keeps_the_transfer_operation_reference(tmp_path):
+    """v04-platform/08：resume 的审计取值点不得静默丢 operation 引用。"""
+
+    app = make_app(tmp_path)
+    service = app.state.api
+    with TestClient(app) as client:
+        _, task = start(client)
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        response = post(client, f"/verifications/{challenge}/code",
+                        submission_id=str(uuid4()), code=code)
+        assert response.status_code == 200, response.text
+        operation_id = response.json()["data"]["task"]["data"]["operation_id"]
+        events = [event for event in service.runtime.audit._events("D1", task["task_id"])
+                  if event.event_type == "recovery.checked"
+                  and event.payload.reason_code == "PUBLIC_CAPABILITY_RESUMED"]
+        assert events, "resume completion audit missing"
+        assert all([str(item) for item in event.payload.operation_ids] == [operation_id]
+                   for event in events)
+    service.runtime.close()
