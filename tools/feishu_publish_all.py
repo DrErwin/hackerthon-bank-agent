@@ -29,8 +29,8 @@ import sys
 from pathlib import Path
 
 # 必须赶在 import feishu_sync 之前——STATE_FILE 是它在导入时算好的。
-# .feishu_state.publish.json 里存着已发布的 14 篇（标题 -> doc_id），
-# 用它才能命中已有文档、原地更新。
+# 状态文件里存着已发布文档的「标题 -> doc_id」映射（见 .feishu_state.publish.json），
+# 用它才能命中已有文档、原地更新，而不是新建重复文档。
 os.environ.setdefault("FEISHU_STATE", ".feishu_state.publish.json")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))

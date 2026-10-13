@@ -37,13 +37,13 @@ USE_CLI = os.environ.get("FEISHU_IDENTITY", "tenant") == "user"
 USE_LIBRARY = os.environ.get("FEISHU_PARENT") == "library"
 STATE_FILE = ROOT / os.environ.get("FEISHU_STATE", ".feishu_state.json")
 
-# 要同步的文档：本地路径 -> 飞书标题
+# 引导清单：本地路径 -> 飞书标题。只供 setup / relocate 首次建档使用
+# （已存在的标题会跳过）；日常发布范围以 feishu_publish_all.py 的 CURATED_SOURCES 为准。
+# 《01 项目跟踪》的人类阅读源是 docs/team/当前工作台.md；docs/01-项目跟踪.md 只留在仓库。
 DOCS = [
     ("docs/00-项目文档索引.md", "00 项目文档索引"),
-    ("docs/01-项目跟踪.md", "01 项目跟踪"),
+    ("docs/team/当前工作台.md", "01 项目跟踪"),
     ("官方资料/参赛规则与提交要求.md", "02 参赛规则与提交要求"),
-    ("docs/architecture/business-architecture.md", "03 产品全景（非技术版）"),
-    ("docs/architecture/technical-architecture.md", "04 技术架构"),
     ("官方资料/模板/source-code-readme-template.md", "05 源码 README 模板"),
 ]
 
