@@ -14,12 +14,12 @@ from uuid import UUID, uuid4
 from app.audit.journal import AuditReader, AuditViewer, redact
 from app.agent_platform.model import ReplyOnly
 from app.contracts.audit import AuditEvent, TaskTransitionPayload, VerificationChangedPayload
-from app.contracts.api import MessageView, StreamEvent, TaskRecordsView
+from app.contracts.api import ExportView, MessageView, StreamEvent, TaskRecordsView, VerificationResponse
 from app.contracts.bills import BillReport
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
-from app.contracts.tasks import ModuleError, ModuleResult, TaskView, TransferTaskView
+from app.contracts.tasks import InteractionRequest, ModuleError, ModuleResult, TaskView, TransferTaskView
 
 from .store import ApiProblem, ApiStore, dump
 
@@ -421,6 +421,296 @@ class ApiService:
             raise ApiProblem(404, "NOT_FOUND")
         return BillReport.model_validate(json.loads(rows[0]["report_json"]))
 
+    def create_export(self, identity, report_id, kind):
+        """F22: card exports render at once; details exports open a verified platform task."""
+        rows = self.store.rows("""SELECT * FROM api_reports
+            WHERE report_id=? AND user_id=? AND demo_round_id=?""",
+            (report_id, identity.user_id, identity.demo_round_id))
+        if not rows:
+            raise ApiProblem(404, "NOT_FOUND")
+        report = BillReport.model_validate(json.loads(rows[0]["report_json"]))
+        if kind == "card":
+            export_id = str(uuid4())
+            self.store.save_export({"export_id": export_id, "report_id": report_id,
+                "kind": "card", "user_id": identity.user_id,
+                "demo_round_id": identity.demo_round_id, "session_id": identity.session_id,
+                "task_id": None, "challenge_id": None, "thread_id": rows[0]["thread_id"],
+                "status": "ready", "created_at": now().isoformat()})
+            self.store.finish_export(export_id, "ready",
+                file_name=f"bill-report-{report_id}.html", media_type="text/html",
+                content=self._card_html(report))
+            return self.export_view(self.store.export_row(export_id, identity.user_id,
+                                                          identity.demo_round_id))
+        existing = self.store.pending_details_export(report_id, identity.user_id,
+                                                     identity.demo_round_id,
+                                                     identity.session_id)
+        if existing:
+            return self.export_view(existing)
+        export_id, task_id, run_id = str(uuid4()), str(uuid4()), str(uuid4())
+        trusted = TrustedContext(user_id=identity.user_id, session_id=identity.session_id,
+            demo_round_id=identity.demo_round_id, task_id=task_id, run_id=run_id,
+            parent_task_id=None)
+        challenge = self.runtime.gateway.create_verification(trusted, "basic_identity")
+        result = ModuleResult[TransferTaskView](task_id=task_id, run_id=run_id,
+            status=TaskStatus.WAITING_APPROVAL, data=None,
+            message="请完成身份验证以导出账单明细。",
+            interaction=InteractionRequest(interaction_id=str(uuid4()), kind="verification",
+                prompt="请输入验证码完成身份验证，再导出账单明细。",
+                required_fields=["code"], options=[], record_ref=challenge.challenge_id),
+            error=None, allowed_actions=["cancel"], recovery_required=False, recovery_reason=None)
+        self.runtime.application.create_task(task_id, identity.user_id, identity.session_id,
+            identity.demo_round_id, run_id, TaskStatus.WAITING_APPROVAL,
+            {"trace_id": str(uuid4()), "result": result.model_dump(mode="json")})
+        self.store.write("""INSERT INTO api_tasks (
+            task_id,thread_id,user_id,session_id,demo_round_id,run_id,created_at,request_id,intent_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (task_id, rows[0]["thread_id"], identity.user_id, identity.session_id,
+             identity.demo_round_id, run_id, now().isoformat(), export_id, "导出账单明细"))
+        self.store.write("INSERT INTO api_records VALUES (?, ?, ?)",
+                         ("verification", challenge.challenge_id, task_id))
+        self.store.save_export({"export_id": export_id, "report_id": report_id,
+            "kind": "details", "user_id": identity.user_id,
+            "demo_round_id": identity.demo_round_id, "session_id": identity.session_id,
+            "task_id": task_id, "challenge_id": challenge.challenge_id,
+            "thread_id": rows[0]["thread_id"], "status": "waiting_verification",
+            "created_at": now().isoformat()})
+        self.publish_task(identity, task_id)
+        return self.export_view(self.store.export_row(export_id, identity.user_id,
+                                                      identity.demo_round_id))
+
+    def export_view(self, row):
+        error = None
+        if row["error_code"]:
+            error = ModuleError(code=row["error_code"], source="platform", field=None,
+                                reason=row["error_reason"] or "", upstream_code=None)
+        return ExportView(export_id=row["export_id"], kind=row["kind"], status=row["status"],
+            task_id=row["task_id"], file_name=row["file_name"], media_type=row["media_type"],
+            download_path=f"/api/v1/exports/{row['export_id']}/download"
+                if row["status"] == "ready" else None,
+            error=error)
+
+    def export_status(self, identity, export_id):
+        """F23: read the export; a waiting details export also refreshes its challenge."""
+        row = self.store.export_row(export_id, identity.user_id, identity.demo_round_id)
+        if not row:
+            raise ApiProblem(404, "NOT_FOUND")
+        if row["kind"] == "details" and row["status"] == "waiting_verification":
+            self._refresh_waiting_export(row)
+            row = self.store.export_row(export_id, identity.user_id, identity.demo_round_id)
+        return self.export_view(row)
+
+    def export_file(self, identity, export_id):
+        """F24: the file leaves only through the owner, session and verification checks."""
+        row = self.store.export_row(export_id, identity.user_id, identity.demo_round_id)
+        if not row:
+            raise ApiProblem(404, "NOT_FOUND")
+        if row["status"] != "ready":
+            raise ApiProblem(409, "EXPORT_NOT_READY")
+        if row["kind"] == "details":
+            if row["session_id"] != identity.session_id:
+                # §6.7: a session change voids the old export authorization.
+                raise ApiProblem(409, "SESSION_RECONFIRMATION_REQUIRED")
+            challenge = self.runtime.gateway.get_verification(
+                self._export_trusted(row), row["challenge_id"])
+            if challenge.challenge_status != "passed":
+                raise ApiProblem(409, "EXPORT_NOT_READY")
+        return row["file_name"], row["media_type"], row["content"]
+
+    def export_for_task(self, identity, task_id):
+        rows = self.store.rows("""SELECT * FROM api_exports
+            WHERE task_id=? AND user_id=? AND demo_round_id=?""",
+            (task_id, identity.user_id, identity.demo_round_id))
+        return rows[0] if rows else None
+
+    def export_for_challenge(self, trusted, challenge_id):
+        rows = self.store.rows("""SELECT * FROM api_exports
+            WHERE challenge_id=? AND user_id=? AND demo_round_id=?""",
+            (challenge_id, trusted.user_id, trusted.demo_round_id))
+        return rows[0] if rows else None
+
+    def rebind_export_challenge(self, trusted, old_challenge_id, new_challenge):
+        """F18: a resend supersedes the old code; the waiting export follows the new one."""
+        export = self.export_for_challenge(trusted, old_challenge_id)
+        if export is None or export["status"] != "waiting_verification":
+            return False
+        if new_challenge.challenge_id == old_challenge_id:
+            return False
+        self._bind_export_challenge(export, new_challenge)
+        self.publish_task(Identity(trusted.user_id, trusted.session_id,
+                                   trusted.demo_round_id, "user"), export["task_id"])
+        return True
+
+    def _bind_export_challenge(self, export, challenge):
+        """Point the export row and its task interaction at the current challenge."""
+        self.store.write("UPDATE api_exports SET challenge_id=? WHERE export_id=?",
+                         (challenge.challenge_id, export["export_id"]))
+        task = self.runtime.application.get_task(export["user_id"], export["demo_round_id"],
+                                                 export["task_id"])
+        result = ModuleResult.model_validate(task.snapshot["result"])
+        if result.interaction is not None:
+            result = result.model_copy(update={"interaction": result.interaction.model_copy(
+                update={"record_ref": challenge.challenge_id})})
+        self.runtime.application.update_task(export["user_id"], export["demo_round_id"],
+            export["task_id"], task.revision, task.run_id, task.status, task.checkpoint_id,
+            {**task.snapshot, "result": result.model_dump(mode="json")})
+
+    def export_verification_result(self, identity, export, challenge):
+        """The details export owns its verification outcome instead of the transfer graph."""
+        view = self.verification_view(challenge)
+        if challenge.challenge_status == "passed":
+            self._complete_export(export)
+            task = self.task_view(identity, export["task_id"])
+            return VerificationResponse[TransferTaskView](kind="verified", verification=view,
+                                                          task=task, error=None)
+        if challenge.challenge_status != "pending":
+            code = ("VERIFICATION_EXPIRED" if challenge.challenge_status == "expired"
+                    else "VERIFICATION_REJECTED")
+            self._fail_export(export, code=code,
+                reason="验证未通过，导出未完成；请重新发起明细导出。",
+                task_status=TaskStatus.FAILED, message="验证未通过，账单明细导出未完成。",
+                publish=True)
+            task = self.task_view(identity, export["task_id"])
+            return VerificationResponse[TransferTaskView](kind="rejected", verification=view,
+                task=task, error=ModuleError(code=code, source="platform", field=None,
+                                             reason="验证尚未通过。", upstream_code=None))
+        # Wrong code with attempts left: the export keeps waiting on the same task.
+        task = self.publish_task(identity, export["task_id"])
+        return VerificationResponse[TransferTaskView](kind="rejected", verification=view,
+            task=task, error=ModuleError(code="VERIFICATION_REJECTED", source="bank", field=None,
+                                         reason="验证尚未通过。", upstream_code=None))
+
+    def fail_export_for_challenge(self, trusted, challenge):
+        """A terminal challenge fails its export; returns False for business tasks."""
+        export = self.export_for_challenge(trusted, challenge.challenge_id)
+        if export is None:
+            return False
+        code = ("VERIFICATION_EXPIRED" if challenge.challenge_status == "expired"
+                else "VERIFICATION_REJECTED")
+        self._fail_export(export, code=code,
+            reason="验证已失效，导出未完成；请重新发起明细导出。",
+            task_status=TaskStatus.FAILED, message="验证已失效，账单明细导出未完成。",
+            publish=True)
+        return True
+
+    def _export_trusted(self, row):
+        owner = Identity(row["user_id"], row["session_id"], row["demo_round_id"], "user")
+        return self.trusted(owner, row["task_id"])
+
+    def _refresh_waiting_export(self, row):
+        """Lazy state refresh: a passed challenge generates the file, a terminal one fails."""
+        challenge = self.runtime.gateway.get_verification(self._export_trusted(row),
+                                                          row["challenge_id"])
+        if challenge.challenge_status == "passed":
+            self._complete_export(row)
+            return
+        if challenge.challenge_status == "superseded":
+            # A resend replaced the code before this row learned about it (crash
+            # gap): follow the newest pending challenge instead of failing (F18).
+            pending = [item for item in self.runtime.gateway.list_verifications(
+                self._export_trusted(row), row["task_id"])
+                if item.challenge_status == "pending"]
+            if pending:
+                challenge = pending[-1]
+                self._bind_export_challenge(row, challenge)
+        if challenge.challenge_status != "pending":
+            code = ("VERIFICATION_EXPIRED" if challenge.challenge_status == "expired"
+                    else "VERIFICATION_REJECTED")
+            self._fail_export(row, code=code,
+                reason="验证已失效，导出未完成；请重新发起明细导出。",
+                task_status=TaskStatus.FAILED, message="验证已失效，账单明细导出未完成。",
+                publish=False)
+
+    def _complete_export(self, row):
+        rows = self.store.rows("""SELECT report_json FROM api_reports
+            WHERE report_id=? AND user_id=? AND demo_round_id=?""",
+            (row["report_id"], row["user_id"], row["demo_round_id"]))
+        report = BillReport.model_validate(json.loads(rows[0]["report_json"]))
+        content = self._details_csv(self._export_trusted(row), report)
+        if content is None:
+            self._fail_export(row, code="DEPENDENCY_UNAVAILABLE",
+                reason="暂时无法读取账单明细，导出未完成。",
+                task_status=TaskStatus.FAILED, message="账单明细读取失败，导出未完成。",
+                publish=True)
+            return
+        self.store.finish_export(row["export_id"], "ready",
+            file_name=f"bill-details-{row['report_id']}.csv", media_type="text/csv",
+            content=content)
+        self._update_export_task(row, TaskStatus.SUCCEEDED,
+                                 "身份验证完成，账单明细已生成，可以下载。", None)
+        self.publish_task(Identity(row["user_id"], row["session_id"], row["demo_round_id"], "user"),
+                          row["task_id"])
+
+    def _fail_export(self, row, *, code, reason, task_status, message, publish):
+        self.store.finish_export(row["export_id"], "failed", error_code=code, error_reason=reason)
+        self._update_export_task(row, task_status, message,
+            ModuleError(code=code, source="platform", field=None, reason=reason,
+                        upstream_code=None))
+        if publish:
+            self.publish_task(Identity(row["user_id"], row["session_id"],
+                                       row["demo_round_id"], "user"), row["task_id"])
+
+    def _update_export_task(self, row, status, message, error):
+        task = self.runtime.application.get_task(row["user_id"], row["demo_round_id"],
+                                                 row["task_id"])
+        result = ModuleResult[TransferTaskView].model_validate(task.snapshot["result"]) \
+            .model_copy(update={"status": status, "interaction": None, "message": message,
+                                "error": error, "allowed_actions": [],
+                                "recovery_required": False, "recovery_reason": None})
+        self.runtime.application.update_task(row["user_id"], row["demo_round_id"], row["task_id"],
+            task.revision, task.run_id, status, task.checkpoint_id,
+            {**task.snapshot, "result": result.model_dump(mode="json")})
+
+    def _details_csv(self, trusted, report):
+        """CSV straight from bank facts inside the report scope; the exporter owns cell safety."""
+        import csv
+        import io
+
+        rows = []
+        for account_id in report.scope.account_ids:
+            result = self.runtime.gateway.list_transactions(
+                trusted, account_id, report.scope.start_at, report.scope.end_at)
+            if result.kind != "ok":
+                return None
+            rows.extend(result.data.transactions)
+        rows.sort(key=lambda item: (item.occurred_at, item.account_id, item.transaction_id))
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, lineterminator="\n")
+        writer.writerow(["occurred_at", "account_id", "direction", "nature", "category",
+                         "amount_fen", "counterparty_name", "counterparty_account_masked",
+                         "channel", "summary", "transaction_id"])
+        for item in rows:
+            writer.writerow([item.occurred_at.isoformat(), item.account_id, item.direction,
+                             item.nature, item.category, item.amount_fen,
+                             item.counterparty_name, item.counterparty_account_masked or "",
+                             item.channel or "", item.summary, item.transaction_id])
+        return buffer.getvalue()
+
+    def _card_html(self, report):
+        """HTML card export; every dynamic value is escaped by the exporter (§6.7)."""
+        from html import escape
+
+        def yuan(fen):
+            return f"{fen / 100:.2f}"
+
+        categories = "".join(
+            f"<tr><td>{escape(str(item.category))}</td><td>{yuan(item.outflow_fen)}</td>"
+            f"<td>{yuan(item.refund_fen)}</td><td>{yuan(item.net_fen)}</td></tr>"
+            for item in report.summary.categories)
+        average = (f"{yuan(report.monthly_average_fen)} 元" if report.monthly_average_fen is not None
+                   else "未提供")
+        return f"""<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>账单报告 {escape(report.report_id)}</title></head>
+<body>
+<h1>账单报告</h1>
+<p>{escape(report.spoken_summary)}</p>
+<p>统计范围：{report.scope.start_at.isoformat()} 至 {report.scope.end_at.isoformat()}（账户 {escape(", ".join(report.scope.account_ids))}）</p>
+<p>消费总支出 {yuan(report.summary.consumption_gross_fen)} 元，退款 {yuan(report.summary.consumption_refund_fen)} 元，净支出 {yuan(report.summary.consumption_net_fen)} 元；转入 {yuan(report.summary.transfer_in_fen)} 元，转出 {yuan(report.summary.transfer_out_fen)} 元。</p>
+<p>交易笔数 {report.summary.transaction_count}；月均 {average}（{escape(report.average_basis)}，统计 {report.statistical_days} 天）。</p>
+<table border="1"><thead><tr><th>分类</th><th>支出（元）</th><th>退款（元）</th><th>净额（元）</th></tr></thead>
+<tbody>{categories}</tbody></table>
+<p>生成时间：{report.generated_at.isoformat()}</p>
+</body></html>"""
+
     @staticmethod
     def _owner_security_context(trusted):
         # Lookup only needs the trusted owner; execution bindings are resolved
@@ -551,6 +841,9 @@ class ApiService:
         ), "succeeded" if outcome.kind == "verified" else "denied")
 
     def continue_task(self, identity, task_id, response, *, recover_session=False, verification_retry=False):
+        export = self.export_for_task(identity, task_id)
+        if export is not None:
+            return self.continue_export_task(identity, export, response)
         link = self.link(
             identity, task_id, mutate=True,
             allow_session_recovery=recover_session,
@@ -606,6 +899,24 @@ class ApiService:
                 self.runtime.application.update_task(identity.user_id, identity.demo_round_id, task_id,
                     current.revision, current.run_id, current.status, current.checkpoint_id, snapshot)
         return self.publish_task(identity, task_id)
+
+    def continue_export_task(self, identity, export, response):
+        """§6.7: a sensitive export pauses and resumes along its own platform task."""
+        if export["status"] != "waiting_verification":
+            return self.task_view(identity, export["task_id"])
+        if response.get("cancel") is True:
+            self._fail_export(export, code="EXPORT_CANCELLED", reason="已取消账单明细导出。",
+                task_status=TaskStatus.CANCELLED, message="已取消账单明细导出。", publish=True)
+            return self.task_view(identity, export["task_id"])
+        if export["session_id"] != identity.session_id:
+            # The challenge is session-bound; a changed session voids the old authorization.
+            self._fail_export(export, code="SESSION_RECONFIRMATION_REQUIRED",
+                reason="导出验证已随会话变化失效，请重新发起明细导出。",
+                task_status=TaskStatus.CANCELLED,
+                message="导出验证已随会话变化失效，请重新发起明细导出。", publish=True)
+            return self.task_view(identity, export["task_id"])
+        self._refresh_waiting_export(export)
+        return self.publish_task(identity, export["task_id"])
 
     def current_interaction(self, identity, task_id, interaction_id):
         self.link(identity, task_id, mutate=True)
