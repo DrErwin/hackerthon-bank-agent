@@ -1,4 +1,4 @@
-"""Second-module registration and routing: the bills stub proves the platform seam (v04-platform/03)."""
+"""Second-module registration, routing and resume: the bills seam through one platform entry."""
 
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -6,8 +6,10 @@ from uuid import uuid4
 import pytest
 
 from app.audit.journal import AuditJournal
+from app.contracts.bills import AccountSourceAsOf, BillScope, SpendingSummary
 from app.contracts.common import TaskStatus
 from app.contracts.platform import ModuleManifest, TrustedContext
+from app.contracts.tasks import InteractionRequest, ModuleResult
 from app.memory.adapter import MemoryAdapter
 from app.modules.transfer.manifest import MANIFEST
 from app.storage.application import ApplicationStore
@@ -106,3 +108,80 @@ def test_register_module_rejects_foreign_and_duplicate_capabilities(tmp_path):
     )
     with pytest.raises(ValueError, match="DUPLICATE_CAPABILITY"):
         registry.register_module(duplicated, lambda *_: None)
+
+
+def bills_summary():
+    """A second-module payload small enough to read, still a contract model (§5.3)."""
+
+    as_of = "2026-09-30T08:00:00+00:00"
+    return SpendingSummary(
+        scope=BillScope(account_ids=["A1"], start_at="2026-09-01T00:00:00+00:00",
+                        end_at="2026-09-30T00:00:00+00:00"),
+        as_of=as_of,
+        source_as_of=[AccountSourceAsOf(account_id="A1", as_of=as_of)],
+        transaction_count=0, consumption_gross_fen=0, consumption_refund_fen=0,
+        consumption_net_fen=0, transfer_out_fen=0, transfer_in_fen=0,
+        categories=[], comparison=None,
+    )
+
+
+class WaitingBillsEntry:
+    """A second-module capability that pauses for the user, then finishes on the same task."""
+
+    def __init__(self, summary):
+        self._summary = summary
+
+    def start(self, trusted, request, *, thread_id=None):
+        return self._result(trusted, TaskStatus.WAITING_INPUT, "请选择要查看的月份。")
+
+    def resume(self, trusted, response, *, thread_id=None):
+        return self._result(trusted, TaskStatus.SUCCEEDED, "已按所选月份汇总。")
+
+    def recover_session(self, trusted, *, source_session_id, thread_id=None):
+        return self._result(trusted, TaskStatus.SUCCEEDED, "已按所选月份汇总。")
+
+    def checkpoint_context(self, trusted, *, thread_id=None):
+        return None
+
+    def _result(self, trusted, status, message):
+        waiting = status == TaskStatus.WAITING_INPUT
+        return ModuleResult(
+            task_id=trusted.task_id, run_id=trusted.run_id, status=status, data=self._summary,
+            message=message,
+            interaction=InteractionRequest(
+                interaction_id="I1", kind="input", prompt="要看哪个月？", required_fields=["text"],
+                options=[], record_ref=None,
+            ) if waiting else None,
+            error=None, allowed_actions=["provide_input", "cancel"] if waiting else [],
+            recovery_required=False, recovery_reason=None,
+        )
+
+
+def test_waiting_second_module_task_resumes_along_its_own_payload(tmp_path):
+    """Issue #122 第 2 项：等待类账单任务沿原任务 resume，不被转账视图定型挡住。"""
+
+    summary = bills_summary()
+    application = ApplicationStore(tmp_path / "app.sqlite")
+    memory = MemoryAdapter(application, active_round=lambda: "D1")
+    audit = AuditJournal(application.path)
+    registry = CapabilityRegistry()
+    registry.register_transfer(MANIFEST, lambda _trusted, _saver, _trace: None)
+    registry.register_module(BILLS_MANIFEST,
+                             lambda _trusted, _saver, _trace: WaitingBillsEntry(summary))
+    planner = BillsPlanner(TransferProposal(capability_name="bills.summarize"))
+    harness = AgentHarness(application, memory, audit, registry, planner, lambda *_: True)
+    at = datetime.now(timezone.utc)
+    application.create_session("S1", "U1", "D1", at.isoformat(),
+                               (at + timedelta(days=1)).isoformat())
+
+    started = harness.start(trusted(), uuid4(), "帮我看这个月的账单")
+    assert started.status == TaskStatus.WAITING_INPUT
+    assert started.data == summary
+    # 平台按快照回放第二模块载荷原样（不再定型为转账视图），按模块自己的契约模型可解析。
+    assert SpendingSummary.model_validate(harness.get(trusted()).data) == summary
+
+    resumed = harness.resume(TrustedContext(user_id="U1", session_id="S1", task_id="T1",
+                                            run_id="R2", parent_task_id=None,
+                                            demo_round_id="D1"), {})
+    assert resumed.status == TaskStatus.SUCCEEDED
+    assert resumed.data == summary

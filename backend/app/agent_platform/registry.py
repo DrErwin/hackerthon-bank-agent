@@ -8,21 +8,23 @@ from typing import TYPE_CHECKING, Callable, Protocol
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from app.contracts.platform import CapabilityDefinition, ModuleManifest, StartTransferInput, TrustedContext
-from app.contracts.tasks import ModuleResult, TransferTaskView
+from app.contracts.tasks import ModuleResult
 
 if TYPE_CHECKING:
     from .harness import RunTrace
 
 
 class TransferEntry(Protocol):
+    # A registered module answers with its own displayable result (§6.5); only the
+    # transfer module's payload happens to be the transfer view (Issue #122).
     def start(self, trusted: TrustedContext, request: StartTransferInput, *,
-              thread_id: str | None = None) -> ModuleResult[TransferTaskView]: ...
+              thread_id: str | None = None) -> ModuleResult: ...
 
     def resume(self, trusted: TrustedContext, response: dict, *,
-               thread_id: str | None = None) -> ModuleResult[TransferTaskView]: ...
+               thread_id: str | None = None) -> ModuleResult: ...
 
     def recover_session(self, trusted: TrustedContext, *, source_session_id: str,
-                        thread_id: str | None = None) -> ModuleResult[TransferTaskView]: ...
+                        thread_id: str | None = None) -> ModuleResult: ...
 
     def checkpoint_context(self, trusted: TrustedContext, *,
                            thread_id: str | None = None) -> TrustedContext | None: ...
