@@ -1540,3 +1540,100 @@ def test_report_capture_is_bound_to_an_owned_task(tmp_path):
         with pytest.raises(ApiProblem) as missing:
             service.capture_report(owner, str(uuid4()), _bill_report())
         assert missing.value.status == 404
+
+
+class _ReportEntry:
+    """A test-only bills capability whose result carries a contract report card."""
+
+    def __init__(self, report):
+        self.report = report
+
+    def start(self, trusted, request, *, thread_id=None):
+        from app.contracts.common import TaskStatus
+        from app.contracts.tasks import ModuleResult
+
+        return ModuleResult(task_id=trusted.task_id, run_id=trusted.run_id,
+                            status=TaskStatus.SUCCEEDED,
+                            data=self.report.model_dump(mode="json"),
+                            message="报告已生成。", interaction=None, error=None,
+                            allowed_actions=[], recovery_required=False,
+                            recovery_reason=None)
+
+    def resume(self, trusted, response, *, thread_id=None):
+        return self.start(trusted, response, thread_id=thread_id)
+
+    def recover_session(self, trusted, *, source_session_id, thread_id=None):
+        return self.start(trusted, None, thread_id=thread_id)
+
+    def checkpoint_context(self, trusted, *, thread_id=None):
+        return None
+
+
+def _register_report_capability(service, report):
+    from app.contracts.common import OperationLevel
+    from app.contracts.platform import CapabilityDefinition, ModuleManifest
+
+    manifest = ModuleManifest(
+        module_name="bills", version="test", owner="Erwin",
+        description="测试用账单报告能力", implementation_kind="workflow",
+        dependencies=[],
+        capabilities=[CapabilityDefinition(
+            name="bills.test_report", input_schema_ref="StartTransferInput",
+            output_schema_ref="BillReport", required_permissions=["bills.read"],
+            operation_level=OperationLevel.READ, side_effect=False,
+            confirmation_policy="none", timeout_ms=10_000, retry_policy="read_only",
+            handler_ref="test",
+        )],
+    )
+    service.runtime.harness.registry.register_module(
+        manifest, lambda _trusted, _saver, _trace: _ReportEntry(report))
+
+
+def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
+    app = make_app(tmp_path)
+    service = app.state.api
+    report = _bill_report()
+    _register_report_capability(service, report)
+    service.runtime.harness.planner.proposal = TransferProposal(
+        capability_name="bills.test_report")
+    with TestClient(app) as client:
+        enter(client)
+        thread = post(client, "/threads").json()["data"]["thread_id"]
+        accepted = post(client, f"/threads/{thread}/messages", text="给我这个月的账单报告")
+        assert accepted.status_code == 202, accepted.text
+        tasks = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]
+        assert len(tasks) == 1
+        task = tasks[0]
+
+        # P01/P02：账单任务在平台上带 module=bills 与账单载荷；转账不受影响。
+        assert task["module"] == "bills"
+        assert task["status"] == "succeeded"
+        assert task["data"]["report_id"] == report.report_id
+        assert task["message"] == "报告已生成。"
+
+        # 平台捕获报告后 F21 即可读取。
+        card = client.get(f"/api/v1/reports/{report.report_id}")
+        assert card.status_code == 200, card.text
+        assert card.json()["data"]["report_id"] == report.report_id
+
+        # §6.6 report_ready 事件随任务模块发射，不广播明细。
+        events = service.store.events(thread, None)
+        ready = [event for event in events if event["event_type"] == "report_ready"]
+        assert ready and ready[0]["payload"]["report_id"] == report.report_id
+        assert ready[0]["module"] == "bills"
+        task_updates = [event for event in events if event["event_type"] == "task_updated"]
+        assert task_updates[-1]["module"] == "bills"
+        # SSE 载荷联合类型仍按转账视图定型：第二模块事件去载荷，前端按 §6.6 重新 GET。
+        assert task_updates[-1]["payload"]["data"] is None
+
+        # 助手消息携带 report_ids，前端据此给出入口。
+        messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
+        assistant = [item for item in messages if item["role"] == "assistant"][-1]
+        assert report.report_id in assistant["report_ids"]
+
+        # 转账链路回归：module=transfer 与确认流程不回退。
+        service.runtime.harness.planner.proposal = TransferProposal(
+            payee_hint="妈妈", amount_fen=50_000, payer_account_id="A1")
+        _, transfer = start(client, "给妈妈转 500 元")
+        assert transfer["module"] == "transfer"
+        assert transfer["interaction"]["kind"] == "confirmation"

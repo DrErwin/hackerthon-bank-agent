@@ -71,7 +71,9 @@ PR #25 合入时的基线回归为后端 **178 项**（API 29 项）、模拟银
 
 新会话可从本人当前轮次的原任务入口调用 `POST /tasks/{id}/resume`。API 沿公开 Harness / 转账入口完成会话转换；未提交动作产生当前会话的新确认和所需验证，已有操作只查原 `operation_id`。转换前后任务快照、可用按钮、请求回执与 SSE 使用当前状态；转换前旧会话的确认 / 验证写入口仍拒绝。会话转换标记使 API 请求在存储切换后中断时可用相同 `request_id` 安全续做。其他写入口不会借此放宽跨会话访问。
 
-无业务意图的公开 `ReplyOnly` 结果由 [补票 05](../../../.scratch/v03-session-recovery-reply/issues/05-harness-reply-only.md) 的 Harness 提供；本目录只消费 Harness 结果。`ReplyOnly` 路径不创建 `api_tasks` 记录，也不经过确认、验证或银行入口。~~报告、导出及其他业务的入口不属于本票范围~~：报告读取（F21）已由 [v04-platform/01](../../../.scratch/v04-platform/issues/01-report-storage-read.md) 落地；导出链路（F22—F24）与账单任务接线见 v04-platform/02、04。
+无业务意图的公开 `ReplyOnly` 结果由 [补票 05](../../../.scratch/v03-session-recovery-reply/issues/05-harness-reply-only.md) 的 Harness 提供；本目录只消费 Harness 结果。`ReplyOnly` 路径不创建 `api_tasks` 记录，也不经过确认、验证或银行入口。~~报告、导出及其他业务的入口不属于本票范围~~：报告读取（F21）已由 [v04-platform/01](../../../.scratch/v04-platform/issues/01-report-storage-read.md) 落地；账单任务接线见 v04-platform/04，导出链路（F22—F24）见 v04-platform/02。
+
+第二模块接线（v04-platform/04）：`ApiService` 装配时把账单桩注册进运行时注册表（槽位已占则跳过，真实账单模块可整体替换）；任务视图与 `task_updated` 事件的 `module` 按任务快照 `capability_name` 前缀取，转账任务保持定型视图与既有行为；账单任务结果 `data` 为 `BillReport` 时平台自动落库（F21 即可读取）、助手消息携带 `report_ids` 并发射 `report_ready` 事件（§6.6）。已知接缝：SSE 载荷联合类型仍按转账视图定型（`contracts/api.py`），第二模块的 `task_updated` 事件暂去 `data` 载荷、前端按契约指引重新 GET 任务；harness 内部恢复解析对非转账 `data` 仍按转账视图定型——待账单模块接入时随契约票一并放宽。
 
 重新登录读取旧任务时，当前快照清空不可用的 allowed_actions；非终态任务标记 SESSION_RECONFIRMATION_REQUIRED。保留的 interaction 仅用于历史显示，专用确认 / 验证视图仍拒绝旧会话操作。切换会话后先重新 GET 任务，以当前快照权限为准；SSE 回放中的旧快照不能恢复旧按钮。
 
