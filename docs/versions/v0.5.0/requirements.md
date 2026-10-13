@@ -12,6 +12,7 @@
 - 运行三场景任务评测和安全评测。
 - 完成跨模块集成测试与缺陷修复。
 - 核对审计证据、恢复、防重复和用户状态表达。
+- 补齐契约已定义、尚未实现的管理端审计导出：F35 `POST /admin/audit/exports`（按固定筛选范围导出，返回 `ExportView(kind=audit)`）与 F24 的 audit 下载分支（核验独立管理权限 + 创建时固定的导出范围；数据源用既有 `audit/journal` 只读端）。来源 [Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)：2026-10-13 PM 决定**不进 v0.4、挂 v0.5**，实施票在本版本开工时按一票一目录拆（`backend/app/api/`），拆票前不改变本决定。
 - 打磨关键演示路径和适老化交互。
 - 形成核心能力验收记录。
 
