@@ -44,7 +44,7 @@ DOCS = [
     ("docs/00-项目文档索引.md", "00 项目文档索引"),
     ("docs/team/当前工作台.md", "01 项目跟踪"),
     ("官方资料/参赛规则与提交要求.md", "02 参赛规则与提交要求"),
-    ("官方资料/模板/source-code-readme-template.md", "05 源码 README 模板"),
+    ("官方资料/模板/source-code-readme-template.md", "06 源码 README 模板"),
 ]
 
 
