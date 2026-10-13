@@ -52,6 +52,22 @@ class CapabilityRegistry:
             raise ValueError("DUPLICATE_CAPABILITY")
         self._entries[public[0].name] = RegisteredCapability(manifest, public[0], factory)
 
+    def register_module(self, manifest: ModuleManifest, factory: TransferFactory) -> None:
+        """Register any second business module; names stay module-prefixed and unique."""
+        if not manifest.capabilities:
+            raise ValueError("NO_PUBLIC_CAPABILITY")
+        declared = [definition.name for definition in manifest.capabilities]
+        if len(set(declared)) != len(declared):
+            # §6.9: capability names are unique — also inside one manifest.
+            raise ValueError("DUPLICATE_CAPABILITY")
+        for definition in manifest.capabilities:
+            if not definition.name.startswith(f"{manifest.module_name}."):
+                raise ValueError("CAPABILITY_NOT_IN_MODULE")
+            if definition.name in self._entries:
+                raise ValueError("DUPLICATE_CAPABILITY")
+        for definition in manifest.capabilities:
+            self._entries[definition.name] = RegisteredCapability(manifest, definition, factory)
+
     def get(self, name: str) -> RegisteredCapability:
         try:
             return self._entries[name]
@@ -61,6 +77,6 @@ class CapabilityRegistry:
     def public_catalog(self) -> list[dict[str, str]]:
         return [
             {"name": name, "description": entry.manifest.description,
-             "input_schema_ref": "StartTransferInput"}
+             "input_schema_ref": entry.definition.input_schema_ref}
             for name, entry in self._entries.items()
         ]

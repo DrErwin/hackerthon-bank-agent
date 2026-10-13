@@ -36,7 +36,16 @@ class _TransferFields(BaseModel):
 
 
 class TransferProposal(_TransferFields):
-    capability_name: Literal["transfer.start_transfer"] = "transfer.start_transfer"
+    # The planner may name any registered capability; the registry lookup and the
+    # authorize callback stay the gate. The transfer tool keeps the default.
+    capability_name: str = "transfer.start_transfer"
+
+    @field_validator("capability_name")
+    @classmethod
+    def names_a_capability(cls, value):
+        if not value or "." not in value:
+            raise ValueError("capability_name must name a registered capability")
+        return value
 
 
 class ReplyOnly(BaseModel):
@@ -107,7 +116,7 @@ class DeepAgentPlanner:
                catalog: list[dict[str, str]], memory: MemoryAdapter,
                thread_id: str, context_summary: str | None = None,
                ) -> TransferProposal | ReplyOnly:
-        if {entry["name"] for entry in catalog} != {"transfer.start_transfer"}:
+        if "transfer.start_transfer" not in {entry["name"] for entry in catalog}:
             raise ValueError("CAPABILITY_CATALOG_UNAVAILABLE")
         outcomes: list[TransferProposal | ReplyOnly] = []
 
