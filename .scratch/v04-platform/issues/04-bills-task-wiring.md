@@ -4,7 +4,7 @@ Ticket ID: v04-platform/04
 Type: 开发
 Owner: Erwin
 Directory: backend/app/api/
-Status: pr_open（[PR #118](https://github.com/DrErwin/hackerthon-bank-agent/pull/118) 待统一审查，2026-10-13 开出；Depends on PR #115 + #117，合并顺序建议 #115→#116→#117→#118）
+Status: resolved（原 [PR #118](https://github.com/DrErwin/hackerthon-bank-agent/pull/118) 经子代理审查可合并后同样因 base 分支被删关闭；审查与处置记录留 #118 评论，由 [PR #120](https://github.com/DrErwin/hackerthon-bank-agent/pull/120) 接替——分支重构为 main + 单提交（cherry-pick，冲突取并集），squash `c270abb` 合入 main，2026-10-13；合入后主线后端全量 431 passed）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P01 账单任务在平台上创建、等待、恢复](../spec.md)、[P02 前端按 module 选插槽](../spec.md)（后端事实部分）

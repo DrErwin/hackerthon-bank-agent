@@ -4,7 +4,7 @@ Ticket ID: v04-platform/03
 Type: 开发
 Owner: Erwin
 Directory: backend/app/agent_platform/
-Status: pr_open（[PR #117](https://github.com/DrErwin/hackerthon-bank-agent/pull/117) 待统一审查，2026-10-13 开出；基于 main，独立于 #115/#116）
+Status: resolved（[PR #117](https://github.com/DrErwin/hackerthon-bank-agent/pull/117) squash `f40959e` 合入 main，2026-10-13，含审查修复 `56406bf`：清单内重名能力拒绝注册〔契约 §6.9〕+ L02 输出 ref 待解析如实标注；独立子代理审查可合并〔AI 审查、非真人，意见见 PR 评论〕；合入后主线后端全量 431 passed）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P01 账单任务在平台上创建（能力注册与路由部分）](../spec.md)、P02（`module` 承载的前置）
