@@ -38,6 +38,7 @@ $env:BANK_API_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000'
 | GET `/threads/{id}/events` | SSE，支持 Last-Event-ID 继续持久事件序列 |
 | GET `/tasks`、GET `/tasks/{id}` | 原任务快照及待恢复列表 |
 | GET `/tasks/{id}/records` | 按任务只读回放确认单与验证历史（本人任务，跨会话可读，不含验证码原文） |
+| GET `/reports/{id}` | F21 受控报告卡片：校验本人范围，只返回报告卡内容，不含原始全量明细（v04-platform/01） |
 | POST `/tasks/{id}/inputs` | 回答当前交互或选择服务端候选 |
 | POST `/tasks/{id}/details` | 专用收款人资料、按指定银行字段查询候选；查询本身不选中候选 |
 | POST `/tasks/{id}/resume`、`cancel`、`query-result` | 原任务恢复、停止未执行动作及回查原操作 |
@@ -70,7 +71,7 @@ PR #25 合入时的基线回归为后端 **178 项**（API 29 项）、模拟银
 
 新会话可从本人当前轮次的原任务入口调用 `POST /tasks/{id}/resume`。API 沿公开 Harness / 转账入口完成会话转换；未提交动作产生当前会话的新确认和所需验证，已有操作只查原 `operation_id`。转换前后任务快照、可用按钮、请求回执与 SSE 使用当前状态；转换前旧会话的确认 / 验证写入口仍拒绝。会话转换标记使 API 请求在存储切换后中断时可用相同 `request_id` 安全续做。其他写入口不会借此放宽跨会话访问。
 
-无业务意图的公开 `ReplyOnly` 结果由 [补票 05](../../../.scratch/v03-session-recovery-reply/issues/05-harness-reply-only.md) 的 Harness 提供；本目录只消费 Harness 结果。`ReplyOnly` 路径不创建 `api_tasks` 记录，也不经过确认、验证或银行入口。报告、导出及其他业务的入口不属于本票范围。
+无业务意图的公开 `ReplyOnly` 结果由 [补票 05](../../../.scratch/v03-session-recovery-reply/issues/05-harness-reply-only.md) 的 Harness 提供；本目录只消费 Harness 结果。`ReplyOnly` 路径不创建 `api_tasks` 记录，也不经过确认、验证或银行入口。~~报告、导出及其他业务的入口不属于本票范围~~：报告读取（F21）已由 [v04-platform/01](../../../.scratch/v04-platform/issues/01-report-storage-read.md) 落地；导出链路（F22—F24）与账单任务接线见 v04-platform/02、04。
 
 重新登录读取旧任务时，当前快照清空不可用的 allowed_actions；非终态任务标记 SESSION_RECONFIRMATION_REQUIRED。保留的 interaction 仅用于历史显示，专用确认 / 验证视图仍拒绝旧会话操作。切换会话后先重新 GET 任务，以当前快照权限为准；SSE 回放中的旧快照不能恢复旧按钮。
 

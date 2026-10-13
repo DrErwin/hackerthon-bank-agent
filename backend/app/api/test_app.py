@@ -1474,3 +1474,69 @@ def test_task_records_report_bank_outage_without_side_effects(tmp_path, monkeypa
         assert during["task_revision"] == before["task_revision"]
         replay = records(client, task["task_id"])
         assert [item["challenge_id"] for item in replay["verifications"]] == [challenge]
+
+
+def _bill_report(report_id=None):
+    """A contract-valid L03 report card; the platform only stores and reads it (F21)."""
+
+    from app.contracts.bills import (
+        AccountSourceAsOf, BillReport, BillScope, CategoryTotal, SpendingSummary,
+    )
+    from app.contracts.common import Category
+
+    as_of = "2026-09-30T08:00:00+00:00"
+    summary = SpendingSummary(
+        scope=BillScope(account_ids=["A1"], start_at="2026-09-01T00:00:00+00:00",
+                        end_at="2026-09-30T00:00:00+00:00"),
+        as_of=as_of,
+        source_as_of=[AccountSourceAsOf(account_id="A1", as_of=as_of)],
+        transaction_count=2,
+        consumption_gross_fen=8_00, consumption_refund_fen=1_00, consumption_net_fen=7_00,
+        transfer_out_fen=0, transfer_in_fen=0,
+        categories=[CategoryTotal(category=Category.DINING, outflow_fen=8_00, refund_fen=1_00,
+                                  net_fen=7_00, share_bps=10_000, rank=1)],
+        comparison=None,
+    )
+    return BillReport(
+        report_id=report_id or str(uuid4()), scope=summary.scope, summary=summary,
+        spoken_summary="九月吃饭净消费 7 元。", monthly_average_fen=7_00, statistical_days=29,
+        average_basis="按统计天数折算，每月 30 天", generated_at=as_of,
+    )
+
+
+def test_f21_returns_the_report_card_to_its_owner_only(tmp_path):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+        service.capture_report(owner, task["task_id"], report)  # task replay stays idempotent
+
+        response = client.get(f"/api/v1/reports/{report.report_id}")
+        assert response.status_code == 200, response.text
+        assert response.headers["cache-control"] == "no-store"
+        card = response.json()["data"]
+        assert card["report_id"] == report.report_id
+        assert card["summary"]["consumption_net_fen"] == 700
+        assert "transactions" not in response.text  # F21 ships the card, never raw detail rows
+        assert client.get(f"/api/v1/reports/{uuid4()}").status_code == 404
+
+        # 报告只跟随任务所有者：演示管理员是另一个用户，按本人范围口径 404。
+        admin = TestClient(app)
+        admin.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
+                   headers={"Origin": "http://testserver", "X-Demo-Admin-Key": "test-admin-key"})
+        assert admin.get(f"/api/v1/reports/{report.report_id}").status_code == 404
+
+
+def test_report_capture_is_bound_to_an_owned_task(tmp_path):
+    from .store import ApiProblem
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        enter(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        with pytest.raises(ApiProblem) as missing:
+            service.capture_report(owner, str(uuid4()), _bill_report())
+        assert missing.value.status == 404
