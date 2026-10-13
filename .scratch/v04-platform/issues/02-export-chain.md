@@ -4,7 +4,7 @@ Ticket ID: v04-platform/02
 Type: 开发
 Owner: Erwin
 Directory: backend/app/api/
-Status: blocked
+Status: pr_open（[PR #116](https://github.com/DrErwin/hackerthon-bank-agent/pull/116) 待统一审查，2026-10-13 开出；Depends on PR #115）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P04 卡片导出与明细导出](../spec.md)
@@ -28,3 +28,5 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 ## Comments
 
 - 2026-10-13：双轴审核通过后建立；安全侧依赖按上述口径登记，通知方式待 PM 决定。
+- 2026-10-13 **Ringo 审批豁免**：PM Erwin 指示「不需要 Ringo 审批，我代 Ringo 豁免」——如实记录为**代行豁免、非本人审查**（PM 权威规则，2026-10-11）。验证口径选择：银行 basic_identity 挑战（仅验证码、5 分钟、无 operation 绑定、绑定走导出任务），复用既有 F16—F20 端点，不改 `backend/app/security/`。
+- 2026-10-13 实施（分支 `v04-platform-02-export-chain`，基于 01 分支叠层，先红后绿）：`api_exports` 表 + 敏感导出任务（application 任务 + api_tasks/api_records + 银行挑战）；F22 卡片即时就绪 / 明细等待验证（同会话找回同导出）；F23 惰性刷新不重复生成；F24 本人 + 当前会话 + 验证授权三重核验、未就绪 409、会话变化旧授权失效；暂停 / 恢复 / 取消沿同一平台任务；CSV 取自 B08 流水（商户名不打码、账号沿用银行打码）、HTML 卡片导出器转义。E2E 四项（卡片直下 + 幂等、明细全链、挑战过期、任务取消）；`app/api` 69 passed、后端全量 424 passed。[PR #116](https://github.com/DrErwin/hackerthon-bank-agent/pull/116) 待统一审查；#115 合并后需 `rebase --onto main` 再审。
