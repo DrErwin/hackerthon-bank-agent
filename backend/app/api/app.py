@@ -428,6 +428,8 @@ def create_app(runtime=None, config=None):
                 service.begin_verification(who, trusted, "verification.resend-code")
                 current = service.runtime.gateway.resend_verification_code(trusted, challenge_id, body.request_id)
                 service.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)", ("verification", current.challenge_id, trusted.task_id))
+                # F18 for details exports: the waiting export follows the resent code.
+                service.rebind_export_challenge(trusted, challenge_id, current)
             else:
                 service.begin_verification(who, trusted, "verification.face.start",
                     terminal_challenge=challenge.challenge_status != "pending")

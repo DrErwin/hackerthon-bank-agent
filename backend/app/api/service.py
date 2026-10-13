@@ -442,6 +442,7 @@ class ApiService:
             return self.export_view(self.store.export_row(export_id, identity.user_id,
                                                           identity.demo_round_id))
         existing = self.store.pending_details_export(report_id, identity.user_id,
+                                                     identity.demo_round_id,
                                                      identity.session_id)
         if existing:
             return self.export_view(existing)
@@ -527,6 +528,32 @@ class ApiService:
             (challenge_id, trusted.user_id, trusted.demo_round_id))
         return rows[0] if rows else None
 
+    def rebind_export_challenge(self, trusted, old_challenge_id, new_challenge):
+        """F18: a resend supersedes the old code; the waiting export follows the new one."""
+        export = self.export_for_challenge(trusted, old_challenge_id)
+        if export is None or export["status"] != "waiting_verification":
+            return False
+        if new_challenge.challenge_id == old_challenge_id:
+            return False
+        self._bind_export_challenge(export, new_challenge)
+        self.publish_task(Identity(trusted.user_id, trusted.session_id,
+                                   trusted.demo_round_id, "user"), export["task_id"])
+        return True
+
+    def _bind_export_challenge(self, export, challenge):
+        """Point the export row and its task interaction at the current challenge."""
+        self.store.write("UPDATE api_exports SET challenge_id=? WHERE export_id=?",
+                         (challenge.challenge_id, export["export_id"]))
+        task = self.runtime.application.get_task(export["user_id"], export["demo_round_id"],
+                                                 export["task_id"])
+        result = ModuleResult.model_validate(task.snapshot["result"])
+        if result.interaction is not None:
+            result = result.model_copy(update={"interaction": result.interaction.model_copy(
+                update={"record_ref": challenge.challenge_id})})
+        self.runtime.application.update_task(export["user_id"], export["demo_round_id"],
+            export["task_id"], task.revision, task.run_id, task.status, task.checkpoint_id,
+            {**task.snapshot, "result": result.model_dump(mode="json")})
+
     def export_verification_result(self, identity, export, challenge):
         """The details export owns its verification outcome instead of the transfer graph."""
         view = self.verification_view(challenge)
@@ -575,7 +602,17 @@ class ApiService:
                                                           row["challenge_id"])
         if challenge.challenge_status == "passed":
             self._complete_export(row)
-        elif challenge.challenge_status != "pending":
+            return
+        if challenge.challenge_status == "superseded":
+            # A resend replaced the code before this row learned about it (crash
+            # gap): follow the newest pending challenge instead of failing (F18).
+            pending = [item for item in self.runtime.gateway.list_verifications(
+                self._export_trusted(row), row["task_id"])
+                if item.challenge_status == "pending"]
+            if pending:
+                challenge = pending[-1]
+                self._bind_export_challenge(row, challenge)
+        if challenge.challenge_status != "pending":
             code = ("VERIFICATION_EXPIRED" if challenge.challenge_status == "expired"
                     else "VERIFICATION_REJECTED")
             self._fail_export(row, code=code,
@@ -584,8 +621,9 @@ class ApiService:
                 publish=False)
 
     def _complete_export(self, row):
-        rows = self.store.rows("SELECT report_json FROM api_reports WHERE report_id=?",
-                               (row["report_id"],))
+        rows = self.store.rows("""SELECT report_json FROM api_reports
+            WHERE report_id=? AND user_id=? AND demo_round_id=?""",
+            (row["report_id"], row["user_id"], row["demo_round_id"]))
         report = BillReport.model_validate(json.loads(rows[0]["report_json"]))
         content = self._details_csv(self._export_trusted(row), report)
         if content is None:
