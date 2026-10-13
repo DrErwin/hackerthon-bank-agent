@@ -47,6 +47,8 @@ ROOT = fs.ROOT
 # ---------- 同步范围 ----------
 
 # 飞书是团队阅读端，不是仓库镜像。顺序也是 plan 与知识库的推荐阅读顺序。
+# 维护约定：白名单跟随「当前工作台 → 当前版本里程碑 → PRD / 架构 / 契约 / 协作规则」；
+# 版本推进时把新版本的 requirements / completion 加进来（旧版本条目可留作历史）。
 CURATED_SOURCES = [
     "docs/team/当前工作台.md",
     "docs/README.md",
@@ -54,6 +56,8 @@ CURATED_SOURCES = [
     "docs/versions/v0.3.0/implementation-plan.md",
     "docs/versions/v0.3.0/requirements.md",
     "docs/versions/v0.3.0/completion.md",
+    "docs/versions/v0.4.0/requirements.md",
+    "docs/versions/v0.4.0/completion.md",
     "docs/prd/01-智能转账-PRD-2026-09-23.md",
     "docs/prd/02-账单分析-PRD-2026-09-23.md",
     "docs/prd/06-跨场景联动-PRD-2026-09-23.md",
@@ -87,11 +91,13 @@ FOLDER_RULES = [
 ]
 
 # 已发布的文档：标题保持不变，否则会在飞书里多出一份
+# 注意：飞书按标题认文档，同标题只能有一篇。`docs/01-项目跟踪.md` 不在白名单
+# （飞书《01 项目跟踪》发布的是 docs/team/当前工作台.md），故不再为它登记标题，
+# 避免将来误加白名单时与工作台互相覆盖。
 TITLE_OVERRIDES = {
     "docs/team/当前工作台.md": "01 项目跟踪",
     "docs/README.md": "00 版本进度",
     "docs/00-项目文档索引.md": "00 项目文档索引",
-    "docs/01-项目跟踪.md": "01 项目跟踪",
     "官方资料/参赛规则与提交要求.md": "02 参赛规则与提交要求",
     "docs/architecture/system-framework-2026-09-19.md": "03 系统架构（2026-09-19）",
     "docs/architecture/review-2026-09-19/system-overview.mmd": "04 系统架构总览图",
