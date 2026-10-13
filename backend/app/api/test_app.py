@@ -1540,3 +1540,162 @@ def test_report_capture_is_bound_to_an_owned_task(tmp_path):
         with pytest.raises(ApiProblem) as missing:
             service.capture_report(owner, str(uuid4()), _bill_report())
         assert missing.value.status == 404
+
+
+def _seed_details_row(tmp_path, **overrides):
+    MockBankStore(tmp_path / "bank.sqlite").seed_ledger_rows([{
+        "transaction_id": "TX1", "account_id": "A1", "user_id": "U1",
+        "amount_fen": 3200, "direction": "outflow", "nature": "consumption",
+        "category": "dining", "occurred_at": "2026-09-05T12:30:00+08:00",
+        "counterparty_id": "M1", "counterparty_name": "楼下面馆",
+        "counterparty_account_masked": "6222****1234", "channel": "快捷支付", "summary": "午餐",
+        "original_transaction_id": None, "original_occurred_at": None,
+    } | overrides])
+
+
+def test_f22_card_export_downloads_without_reverification(tmp_path):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+
+        body = {"request_id": str(uuid4()), "kind": "card"}
+        created = client.post(f"/api/v1/reports/{report.report_id}/exports", json=body,
+                              headers={"Origin": "http://testserver"})
+        assert created.status_code == 200, created.text
+        view = created.json()["data"]
+        assert view["kind"] == "card"
+        assert view["status"] == "ready"
+        assert view["task_id"] is None
+        assert view["download_path"] == f"/api/v1/exports/{view['export_id']}/download"
+
+        # 同号同内容重放返回原导出（回执幂等）。
+        replay = client.post(f"/api/v1/reports/{report.report_id}/exports", json=body,
+                             headers={"Origin": "http://testserver"})
+        assert replay.json()["data"]["export_id"] == view["export_id"]
+
+        assert client.get(f"/api/v1/exports/{view['export_id']}").json()["data"]["status"] == "ready"
+        download = client.get(view["download_path"])
+        assert download.status_code == 200, download.text
+        assert download.headers["content-type"].startswith("text/html")
+        assert download.headers["cache-control"] == "no-store"
+        assert "九月吃饭净消费 7 元" in download.text
+        assert client.get(f"/api/v1/exports/{uuid4()}/download").status_code == 404
+
+
+def test_f22_details_export_requires_fresh_verification(tmp_path):
+    app = make_app(tmp_path)
+    _seed_details_row(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+
+        created = post(client, f"/reports/{report.report_id}/exports", kind="details")
+        assert created.status_code == 200, created.text
+        export = created.json()["data"]
+        assert export["kind"] == "details"
+        assert export["status"] == "waiting_verification"
+        assert export["task_id"]
+        assert export["download_path"] is None
+
+        # 找回：同会话对同一报告再次发起明细导出，返回同一个等待中的导出。
+        refind = post(client, f"/reports/{report.report_id}/exports", kind="details")
+        assert refind.json()["data"]["export_id"] == export["export_id"]
+
+        # 未过验证不给内容。
+        assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+
+        # 敏感导出沿同一平台任务：任务视图带验证交互。
+        export_task = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+        assert export_task["interaction"]["kind"] == "verification"
+        challenge = export_task["interaction"]["record_ref"]
+
+        wrong = post(client, f"/verifications/{challenge}/code",
+                     submission_id=str(uuid4()), code="000000")
+        assert wrong.status_code == 200, wrong.text
+        assert wrong.json()["data"]["kind"] == "rejected"
+        assert client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]["status"] \
+            == "waiting_verification"
+
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        done = post(client, f"/verifications/{challenge}/code",
+                    submission_id=str(uuid4()), code=code)
+        assert done.status_code == 200, done.text
+        assert done.json()["data"]["kind"] == "verified"
+        assert done.json()["data"]["task"]["status"] == "succeeded"
+
+        status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+        assert status["status"] == "ready"
+        assert status["file_name"].endswith(".csv")
+        download = client.get(f"/api/v1/exports/{export['export_id']}/download")
+        assert download.status_code == 200, download.text
+        assert download.headers["content-type"].startswith("text/csv")
+        assert "楼下面馆" in download.text  # 商户名不打码
+        assert "6222****1234" in download.text  # 账号保持银行侧打码
+
+        # 会话变化后旧导出授权不得继续使用。
+        from datetime import timedelta
+        from .service import now
+
+        stale = client.get("/api/v1/session").json()["data"]["session_id"]
+        service.store.write("UPDATE sessions SET expires_at=? WHERE session_id=?",
+                            ((now() - timedelta(seconds=1)).isoformat(), stale))
+        fresh = enter(client)
+        assert fresh["session_id"] != stale
+        assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+
+
+def test_details_export_expires_with_its_challenge(tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    from app.contracts.security import VerificationChallenge
+    from app.storage.database import transaction
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+        export = post(client, f"/reports/{report.report_id}/exports", kind="details").json()["data"]
+        challenge = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"] \
+            ["interaction"]["record_ref"]
+
+        with transaction(tmp_path / "bank.sqlite") as connection:
+            row = connection.execute(
+                "SELECT challenge_json FROM bank_verification_challenges WHERE challenge_id=?",
+                (challenge,)).fetchone()
+            stale = VerificationChallenge.model_validate_json(row[0])
+            stale.code_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+            connection.execute(
+                "UPDATE bank_verification_challenges SET challenge_json=? WHERE challenge_id=?",
+                (stale.model_dump_json(), challenge))
+
+        status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+        assert status["status"] == "failed"
+        assert status["error"]["code"] == "VERIFICATION_EXPIRED"
+        assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+        final_task = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+        assert final_task["status"] == "failed"
+
+
+def test_details_export_cancels_along_the_same_platform_task(tmp_path):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+        export = post(client, f"/reports/{report.report_id}/exports", kind="details").json()["data"]
+
+        cancelled = post(client, f"/tasks/{export['task_id']}/cancel")
+        assert cancelled.status_code == 200, cancelled.text
+        assert cancelled.json()["data"]["status"] == "cancelled"
+        status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+        assert status["status"] == "failed"
+        assert status["error"]["code"] == "EXPORT_CANCELLED"
+        assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
