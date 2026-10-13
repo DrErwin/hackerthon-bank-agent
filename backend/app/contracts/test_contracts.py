@@ -400,14 +400,21 @@ def test_task_updated_event_carries_the_second_module_payload():
     """§6.5/§6.6: data is the owning module's displayable result, not the transfer view (Issue #122)."""
 
     report = bill_report()
-    event = StreamEvent.model_validate({
+    payload = task() | {"module": "bills", "data": report.model_dump(mode="json")}
+    body = {
         "event_id": "E1", "thread_id": "TH1", "session_id": "S1",
         "task_id": "T1", "run_id": "R1", "module": "bills",
-        "event_type": "task_updated", "occurred_at": NOW,
-        "payload": task() | {"module": "bills", "data": report.model_dump(mode="json")},
-    })
+        "event_type": "task_updated", "occurred_at": NOW, "payload": payload,
+    }
+    event = StreamEvent.model_validate(body)
     assert event.payload.module == "bills"
-    assert event.payload.data["report_id"] == report.report_id
+    # The whole second-module payload survives parsing and a JSON round trip.
+    assert event.payload.data == report.model_dump(mode="json")
+    assert StreamEvent.model_validate_json(event.model_dump_json()).payload.data \
+        == report.model_dump(mode="json")
+    for broken in ("schedule", ""):
+        with pytest.raises(ValidationError):
+            StreamEvent.model_validate(body | {"payload": payload | {"module": broken}})
 
 
 def test_export_view_reports_one_state_with_a_controlled_download_path():
