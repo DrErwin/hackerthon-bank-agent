@@ -9,7 +9,7 @@ from pydantic import Field, SecretStr, model_validator
 from .bank import PayeeCandidate
 from .common import ContractModel, DisplayField, ID, PositiveInt, RequestId, SubmissionId, Timestamp
 from .security import ConfirmationView, VerificationView
-from .tasks import InteractionRequest, ModuleError, TaskView, TransferTaskView
+from .tasks import InteractionRequest, ModuleError, TaskView
 
 
 T = TypeVar("T")
@@ -208,7 +208,7 @@ class SessionExpired(ContractModel):
 
 
 EventPayload = (
-    MessageDelta | MessageView | TaskView[TransferTaskView] | InteractionRequired
+    MessageDelta | MessageView | TaskView | InteractionRequired
     | ReportReady | SessionExpired | ModuleError
 )
 

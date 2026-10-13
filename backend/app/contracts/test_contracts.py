@@ -8,6 +8,9 @@ from pydantic import TypeAdapter, ValidationError
 from app.contracts.audit import (
     BankObservedPayload, SecurityDecidedPayload, ToolFinishedPayload, ToolStartedPayload,
 )
+from app.contracts.bills import (
+    AccountSourceAsOf, BillReport, BillScope, SpendingSummary,
+)
 from app.contracts import (
     AccountList, AuditEvent, CapabilityDefinition, ConfirmationRecord,
     DetailsResponse, ExportView, OperationResult, PayeeList, PayeeVerification, QueryResult,
@@ -60,6 +63,26 @@ def task():
         "thread_id": "TH1", "demo_round_id": "D1", "snapshot_at": NOW,
         "task_revision": 3, "cancel_requested": False,
     }
+
+
+def bill_report():
+    """A second-module (L03) result: the platform hands it back as the task's own payload."""
+
+    as_of = "2026-09-30T08:00:00+08:00"
+    summary = SpendingSummary(
+        scope=BillScope(account_ids=["A1"], start_at="2026-09-01T00:00:00+08:00",
+                        end_at="2026-09-30T00:00:00+08:00"),
+        as_of=as_of,
+        source_as_of=[AccountSourceAsOf(account_id="A1", as_of=as_of)],
+        transaction_count=0, consumption_gross_fen=0, consumption_refund_fen=0,
+        consumption_net_fen=0, transfer_out_fen=0, transfer_in_fen=0,
+        categories=[], comparison=None,
+    )
+    return BillReport(
+        report_id="RP1", scope=summary.scope, summary=summary,
+        spoken_summary="本期没有消费。", monthly_average_fen=None, statistical_days=0,
+        average_basis="无可统计天数", generated_at=as_of,
+    )
 
 
 def test_transfer_task_and_bank_result_round_trip():
@@ -371,6 +394,20 @@ def test_task_view_names_the_business_module_and_keeps_old_producers_valid():
     for broken in ({"module": "schedule"}, {"module": ""}, {"module": "transfer-agent"}):
         with pytest.raises(ValidationError):
             TaskView[TransferTaskView].model_validate(task() | broken)
+
+
+def test_task_updated_event_carries_the_second_module_payload():
+    """§6.5/§6.6: data is the owning module's displayable result, not the transfer view (Issue #122)."""
+
+    report = bill_report()
+    event = StreamEvent.model_validate({
+        "event_id": "E1", "thread_id": "TH1", "session_id": "S1",
+        "task_id": "T1", "run_id": "R1", "module": "bills",
+        "event_type": "task_updated", "occurred_at": NOW,
+        "payload": task() | {"module": "bills", "data": report.model_dump(mode="json")},
+    })
+    assert event.payload.module == "bills"
+    assert event.payload.data["report_id"] == report.report_id
 
 
 def test_export_view_reports_one_state_with_a_controlled_download_path():
