@@ -43,7 +43,7 @@ class Planner:
         return self.proposal
 
 
-def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1"):
+def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1", prepare=None):
     application = ApplicationStore(path / "application.sqlite")
     runtime = TransferRuntime(
         application, MemoryAdapter(application, active_round=lambda: "D1"),
@@ -53,6 +53,9 @@ def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1"):
         authorize_tool=lambda *_: True, assess_risk=lambda *_: risk,
         authorize_face=lambda admin, *_: admin.authorized,
     )
+    if prepare is not None:
+        # v04-platform/05 的可用性条件发生在 ApiService 装配之前（部署工厂先注册真实模块）。
+        prepare(runtime)
     return create_app(runtime, ApiConfig(
         demo_user_id=user, demo_round_id="D1", secret=b"s" * 32,
         admin_key="test-admin-key", origins=("http://testserver",),
@@ -1813,7 +1816,7 @@ class _ReportEntry:
         return None
 
 
-def _register_report_capability(service, report):
+def _register_report_capability(registry, report):
     from app.contracts.common import OperationLevel
     from app.contracts.platform import CapabilityDefinition, ModuleManifest
 
@@ -1829,7 +1832,7 @@ def _register_report_capability(service, report):
             handler_ref="test",
         )],
     )
-    service.runtime.harness.registry.register_module(
+    registry.register_module(
         manifest, lambda _trusted, _saver, _trace: _ReportEntry(report))
 
 
@@ -1837,7 +1840,7 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
     app = make_app(tmp_path)
     service = app.state.api
     report = _bill_report()
-    _register_report_capability(service, report)
+    _register_report_capability(service.runtime.harness.registry, report)
     service.runtime.harness.planner.proposal = TransferProposal(
         capability_name="bills.test_report")
     with TestClient(app) as client:
@@ -1884,3 +1887,55 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
         _, transfer = start(client, "给妈妈转 500 元")
         assert transfer["module"] == "transfer"
         assert transfer["interaction"]["kind"] == "confirmation"
+
+
+def test_installed_bills_module_replaces_the_contract_stub(tmp_path):
+    """v04-platform/05 可用性条件：装配前已注册 bills 能力（测试替身代真实模块）时不再挂桩。"""
+
+    from app.agent_platform.bills_stub import STUB_MESSAGE
+
+    report = _bill_report()
+    app = make_app(
+        tmp_path, proposal=TransferProposal(capability_name="bills.test_report"),
+        prepare=lambda runtime: _register_report_capability(runtime.harness.registry, report),
+    )
+    service = app.state.api
+    catalog = [item["name"] for item in service.runtime.harness.registry.public_catalog()]
+    assert "bills.test_report" in catalog
+    # 桩整体让位：装配前已注册真实工厂时，桩的三条能力不会被补上。
+    assert not {"bills.summarize", "bills.detect_anomalies", "bills.generate_report"} & set(catalog)
+
+    with TestClient(app) as client:
+        enter(client)
+        thread = post(client, "/threads").json()["data"]["thread_id"]
+        accepted = post(client, f"/threads/{thread}/messages", text="给我这个月的账单报告")
+        assert accepted.status_code == 202, accepted.text
+        task = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"][0]
+        assert task["module"] == "bills"
+        assert task["status"] == "succeeded"
+        assert task["data"]["report_id"] == report.report_id
+        # 服务这条任务的是装配前注册的工厂，桩的兜底文案绝不能出现。
+        assert task["message"] != STUB_MESSAGE
+        card = client.get(f"/api/v1/reports/{report.report_id}")
+        assert card.status_code == 200, card.text
+        assert card.json()["data"]["report_id"] == report.report_id
+
+
+def test_default_assembly_installs_the_contract_stub(tmp_path):
+    """v04-platform/05 可用性条件的另一向：没有真实 bills 能力时，降级桩必须挂上并服务任务。"""
+
+    from app.agent_platform.bills_stub import BILLS_MANIFEST, STUB_MESSAGE
+
+    app = make_app(tmp_path, proposal=TransferProposal(capability_name="bills.summarize"))
+    catalog = {item["name"] for item in app.state.api.runtime.harness.registry.public_catalog()}
+    assert {definition.name for definition in BILLS_MANIFEST.capabilities} <= catalog
+
+    with TestClient(app) as client:
+        enter(client)
+        thread = post(client, "/threads").json()["data"]["thread_id"]
+        accepted = post(client, f"/threads/{thread}/messages", text="这个月钱花哪了")
+        assert accepted.status_code == 202, accepted.text
+        task = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"][0]
+        assert task["module"] == "bills"
+        assert task["message"] == STUB_MESSAGE
+        assert task["data"] is None
