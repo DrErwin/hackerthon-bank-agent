@@ -1699,3 +1699,79 @@ def test_details_export_cancels_along_the_same_platform_task(tmp_path):
         assert status["status"] == "failed"
         assert status["error"]["code"] == "EXPORT_CANCELLED"
         assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+
+
+def test_details_export_survives_code_resend(tmp_path):
+    """F18：重发换新验证码，等待中的明细导出跟走新挑战，不被旧挑战击杀。"""
+
+    app = make_app(tmp_path)
+    _seed_details_row(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+        export = post(client, f"/reports/{report.report_id}/exports", kind="details").json()["data"]
+        old_challenge = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"] \
+            ["interaction"]["record_ref"]
+
+        resent = post(client, f"/verifications/{old_challenge}/resend-code")
+        assert resent.status_code == 200, resent.text
+
+        status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+        assert status["status"] == "waiting_verification"
+        export_task = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+        new_challenge = export_task["interaction"]["record_ref"]
+        assert new_challenge != old_challenge
+
+        # 旧挑战按银行语义终止；新验证码完成导出。
+        code = client.get(f"/api/v1/verifications/{new_challenge}/demo-code").json()["data"]["code"]
+        done = post(client, f"/verifications/{new_challenge}/code",
+                    submission_id=str(uuid4()), code=code)
+        assert done.status_code == 200, done.text
+        assert done.json()["data"]["kind"] == "verified"
+        final = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+        assert final["status"] == "ready"
+        assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 200
+
+
+def test_details_export_fails_after_three_wrong_codes(tmp_path):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+        export = post(client, f"/reports/{report.report_id}/exports", kind="details").json()["data"]
+        challenge = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"] \
+            ["interaction"]["record_ref"]
+
+        for _ in range(3):
+            wrong = post(client, f"/verifications/{challenge}/code",
+                         submission_id=str(uuid4()), code="000000")
+            assert wrong.json()["data"]["kind"] == "rejected"
+
+        status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+        assert status["status"] == "failed"
+        assert status["error"]["code"] == "VERIFICATION_REJECTED"
+        final_task = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+        assert final_task["status"] == "failed"
+        assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+
+
+def test_exports_stay_invisible_to_other_users(tmp_path):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        report = service.capture_report(owner, task["task_id"], _bill_report())
+        export = post(client, f"/reports/{report.report_id}/exports", kind="card").json()["data"]
+        details = post(client, f"/reports/{report.report_id}/exports", kind="details").json()["data"]
+
+        admin = TestClient(app)
+        admin.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
+                   headers={"Origin": "http://testserver", "X-Demo-Admin-Key": "test-admin-key"})
+        assert admin.get(f"/api/v1/exports/{export['export_id']}").status_code == 404
+        assert admin.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 404
+        assert admin.get(f"/api/v1/exports/{details['export_id']}").status_code == 404

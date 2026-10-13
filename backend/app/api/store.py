@@ -177,11 +177,12 @@ class ApiStore:
             (export_id, user_id, demo_round_id))
         return rows[0] if rows else None
 
-    def pending_details_export(self, report_id, user_id, session_id):
+    def pending_details_export(self, report_id, user_id, demo_round_id, session_id):
         """F22 find-back: one waiting details export per report and session."""
         rows = self.rows("""SELECT * FROM api_exports WHERE report_id=? AND user_id=?
-            AND session_id=? AND kind='details' AND status='waiting_verification'
-            ORDER BY created_at LIMIT 1""", (report_id, user_id, session_id))
+            AND demo_round_id=? AND session_id=? AND kind='details'
+            AND status='waiting_verification'
+            ORDER BY created_at LIMIT 1""", (report_id, user_id, demo_round_id, session_id))
         return rows[0] if rows else None
 
     def message_job(self, job_id):
