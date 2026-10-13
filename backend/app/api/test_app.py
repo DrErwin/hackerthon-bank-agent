@@ -1651,6 +1651,12 @@ def test_f22_details_export_requires_fresh_verification(tmp_path):
         fresh = enter(client)
         assert fresh["session_id"] != stale
         assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+        # 导出任务跨会话也走导出路径，不进 harness 的能力解析（其 capability_name
+        # 不在注册表里）：沿导出任务视图回转（bills 域、已完成态），而不是 503。
+        session_changed = post(client, f"/tasks/{export['task_id']}/resume")
+        assert session_changed.status_code == 200, session_changed.text
+        assert session_changed.json()["data"]["module"] == "bills"
+        assert session_changed.json()["data"]["status"] == "succeeded"
 
 
 def test_details_export_expires_with_its_challenge(tmp_path):
