@@ -1628,6 +1628,9 @@ def test_f22_details_export_requires_fresh_verification(tmp_path):
         assert done.status_code == 200, done.text
         assert done.json()["data"]["kind"] == "verified"
         assert done.json()["data"]["task"]["status"] == "succeeded"
+        # 快照会在绑定挑战与更新结果时重建，完成态仍须归属账单域（Issue #122）。
+        assert done.json()["data"]["task"]["module"] == "bills"
+        assert client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]["module"] == "bills"
 
         status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
         assert status["status"] == "ready"
@@ -1860,7 +1863,9 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
         assert task_updates[-1]["module"] == "bills"
         # §6.5/§6.6（Issue #122）：第二模块事件携带自身载荷，前端按 module 解释，
         # 不再依赖「事件去载荷 + 重新 GET」的兜底。
-        assert task_updates[-1]["payload"]["data"]["report_id"] == report.report_id
+        payload = task_updates[-1]["payload"]
+        assert payload["data"] is not None, "第二模块事件必须携带模块自身载荷"
+        assert payload["data"]["report_id"] == report.report_id
 
         # 助手消息携带 report_ids，前端据此给出入口。
         messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
