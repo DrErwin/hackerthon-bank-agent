@@ -4,7 +4,7 @@ Ticket ID: v04-platform/01
 Type: 开发
 Owner: Erwin
 Directory: backend/app/api/
-Status: open
+Status: pr_open（[PR #115](https://github.com/DrErwin/hackerthon-bank-agent/pull/115) 待统一审查，2026-10-13 开出）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P03 报告读取](../spec.md)（转账链路不回退的回归断言随本票 E2E 一并覆盖）
@@ -26,3 +26,4 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 ## Comments
 
 - 2026-10-13：双轴审核通过后按 PM 指示建立（审核记录见交付包 Comments）。
+- 2026-10-13 实施（分支 `v04-platform-01-report-storage`，先红后绿）：`store.py` 新表 `api_reports` + `save_report` 幂等；`service.py` `capture_report`（`link()` 归属校验）/ `report`（本人范围，越权与不存在一致 404）；`app.py` `GET /api/v1/reports/{report_id}`（no-store）；E2E 2 项（owner 读取 / 管理员 404 / 响应无 transactions 明细行 / capture 绑定本人任务）。验证：`app/api` 65 passed、后端全量 420 passed（本机）。[PR #115](https://github.com/DrErwin/hackerthon-bank-agent/pull/115) 待后续会话统一审查，不在实施会话自审自合。
