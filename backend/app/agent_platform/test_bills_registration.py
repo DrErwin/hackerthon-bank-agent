@@ -1,4 +1,4 @@
-"""Second-module registration, routing and resume: the bills seam through one platform entry."""
+"""Second-module registration, routing and resume through one platform entry (v04-platform/03 and 08)."""
 
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -157,31 +157,67 @@ class WaitingBillsEntry:
         )
 
 
-def test_waiting_second_module_task_resumes_along_its_own_payload(tmp_path):
-    """Issue #122 第 2 项：等待类账单任务沿原任务 resume，不被转账视图定型挡住。"""
+def waiting_bills_harness(path, summary):
+    """The one platform entry with a registered second module that pauses for input."""
 
-    summary = bills_summary()
-    application = ApplicationStore(tmp_path / "app.sqlite")
+    application = ApplicationStore(path)
     memory = MemoryAdapter(application, active_round=lambda: "D1")
-    audit = AuditJournal(application.path)
     registry = CapabilityRegistry()
     registry.register_transfer(MANIFEST, lambda _trusted, _saver, _trace: None)
     registry.register_module(BILLS_MANIFEST,
                              lambda _trusted, _saver, _trace: WaitingBillsEntry(summary))
     planner = BillsPlanner(TransferProposal(capability_name="bills.summarize"))
-    harness = AgentHarness(application, memory, audit, registry, planner, lambda *_: True)
+    return AgentHarness(application, memory, AuditJournal(application.path), registry, planner,
+                        lambda *_: True)
+
+
+def open_session(application, session_id):
     at = datetime.now(timezone.utc)
-    application.create_session("S1", "U1", "D1", at.isoformat(),
+    application.create_session(session_id, "U1", "D1", at.isoformat(),
                                (at + timedelta(days=1)).isoformat())
+
+
+def test_waiting_second_module_task_resumes_along_its_own_payload(tmp_path):
+    """Issue #122 第 2 项：等待类账单任务沿原任务 resume，不被转账视图定型挡住。"""
+
+    summary = bills_summary()
+    harness = waiting_bills_harness(tmp_path / "app.sqlite", summary)
+    open_session(harness.application, "S1")
 
     started = harness.start(trusted(), uuid4(), "帮我看这个月的账单")
     assert started.status == TaskStatus.WAITING_INPUT
     assert started.data == summary
-    # 平台按快照回放第二模块载荷原样（不再定型为转账视图），按模块自己的契约模型可解析。
-    assert SpendingSummary.model_validate(harness.get(trusted()).data) == summary
+    # 平台按快照原样交回第二模块载荷（不再定型为转账视图），按模块自己的契约模型可解析。
+    fetched = harness.get(trusted())
+    assert fetched.data == summary.model_dump(mode="json")
+    assert SpendingSummary.model_validate(fetched.data) == summary
 
     resumed = harness.resume(TrustedContext(user_id="U1", session_id="S1", task_id="T1",
                                             run_id="R2", parent_task_id=None,
                                             demo_round_id="D1"), {})
     assert resumed.status == TaskStatus.SUCCEEDED
     assert resumed.data == summary
+
+
+def test_waiting_second_module_task_recovers_into_a_new_session(tmp_path):
+    """同一接缝的跨会话恢复：审计取值不得按转账字段硬取（Issue #122 第 2 项）。"""
+
+    summary = bills_summary()
+    harness = waiting_bills_harness(tmp_path / "app.sqlite", summary)
+    open_session(harness.application, "S1")
+    open_session(harness.application, "S2")
+    started = harness.start(trusted(), uuid4(), "帮我看这个月的账单")
+    assert started.status == TaskStatus.WAITING_INPUT
+
+    recovered = harness.recover_session(TrustedContext(
+        user_id="U1", session_id="S2", task_id="T1", run_id="R2",
+        parent_task_id=None, demo_round_id="D1"))
+
+    assert recovered.status == TaskStatus.WAITING_INPUT
+    assert SpendingSummary.model_validate(recovered.data) == summary
+    assert harness.application.get_task("U1", "D1", "T1").session_id == "S2"
+    events = [event for event in harness.audit._events("D1", "T1")
+              if event.event_type == "recovery.checked"]
+    assert [event.outcome for event in events] == ["started", "succeeded"]
+    # 第二模块结果没有 operation 引用；不得从转账字段硬取（否则恢复在落库前中断）。
+    assert all(event.payload.operation_ids == [] for event in events)

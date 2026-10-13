@@ -195,6 +195,8 @@ class AgentHarness:
         # The transfer path keeps its typed payload — its consumers read the fields.
         # A second module's `data` is its own displayable result (§6.5), which the
         # platform hands back as-is instead of forcing the transfer view (Issue #122).
+        # The prefix names the module, not the payload type: a later transfer.*
+        # capability returning another view (§5.2 T03/T04) must revisit this dispatch.
         if task.snapshot.get("capability_name", "transfer.start_transfer").startswith("transfer."):
             return ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
         return ModuleResult.model_validate(task.snapshot["result"])
@@ -216,8 +218,9 @@ class AgentHarness:
 
     @staticmethod
     def _operation_ids_from(result: ModuleResult) -> list[UUID]:
-        # Only the transfer payload carries an operation reference; a second module's
-        # result has none to claim in the platform's audit evidence (Issue #122).
+        # Today only the transfer payload exposes an operation reference in this
+        # envelope; a module whose payload carries one extends this instead of the
+        # platform guessing transfer fields on it (Issue #122).
         data = result.data
         if isinstance(data, TransferTaskView) and data.operation_id:
             return [data.operation_id]
@@ -636,7 +639,7 @@ class AgentHarness:
                 )
                 raise
 
-            operation_ids = [result.data.operation_id] if result.data and result.data.operation_id else []
+            operation_ids = self._operation_ids_from(result)
             trace.record(
                 "recovery.checked",
                 RecoveryCheckedPayload(
