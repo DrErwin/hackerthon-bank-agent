@@ -28,3 +28,6 @@ Source issue: [Issue #122](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## Comments
 
 - 2026-10-14 Erwin（AI 代填）：按 Issue #122 第 3 项与第 1 项 API 侧建立本票。Issue 原文建议第 3 项并入票 05，PM 2026-10-13 决定提前单独收口（票 05 仍 `blocked`）。第 3 项在真实数据链路打通前无对外触发场景（无报告则无导出任务），本票证据为平台链路级。
+- 2026-10-14 实现与验证：交付 1—4 全部落地（`service.py` 导出任务快照补 `capability_name`、`stream_event()` 去掉去载荷兜底、两条断言、README 口径改写）。**先红后绿**（PR #128 正文与评论有命令与输出）：PR 测试 + 旧 `service.py` 时两条断言分别红在 `assert 'transfer' == 'bills'` 与 `data` 为 `None`；改动后 API 用例全绿。后端全量 530 passed、模拟银行 14 passed，CI 绿。
+- 2026-10-14 双轴 AI 审查（非真人）结论：**Spec 轴无 P0/P1、可合入**；Standards 轴结论见 PR 评论。采纳的加固：①事件载荷断言先断 `data is not None`（旧实现下红为 `AssertionError` 而非 `TypeError`）；②导出任务 `module=bills` 补完成态断言（快照在绑定挑战与更新结果时会 `{**task.snapshot}` 重建）；③README 写明导出任务对外为 `bills` 域、结果信封仍按 `ModuleResult[TransferTaskView]` 构造（`data` 恒空，承接契约 06 的接受项），并写明「将来导出任务携带自身 `data` 或进入 harness 恢复入口时必须同步放宽校验」的触发条件。
+- 2026-10-14 审查提出的对账责任（转 [票 05](05-real-bills-integration.md)）：`bills.export_details` 是硬编码的能力名，契约与任何 manifest 都没有它，注册表里查不到；本票只在任务视图取模块名前缀时使用它，导出任务在 `continue_task()` 处被 `export_for_task()` 短路、不进 harness 的能力解析，因此今天无需注册。真实账单模块接入时须在票 05 明确：真实模块登记同名能力，或与 API 侧对账改名——任何把导出任务引入 harness 恢复路径的改动都必须先解决这一条。
