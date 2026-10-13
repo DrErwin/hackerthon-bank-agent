@@ -6,7 +6,7 @@
 
 `CapabilityRegistry` 登记清单中的公开能力：`register_transfer` 仍专用于转账（单一 `transfer.start_transfer`），`register_module` 面向第二个业务模块——能力名必须以 `模块名.` 为前缀、不可重复、清单非空（v04-platform/03）。`public_catalog()` 按各能力声明的 `input_schema_ref` 提供给规划入口。`AgentHarness` 需要已建立的用户会话、`ApplicationStore`、`MemoryAdapter`、`AuditJournal`、公开能力工厂和权限判定回调。工厂收到当前可信上下文、任务专属的持久检查点及同一 `RunTrace`，返回实现 `start` / `resume` 的公开入口。
 
-第二模块接入（v04-platform/03）：`TransferProposal.capability_name` 从单一 Literal 放开为任意已注册能力名（注册表查询与授权回调仍是闸门），harness 三处恢复/续跑授权改按任务快照的 `capability_name` 取；`bills_stub.py` 按契约 §5.3 形状登记 `bills.summarize` / `bills.detect_anomalies` / `bills.generate_report`（只读、read_only 重试、无副作用、无确认），桩入口不读银行数据、返回明确的桩响应，真实业务由账单模块（`modules/bills/`）替换工厂实现。L02 / L03 的输入 schema ref 随账单线契约模型落地后解析。
+第二模块接入（v04-platform/03）：`TransferProposal.capability_name` 从单一 Literal 放开为任意已注册能力名（注册表查询与授权回调仍是闸门），harness 三处恢复/续跑授权改按任务快照的 `capability_name` 取；`bills_stub.py` 按契约 §5.3 形状登记 `bills.summarize` / `bills.detect_anomalies` / `bills.generate_report`（只读、read_only 重试、无副作用、无确认），桩入口不读银行数据、返回明确的桩响应，真实业务由账单模块（`modules/bills/`）替换工厂实现。L02 的输入/输出与 L03 的输入 schema ref 随账单线契约模型落地后解析；同一清单内重名能力按契约 §6.9「名称唯一」拒绝注册。
 
 `TransferRuntime` 是普通转账的实际组合入口：它把 `BankGateway`、`SecurityGate`、`GatewayTransferTools`、`TransferWorkflow`、持久确认与银行验证记录接到同一任务。创建时必须由可信后端传入公开能力权限、私有工具权限及风险判断回调；本目录不自行决定这些安全规则。中风险的模拟人脸需要额外传入管理员授权回调。聊天文字与 `resume` 指令不能批准资金操作；调用方须通过 `answer_confirmation()` 提交绑定当前动作的结构化确认，通过银行验证接口取得已通过的记录后调用 `bind_verification()`。这两个方法都会检查任务归属，平台恢复时只装入当前操作的记录。
 

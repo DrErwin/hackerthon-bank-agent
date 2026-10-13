@@ -56,6 +56,10 @@ class CapabilityRegistry:
         """Register any second business module; names stay module-prefixed and unique."""
         if not manifest.capabilities:
             raise ValueError("NO_PUBLIC_CAPABILITY")
+        declared = [definition.name for definition in manifest.capabilities]
+        if len(set(declared)) != len(declared):
+            # §6.9: capability names are unique — also inside one manifest.
+            raise ValueError("DUPLICATE_CAPABILITY")
         for definition in manifest.capabilities:
             if not definition.name.startswith(f"{manifest.module_name}."):
                 raise ValueError("CAPABILITY_NOT_IN_MODULE")

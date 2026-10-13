@@ -98,3 +98,11 @@ def test_register_module_rejects_foreign_and_duplicate_capabilities(tmp_path):
                            dependencies=[], capabilities=[])
     with pytest.raises(ValueError, match="NO_PUBLIC_CAPABILITY"):
         registry.register_module(empty, lambda *_: None)
+
+    duplicated = ModuleManifest(
+        module_name="bills", version="test", owner="test", description="",
+        implementation_kind="workflow", dependencies=[],
+        capabilities=[BILLS_MANIFEST.capabilities[0], BILLS_MANIFEST.capabilities[0]],
+    )
+    with pytest.raises(ValueError, match="DUPLICATE_CAPABILITY"):
+        registry.register_module(duplicated, lambda *_: None)

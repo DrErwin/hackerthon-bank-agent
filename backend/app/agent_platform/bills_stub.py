@@ -3,8 +3,9 @@
 The stub proves the platform seam — registration, catalog, intent routing and the
 task lifecycle — without copying the transfer runtime or reading bank data. The
 real bills module (backend/app/modules/bills/, 周恩宇) replaces this factory by
-registering the same capability names with real handlers; L02 / L03 input schema
-refs follow contract §5.3 and resolve when the bills contract models land.
+registering the same capability names with real handlers; the L02 input/output
+and L03 input schema refs follow contract §5.3 and resolve when the bills
+contract models land.
 """
 
 from __future__ import annotations
