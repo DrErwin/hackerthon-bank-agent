@@ -1,6 +1,6 @@
 # 交付包 01：v0.4 底座、Agent 与模拟银行（API / Harness / 银行接缝）
 
-Status: in_progress（2026-10-13 Erwin 本人接受；同日双轴审核通过并完成拆票，实施票见 [issues/01—08](../issues/)。第一块为账单线票 05 的前置，建议先做；06—08 为 Issue #122 三处接缝，2026-10-13 PM 决定提前单独收口）
+Status: in_progress（2026-10-13 Erwin 本人接受；同日双轴审核通过并完成拆票，实施票见 [issues/01—08](../issues/)。第一块为账单线票 05 的前置，建议先做；06—08 为 Issue #122 三处接缝，已提前单独收口并全部置 resolved，**平台侧当前只剩票 05**，见下「验收证据索引」）
 Owner: **Erwin** —— 模拟银行 + API 底座 + Agent/Harness 全部归 Erwin（2026-10-13 PM 明确）
 Activation: 2026-10-13 Erwin 建立，补 v0.4 缺失的底座交付包
 Start when: 立即，本包不等其它线；第三块（账单模块接入平台）在账单公开能力形态未定时先用契约形状 stub
@@ -42,6 +42,21 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 4. 契约变更按第 8 章登记（轻量 / 协同），旧调用不被破坏或有明确切换窗口。
 5. 账单线票 05 与前端账单插槽能用本包接口真实联调，联调证据进联合验收。
 
+## 验收证据索引（滚动，2026-10-14 建档）
+
+> 用途：10-20 收口时逐条复核，也供 10-16 checkpoint 判断"平台侧还剩什么"。命令统一在 `backend/` 下用仓库 `backend/.venv`（含全部依赖）执行；主线基线 `83de47f`：后端全量 **535 passed**、模拟银行评测 **14 passed**，各 PR 的 CI（Repository checks，含后端全量与模拟银行）绿。
+
+| 场景 | 票 | 可复核证据（用例 / PR） | 状态 |
+|---|---|---|---|
+| P01 账单任务创建、等待、恢复 | 04 / 05 / 08 | `test_bills_task_wires_module_payload_and_report_ready`、`test_installed_bills_module_replaces_the_contract_stub`、`test_default_assembly_installs_the_contract_stub`（api）；`test_waiting_second_module_task_resumes_along_its_own_payload`、`test_waiting_second_module_task_recovers_into_a_new_session`（agent_platform） | **已验（测试替身级）**；真实账单任务待票 05 |
+| P02 前端按 `module` 选插槽、双场景互不串台 | 04 / 06 / 07 | 契约侧 `test_task_updated_event_carries_the_second_module_payload`（整份账单载荷 + JSON 往返 + 事件层非法 module 拒绝，PR #126）；api 侧事件带载荷与 `module=bills` 断言（PR #128）；转账 `module=transfer` 回归用例 | **平台侧已验**；前端插槽实现归 frontend-complete/01（其 `slots.resolve` 用例见前端目录） |
+| P03 报告读取 F21 | 01 | `test_f21_returns_the_report_card_to_its_owner_only`（本人可读、管理员 404、响应无明细行，PR #115） | **已验（受控报告）**；真实账单报告待票 05 |
+| P04 卡片 / 明细导出 F22—F24 | 02 / 07 | 导出链路用例组（明细再验证、取消、重发、会话变化、越权 404、未就绪 409，PR #119）；`test_f22_details_export_requires_fresh_verification` 现含完成态 `module=bills` 与跨会话必经导出路径断言（PR #128） | **已验（平台链路级）**；验证口径由 PM 2026-10-13 代行豁免 Ringo 审批（非本人审查，已记录） |
+| P05 账单取数与失败三态 | #91 / 05 | #91 四票（PR #97/#98/#100/#102）B08 取数 + 三态语义；`evals/mockbank` 14 passed；底座只验管道与三态透传 | **银行接缝已验**；账单任务在真数据下的三态透传待票 05（结论口径归账单线 BF03/BF06） |
+| P06 契约受理与联调 | 全组 | 受理留痕：#113/#114（`TaskView.module` + 报告/导出模型）、#122 三处接缝（PR #126/#127/#128，§8 轻量确认档登记）、#121（F35 挂 v0.5）、#123 + 票 05；跨线通知留痕：[Issue #123 回帖](https://github.com/DrErwin/hackerthon-bank-agent/issues/123#issuecomment-6150429852)、[Issue #89 评论](https://github.com/DrErwin/hackerthon-bank-agent/issues/89#issuecomment-6150599086) | **受理流程持续有效**；跨线联调证据待票 05 解封后进 [v04-bills/02](../../v04-bills/packages/02-v04-acceptance.md) |
+
+**当前缺口（一句话）**：平台侧只剩票 05（真实账单接入 + 联调）——它 `blocked` 于账单线公开能力 L01—L03，票面前置准备已完成（PR #129）；解封第一步与 checkpoint 口径见票 05 Comments。
+
 ## 实施票（2026-10-13 双轴审核通过后建立，一票一目录一分支一 PR）
 
 | 票 | 目录 | 交付 | 前置 |
@@ -75,3 +90,5 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 - 2026-10-13 四票经独立子代理审查后全部合入 main（01 `b8aa930` / 02 `3955abb` / 03 `f40959e` / 04 `c270abb`，审查处置见各 PR；合并后主线后端全量 431 passed）。
 - 2026-10-13 PM 盘点补齐归属：[票 05 真实账单模块接入与纵向联调](../issues/05-real-bills-integration.md) 建立（`blocked`，前置=账单公开能力可运行）；F35 归属开 [Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)、接缝留档开 [Issue #122](https://github.com/DrErwin/hackerthon-bank-agent/issues/122)、接入缺口开 [Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123)。
 - 2026-10-14 Erwin（AI 代填，PM 决定）：Issue #122 三处接缝提前单独收口，按一票一目录补拆 [06](../issues/06-sse-event-payload-union.md)（contracts）/ [07](../issues/07-export-task-module-and-event-payload.md)（api，`blocked` 于 06）/ [08](../issues/08-harness-resume-parsing.md)（agent_platform）；票 05 的主体仍 `blocked` 于账单公开能力，保留真数据下的复验。
+- 2026-10-14 三票当日合入并置 resolved（06 [PR #126](https://github.com/DrErwin/hackerthon-bank-agent/pull/126) `91ddc4a` / 08 [PR #127](https://github.com/DrErwin/hackerthon-bank-agent/pull/127) `3613ce0` / 07 [PR #128](https://github.com/DrErwin/hackerthon-bank-agent/pull/128) `77726a9`；各自双轴独立子代理审查〔AI 审查、非真人〕，08 的 P1 与全部 P2/P3 当日处置），[Issue #122](https://github.com/DrErwin/hackerthon-bank-agent/issues/122) 关闭；同轮完成票 05 前置准备（[PR #129](https://github.com/DrErwin/hackerthon-bank-agent/pull/129) `2f8c0a0`：双向守住「真实模块替换桩」的可用性条件，三种变异被杀）。主线基线 535 passed + 模拟银行 14 passed。
+- 2026-10-14 建档「验收证据索引（滚动）」：P01—P06 逐条对应票、可复核用例与状态，供 10-16 checkpoint 与 10-20 收口复核；当前缺口只有票 05（`blocked` 于账单线）。
