@@ -12,9 +12,12 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from app.audit.journal import AuditReader, AuditViewer, redact
+from app.agent_platform.bills_stub import register_bills_stub
 from app.agent_platform.model import ReplyOnly
 from app.contracts.audit import AuditEvent, TaskTransitionPayload, VerificationChangedPayload
-from app.contracts.api import ExportView, MessageView, StreamEvent, TaskRecordsView, VerificationResponse
+from app.contracts.api import (
+    ExportView, MessageView, ReportReady, StreamEvent, TaskRecordsView, VerificationResponse,
+)
 from app.contracts.bills import BillReport
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
@@ -54,6 +57,14 @@ class ApiService:
     def __init__(self, runtime, config):
         self.runtime, self.config = runtime, config
         self.store = ApiStore(runtime.application.path, config.secret)
+        # The platform serves every registered business module; the bills stub
+        # keeps the second slot contract-shaped until the real module lands
+        # (v04-platform/03). A runtime can back more than one ApiService, and a
+        # real bills module replaces the stub — only fill an empty slot.
+        if not any(name.startswith("bills.")
+                   for name in (entry["name"]
+                                for entry in self.runtime.harness.registry.public_catalog())):
+            register_bills_stub(self.runtime.harness.registry)
         self.active_tasks: set[str] = set()
         self.active_message_jobs: set[str] = set()
         # The supported demo deployment uses one ASGI worker. Harness also locks
@@ -143,11 +154,24 @@ class ApiService:
             demo_round_id=identity.demo_round_id, task_id=task_id,
             run_id=str(uuid4()) if new_run else task.run_id if task else link["run_id"], parent_task_id=None)
 
+    @staticmethod
+    def _task_module(task):
+        """Contract §6.5: the platform names each task's business module."""
+        if task is None:
+            return SERVED_MODULE
+        capability = task.snapshot.get("capability_name")
+        return capability.split(".", 1)[0] if capability else SERVED_MODULE
+
     def task_view(self, identity, task_id):
         link = self.link(identity, task_id)
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+        module = self._task_module(task)
+        # A second module's payload is its own displayable result (§6.5);
+        # transfer keeps its typed view so existing consumers stay typed.
+        typed = module == SERVED_MODULE
         if task and "result" in task.snapshot:
-            result = ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
+            result = (ModuleResult[TransferTaskView] if typed else ModuleResult) \
+                .model_validate(task.snapshot["result"])
         else:
             interrupted = task_id not in self.active_tasks
             cancelled = task is None and bool(link["cancel_requested"])
@@ -159,7 +183,8 @@ class ApiService:
                 ["resume"] if interrupted else ["cancel"] if task is None else [],
                 recovery_required=interrupted and not cancelled,
                 recovery_reason="INTERRUPTED_REQUEST" if interrupted and not cancelled else None)
-        view = TaskView[TransferTaskView](**result.model_dump(), module=SERVED_MODULE, thread_id=link["thread_id"],
+        view = (TaskView[TransferTaskView] if typed else TaskView)(**result.model_dump(),
+            module=module, thread_id=link["thread_id"],
             demo_round_id=identity.demo_round_id, snapshot_at=now(), task_revision=task.revision if task else int(link["cancel_requested"]),
             cancel_requested=bool(link["cancel_requested"]))
         if "query" in view.allowed_actions and "cancel" not in view.allowed_actions:
@@ -175,9 +200,14 @@ class ApiService:
         return view
 
     def stream_event(self, identity, thread_id, event_type, payload, task=None, event_id=None):
+        if event_type == "task_updated" and isinstance(payload, TaskView) and payload.module != SERVED_MODULE:
+            # The frozen SSE payload union still types data as the transfer view
+            # (contracts/api.py). Until that union widens, second-module events
+            # carry the card-less snapshot; the frontend re-GETs the task (§6.6).
+            payload = payload.model_copy(update={"data": None})
         return StreamEvent(event_id=event_id or str(uuid4()), thread_id=thread_id,
             session_id=identity.session_id, task_id=task.task_id if task else None,
-            run_id=task.run_id if task else None, module=SERVED_MODULE if task else "platform",
+            run_id=task.run_id if task else None, module=task.module if task else "platform",
             event_type=event_type, occurred_at=now(), payload=payload)
 
     def emit(self, identity, thread_id, event_type, payload, task=None, event_id=None):
@@ -190,12 +220,28 @@ class ApiService:
             text=cast(str, redact(text, free_text=True)), created_at=now(),
             task_ids=[task_id] if task_id else [], report_ids=[])
 
-    def message(self, identity, thread_id, text, role, task_id=None, message_id=None):
+    def message(self, identity, thread_id, text, role, task_id=None, message_id=None,
+                report_ids=None):
         message = self.message_view(thread_id, text, role, task_id, message_id)
+        if report_ids:
+            message = message.model_copy(update={"report_ids": list(report_ids)})
         self.store.write("INSERT INTO api_messages VALUES (?, ?, ?, ?)",
                          (message.message_id, thread_id, message.created_at.isoformat(), dump(message)))
         self.emit(identity, thread_id, "message_completed", message)
         return message
+
+    def _capture_task_reports(self, identity, task):
+        """Store report cards carried by a module result; each report fires once."""
+        data = task.data if isinstance(task.data, dict) else None
+        if not data or "report_id" not in data:
+            return []
+        try:
+            report = BillReport.model_validate(data)
+        except Exception:
+            return []
+        inserted = self.store.save_report(report, identity, task.task_id,
+                                          task.thread_id, now().isoformat())
+        return [report.report_id] if inserted else []
 
     def accept_message_job(self, identity, thread_id, request_id, text):
         message = self.message_view(thread_id, text, "user")
@@ -274,10 +320,19 @@ class ApiService:
             ))
         assistant = self.message_view(task.thread_id, task.message, "assistant",
                                       task.task_id, job["assistant_message_id"])
+        reports = self._capture_task_reports(identity, task)
+        if reports:
+            assistant = assistant.model_copy(update={"report_ids": reports})
         events.append(self.stream_event(
             identity, task.thread_id, "message_completed", assistant,
             event_id=job["assistant_event_id"],
         ))
+        for report_id in reports:
+            # §6.6: the card is named by reference; raw details are never broadcast.
+            events.append(self.stream_event(
+                identity, task.thread_id, "report_ready",
+                ReportReady(task_id=task.task_id, report_id=report_id), task,
+            ))
         self.store.complete_task_job(
             job_id, assistant.created_at.isoformat(), dump(assistant),
             [(event.event_id, dump(event)) for event in events],
@@ -380,7 +435,12 @@ class ApiService:
             from app.contracts.api import InteractionRequired
             self.emit(identity, task.thread_id, "interaction_required",
                       InteractionRequired(task_id=task_id, interaction=task.interaction), task)
-        self.message(identity, task.thread_id, task.message, "assistant", task_id)
+        reports = self._capture_task_reports(identity, task)
+        self.message(identity, task.thread_id, task.message, "assistant", task_id,
+                     report_ids=reports or None)
+        for report_id in reports:
+            self.emit(identity, task.thread_id, "report_ready",
+                      ReportReady(task_id=task_id, report_id=report_id), task)
         return task
 
     def events_for_session(self, identity, thread_id, cursor):

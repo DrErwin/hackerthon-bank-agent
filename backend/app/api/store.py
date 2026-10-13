@@ -150,10 +150,12 @@ class ApiStore:
                    (event.event_id, event.thread_id, dump(event)))
 
     def save_report(self, report, identity, task_id, thread_id, created_at):
-        """The platform owns report cards; re-capturing the same report is a no-op."""
-        self.write("""INSERT OR IGNORE INTO api_reports VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                   (report.report_id, identity.user_id, identity.demo_round_id, task_id,
-                    thread_id, created_at, dump(report)))
+        """The platform owns report cards; re-capturing the same report is a no-op.
+
+        Returns the insert rowcount so callers can fire report_ready exactly once."""
+        return self.write("""INSERT OR IGNORE INTO api_reports VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                          (report.report_id, identity.user_id, identity.demo_round_id, task_id,
+                           thread_id, created_at, dump(report)))
 
     def save_export(self, row):
         """One export resource per row; files stay in the store, not on the file system."""
