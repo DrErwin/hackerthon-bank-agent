@@ -15,6 +15,7 @@ from app.audit.journal import AuditReader, AuditViewer, redact
 from app.agent_platform.model import ReplyOnly
 from app.contracts.audit import AuditEvent, TaskTransitionPayload, VerificationChangedPayload
 from app.contracts.api import MessageView, StreamEvent, TaskRecordsView
+from app.contracts.bills import BillReport
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
@@ -404,6 +405,21 @@ class ApiService:
         if not rows:
             raise ApiProblem(404, "NOT_FOUND")
         return self.trusted(identity, rows[0]["task_id"])
+
+    def capture_report(self, identity, task_id, report):
+        """Persist a module-produced report card for its task owner (F21 source of truth)."""
+        link = self.link(identity, task_id)
+        self.store.save_report(report, identity, task_id, link["thread_id"], now().isoformat())
+        return report
+
+    def report(self, identity, report_id):
+        """F21: the controlled report card, only inside the caller's own scope."""
+        rows = self.store.rows("""SELECT report_json FROM api_reports
+            WHERE report_id=? AND user_id=? AND demo_round_id=?""",
+            (report_id, identity.user_id, identity.demo_round_id))
+        if not rows:
+            raise ApiProblem(404, "NOT_FOUND")
+        return BillReport.model_validate(json.loads(rows[0]["report_json"]))
 
     @staticmethod
     def _owner_security_context(trusted):

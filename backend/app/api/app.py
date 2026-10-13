@@ -233,6 +233,10 @@ def create_app(runtime=None, config=None):
     def records(task_id: str, who=Depends(identity), service=Depends(api)):
         return success(service.task_records(who, task_id))
 
+    @application.get("/api/v1/reports/{report_id}")
+    def report(report_id: str, who=Depends(identity), service=Depends(api)):
+        return success(service.report(who, report_id))
+
     @application.post("/api/v1/tasks/{task_id}/inputs")
     def inputs(request: Request, task_id: str, body: ProvideInputRequest, who=Depends(identity), service=Depends(api)):
         service.link(who, task_id, mutate=True)
