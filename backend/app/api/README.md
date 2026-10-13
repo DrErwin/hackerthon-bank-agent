@@ -76,7 +76,7 @@ PR #25 合入时的基线回归为后端 **178 项**（API 29 项）、模拟银
 
 导出链路口径（v04-platform/02）：明细导出是平台任务（`api_exports` 行 + `api_tasks`/application 任务 + 银行 basic_identity 挑战），暂停 / 恢复 / 取消沿同一平台任务；验证经既有 F16—F20 端点完成，文件生成在验证通过后惰性触发；明细 CSV 直接取自银行 B08 流水（报告 scope 找回，商户名不打码、账号沿用银行打码），HTML 卡片由导出器转义；会话变化后旧导出授权失效，重新发起须重走验证。验证口径选择（basic_identity 仅验证码、无 operation 绑定、绑定走导出任务）由 PM 于 2026-10-13 代行豁免 Ringo 审批（非本人审查，如实记录）。
 
-第二模块接线（v04-platform/04）：`ApiService` 装配时把账单桩注册进运行时注册表（槽位已占则跳过，真实账单模块可整体替换）；任务视图与 `task_updated` 事件的 `module` 按任务快照 `capability_name` 前缀取，转账任务保持定型视图与既有行为；账单任务结果 `data` 为 `BillReport` 时平台自动落库（F21 即可读取）、助手消息携带 `report_ids` 并发射 `report_ready` 事件（§6.6）。已知接缝：SSE 载荷联合类型仍按转账视图定型（`contracts/api.py`），第二模块的 `task_updated` 事件暂去 `data` 载荷、前端按契约指引重新 GET 任务；harness 内部恢复解析对非转账 `data` 仍按转账视图定型——待账单模块接入时随契约票一并放宽。
+第二模块接线（v04-platform/04、06、07）：`ApiService` 装配时把账单桩注册进运行时注册表（只有注册表内没有任何 `bills.*` 能力时才注册，真实账单模块整体替换）；任务视图与 `task_updated` 事件的 `module` 按任务快照 `capability_name` 前缀取，转账任务保持定型视图与既有行为；敏感明细导出任务按 `bills.export_details` 记为账单域（Issue #122 第 3 项）；账单任务结果 `data` 为 `BillReport` 时平台自动落库（F21 即可读取）、助手消息携带 `report_ids` 并发射 `report_ready` 事件（§6.6）。第二模块的 `task_updated` 事件按 §6.5/§6.6 携带模块自身载荷（载荷联合类型由 v04-platform/06 收敛为通用 `TaskView`，**事件载荷不做强制校验**，前端按 `module` 解释）；harness 恢复解析的分模块口径归 `agent_platform/` 的 v04-platform/08，不在本目录。原登记的三处接缝中，SSE 载荷定型与导出任务 `module` 回退已由本目录与契约票修复。
 
 重新登录读取旧任务时，当前快照清空不可用的 allowed_actions；非终态任务标记 SESSION_RECONFIRMATION_REQUIRED。保留的 interaction 仅用于历史显示，专用确认 / 验证视图仍拒绝旧会话操作。切换会话后先重新 GET 任务，以当前快照权限为准；SSE 回放中的旧快照不能恢复旧按钮。
 

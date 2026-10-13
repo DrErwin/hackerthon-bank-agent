@@ -200,11 +200,8 @@ class ApiService:
         return view
 
     def stream_event(self, identity, thread_id, event_type, payload, task=None, event_id=None):
-        if event_type == "task_updated" and isinstance(payload, TaskView) and payload.module != SERVED_MODULE:
-            # The frozen SSE payload union still types data as the transfer view
-            # (contracts/api.py). Until that union widens, second-module events
-            # carry the card-less snapshot; the frontend re-GETs the task (§6.6).
-            payload = payload.model_copy(update={"data": None})
+        # §6.5/§6.6: a second module's `data` travels in its own `task_updated` event
+        # and is interpreted by `module`; the payload union is generic (v04-platform/06).
         return StreamEvent(event_id=event_id or str(uuid4()), thread_id=thread_id,
             session_id=identity.session_id, task_id=task.task_id if task else None,
             run_id=task.run_id if task else None, module=task.module if task else "platform",
@@ -518,9 +515,12 @@ class ApiService:
                 prompt="请输入验证码完成身份验证，再导出账单明细。",
                 required_fields=["code"], options=[], record_ref=challenge.challenge_id),
             error=None, allowed_actions=["cancel"], recovery_required=False, recovery_reason=None)
+        # §6.5: the platform names a task's module from the capability prefix, so a
+        # sensitive details export is a bills-domain task, not a transfer fallback.
         self.runtime.application.create_task(task_id, identity.user_id, identity.session_id,
             identity.demo_round_id, run_id, TaskStatus.WAITING_APPROVAL,
-            {"trace_id": str(uuid4()), "result": result.model_dump(mode="json")})
+            {"trace_id": str(uuid4()), "capability_name": "bills.export_details",
+             "result": result.model_dump(mode="json")})
         self.store.write("""INSERT INTO api_tasks (
             task_id,thread_id,user_id,session_id,demo_round_id,run_id,created_at,request_id,intent_text)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",

@@ -1609,8 +1609,9 @@ def test_f22_details_export_requires_fresh_verification(tmp_path):
         # 未过验证不给内容。
         assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
 
-        # 敏感导出沿同一平台任务：任务视图带验证交互。
+        # 敏感导出沿同一平台任务：任务视图带验证交互，并按账单域归属（Issue #122）。
         export_task = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+        assert export_task["module"] == "bills"
         assert export_task["interaction"]["kind"] == "verification"
         challenge = export_task["interaction"]["record_ref"]
 
@@ -1857,8 +1858,9 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
         assert ready[0]["module"] == "bills"
         task_updates = [event for event in events if event["event_type"] == "task_updated"]
         assert task_updates[-1]["module"] == "bills"
-        # SSE 载荷联合类型仍按转账视图定型：第二模块事件去载荷，前端按 §6.6 重新 GET。
-        assert task_updates[-1]["payload"]["data"] is None
+        # §6.5/§6.6（Issue #122）：第二模块事件携带自身载荷，前端按 module 解释，
+        # 不再依赖「事件去载荷 + 重新 GET」的兜底。
+        assert task_updates[-1]["payload"]["data"]["report_id"] == report.report_id
 
         # 助手消息携带 report_ids，前端据此给出入口。
         messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
