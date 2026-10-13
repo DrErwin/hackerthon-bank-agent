@@ -4,6 +4,7 @@ import { getPageItems } from "./pagination";
 import type { MessageAccepted, MessageView, SessionView, StreamEvent, TaskView, ThreadView } from "./contracts";
 import AdminPage from "./AdminPage";
 import TaskCard from "./TaskCard";
+import ShellApp from "./shell/ShellApp";
 
 function makeRequestId(): string {
   return crypto.randomUUID();
@@ -80,6 +81,7 @@ function UserGate(props: {
 }
 
 export default function App() {
+  if (window.location.pathname === "/v04" || window.location.pathname.startsWith("/v04/")) return <ShellApp />;
   if (window.location.pathname === "/admin") return <AdminPage />;
   return <UserPage />;
 }
