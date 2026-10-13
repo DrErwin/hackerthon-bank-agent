@@ -72,6 +72,13 @@ class ApiStore:
                     demo_round_id TEXT NOT NULL, task_id TEXT NOT NULL,
                     thread_id TEXT NOT NULL, created_at TEXT NOT NULL,
                     report_json TEXT NOT NULL)""",
+                """CREATE TABLE IF NOT EXISTS api_exports (
+                    export_id TEXT PRIMARY KEY, report_id TEXT NOT NULL, kind TEXT NOT NULL,
+                    user_id TEXT NOT NULL, demo_round_id TEXT NOT NULL,
+                    session_id TEXT NOT NULL, task_id TEXT, challenge_id TEXT,
+                    thread_id TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL,
+                    file_name TEXT, media_type TEXT, content TEXT,
+                    error_code TEXT, error_reason TEXT)""",
             ):
                 c.execute(sql)
 
@@ -147,6 +154,35 @@ class ApiStore:
         self.write("""INSERT OR IGNORE INTO api_reports VALUES (?, ?, ?, ?, ?, ?, ?)""",
                    (report.report_id, identity.user_id, identity.demo_round_id, task_id,
                     thread_id, created_at, dump(report)))
+
+    def save_export(self, row):
+        """One export resource per row; files stay in the store, not on the file system."""
+        self.write("""INSERT INTO api_exports (
+            export_id, report_id, kind, user_id, demo_round_id, session_id,
+            task_id, challenge_id, thread_id, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (row["export_id"], row["report_id"], row["kind"], row["user_id"],
+                    row["demo_round_id"], row["session_id"], row["task_id"],
+                    row["challenge_id"], row["thread_id"], row["status"], row["created_at"]))
+
+    def finish_export(self, export_id, status, *, file_name=None, media_type=None,
+                      content=None, error_code=None, error_reason=None):
+        self.write("""UPDATE api_exports SET status=?, file_name=?, media_type=?, content=?,
+            error_code=?, error_reason=? WHERE export_id=?""",
+                   (status, file_name, media_type, content, error_code, error_reason, export_id))
+
+    def export_row(self, export_id, user_id, demo_round_id):
+        rows = self.rows("""SELECT * FROM api_exports
+            WHERE export_id=? AND user_id=? AND demo_round_id=?""",
+            (export_id, user_id, demo_round_id))
+        return rows[0] if rows else None
+
+    def pending_details_export(self, report_id, user_id, session_id):
+        """F22 find-back: one waiting details export per report and session."""
+        rows = self.rows("""SELECT * FROM api_exports WHERE report_id=? AND user_id=?
+            AND session_id=? AND kind='details' AND status='waiting_verification'
+            ORDER BY created_at LIMIT 1""", (report_id, user_id, session_id))
+        return rows[0] if rows else None
 
     def message_job(self, job_id):
         rows = self.rows("SELECT * FROM api_message_jobs WHERE job_id=?", (job_id,))

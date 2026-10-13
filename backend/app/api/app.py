@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 from fastapi import BackgroundTasks, Depends, FastAPI, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.contracts.api import (
     ConfirmationAnswerRequest, MessageAccepted, PayeeDetailsFields, PayeeSearchFields, ProvideInputRequest, RequestIdOnly,
@@ -53,6 +53,10 @@ class FaceAnswer(RequestIdOnly):
     submission_id: UUID
     demo_round_id: str
     result: Literal["passed", "failed"]
+
+
+class ExportRequest(RequestIdOnly):
+    kind: Literal["card", "details"]
 
 
 def problem(exc):
@@ -237,6 +241,24 @@ def create_app(runtime=None, config=None):
     def report(report_id: str, who=Depends(identity), service=Depends(api)):
         return success(service.report(who, report_id))
 
+    @application.post("/api/v1/reports/{report_id}/exports")
+    def create_export(request: Request, report_id: str, body: ExportRequest,
+                      who=Depends(identity), service=Depends(api)):
+        def action():
+            return service.create_export(who, report_id, body.kind)
+        return mutation(service, who, request, body, action)
+
+    @application.get("/api/v1/exports/{export_id}")
+    def export(export_id: str, who=Depends(identity), service=Depends(api)):
+        return success(service.export_status(who, export_id))
+
+    @application.get("/api/v1/exports/{export_id}/download")
+    def export_download(export_id: str, who=Depends(identity), service=Depends(api)):
+        file_name, media_type, content = service.export_file(who, export_id)
+        return Response(content=content, media_type=media_type, headers={
+            "Content-Disposition": f'attachment; filename="{file_name}"',
+            "Cache-Control": "no-store"})
+
     @application.post("/api/v1/tasks/{task_id}/inputs")
     def inputs(request: Request, task_id: str, body: ProvideInputRequest, who=Depends(identity), service=Depends(api)):
         service.link(who, task_id, mutate=True)
@@ -357,7 +379,8 @@ def create_app(runtime=None, config=None):
                 ):
                     current = service.runtime.gateway.get_verification(trusted, challenge_id)
                     if current.challenge_status in {"failed", "expired", "cancelled"}:
-                        service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
+                        if not service.fail_export_for_challenge(trusted, current):
+                            service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
                 raise
             service.verification_fault(who, trusted, challenge_id, submission_id, method)
             raise ApiProblem(503, "DEPENDENCY_UNAVAILABLE") from None
@@ -366,6 +389,9 @@ def create_app(runtime=None, config=None):
         current = service.runtime.gateway.get_verification(trusted, outcome.challenge.challenge_id)
         outcome = outcome.model_copy(update={"challenge": current})
         service.record_verification(actor, trusted, outcome, method)
+        export = service.export_for_challenge(trusted, current.challenge_id)
+        if export is not None:
+            return service.export_verification_result(who, export, current)
         task = service.task_view(who, trusted.task_id)
         if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
             if outcome.verification_id:
