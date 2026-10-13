@@ -67,6 +67,11 @@ class ApiStore:
                     UNIQUE(user_id, demo_round_id, thread_id, request_id))""",
                 """CREATE TABLE IF NOT EXISTS api_message_replies (
                     job_id TEXT PRIMARY KEY, reply_text TEXT NOT NULL)""",
+                """CREATE TABLE IF NOT EXISTS api_reports (
+                    report_id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL, task_id TEXT NOT NULL,
+                    thread_id TEXT NOT NULL, created_at TEXT NOT NULL,
+                    report_json TEXT NOT NULL)""",
             ):
                 c.execute(sql)
 
@@ -136,6 +141,12 @@ class ApiStore:
     def event(self, event):
         self.write("INSERT OR IGNORE INTO api_events(event_id, thread_id, event_json) VALUES (?, ?, ?)",
                    (event.event_id, event.thread_id, dump(event)))
+
+    def save_report(self, report, identity, task_id, thread_id, created_at):
+        """The platform owns report cards; re-capturing the same report is a no-op."""
+        self.write("""INSERT OR IGNORE INTO api_reports VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                   (report.report_id, identity.user_id, identity.demo_round_id, task_id,
+                    thread_id, created_at, dump(report)))
 
     def message_job(self, job_id):
         rows = self.rows("SELECT * FROM api_message_jobs WHERE job_id=?", (job_id,))
