@@ -50,10 +50,12 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 |---|---|---|---|
 | P01 账单任务创建、等待、恢复 | 04 / 05 / 08 | `test_bills_task_wires_module_payload_and_report_ready`、`test_installed_bills_module_replaces_the_contract_stub`、`test_default_assembly_installs_the_contract_stub`（api）；`test_waiting_second_module_task_resumes_along_its_own_payload`、`test_waiting_second_module_task_recovers_into_a_new_session`（agent_platform） | **已验（测试替身级）**；真实账单任务待票 05 |
 | P02 前端按 `module` 选插槽、双场景互不串台 | 04 / 06 / 07 | 契约侧 `test_task_updated_event_carries_the_second_module_payload`（整份账单载荷 + JSON 往返 + 事件层非法 module 拒绝，PR #126）；api 侧事件带载荷与 `module=bills` 断言（PR #128）；转账 `module=transfer` 回归用例 | **平台侧已验**；前端插槽实现归 frontend-complete/01（其 `slots.resolve` 用例见前端目录） |
-| P03 报告读取 F21 | 01 | `test_f21_returns_the_report_card_to_its_owner_only`（本人可读、管理员 404、响应无明细行，PR #115） | **已验（受控报告）**；真实账单报告待票 05 |
-| P04 卡片 / 明细导出 F22—F24 | 02 / 07 | 导出链路用例组（明细再验证、取消、重发、会话变化、越权 404、未就绪 409，PR #119）；`test_f22_details_export_requires_fresh_verification` 现含完成态 `module=bills` 与跨会话必经导出路径断言（PR #128） | **已验（平台链路级）**；验证口径由 PM 2026-10-13 代行豁免 Ringo 审批（非本人审查，已记录） |
+| P03 报告读取 F21 | 01 / 09 | `test_f21_returns_the_report_card_to_its_owner_only`（本人可读、管理员 404、响应无明细行，PR #115）；卡片产物纳入票 09 的秘密扫描 | **已验（受控报告）**；真实账单报告待票 05 |
+| P04 卡片 / 明细导出 F22—F24 | 02 / 07 / 09 | 导出链路用例组（明细再验证、取消、重发、会话变化、越权 404、未就绪 409，PR #119）；`test_f22_details_export_requires_fresh_verification` 现含完成态 `module=bills` 与跨会话必经导出路径断言（PR #128）；[票 09](../issues/09-export-secret-scan.md) 补全产物 + 全表验证码扫描（PR #130） | **已验（平台链路级）**；验证口径由 PM 2026-10-13 代行豁免 Ringo 审批（非本人审查，已记录） |
 | P05 账单取数与失败三态 | #91 / 05 | #91 四票（PR #97/#98/#100/#102）B08 取数 + 三态语义；`evals/mockbank` 14 passed；底座只验管道与三态透传 | **银行接缝已验**；账单任务在真数据下的三态透传待票 05（结论口径归账单线 BF03/BF06） |
 | P06 契约受理与联调 | 全组 | 受理留痕：#113/#114（`TaskView.module` + 报告/导出模型）、#122 三处接缝（PR #126/#127/#128，§8 轻量确认档登记）、#121（F35 挂 v0.5）、#123 + 票 05；跨线通知留痕：[Issue #123 回帖](https://github.com/DrErwin/hackerthon-bank-agent/issues/123#issuecomment-6150429852)、[Issue #89 评论](https://github.com/DrErwin/hackerthon-bank-agent/issues/89#issuecomment-6150599086) | **受理流程持续有效**；跨线联调证据待票 05 解封后进 [v04-bills/02](../../v04-bills/packages/02-v04-acceptance.md) |
+
+**验收标准 2「无验证码或秘密泄漏」的证据归属**：[票 09](../issues/09-export-secret-scan.md) 的 `test_export_secrets.py` 跑完整条明细导出链路后，扫描**全部对外产物**（创建 / 验证与状态回执、任务视图、验证历史回放、F21 卡片、CSV、SSE 事件）与**平台库全部用户表**——含导出链路写入的 `api_exports` / `api_reports` / `api_tasks`（v0.3 的扫描名单恰好漏掉这三张），并对三张表加最小行数断言避免在空表上静默通过；两半扫描各用一次注入检验证明有效（库侧注入报出 `api_requests` 行、响应侧注入报出 `verify`）。验收标准 2 的其余子项由票 01/02 既有用例覆盖、本票不重复：本人范围校验（`test_app.py` 报告 owner / 管理员 404、导出越权 404）、未过验证不给内容（明细下载 409）、下载路径受控（路径校验与就绪 409/404）。
 
 **当前缺口（一句话）**：平台侧只剩票 05（真实账单接入 + 联调）——它 `blocked` 于账单线公开能力 L01—L03，票面前置准备已完成（PR #129）；解封第一步与 checkpoint 口径见票 05 Comments。
 
