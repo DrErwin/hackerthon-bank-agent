@@ -1,9 +1,10 @@
-"""交付包验收标准 2：报告与导出链路（F21—F24）不泄漏验证码或未打码账号。
+"""交付包验收标准 2：报告与导出链路（F21—F24）不泄漏验证码，并保持银行口径的打码。
 
 F22 明细导出是 v0.4 最敏感的公共链路：先完成本次验证，再惰性生成 CSV。
 本用例把整条链路跑一遍，然后扫描每一件对外产物与平台库的每一张用户表，
 确认验证码只存在于受控的演示提示通道（F19 demo-code，no-store）与银行侧
-（银行要校验它，属既定事实），绝不进入应用的响应、事件或持久层。
+（银行要校验它，属既定事实），绝不进入应用的响应、事件或持久层；CSV 也
+只保留银行侧给出的打码形态。
 """
 
 from uuid import uuid4
@@ -55,12 +56,14 @@ def test_details_export_never_stores_or_returns_the_verification_code(tmp_path):
         download = client.get(f"/api/v1/exports/{export['export_id']}/download")
         assert download.status_code == 200, download.text
 
-        # 1) 对外产物：创建 / 验证与状态回执、任务视图、F21 卡片、CSV、SSE 事件。
+        # 1) 对外产物：创建 / 验证与状态回执、任务视图、F21 卡片、验证历史回放、
+        #    CSV、SSE 事件。（审计视图的等价证据由下方 audit_events 表扫描覆盖。）
         artifacts = {
             "create": created.text,
             "verify": done.text,
             "status": client.get(f"/api/v1/exports/{export['export_id']}").text,
             "task": client.get(f"/api/v1/tasks/{export['task_id']}").text,
+            "records": client.get(f"/api/v1/tasks/{export['task_id']}/records").text,
             "card": client.get(f"/api/v1/reports/{report.report_id}").text,
             "csv": download.text,
             "events": str(service.store.events(task["thread_id"], None)),
@@ -69,7 +72,11 @@ def test_details_export_never_stores_or_returns_the_verification_code(tmp_path):
             assert stored_code_leak([(artifact,)], code) is None, name
 
         # 2) 平台持久层：全部用户表（含导出链路写的 api_exports / api_reports / api_tasks）。
-        for table, rows in platform_rows(service.runtime.application.path):
+        #    先确认这些表确实有本次链路的行——否则扫描会在空表上静默通过。
+        tables = dict(platform_rows(service.runtime.application.path))
+        for name in ("api_exports", "api_reports", "api_tasks"):
+            assert tables[name], f"{name} must carry the rows this scan relies on"
+        for table, rows in tables.items():
             leak = stored_code_leak(rows, code)
             assert leak is None, f"{table}: {leak!r}"
 
