@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { ApiError } from "../api";
 import { AdminDemoPage } from "./AdminDemoPage";
 import { AssistantPage } from "./AssistantPage";
 import { createSlotRegistry, genericSlot } from "./slots";
@@ -97,6 +98,53 @@ describe("v0.4 shell with stub data", () => {
     fireEvent.click(confirm);
     await screen.findByRole("heading", { name: "为了安全，请完成两项验证" });
     expect(answer).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["expired", "已过期 · 只读"],
+    ["superseded", "已被新确认单替代 · 只读"],
+  ] as const)("refreshes after a 409 and keeps a %s confirmation read-only without resubmitting", async (decision, label) => {
+    const backend = makeBackend();
+    renderPage(backend);
+    await sendText("转给妈妈500块");
+    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+    const confirm = await screen.findByRole("button", { name: "确认办理" });
+    const thread = await backend.user.ensureThread();
+    const [envelope] = await backend.user.listTasks(thread.thread_id);
+    const confirmationId = envelope.task.interaction!.record_ref!;
+    const previous = await backend.user.getConfirmation(confirmationId);
+
+    // Simulate a server-side change after the card was displayed, without an SSE event.
+    // The rejected answer must trigger a read of the newer task and confirmation.
+    const refresh = vi.spyOn(backend.user, "getTask").mockResolvedValue({
+      ...envelope,
+      task: {
+        ...envelope.task,
+        task_revision: envelope.task.task_revision + 1,
+        interaction: null,
+        allowed_actions: [],
+      },
+    });
+    const readConfirmation = vi.spyOn(backend.user, "getConfirmation")
+      .mockResolvedValue({ ...previous, decision });
+    const answer = vi.spyOn(backend.user, "answerConfirmation")
+      .mockRejectedValue(new ApiError(409, "confirmation_conflict", "这张确认单已经失效，请以最新的确认单为准。"));
+    const submitCode = vi.spyOn(backend.user, "submitCode");
+    fireEvent.click(confirm);
+
+    expect(await screen.findByText("这张确认单已经失效，请以最新的确认单为准。")).toBeTruthy();
+    expect(await screen.findByText(label)).toBeTruthy();
+    const card = screen.getByRole("heading", { name: "确认单记录" }).closest("section")!;
+    expect(within(card).queryByRole("button")).toBeNull();
+    expect(screen.queryByLabelText("请输入 6 位验证码")).toBeNull();
+    expect(answer).toHaveBeenCalledTimes(1);
+    expect(answer).toHaveBeenCalledWith(confirmationId, expect.objectContaining({
+      confirmation_version: previous.confirmation_version, choice: "approve",
+    }));
+    expect(refresh).toHaveBeenCalledWith(envelope.task.task_id);
+    expect(readConfirmation).toHaveBeenCalledWith(confirmationId);
+    expect(submitCode).not.toHaveBeenCalled();
+    expect(screen.queryByText("转账成功")).toBeNull();
   });
 
   it("ends the task without a result when the medium-risk code is wrong", async () => {
