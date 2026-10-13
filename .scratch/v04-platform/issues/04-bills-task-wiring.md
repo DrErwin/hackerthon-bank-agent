@@ -4,7 +4,7 @@ Ticket ID: v04-platform/04
 Type: 开发
 Owner: Erwin
 Directory: backend/app/api/
-Status: blocked
+Status: pr_open（[PR #118](https://github.com/DrErwin/hackerthon-bank-agent/pull/118) 待统一审查，2026-10-13 开出；Depends on PR #115 + #117，合并顺序建议 #115→#116→#117→#118）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P01 账单任务在平台上创建、等待、恢复](../spec.md)、[P02 前端按 module 选插槽](../spec.md)（后端事实部分）
@@ -26,3 +26,4 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 ## Comments
 
 - 2026-10-13：双轴审核通过后建立（原包建议 03 的 api 半张；`report_ready` 事件归属在本票明确）。
+- 2026-10-13 实施（分支 `v04-platform-04-bills-wiring` = 03 分支 + merge 01 分支 + 增量，先红后绿）：`ApiService` 装配注册账单桩（槽位已占则跳过）；任务视图 / 事件 `module` 按快照 `capability_name` 前缀取，转账保持定型视图零行为变化；`BillReport` 载荷自动落库 + F21 可读 + 消息 `report_ids` + `report_ready` 事件（仅发射一次）；顺带修复 01 的 `save_report` 未返回行数。已知接缝三处（SSE 载荷联合类型、harness 恢复定型解析、导出任务 module）已在 PR #118 正文与 README 登记，待契约票 / 账单线联调放宽。E2E 一项 + 转账回归；api 66 passed、后端全量 424 passed。Ringo 审批：本票不触及 `security/`，无审批项；导出相关豁免记录见票 02。[PR #118](https://github.com/DrErwin/hackerthon-bank-agent/pull/118) 待统一审查。
