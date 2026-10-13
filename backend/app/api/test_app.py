@@ -1609,8 +1609,9 @@ def test_f22_details_export_requires_fresh_verification(tmp_path):
         # 未过验证不给内容。
         assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
 
-        # 敏感导出沿同一平台任务：任务视图带验证交互。
+        # 敏感导出沿同一平台任务：任务视图带验证交互，并按账单域归属（Issue #122）。
         export_task = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+        assert export_task["module"] == "bills"
         assert export_task["interaction"]["kind"] == "verification"
         challenge = export_task["interaction"]["record_ref"]
 
@@ -1627,6 +1628,9 @@ def test_f22_details_export_requires_fresh_verification(tmp_path):
         assert done.status_code == 200, done.text
         assert done.json()["data"]["kind"] == "verified"
         assert done.json()["data"]["task"]["status"] == "succeeded"
+        # 快照会在绑定挑战与更新结果时重建，完成态仍须归属账单域（Issue #122）。
+        assert done.json()["data"]["task"]["module"] == "bills"
+        assert client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]["module"] == "bills"
 
         status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
         assert status["status"] == "ready"
@@ -1647,6 +1651,12 @@ def test_f22_details_export_requires_fresh_verification(tmp_path):
         fresh = enter(client)
         assert fresh["session_id"] != stale
         assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+        # 导出任务跨会话也走导出路径，不进 harness 的能力解析（其 capability_name
+        # 不在注册表里）：沿导出任务视图回转（bills 域、已完成态），而不是 503。
+        session_changed = post(client, f"/tasks/{export['task_id']}/resume")
+        assert session_changed.status_code == 200, session_changed.text
+        assert session_changed.json()["data"]["module"] == "bills"
+        assert session_changed.json()["data"]["status"] == "succeeded"
 
 
 def test_details_export_expires_with_its_challenge(tmp_path):
@@ -1857,8 +1867,11 @@ def test_bills_task_wires_module_payload_and_report_ready(tmp_path):
         assert ready[0]["module"] == "bills"
         task_updates = [event for event in events if event["event_type"] == "task_updated"]
         assert task_updates[-1]["module"] == "bills"
-        # SSE 载荷联合类型仍按转账视图定型：第二模块事件去载荷，前端按 §6.6 重新 GET。
-        assert task_updates[-1]["payload"]["data"] is None
+        # §6.5/§6.6（Issue #122）：第二模块事件携带自身载荷，前端按 module 解释，
+        # 不再依赖「事件去载荷 + 重新 GET」的兜底。
+        payload = task_updates[-1]["payload"]
+        assert payload["data"] is not None, "第二模块事件必须携带模块自身载荷"
+        assert payload["data"]["report_id"] == report.report_id
 
         # 助手消息携带 report_ids，前端据此给出入口。
         messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
