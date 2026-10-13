@@ -9,7 +9,8 @@
   - `#84` 规划入口上下文与 `#85` 确认/验证历史只读回放（后端）已收口（PR #95/#96/#104/#105 与 #109/#110/#112/#111）；`#91` 银行接缝与共用种子四票合入（PR #97/#98/#100/#102）。
   - 契约接缝两票合入（PR #113 `TaskView.module` + `BillReport`/`ExportView` 模型；PR #114 api 填 `module`）。
   - **v04-platform 四票（2026-10-13，独立子代理审查后合入）**：票01 受控报告存储 + F21（PR #115 `b8aa930`）、票02 导出链路 F22—F24（PR #119 `3955abb`，审查出 1 条阻塞当日修复）、票03 第二模块注册点与账单契约形状桩（PR #117 `f40959e`）、票04 账单任务接线 `module`/载荷/`report_ready`（PR #120 `c270abb`）；合并后主线后端全量 **431 passed**（CI 绿）。
-  - 遗留已开单留档：真实账单模块接入（[Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) → [v04-platform 票 05](../../../.scratch/v04-platform/issues/05-real-bills-integration.md)，`blocked`）、契约三处接缝（[Issue #122](https://github.com/DrErwin/hackerthon-bank-agent/issues/122)）、F35 管理端审计导出归属（[Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)）。
+  - **契约三处接缝提前收口（2026-10-14，[Issue #122](https://github.com/DrErwin/hackerthon-bank-agent/issues/122)）**：按一票一目录拆 [06 契约](../../../.scratch/v04-platform/issues/06-sse-event-payload-union.md)（PR #126 `91ddc4a`）、[07 api](../../../.scratch/v04-platform/issues/07-export-task-module-and-event-payload.md)（PR #128 `77726a9`）、[08 agent_platform](../../../.scratch/v04-platform/issues/08-harness-resume-parsing.md)（PR #127 `3613ce0`），各自双轴独立子代理审查（AI 审查、非真人）后合入：`EventPayload` 收敛为通用 `TaskView`（契约 §8 轻量确认档，登记「事件载荷不做强制校验」为接受项）、导出任务 `module=bills`、harness 按模块解析第二模块载荷与跨会话恢复。合入后主线后端全量 **533 passed**、模拟银行 14 passed、各 PR CI 绿；真数据下的复验保留在票 05。前端类型重生成已发定向通知（Issue #89）。
+  - 遗留已开单留档：真实账单模块接入（[Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) → [v04-platform 票 05](../../../.scratch/v04-platform/issues/05-real-bills-integration.md)，`blocked`）、F35 管理端审计导出归属（[Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)）；契约三处接缝（Issue #122）已于 10-14 收口（见上）。
 - **账单线（周恩宇，[v04-bills/01](../../../.scratch/v04-bills/packages/01-bills-backend.md)）**：in_progress。私有统计内核与局部验证已开 PR（#92，待作者返修；#93 评测覆盖为 Draft）；真实公开能力（L01—L03）、评测下限实跑与前端冻结信号待完成。
 - **安全线（Ringo，[v04-security/01](../../../.scratch/v04-security/packages/01-detector-and-coverage.md)）**：**Ringo 已于 2026-10-13 本人领取**（PM 代行条款的未领取触发条件解除；#84 关闭使转正复跑前置解除）；#86 检测器与 #88 评测完整性进行中，本人规格与实施票待建。
 - **前端线（梁爽主责、六水协助，[frontend-complete/01](../../../.scratch/frontend-complete/packages/01-v04-complete-frontend.md)）**：in_progress。原型五类画面已走查通过（10-12）；通用底盘 PR #108 待作者返修 + PM 走查；账单插槽接入依赖账单公开能力冻结信号。
@@ -26,7 +27,7 @@
 - 账单业务与评测：公开能力（L01—L03）、BF01—BF07 通过、评测下限与实跑证据（周恩宇）。
 - 安全：真实风险检测器与评测完整性（#86/#88，Ringo 或 PM 代行）。
 - 完整前端双场景与替换（FE-01—FE-06、适老化走查，梁爽/六水）。
-- 平台：真实账单模块接入与纵向联调（[票 05](../../../.scratch/v04-platform/issues/05-real-bills-integration.md)，前置=账单公开能力可运行）；三处契约接缝随其收口。
+- 平台：真实账单模块接入与纵向联调（[票 05](../../../.scratch/v04-platform/issues/05-real-bills-integration.md)，前置=账单公开能力可运行）；三处契约接缝已于 2026-10-14 提前收口（PR #126/#127/#128），本票保留真数据下的复验。
 - 联合验收与收口：证据汇总、`completion.md` 终稿、docs/README 与 ROADMAP 状态翻转、飞书同步与甘特图重建。
 - PM 节点：10-28 答疑前确认"安全自评是否必交"、11-01 报名、11-02 提交材料（比赛材料最终制作不在本版范围）。
 

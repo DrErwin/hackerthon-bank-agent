@@ -4,7 +4,7 @@ Ticket ID: v04-platform/06
 Type: 开发
 Owner: Erwin
 Directory: backend/app/contracts/
-Status: in_progress
+Status: resolved（[PR #126](https://github.com/DrErwin/hackerthon-bank-agent/pull/126) squash `91ddc4a` 合入 main，2026-10-14；Standards / Spec 两轴独立子代理审查**无 P0/P1**〔AI 审查、非真人，意见与处置见 PR 评论〕；合入后主线后端全量 533 passed + 模拟银行 14 passed）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P01、P02](../spec.md)（真实数据链路下的端到端验收）
