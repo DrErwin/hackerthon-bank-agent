@@ -1,11 +1,13 @@
-"""Frozen-contract examples and invalid inputs for the B08 flow query and the L01 bills path."""
+"""Frozen-contract examples and invalid inputs for the B08 flow query and the L01—L03 bills path."""
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.contracts import (
-    AccountSourceAsOf, BillDetails, BillReport, BillScope, BillSummarizeInput, Category, CategoryTotal,
-    QueryResult, SpendingComparison, SpendingSummary, Transaction, TransactionList,
+    AccountSourceAsOf, AnomalyFinding, AnomalyResult, BillDetails, BillReport, BillScope,
+    BillSummarizeInput, Category, CategoryTotal, DetectAnomaliesInput, GenerateReportInput,
+    QueryResult, RuleCheck, SpendingComparison, SpendingSummary, Transaction,
+    TransactionCandidates, TransactionClues, TransactionList,
 )
 from app.contracts import bank as bank_contracts
 from app.contracts import bills as bills_contracts
@@ -255,6 +257,13 @@ def test_public_import_paths_and_signed_money_are_available():
     assert bills_contracts.SpendingSummary is SpendingSummary
     assert bills_contracts.BillDetails is BillDetails
     assert bills_contracts.BillReport is BillReport
+    assert bills_contracts.TransactionClues is TransactionClues
+    assert bills_contracts.DetectAnomaliesInput is DetectAnomaliesInput
+    assert bills_contracts.TransactionCandidates is TransactionCandidates
+    assert bills_contracts.RuleCheck is RuleCheck
+    assert bills_contracts.AnomalyFinding is AnomalyFinding
+    assert bills_contracts.AnomalyResult is AnomalyResult
+    assert bills_contracts.GenerateReportInput is GenerateReportInput
     adapter = TypeAdapter(SignedMoney)
     assert adapter.validate_python(-3000) == -3000 and adapter.validate_python(0) == 0
     with pytest.raises(ValidationError):
@@ -294,3 +303,141 @@ def test_bill_report_keeps_the_card_facts_and_allows_a_missing_monthly_average()
     ):
         with pytest.raises(ValidationError):
             BillReport.model_validate(bill_report() | broken)
+
+
+def test_transaction_clues_accept_partial_hints_but_never_an_empty_set():
+    for hints in (
+        {"amount_fen": 3200}, {"counterparty_hint": "楼下面馆"},
+        {"category": "dining"}, {"channel": "快捷支付"},
+        {"amount_fen": None, "counterparty_hint": None, "category": "transfer", "channel": None},
+    ):
+        clue = TransactionClues.model_validate(hints)
+        assert TransactionClues.model_validate_json(clue.model_dump_json()) == clue
+    for broken in (
+        {}, {"amount_fen": None, "counterparty_hint": None, "category": None, "channel": None},
+        {"amount_fen": -1}, {"amount_fen": "3200"}, {"category": "餐饮"}, {"channel": 1},
+        {"hint": "guess"},
+    ):
+        with pytest.raises(ValidationError):
+            TransactionClues.model_validate(broken)
+
+
+def test_detect_anomalies_input_keeps_the_three_modes_apart():
+    locate = DetectAnomaliesInput.model_validate(
+        {"mode": "locate", "scope": scope(), "clues": {"category": "dining"}}
+    )
+    assert locate.clues.category is Category.DINING
+    single = DetectAnomaliesInput.model_validate(
+        {"mode": "single", "account_id": "A1", "transaction_id": "TX1"}
+    )
+    assert single.transaction_id == "TX1" and single.scope is None
+    scan = DetectAnomaliesInput.model_validate({"mode": "scan", "scope": scope()})
+    assert scan.clues is None and scan.account_id is None
+    for broken in (
+        {"mode": "locate", "scope": scope()},
+        {"mode": "locate", "clues": {"category": "dining"}},
+        {"mode": "locate", "scope": scope(), "clues": {"category": "dining"}, "account_id": "A1"},
+        {"mode": "locate", "scope": scope(), "clues": {"category": "dining"}, "transaction_id": "TX1"},
+        {"mode": "single", "account_id": "A1"},
+        {"mode": "single", "transaction_id": "TX1"},
+        {"mode": "single", "account_id": "A1", "transaction_id": "TX1", "scope": scope()},
+        {"mode": "single", "account_id": "A1", "transaction_id": "TX1", "clues": {"channel": "快捷支付"}},
+        {"mode": "scan", "scope": scope(), "clues": {"category": "dining"}},
+        {"mode": "scan", "scope": scope(), "account_id": "A1"},
+        {"mode": "scan"},
+        {"mode": "report", "scope": scope()},
+        {"mode": "single", "account_id": "", "transaction_id": "TX1"},
+        {"mode": "single", "account_id": "A1", "transaction_id": "TX1", "amount_fen": 100},
+    ):
+        with pytest.raises(ValidationError):
+            DetectAnomaliesInput.model_validate(broken)
+
+
+def test_transaction_candidates_cover_each_scope_account():
+    candidates = TransactionCandidates.model_validate({
+        "scope": scope(), "candidates": [transaction()],
+        "source_as_of": source_as_of(("A1", AS_OF), ("A5", EARLIER)), "as_of": EARLIER,
+    })
+    assert TransactionCandidates.model_validate_json(candidates.model_dump_json()) == candidates
+    assert TransactionCandidates.model_validate({
+        "scope": scope(), "candidates": [],
+        "source_as_of": source_as_of(("A1", AS_OF), ("A5", EARLIER)), "as_of": EARLIER,
+    }).candidates == []
+    for broken in (
+        {"source_as_of": source_as_of(("A1", AS_OF))},
+        {"source_as_of": source_as_of(("A1", AS_OF), ("A5", EARLIER), ("A9", EARLIER))},
+        {"as_of": AS_OF},
+        {"scope": None},
+        {"candidates": None},
+        {"extra": 1},
+    ):
+        with pytest.raises(ValidationError):
+            TransactionCandidates.model_validate({
+                "scope": scope(), "candidates": [transaction()],
+                "source_as_of": source_as_of(("A1", AS_OF), ("A5", EARLIER)), "as_of": EARLIER,
+            } | broken)
+
+
+def test_anomaly_result_separates_missing_data_and_keeps_the_single_target():
+    checks = [
+        {"rule_id": 1, "status": "evaluated", "reason": None},
+        {"rule_id": 2, "status": "insufficient_data", "reason": "缺对照期流水"},
+    ]
+    finding = {
+        "transaction_ids": ["TX1"], "rule_id": 3, "attention": "high_attention",
+        "evidence": "与常用收款人不符且金额偏高", "suggestion": "核对本人是否操作",
+    }
+    single = AnomalyResult.model_validate({
+        "transaction": transaction(), "findings": [finding], "checks": checks, "as_of": AS_OF,
+    })
+    assert single.transaction.transaction_id == "TX1"
+    assert single.checks[1].status == "insufficient_data" and single.checks[1].reason == "缺对照期流水"
+    assert AnomalyFinding.model_validate(finding).attention == "high_attention"
+    scan = AnomalyResult.model_validate({
+        "transaction": None, "findings": [], "checks": checks[:1], "as_of": AS_OF,
+    })
+    assert scan.transaction is None and scan.findings == []
+    assert AnomalyResult.model_validate_json(scan.model_dump_json()) == scan
+    # The field must be stated explicitly (scan states null); the single-must-carry
+    # pairing with DetectAnomaliesInput.mode is enforced by the module, not the wire shape.
+    with pytest.raises(ValidationError):
+        AnomalyResult.model_validate({
+            "findings": [], "checks": checks[:1], "as_of": AS_OF,
+        })
+    for broken_check in ({"rule_id": 0}, {"rule_id": 5}, {"status": "skipped"}, {"reason": 1}):
+        with pytest.raises(ValidationError):
+            RuleCheck.model_validate({**checks[0], **broken_check})
+    for broken in (
+        {"findings": [dict(finding, attention="block")]},
+        {"findings": [dict(finding, rule_id=0)]},
+        {"findings": [dict(finding, transaction_ids=[""])]},
+        {"checks": [dict(checks[0], status="evaluated", extra=1)]},
+        {"as_of": "2026-10-01T00:00:00"},
+    ):
+        with pytest.raises(ValidationError):
+            AnomalyResult.model_validate({
+                "transaction": transaction(), "findings": [finding], "checks": checks, "as_of": AS_OF,
+            } | broken)
+
+
+def test_generate_report_input_bounds_purpose_and_the_comparison_account_set():
+    report = GenerateReportInput.model_validate({"scope": scope(), "purpose": "self_view"})
+    assert report.comparison_scope is None
+    with_comparison = GenerateReportInput.model_validate({
+        "scope": scope(), "purpose": "print",
+        "comparison_scope": scope(start_at=BEFORE_START, end_at=BEFORE_END),
+    })
+    assert with_comparison.comparison_scope.start_at.year == 2026
+    assert GenerateReportInput.model_validate(
+        {"scope": scope(), "purpose": "share_request"}
+    ).purpose == "share_request"
+    for broken in (
+        {"purpose": "export"},
+        {"purpose": "share"},
+        {"purpose": None},
+        {"scope": None, "purpose": "self_view"},
+        {"comparison_scope": scope(account_ids=["A9"]), "purpose": "self_view"},
+        {"comparison_scope": scope(), "purpose": "self_view", "grants_details": True},
+    ):
+        with pytest.raises(ValidationError):
+            GenerateReportInput.model_validate({"scope": scope(), "purpose": "self_view"} | broken)

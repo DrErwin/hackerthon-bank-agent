@@ -15,8 +15,9 @@ from .bank import (
     SavedPayee, Transaction, TransactionList, TransferLimits, TransferPrecheck, TransferQuote, TransferReceipt,
 )
 from .bills import (
-    AccountSourceAsOf, BillDetails, BillReport, BillScope, BillSummarizeInput, CategoryTotal,
-    SpendingComparison, SpendingSummary,
+    AccountSourceAsOf, AnomalyFinding, AnomalyResult, BillDetails, BillReport, BillScope,
+    BillSummarizeInput, CategoryTotal, DetectAnomaliesInput, GenerateReportInput, RuleCheck,
+    SpendingComparison, SpendingSummary, TransactionCandidates, TransactionClues,
 )
 from .common import (
     Category, ContractModel, DisplayField, ID, Money, NonNegativeInt, OperationId,

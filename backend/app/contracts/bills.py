@@ -1,4 +1,4 @@
-"""Bills-facing models for the frozen L01 summary/details path (public contract §5.3)."""
+"""Bills-facing models for the frozen L01—L03 path (public contract §5.3)."""
 
 from __future__ import annotations
 
@@ -143,6 +143,90 @@ class BillDetails(ContractModel):
         return self
 
 
+class TransactionClues(ContractModel):
+    """L02 locate hints; they only match bank facts and never assert a transaction."""
+
+    amount_fen: Money | None = None
+    counterparty_hint: str | None = None
+    category: Category | None = None
+    channel: str | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_clue(self) -> "TransactionClues":
+        if all(value is None for value in (
+            self.amount_fen, self.counterparty_hint, self.category, self.channel,
+        )):
+            raise ValueError("locate clues need at least one non-null hint")
+        return self
+
+
+class DetectAnomaliesInput(ContractModel):
+    """L02 input; exactly one of the three §5.3 modes is filled.
+
+    Facts come from the bank: single takes ids only, and no mode accepts a
+    client-asserted amount, counterparty or authorization marker.
+    """
+
+    mode: Literal["locate", "single", "scan"]
+    scope: BillScope | None = None
+    clues: TransactionClues | None = None
+    account_id: ID | None = None
+    transaction_id: ID | None = None
+
+    @model_validator(mode="after")
+    def match_fields_to_mode(self) -> "DetectAnomaliesInput":
+        if self.mode == "locate":
+            if self.scope is None or self.clues is None or self.account_id or self.transaction_id:
+                raise ValueError("locate takes scope and clues only")
+        elif self.mode == "single":
+            if not self.account_id or not self.transaction_id or self.scope or self.clues:
+                raise ValueError("single takes account_id and transaction_id only")
+        elif self.scope is None or self.clues or self.account_id or self.transaction_id:
+            raise ValueError("scan takes scope only")
+        return self
+
+
+class TransactionCandidates(ContractModel):
+    """L02 locate result: bank-matched candidates over a complete scope."""
+
+    scope: BillScope
+    candidates: list[Transaction]
+    source_as_of: list[AccountSourceAsOf]
+    as_of: Timestamp
+
+    @model_validator(mode="after")
+    def match_source_to_scope(self) -> "TransactionCandidates":
+        _require_complete_source(self.scope, self.source_as_of, self.as_of)
+        return self
+
+
+class RuleCheck(ContractModel):
+    """One L02 rule outcome; missing data stays distinct from checked-and-clear."""
+
+    rule_id: Literal[1, 2, 3, 4]
+    status: Literal["evaluated", "insufficient_data"]
+    reason: str | None = None
+
+
+class AnomalyFinding(ContractModel):
+    """A suspected-anomaly notice; attention is a bill hint, not a security verdict."""
+
+    transaction_ids: list[ID]
+    rule_id: Literal[1, 2, 3, 4]
+    attention: Literal["notice", "high_attention"]
+    evidence: str
+    suggestion: str
+
+
+class AnomalyResult(ContractModel):
+    """L02 single/scan result; transaction carries the single target (scan: null)."""
+
+    transaction: Transaction | None
+    findings: list[AnomalyFinding]
+    checks: list[RuleCheck]
+    as_of: Timestamp
+
+
 class BillReport(ContractModel):
     """L03 result and the controlled report an F21 card reads (§5.3); no raw detail list."""
 
@@ -154,3 +238,19 @@ class BillReport(ContractModel):
     statistical_days: NonNegativeInt
     average_basis: str
     generated_at: Timestamp
+
+
+class GenerateReportInput(ContractModel):
+    """L03 input; purpose expresses intent and never grants detail-export rights."""
+
+    scope: BillScope
+    purpose: Literal["self_view", "print", "share_request"]
+    comparison_scope: BillScope | None = None
+
+    @model_validator(mode="after")
+    def require_shared_account_set_for_comparison(self) -> "GenerateReportInput":
+        if self.comparison_scope is not None and (
+            set(self.comparison_scope.account_ids) != set(self.scope.account_ids)
+        ):
+            raise ValueError("the comparison period reuses the account set of the scope")
+        return self
