@@ -60,6 +60,8 @@ v0.4 已于 10-11 正式启动，周恩宇应从代表性评测准备进入账�
 | [v04-ethan-bills-backend/05](issues/05-report-export.md) | L03受控报告与导出接线 | backend/app/modules/bills/ | 03、公共资源/验证入口 |
 | [v04-ethan-bills-backend/06](issues/06-full-business-eval.md) | 完整业务自动化与运行证据 | evals/bills/ | 02/03/04/05按路径就绪逐步验证 |
 | [v04-ethan-bills-backend/07](issues/07-integration-evidence.md) | 前端/HTTP/模型联调证据 | evals/bills/ | 可运行公开路径、前端槽及合法模型配置 |
+| [v04-ethan-bills-backend/08](issues/08-l01-rework-consistency.md) | L01 返修：失败口径/结论文案/错误映射/清单声明（PM 侧 2026-10-16 按 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136) 开票） | backend/app/modules/bills/ | 基于 PR #131 合入的 L01 切片，可立即执行 |
+| [v04-ethan-bills-backend/09](issues/09-module-dedup-test-coverage.md) | 模块防重用例补真实覆盖（杀变异 M2；PM 侧 2026-10-16 按 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136) 开票） | backend/app/modules/bills/ | 与 08 相互独立，可并行 |
 
 ## Out of Scope
 

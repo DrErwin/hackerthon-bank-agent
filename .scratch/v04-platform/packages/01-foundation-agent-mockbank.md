@@ -1,6 +1,6 @@
 # 交付包 01：v0.4 底座、Agent 与模拟银行（API / Harness / 银行接缝）
 
-Status: in_progress（2026-10-13 Erwin 本人接受；同日双轴审核通过并完成拆票，实施票见 [issues/01—08](../issues/)。第一块为账单线票 05 的前置，建议先做；06—08 为 Issue #122 三处接缝，已提前单独收口并全部置 resolved，**平台侧当前只剩票 05**，见下「验收证据索引」）
+Status: in_progress（2026-10-13 Erwin 本人接受；同日双轴审核通过并完成拆票，实施票见 [issues/01—12](../issues/)。01—04、06—09 已 resolved；**2026-10-16 起平台侧在办：票 05（分阶段口径）+ 补拆 10/11/12**，见下「验收证据索引」与 Comments）
 Owner: **Erwin** —— 模拟银行 + API 底座 + Agent/Harness 全部归 Erwin（2026-10-13 PM 明确）
 Activation: 2026-10-13 Erwin 建立，补 v0.4 缺失的底座交付包
 Start when: 立即，本包不等其它线；第三块（账单模块接入平台）在账单公开能力形态未定时先用契约形状 stub
@@ -57,7 +57,7 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 
 **验收标准 2「无验证码或秘密泄漏」的证据归属**：[票 09](../issues/09-export-secret-scan.md) 的 `test_export_secrets.py` 跑完整条明细导出链路后，扫描**全部对外产物**（创建 / 验证与状态回执、任务视图、验证历史回放、F21 卡片、CSV、SSE 事件）与**平台库全部用户表**——含导出链路写入的 `api_exports` / `api_reports` / `api_tasks`（v0.3 的扫描名单恰好漏掉这三张），并对三张表加最小行数断言避免在空表上静默通过；两半扫描各用一次注入检验证明有效（库侧注入报出 `api_requests` 行、响应侧注入报出 `verify`）。验收标准 2 的其余子项由票 01/02 既有用例覆盖、本票不重复：本人范围校验（`test_app.py` 报告 owner / 管理员 404、导出越权 404）、未过验证不给内容（明细下载 409）、下载路径受控（路径校验与就绪 409/404）。
 
-**当前缺口（一句话）**：平台侧只剩票 05（真实账单接入 + 联调）——它 `blocked` 于账单线公开能力 L01—L03，票面前置准备已完成（PR #129）；解封第一步与 checkpoint 口径见票 05 Comments。
+**当前缺口（一句话，2026-10-16 更新）**：账单 L01 已随 [PR #131](https://github.com/DrErwin/hackerthon-bank-agent/pull/131) 合入 main（行为中性——生产装配仍挂桩，`register_bills` 只被测试调用）；PM 接受**最小切片分阶段接入**（L01 先行；L02/L03 追加），票 05 解封前置 = [票 10](../issues/10-planner-second-module.md)（规划入口，[Issue #134](https://github.com/DrErwin/hackerthon-bank-agent/issues/134)）+ 安全侧读账口径（[Issue #137](https://github.com/DrErwin/hackerthon-bank-agent/issues/137)，Ringo）；另有平台缺陷票 [11](../issues/11-audit-outcome-denial.md)（审计 outcome，[Issue #135](https://github.com/DrErwin/hackerthon-bank-agent/issues/135)）与契约票 [12](../issues/12-contract-l02-l03-models.md)（L02/L03 公共模型，[Issue #132](https://github.com/DrErwin/hackerthon-bank-agent/issues/132)，解锁账单线 L02/L03 与 F21—F24 报告链路）。
 
 ## 实施票（2026-10-13 双轴审核通过后建立，一票一目录一分支一 PR）
 
@@ -71,6 +71,9 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 | [06](../issues/06-sse-event-payload-union.md) | `backend/app/contracts/` | Issue #122 第 1 项（契约侧）：`EventPayload` 收敛为通用 `TaskView` + §8 登记 | 无（2026-10-13 PM 决定提前单独收口） |
 | [07](../issues/07-export-task-module-and-event-payload.md) | `backend/app/api/` | Issue #122 第 3 项 + 第 1 项 API 侧：导出任务 `module=bills`、去掉事件去载荷兜底 | `blocked`：06 合入 |
 | [08](../issues/08-harness-resume-parsing.md) | `backend/app/agent_platform/` | Issue #122 第 2 项：harness 恢复解析去转账定型 | 无 |
+| [10](../issues/10-planner-second-module.md) | `backend/app/agent_platform/` | 规划入口支持第二业务模块（真实 planner 可产账单提案；2026-10-16 补拆） | [Issue #134](https://github.com/DrErwin/hackerthon-bank-agent/issues/134) |
+| [11](../issues/11-audit-outcome-denial.md) | `backend/app/agent_platform/` | 拒绝/失败路径审计 outcome 修复 + 回归断言（2026-10-16 补拆） | [Issue #135](https://github.com/DrErwin/hackerthon-bank-agent/issues/135) |
+| [12](../issues/12-contract-l02-l03-models.md) | `backend/app/contracts/` | L02/L03 公共契约模型落地（冻结 §5.3；2026-10-16 补拆） | [Issue #132](https://github.com/DrErwin/hackerthon-bank-agent/issues/132) |
 
 原建议「账单模块接入平台」跨 `api/ + agent_platform/` 两目录，按一票一目录拆为 03 + 04（2026-10-13 审核意见）；银行接缝 / 种子扩展按联调反馈触发，触发时按一票一目录另开票（06 起），无需求不开票。**票 05** 由 2026-10-13 盘点补齐：03/04 只交付注册点与契约形状桩，真实账单链路需要接入票（Issue #123）。
 
@@ -94,4 +97,5 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 - 2026-10-14 Erwin（AI 代填，PM 决定）：Issue #122 三处接缝提前单独收口，按一票一目录补拆 [06](../issues/06-sse-event-payload-union.md)（contracts）/ [07](../issues/07-export-task-module-and-event-payload.md)（api，`blocked` 于 06）/ [08](../issues/08-harness-resume-parsing.md)（agent_platform）；票 05 的主体仍 `blocked` 于账单公开能力，保留真数据下的复验。
 - 2026-10-14 三票当日合入并置 resolved（06 [PR #126](https://github.com/DrErwin/hackerthon-bank-agent/pull/126) `91ddc4a` / 08 [PR #127](https://github.com/DrErwin/hackerthon-bank-agent/pull/127) `3613ce0` / 07 [PR #128](https://github.com/DrErwin/hackerthon-bank-agent/pull/128) `77726a9`；各自双轴独立子代理审查〔AI 审查、非真人〕，08 的 P1 与全部 P2/P3 当日处置），[Issue #122](https://github.com/DrErwin/hackerthon-bank-agent/issues/122) 关闭；同轮完成票 05 前置准备（[PR #129](https://github.com/DrErwin/hackerthon-bank-agent/pull/129) `2f8c0a0`：双向守住「真实模块替换桩」的可用性条件，三种变异被杀）。主线基线 535 passed + 模拟银行 14 passed。
 - 2026-10-14 建档「验收证据索引（滚动）」：P01—P06 逐条对应票、可复核用例与状态，供 10-16 checkpoint 与 10-20 收口复核；当前缺口只有票 05（`blocked` 于账单线）。
-- 2026-10-14 补 [票 09](../issues/09-export-secret-scan.md)（[PR #130](https://github.com/DrErwin/hackerthon-bank-agent/pull/130) `e46522a`）补齐验收标准 2「无验证码或秘密泄漏」的证据：扫描全部对外产物（正文 + 响应头）与平台库（`application.sqlite`）全部用户表——含 v0.3 扫描名单漏掉的导出链路三张表，并加覆盖面/内容下限断言；注入 A/B 与反证 V1/V2/V3 证明两半扫描有效、三条静默通过路径已封。索引 P03/P04 行已回填，平台侧证据不再有已知缺口（主线基线 536 passed + 模拟银行 14 passed）。
+- 2026-10-14 建[票 09](../issues/09-export-secret-scan.md)（[PR #130](https://github.com/DrErwin/hackerthon-bank-agent/pull/130) `e46522a`）补齐验收标准 2「无验证码或秘密泄漏」的证据：扫描全部对外产物（正文 + 响应头）与平台库（`application.sqlite`）全部用户表——含 v0.3 扫描名单漏掉的导出链路三张表，并加覆盖面/内容下限断言；注入 A/B 与反证 V1/V2/V3 证明两半扫描有效、三条静默通过路径已封。索引 P03/P04 行已回填，平台侧证据不再有已知缺口（主线基线 536 passed + 模拟银行 14 passed）。
+- 2026-10-16 **承接 PR #131 合并与三轴审查结论（AI 审查、非真人）**：账单 L01 最小切片合入 main（squash `85a119d`），合并行为中性（生产仍挂桩）。三轴发现三条平台级拦路（规划入口产不出账单能力 / 生产安全策略不认账单读取 / 最小切片不覆盖 L02/L03 的 F21—F24 报告链路）与一处平台既有缺陷（安全拒绝被记成 `outcome=succeeded`）。据此：①票 05 验收口径改**分阶段**（L01 先行、L02/L03 追加；PM 接受，见票 05 Comments）；②补拆 [10](../issues/10-planner-second-module.md)（规划入口，[Issue #134](https://github.com/DrErwin/hackerthon-bank-agent/issues/134)）/ [11](../issues/11-audit-outcome-denial.md)（审计 outcome，[Issue #135](https://github.com/DrErwin/hackerthon-bank-agent/issues/135)）/ [12](../issues/12-contract-l02-l03-models.md)（L02/L03 契约模型，[Issue #132](https://github.com/DrErwin/hackerthon-bank-agent/issues/132)）；③安全侧读账口径与审计证据四项开 [Issue #137](https://github.com/DrErwin/hackerthon-bank-agent/issues/137) 转 Ringo（不代签）；④账单线五项返修开 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136) 转周恩宇（v04-ethan-bills-backend/08、/09）。
