@@ -1,29 +1,50 @@
-# bills —— 账单分析
+# bills — 账单业务（周恩宇 / Ethan）
 
-负责人：周恩宇（Ethan / `zhouey314-cloud`）。v0.4 做账单三类能力及 BF01—BF07；跨场景在 v0.5。
+本增量对应 [v04-ethan-bills-backend/03](../../../../.scratch/v04-ethan-bills-backend/issues/03-public-summary.md)、BF01/BF05/BF06 的 L01 首条可运行模块路径。只改本目录，只引用公共契约，不修改平台、安全、银行或前端，不提前做 v0.5 跨场景。
 
-依据：[02 PRD](../../../../docs/prd/02-账单分析-PRD-2026-09-23.md)、[公共契约 §5.3/§5.9/§6.11](../../../../docs/contracts/公共契约-2026-09-23.md)、[实施票 01](../../../../.scratch/v04-ethan-bills-backend/issues/01-statistics-core.md)。
+## 已实现
 
-## 当前增量：私有统计计算，不是完整账单服务
+- `BillsService.summarize(trusted, BillSummarizeInput)`：通过受控 B01/B08 获取本人完整账户流水，返回公共 `ModuleResult`，data 是 `SpendingSummary` 或 `BillDetails`。
+- summary 包括消费/退款/净额、转入/转出、七类占比与排序、可选同期对比；details 按已解析的原消费类别筛选退款、保持银行的渠道/脱敏元数据。
+- 跨月退款原单通过同一授权账户 B08 补取；补取仅作来源证据，不重复计入本期。任一必要账户/原单/对照期缺失或失败，不返回完整成功或假零值。
+- `GatewayBillsReads` 使用公共 `SecurityGate` + `DeterministicExecutor` + `BankGateway`，记录 tool.started/finished。安全策略和身份解析由平台注入，无默认放行器；无写银行处理器，错误详情不原样写入日志。
+- `BillsEntry` 实现现有平台 entry 协议，使用平台传入的 scoped checkpointer 保存同一任务。支持明确单月和本人账户选择、原范围重试、取消、重复开始防重以及跨会话恢复后的再次选择。
+- `register_bills(registry, reads_factory, clock)` 提供真实注册入口，能力清单非空，owner=`zhouey314-cloud`、version=`0.4.0-l01`。
 
-- `_statistics.py` 只进行确定性算术：消费/退款/净额、七类、转入转出、对比、月均、明细筛选。
-- 七类码直接来自 `app.contracts.common.Category`，不重新定义公共枚举。
-- `LedgerRow` 保留退款原单编号与时间。`assemble` 用当前范围及补充的已获准 `original_batches` 解析原消费类别；历史原单只作证据，不重复计入本期金额。无原单、错误账号/时间或矛盾事实时停止，不猜类别；历史取数仍由后续 L01 经 B08 办理，本内核不联网。
-- `select_rows` 按已解析的 `category` 过滤；`nature` 只决定消费/转账等金额口径，不覆盖明细标签。
-- `share_bps/change_bps` 在最后一步从精确比例四舍五入，占比不强凑 10000（§6.11）。按照书面 §5.3，净消费非正或出现负类别时不输出饼图比例；零净额类别与转账也为 null，兼容公共模型约束。
-- `manifest.py` 是票 01 的离线目录清单：无工具、无副作用、无已注册能力。运行导出与能力注册留票 03，不把空清单冒充接口可用。
+## 平台接入约定（Issue #123）
 
-## 公共依赖现状（2026-10-13 核对）
+```python
+from app.modules.bills.entry import register_bills
+from app.modules.bills.reads import GatewayBillsReads
 
-[Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91) 已关闭：公共 `Transaction`/L01 模型及 `BankGateway.list_transactions` 已合入；`BillReport` 也已提供。**不是继续等待 B08 实现，而是本模块尚未完成公开流程接线。** 报告/导出与平台接入的新增工作由 Erwin 的 `v04-platform` 工作线负责，是否可调用以合入和接口证据为准。
-
-## 验证边界
-
-```sh
-# 从仓库根目录（按 backend/README 安装开发依赖）
-PYTHONPATH=backend python -m pytest -q backend/app/modules/bills/
+# 由平台工作线在 ApiService 装配前执行。
+# reads_factory(trusted, trace) 应返回：
+# GatewayBillsReads(gateway, task_scoped_security_gate,
+#                   trusted_execution_context_factory, trace)
+register_bills(registry, reads_factory, clock)
 ```
 
-本增量验证 BF01/BF03 的算术子断言及明细过滤，不关闭 BF01—BF07。97 项模块测试覆盖原单类别不同、跨月来源、原单缺失/冲突、类别与交易性质不同、比例取整等；真实 L01、权限、对话澄清、原任务恢复、L02/L03、HTTP/模型/页面仍需后续票验收。
+`reads_factory` 必须提供现有平台的可信身份/轮次/任务校验和真实安全门；不能使用测试中的 LOW 风险/身份回调替身替代生产策略。gate 注册两种本模块私有 READ 工具（`bills.bank.list_accounts` / `bills.bank.list_transactions`），其参数形状定义在 `reads.py`，分别映射公开 B01/B08，不是新公共 HTTP 契约。
 
-是否触及公共契约或安全：**只引用，不修改**。不得直读银行私有存储，不新增授权标记，不合并代码 PR。此次审查反馈逐项答复见 [PR #92 评论](https://github.com/DrErwin/hackerthon-bank-agent/pull/92)。
+按 Erwin 2026-10-14 的优先级说明，这次只宣告实际实现的 `bills.summarize`。真实清单注册后，三能力演示桩整体让位：**L02/L03 不再出现在可执行目录中**，不能保留返回成功的假能力冒充实现。该最小切片需由平台票05明确接受后部署；后续 L02/L03 各按自身实施票追加。`bills.export_details` 仍是平台 F22 的任务标签/短路恢复路径，本模块不虚假登记敏感导出 handler；能力名对账留 #123。
+
+## 输入、错误与当前限制
+
+公开 typed L01 接受任意符合 `BillScope` 的范围、summary/details/对比。银行负责最近24个月支持范围，不在本模块复制银行限额或范围规则。
+
+当前 Harness 给第二模块的 transport 仍是 `StartTransferInput`。本 entry 仅使用 request_id 与 intent_text，不把转账金额/收款人当账单事实；会话内支持明确 `YYYY年M月`、`YYYY-MM`、本月/上月，以及 F10 的 option-choice 回复。账户没有明确选择时不猜。自定义日期区间、年度范围及复杂对比在 typed L01 已支持，但聊天适配尚未完成：会明确追问而非静默缩短范围。本增量不是“所有自然语言均能理解”。
+
+读失败可在原任务选择重试；权限拒绝不返回账单。末态原任务不重新执行；范围改变应建立有明确修订语义的新选择，不能复用旧 interaction。当前 entry 的范围修改和任意文本 F10 接入需要后续扩充，BF05/BF06 不因此整体关闭。
+
+L02、L03、报告与敏感导出、真实模型/HTTP/页面、专业安全审查及 BF01—BF07 联合验收仍未完成。平台实际装配归 Erwin，不在本目录越界修改。
+
+## 验证
+
+```sh
+cd backend
+python -m pytest -q app/modules/bills/
+```
+
+`test_public.py` 验证公共模型、错误、回执、范围及 entry 协议（网关/checkpointer 为测试替身）；`test_public_integration.py` 使用仓库真实 Harness、SQLite scoped saver、SecurityGate、BankGateway 和公共种子 Mock Bank，**规划器与风险策略仍是明确测试替身**。不能据此声称真实模型、页面或专业安全验收通过。具体提交和 CI 结果以本次 PR 评论为准。
+
+既有 `_statistics.py` 和其97项测试来自已合并 #92，本次未改动。规则依据：[公共契约 §5.3/§5.9/§6.11](../../../../docs/contracts/公共契约-2026-09-23.md) · [02 PRD](../../../../docs/prd/02-账单分析-PRD-2026-09-23.md)。

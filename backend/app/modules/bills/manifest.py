@@ -1,18 +1,22 @@
-"""Offline module inventory for ticket 01, not an active L01 registration.
+"""Runnable L01 surface; absent L02/L03 are not advertised as completed.
 
-The manifest has no runtime consumer yet: ticket 03 will expose the module through
-its public registration point only after the real workflow can run. Empty
-capabilities are intentional, not a callable stub or an authorization bypass.
+Per Erwin's 2026-10-14 priority note, the platform may start integration from
+bills.summarize. Register before ApiService construction: the old three-method
+stub then steps aside as a whole. This module never edits the platform registry
+or keeps a misleading successful stub for unimplemented methods.
 """
-from app.contracts.platform import ModuleManifest
+from app.contracts.common import OperationLevel
+from app.contracts.platform import CapabilityDefinition, ModuleManifest
+from .reads import PRIVATE_TOOLS
 
-PRIVATE_TOOLS = ()
 MANIFEST = ModuleManifest(
-    module_name="bills",
-    version="0.4.0",
-    owner="zhouey314-cloud",
-    description="账单私有计算；B08与公共模型已就绪，L01业务注册尚未完成",
-    implementation_kind="workflow",
-    capabilities=[],
-    dependencies=[],
+    module_name="bills", version="0.4.0-l01", owner="zhouey314-cloud",
+    description="本人账单查询、分类统计与明细（L01）；异常识别L02和报告L03尚未实现，不能宣称已完成。",
+    implementation_kind="workflow", dependencies=["bank_gateway", "security"],
+    capabilities=[CapabilityDefinition(
+        name="bills.summarize", input_schema_ref="BillSummarizeInput", output_schema_ref="SpendingSummary",
+        required_permissions=["bills.read"], operation_level=OperationLevel.READ,
+        side_effect=False, confirmation_policy="none", timeout_ms=10_000,
+        retry_policy="read_only", handler_ref="bills.summarize",
+    )],
 )
