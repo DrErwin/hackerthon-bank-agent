@@ -1,6 +1,6 @@
 # 交付包 01：v0.4 检测器与评测完整性（#86 + #88）
 
-Status: ready（Ringo 已本人领取；规格与用例扩充可开始，本轮仅登记领取）
+Status: in_progress（2026-10-15 已建立本人规格与七张实施票；待按票执行，MAT 子项等 Issue #133）
 Owner: Ringo；**PM 代行条款**（v0.3 先例，含三要素）：**2026-10-14 24:00 前 Ringo 未确认领取本包，即启动 PM（Erwin）代行**——代行期限至 v0.4 收口，代行期间拆票与实施由 PM 承担、审查人 Erwin（自审如实记录），Ringo 回归即交还；始终如实记录为代行，不冒充 Ringo 本人审查
 Activation: 2026-10-11 Erwin 建立（v0.4 正式启动同日）
 Start when: v0.4 已于 2026-10-11 正式启动，#86 检测器规格与 #88 用例扩充可立即开展；前置 [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84) 已于 2026-10-12 关闭（提供方 Erwin，见[规划上下文工作组](../../v04-planning-context/spec.md)）。SEC-C-001 原余 14 轮记录须对照最新台账核对；33 轮 gated 补验仍须满足各自检测与观测能力条件，领取与前置关闭均不代表补验通过。
@@ -8,7 +8,7 @@ Spec: [v0.4 安全完整性规格](../spec.md)
 
 Accepted by: Ringo（GitHub @RingoDontpanic；本人在本会话明确确认领取）
 Accepted at: 2026-10-13（Asia/Shanghai）
-Work spec: 待建立（共享规格沿用上方 Spec；本人详细规格及实施票尚待后续推进）
+Work spec: [Ringo v0.4 安全工作规格](../../v04-ringo-security/spec.md)；[七张实施票](../../v04-ringo-security/issues/)（测试边界与拆分已于 2026-10-15 由 Ringo 本人确认）
 
 Source issue: [#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)（真实风险检测器 + 检测层，33 轮 gated；签核项已按 PM 规则豁免）· [#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)（安全评测完整性：R06 差 2、8 组 <10、SEC-E-006/v06、MAT 攻击集改编）
 
@@ -19,6 +19,14 @@ Ringo 本人确认领取本包的 #86 检测器工作线及 #88 安全评测工�
 本轮仅登记接受记录并核对开工条件。Status 保留 ready，开始编写本人规格、拆票或执行时再转 in_progress；accepted 留给联合验收通过后使用。领取不作为实现通过、安全测试通过或 Ringo 专业签核的证据，原 v0.3 例外和 PM 豁免记录保持。
 
 开工 Skill 检查：2026-10-13 本机缺失的 to-spec、to-tickets、implement、code-review 已按团队固定来源 mattpocock/skills 提交 d81f3a183412e71a5b1e84ca21bc1a35eea03a60 安装，并读取各自 SKILL.md 核对。新安装项待下一轮加载；本轮未调用规格、拆票或实施技能。后续按队员开工规范显式选择所需 Skill。
+
+## 2026-10-15 规格与拆票进度
+
+本人工作规格和七张实施票已建立，实际开始日期为 2026-10-15，Status 转 in_progress。Ringo 在本会话确认公开 API / 统一安全执行链加独立模拟银行事实的测试边界，也确认七项拆票的粒度与依赖。
+
+[通知逐项核对](../../v04-ringo-security/notification-audit-2026-10-15.md)覆盖截图五项通知。旧 PR #78 已合并，CI #212 已有后继成功运行，CI #237 的两个末尾空行问题本轮做纯格式修复；旧失败运行保持历史状态。本轮完成规格及正式拆票，代码与评测实施尚未开始。
+
+MAT 改编在 Issue #88 与本包的必交口径不同，已开 [Issue #133](https://github.com/DrErwin/hackerthon-bank-agent/issues/133) 转给 Erwin，仅阻塞 MAT 子项。付费模型补验须在执行前另行确认入口和预算，其他可独立工作按票推进。领取、规格确认及拆票不作为专业签核或联合验收通过。
 
 ## 业务目标
 
