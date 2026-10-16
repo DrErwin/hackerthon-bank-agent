@@ -96,6 +96,22 @@ def _task_lock(path: Path, task_id: str):
                     fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
+def _task_outcome(status: TaskStatus) -> str:
+    """Audit outcome for a task status; denials and failures are never 'succeeded'.
+
+    The frozen audit outcome enum is started/succeeded/failed/waiting/unknown/denied,
+    so statuses outside the three mapped ones fall back to 'unknown'.
+    """
+
+    if status in {TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL}:
+        return "waiting"
+    if status == TaskStatus.SUCCEEDED:
+        return "succeeded"
+    if status == TaskStatus.FAILED:
+        return "failed"
+    return "unknown"
+
+
 class RunTrace:
     """Share this writer with future security and tool sinks to keep one event order."""
 
@@ -488,9 +504,7 @@ class AgentHarness:
                     plan_revision=None, step_id=proposal.capability_name,
                     reason_code="CAPABILITY_SELECTED",
                     checkpoint_ref=self._checkpoint_id(context, task),
-                ), "waiting" if result.status in {
-                    TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL,
-                } else "succeeded",
+                ), _task_outcome(result.status),
             )
             return result
 
@@ -787,8 +801,6 @@ class AgentHarness:
                     plan_revision=None, step_id=task.snapshot["capability_name"],
                     reason_code="TASK_RESUMED",
                     checkpoint_ref=checkpoint_id,
-                ), "waiting" if result.status in {
-                    TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL,
-                } else "succeeded",
+                ), _task_outcome(result.status),
             )
             return result
