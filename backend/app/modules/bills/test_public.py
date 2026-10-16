@@ -314,3 +314,88 @@ def test_registration_uses_actual_factory_and_only_declared_capability():
     register_bills(registry,lambda trusted,trace:r,lambda:NOW)
     result=start(registry.factory(CTX,Saver(),None),'2026年9月所有账户账单')
     assert result.status=='succeeded' and registry.manifest.capabilities[0].name=='bills.summarize'
+
+
+# v04-ethan-bills-backend/08 · Issue #136 regressions
+
+def test_b01_temporary_failure_waits_and_retries_original_scope():
+    reads = Reads([transaction()])
+    reads.accounts_failure = True
+    actor = entry(reads)
+    waiting = start(actor, '2026年9月所有账户账单')
+    assert waiting.status == 'waiting_input' and waiting.data is None
+    assert not any(x[0] == 'transactions' for x in reads.calls)
+    assert any('重新查询' in x.label for x in waiting.interaction.options)
+    reads.accounts_failure = False
+    outcome = choose(actor, waiting, '重新查询')
+    assert outcome.status == 'succeeded' and outcome.task_id == waiting.task_id
+    assert outcome.data.consumption_net_fen == 50000
+
+
+def test_b01_security_denial_is_not_retried():
+    reads = Reads()
+    reads.deny = True
+    outcome = start(entry(reads), '2026年9月所有账户账单')
+    assert outcome.status == 'failed'
+    assert outcome.error.code == 'SECURITY_REJECTED'
+    assert outcome.interaction is None
+    assert not any(x[0] == 'transactions' for x in reads.calls)
+
+
+def test_negated_transfer_intent_does_not_become_transfer_spending_claim():
+    reads = Reads([transaction(), transaction('transfer', category='transfer',
+                                            nature='transfer', amount=2300)])
+    outcome = start(entry(reads), '2026年9月所有账户不含转账的消费统计')
+    assert outcome.status == 'succeeded'
+    assert outcome.data.consumption_net_fen == 50000
+    assert '转账支出' not in outcome.message
+    assert '转出' in outcome.message and '消费' in outcome.message
+
+
+def test_unsupported_exclusion_clarified_before_any_bank_read():
+    reads = Reads([transaction()])
+    actor = entry(reads)
+    waiting = start(actor, '2026年9月所有账户排除餐饮账单')
+    assert waiting.status == 'waiting_input'
+    assert not reads.calls
+    assert '不支持' in waiting.message
+    result = choose(actor, waiting, '查看全部类别')
+    assert result.status == 'succeeded' and result.data.consumption_net_fen == 50000
+
+
+def test_service_differentiates_output_contract_failure_from_bad_input(monkeypatch, caplog):
+    import app.modules.bills.service as bills_module
+
+    reads = Reads([transaction()])
+    invalid = service(reads).summarize(CTX, query(extra_field=True))
+    assert invalid.error.code == 'INVALID_ARGUMENT' and not reads.calls
+
+    def bad_output(**_):
+        # Simulate Pydantic rejecting internally constructed *result* data.
+        BillSummarizeInput.model_validate({})
+
+    monkeypatch.setattr(bills_module, 'SpendingSummary', bad_output)
+    with caplog.at_level('WARNING', logger=bills_module.__name__):
+        result = service(reads).summarize(CTX, query())
+    assert result.status == 'failed' and result.data is None
+    assert result.error.code == 'BILLS_RESULT_INVALID'
+    assert 'bills.result_contract_invalid' in caplog.text
+    assert 'Traceback' not in caplog.text
+
+
+def test_service_internal_failure_is_not_falsely_reported_as_bank_outage(caplog):
+    class ExplodingReads(Reads):
+        def accounts(self, context):
+            raise RuntimeError('secret-account-data-must-not-appear-in-logs')
+    with caplog.at_level('ERROR'):
+        result = service(ExplodingReads()).summarize(CTX, query())
+    assert result.status == 'failed' and result.error.code == 'BILLS_INTERNAL_ERROR'
+    assert result.data is None
+    assert 'secret-account-data' not in result.message
+    assert 'secret-account-data' not in caplog.text
+    assert 'RuntimeError' in caplog.text
+
+
+def test_manifest_declares_both_l01_frozen_output_variants():
+    schema = MANIFEST.capabilities[0].output_schema_ref
+    assert set(schema.split('|')) == {'SpendingSummary', 'BillDetails'}
