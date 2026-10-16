@@ -1,9 +1,11 @@
-"""Second-module registration, routing and resume through one platform entry (v04-platform/03 and 08)."""
+"""Second-module registration, routing and resume through one platform entry (v04-platform/03, 08 and 10)."""
 
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 
 from app.audit.journal import AuditJournal
 from app.contracts.bills import AccountSourceAsOf, BillScope, SpendingSummary
@@ -16,8 +18,9 @@ from app.storage.application import ApplicationStore
 
 from .bills_stub import BILLS_MANIFEST, register_bills_stub
 from .harness import AgentHarness
-from .model import TransferProposal
+from .model import DeepAgentPlanner, ModelSettings, TransferProposal
 from .registry import CapabilityRegistry
+from .test_harness import ScriptedChatModel
 
 
 def trusted(task="T1"):
@@ -78,6 +81,48 @@ def test_bill_intent_routes_to_the_registered_bills_stub(tmp_path):
     assert task.snapshot["capability_name"] == "bills.summarize"
     assert task.snapshot["intent_text"] == "这个月钱花哪了"
     assert task.snapshot["result"]["status"] == "succeeded"
+
+
+class BillsIntentChatModel(ScriptedChatModel):
+    """A scripted chat model behind the real DeepAgentPlanner (not a planner stub)."""
+
+    model_name: str = "bills-e2e"
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        if any(isinstance(item, ToolMessage) for item in messages):
+            reply = AIMessage(content="已记录。")
+        else:
+            reply = AIMessage(content="", tool_calls=[{
+                "name": "propose_transfer", "args": {"capability_name": "bills.summarize"},
+                "id": "call-1", "type": "tool_call",
+            }])
+        return ChatResult(generations=[ChatGeneration(message=reply)])
+
+
+def test_bill_task_is_created_from_the_message_entry_by_the_real_planner(tmp_path):
+    """v04-platform/10：DeepAgentPlanner（生产规划类，非替身 planner）按意图
+    产出 bills.summarize 提案，账单任务从消息入口创建（端到端一跳）。"""
+
+    application = ApplicationStore(tmp_path / "app.sqlite")
+    memory = MemoryAdapter(application, active_round=lambda: "D1")
+    registry = CapabilityRegistry()
+    registry.register_transfer(MANIFEST, lambda _trusted, _saver, _trace: None)
+    register_bills_stub(registry)
+    model = BillsIntentChatModel()
+    planner = DeepAgentPlanner(ModelSettings(model, "scripted", model.model_name, "test-v1"))
+    harness = AgentHarness(application, memory, AuditJournal(application.path), registry,
+                           planner, lambda *_: True)
+    at = datetime.now(timezone.utc)
+    application.create_session("S1", "U1", "D1", at.isoformat(),
+                               (at + timedelta(days=1)).isoformat())
+
+    result = harness.start(trusted(), uuid4(), "这个月钱花哪了")
+
+    assert result.status == TaskStatus.SUCCEEDED
+    assert "契约形状桩" in result.message
+    task = application.get_task("U1", "D1", "T1")
+    assert task.snapshot["capability_name"] == "bills.summarize"
+    assert task.snapshot["intent_text"] == "这个月钱花哪了"
 
 
 def test_register_module_rejects_foreign_and_duplicate_capabilities(tmp_path):

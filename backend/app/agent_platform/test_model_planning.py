@@ -39,13 +39,15 @@ class PlanningSequenceModel(ScriptedChatModel):
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content="", tool_calls=calls))])
 
 
-def select(tmp_path, model):
+def select(tmp_path, model, catalog=None):
     application = ApplicationStore(tmp_path / "app.sqlite")
     now = datetime.now(timezone.utc)
     application.create_session("S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat())
     memory = MemoryAdapter(application, active_round=lambda: "D1")
     planner = DeepAgentPlanner(ModelSettings(model, "scripted", model.model_name, "ticket10-test"))
-    return planner.select("给妈妈转钱", trusted(), [{"name": "transfer.start_transfer"}], memory, "thread")
+    default = [{"name": "transfer.start_transfer", "description": "普通转账"}]
+    return planner.select("给妈妈转钱", trusted(),
+                          default if catalog is None else catalog, memory, "thread")
 
 
 def test_result_ends_planning_before_followup_reply(tmp_path):
@@ -141,3 +143,60 @@ def test_missing_fields_reach_http_task_without_bank_submission(tmp_path, amount
             assert task["status"] == "waiting_input"
             assert missing in task["interaction"]["required_fields"]
             assert submitted_ledger_count(app) == 0
+
+
+BILLS_CATALOG = [
+    {"name": "transfer.start_transfer", "description": "单笔即时人民币普通转账"},
+    {"name": "bills.summarize", "description": "本人账单查询、分类统计与明细"},
+]
+
+
+class CapabilityRoutingModel(ScriptedChatModel):
+    """The real planner path names a registered second-module capability (v04-platform/10)."""
+
+    capability: str | None = None
+    tool_schemas: dict = {}
+
+    def bind_tools(self, tools, **kwargs):
+        self.tool_schemas = {tool.name: tool.args for tool in tools}
+        return super().bind_tools(tools, **kwargs)
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        if any(isinstance(item, ToolMessage) for item in messages):
+            reply = AIMessage(content="已记录。")
+        else:
+            args = {"capability_name": self.capability} if self.capability else {}
+            reply = AIMessage(content="", tool_calls=[
+                {"name": "propose_transfer", "args": args, "id": "call-1", "type": "tool_call"},
+            ])
+        return ChatResult(generations=[ChatGeneration(message=reply)])
+
+
+def test_proposal_tool_exposes_capability_name_and_routes_bills(tmp_path):
+    model = CapabilityRoutingModel(capability="bills.summarize")
+    proposal = select(tmp_path, model, BILLS_CATALOG)
+    assert proposal.capability_name == "bills.summarize"
+    assert proposal.payee_hint is None and proposal.amount_fen is None
+    assert proposal.payer_account_id is None
+    # tool.args is the field map the bound model sees: capability_name is fillable.
+    schema = model.tool_schemas["propose_transfer"]
+    assert "capability_name" in schema
+    assert schema["capability_name"]["default"] == "transfer.start_transfer"
+
+
+def test_transfer_keeps_its_default_capability_without_naming_it(tmp_path):
+    proposal = select(tmp_path, CapabilityRoutingModel(capability=None), BILLS_CATALOG)
+    assert proposal.capability_name == "transfer.start_transfer"
+
+
+def test_capability_outside_the_catalog_is_rejected_with_safe_diagnostics(tmp_path):
+    with pytest.raises(ValueError, match="MODEL_PROPOSAL_INVALID") as caught:
+        select(tmp_path, CapabilityRoutingModel(capability="bills.summarize"))
+    assert caught.value.stage == "capability_name"
+    assert caught.value.outcome_count == 1
+    assert caught.value.tool_names == ("propose_transfer",)
+
+
+def test_empty_catalog_is_a_configuration_error(tmp_path):
+    with pytest.raises(ValueError, match="CAPABILITY_CATALOG_UNAVAILABLE"):
+        select(tmp_path, CapabilityRoutingModel(capability="transfer.start_transfer"), catalog=[])
