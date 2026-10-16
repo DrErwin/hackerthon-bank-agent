@@ -11,13 +11,13 @@ from .reads import PRIVATE_TOOLS
 
 MANIFEST = ModuleManifest(
     module_name="bills", version="0.4.0-l01", owner="zhouey314-cloud",
-    description="本人账单查询、分类统计与明细（L01）；异常识别L02和报告L03尚未实现，不能宣称已完成。",
+    description="L01按mode返回：summary=SpendingSummary、details=BillDetails；L02/L03尚未实现。",
     implementation_kind="workflow", dependencies=["bank_gateway", "security"],
     capabilities=[CapabilityDefinition(
-        # BillSummarizeInput.mode controls the frozen union; summary and details
-        # are both truthful public outputs (no new common contract model).
+        # A schema_ref must name an existing model, not an invented union alias.
+        # The manifest description explicitly declares the details-mode type.
         name="bills.summarize", input_schema_ref="BillSummarizeInput",
-        output_schema_ref="SpendingSummary|BillDetails",
+        output_schema_ref="SpendingSummary",
         required_permissions=["bills.read"], operation_level=OperationLevel.READ,
         side_effect=False, confirmation_policy="none", timeout_ms=10_000,
         retry_policy="read_only", handler_ref="bills.summarize",
