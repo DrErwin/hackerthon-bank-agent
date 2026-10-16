@@ -50,13 +50,18 @@ class BillSummarizeInput(ContractModel):
         if self.mode == "summary":
             if self.category is not None:
                 raise ValueError("summary mode does not take a category filter")
-            if self.comparison_scope is not None and (
-                set(self.comparison_scope.account_ids) != set(self.scope.account_ids)
-            ):
-                raise ValueError("the comparison period reuses the account set of the scope")
+            if self.comparison_scope is not None:
+                _require_shared_account_set(self.scope, self.comparison_scope)
         elif self.comparison_scope is not None:
             raise ValueError("details mode does not take a comparison scope")
         return self
+
+
+def _require_shared_account_set(scope: BillScope, comparison_scope: BillScope) -> None:
+    """A comparison period reuses the account set of its scope with its own range (§5.3)."""
+
+    if set(comparison_scope.account_ids) != set(scope.account_ids):
+        raise ValueError("the comparison period reuses the account set of the scope")
 
 
 def _require_net_equation(net: int, gross: int, refund: int, label: str) -> None:
@@ -65,7 +70,7 @@ def _require_net_equation(net: int, gross: int, refund: int, label: str) -> None
 
 
 def _require_complete_source(scope: BillScope, source_as_of: list[AccountSourceAsOf], as_of: Timestamp) -> None:
-    """A summary or a details list may only claim completeness over the whole scope (§5.3)."""
+    """A summary, a details list or locate candidates claim completeness over the scope (§5.3)."""
 
     if sorted(item.account_id for item in source_as_of) != sorted(scope.account_ids):
         raise ValueError("source_as_of must cover exactly the accounts in scope")
@@ -203,9 +208,11 @@ class TransactionCandidates(ContractModel):
 class RuleCheck(ContractModel):
     """One L02 rule outcome; missing data stays distinct from checked-and-clear."""
 
+    # Literal keeps the 1..4 enum in the wire schema; pydantic v2 cannot apply
+    # strict to a literal schema, so bool/float equality edge cases stay open.
     rule_id: Literal[1, 2, 3, 4]
     status: Literal["evaluated", "insufficient_data"]
-    reason: str | None = None
+    reason: str | None
 
 
 class AnomalyFinding(ContractModel):
@@ -249,8 +256,6 @@ class GenerateReportInput(ContractModel):
 
     @model_validator(mode="after")
     def require_shared_account_set_for_comparison(self) -> "GenerateReportInput":
-        if self.comparison_scope is not None and (
-            set(self.comparison_scope.account_ids) != set(self.scope.account_ids)
-        ):
-            raise ValueError("the comparison period reuses the account set of the scope")
+        if self.comparison_scope is not None:
+            _require_shared_account_set(self.scope, self.comparison_scope)
         return self
