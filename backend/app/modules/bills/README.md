@@ -9,7 +9,7 @@
 - 跨月退款原单通过同一授权账户 B08 补取；补取仅作来源证据，不重复计入本期。任一必要账户/原单/对照期缺失或失败，不返回完整成功或假零值。
 - `GatewayBillsReads` 使用公共 `SecurityGate` + `DeterministicExecutor` + `BankGateway`，记录 tool.started/finished。安全策略和身份解析由平台注入，无默认放行器；无写银行处理器，错误详情不原样写入日志。
 - `BillsEntry` 实现现有平台 entry 协议，使用平台传入的 scoped checkpointer 保存同一任务。支持明确单月和本人账户选择、原范围重试、取消、重复开始防重以及跨会话恢复后的再次选择。
-- `register_bills(registry, reads_factory, clock)` 提供真实注册入口，能力清单非空，owner=`zhouey314-cloud`、version=`0.4.0-l01`；`bills.summarize` 的 `output_schema_ref` 如实标注按 mode 返回 `SpendingSummary|BillDetails`，不再只声称一种输出。
+- `register_bills(registry, reads_factory, clock)` 提供真实注册入口，能力清单非空，owner=`zhouey314-cloud`、version=`0.4.0-l01`；`bills.summarize` 在 manifest 描述中明确说明按 mode 返回 `SpendingSummary` / `BillDetails`；`output_schema_ref` 保留已有真实类型 `SpendingSummary`，避免发明不存在的 schema union 标识。
 
 ## 平台接入约定（Issue #123）
 
