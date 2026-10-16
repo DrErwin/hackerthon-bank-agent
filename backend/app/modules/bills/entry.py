@@ -28,6 +28,15 @@ _CATEGORIES = {"餐饮": Category.DINING, "交通": Category.TRANSPORT, "医疗"
                "其他": Category.OTHER}
 
 
+def _negative_category(intent: str) -> str | None:
+    """Detect category exclusions; never turn 'not transfer' into 'show transfer'."""
+    for label, category in _CATEGORIES.items():
+        if (re.search(r"(?:不含|不包括|不算|不计|排除|剔除|去掉|不要算)\s*" + label, intent)
+                or re.search(label + r"\s*(?:不算|不计入|排除)", intent)):
+            return category.value
+    return None
+
+
 def month_range(year: int, month: int) -> tuple[str, str]:
     start = datetime(year, month, 1, tzinfo=BEIJING)
     end = datetime(year + (month == 12), 1 if month == 12 else month + 1, 1, tzinfo=BEIJING)
@@ -117,13 +126,24 @@ class BillsEntry:
             return self._wait(context, state,
                 "请明确查询月份。可选择下列月份；自定义范围和对比请通过结构化 L01 入口提交。",
                 choices, "period")
+        if state.get("negative_category") not in (None, Category.TRANSFER.value):
+            # Frozen L01 offers inclusion/whole-summary, not arbitrary subtraction.
+            # Explicitly clarify unsupported exclusions *before* any bank read.
+            return self._wait(context, state,
+                "目前不支持从统计中排除所选类别。可选择查看全部类别的真实账单。",
+                [("查看全部类别", {"negative_category": None, "category": None})],
+                "category_exclusion")
         if state["account_ids"] is None:
             try:
                 accounts = self.service.accounts(context).accounts
             except BillsError as exc:
+                if exc.code in {"DEPENDENCY_UNAVAILABLE", "INCOMPLETE_FACTS"}:
+                    return self._wait(context, state, exc.args[0] + "，账户暂时查不到，请稍后重试原范围。",
+                        [("重新查询原范围", {"retry": True})], "retry")
                 return fail(context, exc)
             except Exception:
-                return fail(context, BillsError("DEPENDENCY_UNAVAILABLE"))
+                return self._wait(context, state, "账户暂时查不到，请稍后重试原范围。",
+                    [("重新查询原范围", {"retry": True})], "retry")
             if not accounts:
                 return fail(context, BillsError("ACCESS_DENIED", source="security"))
             if state["all_accounts"]:
@@ -136,7 +156,8 @@ class BillsEntry:
                               "end_at": state["period"][1]}, "mode": state["mode"],
                    "category": state["category"] if state["mode"] == "details" else None}
         result = self.service.summarize(context, request)
-        if result.status == TaskStatus.SUCCEEDED and state["mode"] == "summary" and state["category"]:
+        if (result.status == TaskStatus.SUCCEEDED and state["mode"] == "summary"
+                and state["category"] and not state.get("negative_category")):
             category = next(c for c in result.data.categories if c.category == state["category"])
             label = next(word for word, code in _CATEGORIES.items() if code.value == state["category"])
             result = result.model_copy(update={"message":
@@ -162,11 +183,13 @@ class BillsEntry:
         else:
             # Persist only parsed constraints, not raw user text or model-produced bank facts.
             categories = [code.value for word, code in _CATEGORIES.items() if word in request.intent_text]
+            excluded = _negative_category(request.intent_text)
             state = {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
                 "request_id": str(request.request_id), "intent_digest": digest,
                 "period": parse_month(request.intent_text, self.service.clock()),
                 "mode": "details" if "明细" in request.intent_text else "summary",
-                "category": categories[0] if len(categories) == 1 else None,
+                "category": categories[0] if len(categories) == 1 and excluded is None else None,
+                "negative_category": excluded,
                 "all_accounts": any(word in request.intent_text for word in ("所有账户", "全部账户", "所有本人账户")),
                 "account_ids": None, "choices": {}, "wait_reason": None}
             self._save(trusted, thread_id, state)
@@ -201,7 +224,8 @@ class BillsEntry:
             if choice not in state["choices"]:
                 raise ValueError("INVALID_OPTION")
             selected = state["choices"][choice]
-            state.update({k: v for k, v in selected.items() if k in {"period", "account_ids"}})
+            state.update({k: v for k, v in selected.items()
+                          if k in {"period", "account_ids", "negative_category", "category"}})
             state["choices"] = {}
             state.pop("result", None)
             self._save(trusted, thread_id, state)
