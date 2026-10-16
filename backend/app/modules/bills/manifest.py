@@ -14,7 +14,10 @@ MANIFEST = ModuleManifest(
     description="本人账单查询、分类统计与明细（L01）；异常识别L02和报告L03尚未实现，不能宣称已完成。",
     implementation_kind="workflow", dependencies=["bank_gateway", "security"],
     capabilities=[CapabilityDefinition(
-        name="bills.summarize", input_schema_ref="BillSummarizeInput", output_schema_ref="SpendingSummary",
+        # BillSummarizeInput.mode controls the frozen union; summary and details
+        # are both truthful public outputs (no new common contract model).
+        name="bills.summarize", input_schema_ref="BillSummarizeInput",
+        output_schema_ref="SpendingSummary|BillDetails",
         required_permissions=["bills.read"], operation_level=OperationLevel.READ,
         side_effect=False, confirmation_policy="none", timeout_ms=10_000,
         retry_policy="read_only", handler_ref="bills.summarize",
