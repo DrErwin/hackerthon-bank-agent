@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from datetime import datetime, timedelta
 from typing import Callable, Protocol
 
@@ -16,6 +17,9 @@ from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.tasks import ModuleError, ModuleResult
 from ._statistics import AccountBatch, FactsError, LedgerRow, Period, Snapshot, assemble, compare, select_rows, totals
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BillsError(ValueError):
@@ -46,6 +50,8 @@ _MESSAGES = {
     "INCOMPLETE_FACTS": "账单事实不完整或不一致，暂时不能给出完整统计。",
     "DEPENDENCY_UNAVAILABLE": "暂时没有取得完整账单，请稍后重试。",
     "SECURITY_REJECTED": "当前查询未通过安全检查，没有读取账单。",
+    "BILLS_RESULT_INVALID": "账单计算结果校验未通过，暂时不能提供统计。",
+    "BILLS_INTERNAL_ERROR": "账单服务暂时不可用，请稍后再试。",
 }
 _SAFE_BANK_CODES = {"ACCESS_DENIED", "AUTH_REQUIRED", "RANGE_UNSUPPORTED", "INVALID_ARGUMENT",
                     "CALL_TIMEOUT", "DEPENDENCY_UNAVAILABLE", "RECORD_NOT_FOUND"}
@@ -121,10 +127,14 @@ class BillsService:
         return ReadSnapshot(snapshot, records)
 
     def summarize(self, context: TrustedContext, request: BillSummarizeInput | dict) -> ModuleResult:
+        # Only input-shape rejection is INVALID_ARGUMENT. A later *output*
+        # model validation failure is not the user's fault or a bank timeout.
         try:
-            # Revalidate even a model instance; model_construct/copy cannot bypass scope checks.
             request = BillSummarizeInput.model_validate(
                 request.model_dump(mode="python") if isinstance(request, BillSummarizeInput) else request)
+        except (ValidationError, TypeError, ValueError):
+            return fail(context, BillsError("INVALID_ARGUMENT"))
+        try:
             now = self.clock()
             if now.tzinfo is None or now.utcoffset() is None:
                 raise BillsError("INCOMPLETE_FACTS")
@@ -176,11 +186,17 @@ class BillsService:
                 data=data, message=message, interaction=None, error=None, allowed_actions=[],
                 recovery_required=False, recovery_reason=None)
         except ValidationError:
-            return fail(context, BillsError("INVALID_ARGUMENT"))
+            # Log only a stable reason and trusted task identifier, not Pydantic's
+            # exception (it may embed bank transaction or merchant data).
+            LOGGER.warning("bills.result_contract_invalid task_id=%s", context.task_id)
+            return fail(context, BillsError("BILLS_RESULT_INVALID"))
         except FactsError:
             return fail(context, BillsError("INCOMPLETE_FACTS"))
         except BillsError as error:
             return fail(context, error)
-        except Exception:
-            # No raw exceptions, names, account data or model-created totals in failure responses.
-            return fail(context, BillsError("DEPENDENCY_UNAVAILABLE"))
+        except Exception as error:
+            # Do not leak raw upstream exception text or a traceback containing
+            # user-bank facts into logs or ModuleResult.
+            LOGGER.error("bills.internal_failure task_id=%s class=%s",
+                         context.task_id, type(error).__name__)
+            return fail(context, BillsError("BILLS_INTERNAL_ERROR"))
