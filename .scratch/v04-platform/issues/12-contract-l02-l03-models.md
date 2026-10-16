@@ -4,7 +4,7 @@ Ticket ID: v04-platform/12
 Type: 开发
 Owner: Erwin
 Directory: backend/app/contracts/
-Status: open
+Status: resolved（[PR #138](https://github.com/DrErwin/hackerthon-bank-agent/pull/138) squash `4ed5555` 合入 main，2026-10-16；双轴独立子代理审查〔AI 审查、非真人〕均判可合、P3 意见当日处置 `a70de72`；CI 绿）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P06 契约受理与联调](../spec.md)（受理账单线公共模型缺口）
@@ -29,3 +29,4 @@ Source issue: [Issue #132](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## Comments
 
 - 2026-10-16：按交接清单建立，承接 [Issue #132](https://github.com/DrErwin/hackerthon-bank-agent/issues/132)（周恩宇 → Erwin）。账单线 F21—F24 报告链路闭环需要 L03 产出 `report_id`，本票是 L02/L03 解锁的第一跳。
+- 2026-10-16 实施与验证（[PR #138](https://github.com/DrErwin/hackerthon-bank-agent/pull/138)，实现 `c69b050` + 审查处置 `a70de72`）：新增 `TransactionClues` / `DetectAnomaliesInput` / `TransactionCandidates` / `RuleCheck` / `AnomalyFinding` / `AnomalyResult` / `GenerateReportInput` 并从 `app.contracts` 导出，命名与 `bills_stub.py` 的 schema_ref 逐一对应。**测试命令与输出**（仓库 venv，固定 SHA worktree）：`pytest app/contracts -q` → **53 passed**；`pytest -q`（后端全量）→ **596 passed**。**审查**：Standards 轴可合（变异 3 组 3 杀 0 活）、Spec 轴可合（契约行号:代码行号逐字段对照通过），结论与处置见 [PR #138 合并评论](https://github.com/DrErwin/hackerthon-bank-agent/pull/138#issuecomment-6207918056)。**口径澄清（承接两轴意见）**：交付 1 的「落成模型校验」指 wire 层落成**字段显式必填**校验（`AnomalyResult.transaction` 缺字段即拒绝、scan 须显式写 null）；「single 必有 / scan 为 null」的**配对**约束由模块侧按 `mode` 执行（wire 模型不携带 mode），账单线 L02 实施时补模块层断言。strict-Literal（bool/float 等值边角）pydantic v2 定义期不支持，按 KISS 不做，代码注释留痕。
