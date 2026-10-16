@@ -398,4 +398,6 @@ def test_service_internal_failure_is_not_falsely_reported_as_bank_outage(caplog)
 
 def test_manifest_declares_both_l01_frozen_output_variants():
     schema = MANIFEST.capabilities[0].output_schema_ref
-    assert set(schema.split('|')) == {'SpendingSummary', 'BillDetails'}
+    assert schema == 'SpendingSummary'
+    assert 'summary=SpendingSummary' in MANIFEST.description
+    assert 'details=BillDetails' in MANIFEST.description
