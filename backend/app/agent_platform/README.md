@@ -2,7 +2,7 @@
 
 归属：底座（Erwin）。本目录只接公开能力，不访问转账私有工具或银行规则。
 
-`DeepAgentPlanner` 使用 Deep Agents 处理自然语言，模型必须在 `propose_transfer` 与 `reply_only` 中恰好选择一个。前者只提出收款人、金额与账户候选；后者只返回受控聊天文本。`AgentHarness.understand()` 是无业务副作用的公开理解入口；`handle_message()` 对仅回复结果不创建任务，对转账候选继续原流程。兼容入口 `start()` 仍只返回转账任务，收到仅回复结果时以 `NO_TRANSFER_INTENT` 安全停止。两条路径都不执行银行动作或形成授权。其他内置工具及通用子 Agent 在此入口关闭；缺失、矛盾或无效的模型结果安全失败。模型和配置版本由调用方以 `ModelSettings` 提供，脚本模型测试不能证明真实提供商行为。
+`DeepAgentPlanner` 使用 Deep Agents 处理自然语言，模型必须在 `propose_transfer` 与 `reply_only` 中恰好选择一个。前者按 `capability_name` 提出任意已注册能力的业务候选（v04-platform/10：默认仍为 `transfer.start_transfer`，第二业务模块须显式点名；收款人/金额/账户三字段只对转账能力提取，其他能力留空交原任务澄清），后者只返回受控聊天文本。系统提示词按 `public_catalog()` 动态列举当前能力与清单描述，不再硬编码「仅转账」；规划器会拒绝不在 catalog 里的能力名（注册表查询与授权回调仍是闸门）。`AgentHarness.understand()` 是无业务副作用的公开理解入口；`handle_message()` 对仅回复结果不创建任务，对业务候选继续原流程。兼容入口 `start()` 收到仅回复结果时以 `NO_TRANSFER_INTENT` 安全停止。两条路径都不执行银行动作或形成授权。其他内置工具及通用子 Agent 在此入口关闭；缺失、矛盾或无效的模型结果安全失败。模型和配置版本由调用方以 `ModelSettings` 提供，脚本模型测试不能证明真实提供商行为。
 
 `CapabilityRegistry` 登记清单中的公开能力：`register_transfer` 仍专用于转账（单一 `transfer.start_transfer`），`register_module` 面向第二个业务模块——能力名必须以 `模块名.` 为前缀、不可重复、清单非空（v04-platform/03）。`public_catalog()` 按各能力声明的 `input_schema_ref` 提供给规划入口。`AgentHarness` 需要已建立的用户会话、`ApplicationStore`、`MemoryAdapter`、`AuditJournal`、公开能力工厂和权限判定回调。工厂收到当前可信上下文、任务专属的持久检查点及同一 `RunTrace`，返回实现 `start` / `resume` 的公开入口。
 

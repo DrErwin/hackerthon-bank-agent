@@ -139,7 +139,8 @@ def test_context_summary_is_injected_into_the_model_prompt(tmp_path):
     model = ContextCaptureModel()
     planner = DeepAgentPlanner(ModelSettings(model, "scripted", model.model_name, "ctx-test"))
     planner.select(
-        "嗯", trusted(), [{"name": "transfer.start_transfer"}], memory, "thread",
+        "嗯", trusted(), [{"name": "transfer.start_transfer", "description": "普通转账"}],
+        memory, "thread",
         context_summary="- 等待用户在确认单上确认办理：给妈妈转 500 元",
     )
     texts = [text for batch in model.seen for text in batch]
