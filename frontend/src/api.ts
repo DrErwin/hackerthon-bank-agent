@@ -361,6 +361,7 @@ function makeVerification(state: DemoState, task: TaskView, confirmation: Confir
   const view: VerificationView = {
     challenge_id: challengeId,
     task_id: task.task_id,
+    created_at: now(),
     summary: {
       operation_id: "00000000-0000-4000-8000-000000000001",
       action_revision: 1,

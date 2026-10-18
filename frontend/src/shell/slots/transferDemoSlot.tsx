@@ -52,13 +52,14 @@ function result(task: ShellTask<TransferTaskView>): ResultView | null {
   return null;
 }
 
-export const transferDemoSlot: BusinessSlot<TransferTaskView> = {
+export const transferSlot: BusinessSlot<TransferTaskView> = {
   module: "transfer",
-  label: "转账（演示插槽）",
+  label: "转账",
   voiceDemoText: "转给妈妈500块",
   exampleHints: ["转给妈妈 500 块", "给张阿姨转 200 元"],
   confirmTitle: "请确认这笔转账",
   emphasizeField: "amount",
+  canModifyConfirmation: true,
   summarize,
   result,
 };

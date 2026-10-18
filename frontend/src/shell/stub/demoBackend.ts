@@ -501,6 +501,16 @@ export function createDemoBackend(options: StubOptions = {}) {
       return envelope(getRecord(state, taskId));
     }),
 
+    listTaskRecords: (taskId) => query((state) => {
+      requireUser(state);
+      getRecord(state, taskId);
+      return {
+        task_id: taskId,
+        confirmations: Object.values(state.confirmations).filter((item) => item.task_id === taskId),
+        verifications: Object.values(state.verifications).filter((item) => item.task_id === taskId),
+      };
+    }),
+
     sendMessage: (threadId, { request_id, text }) => mutate((state) => {
       requireUser(state);
       if (!state.thread || state.thread.thread_id !== threadId) throw new ApiError(404, "NOT_FOUND", "没有找到这段对话。");
@@ -650,6 +660,7 @@ export function createDemoBackend(options: StubOptions = {}) {
         const verification: VerificationView = {
           challenge_id: nextId(state, "demo-challenge"),
           task_id: record.task.task_id,
+          created_at: iso(),
           summary: {
             operation_id: crypto.randomUUID(),
             action_revision: 1,

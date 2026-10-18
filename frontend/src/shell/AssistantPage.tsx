@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MessageView } from "../contracts";
 import { Composer, ExpiredBanner, MessageBubble, SafetyRail, TopBar, TypingBubble } from "./components/Chrome";
 import { Notice } from "./components/Primitives";
@@ -33,6 +33,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const bodyRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  const [preparedDraft, setPreparedDraft] = useState<string | null>(null);
   const timeline = useMemo(() => buildTimeline(messages, tasks), [messages, tasks]);
   const primarySlot = slots.slots[0];
 
@@ -99,6 +100,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
                   slot={slots.resolve(item.envelope.module)}
                   origin={source.origin}
                   conversation={conversation}
+                  onPrepareModification={setPreparedDraft}
                 />
               ))}
             {awaitingReply && <TypingBubble />}
@@ -114,6 +116,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         pendingText={pendingMessage?.text ?? null}
         voiceDemoText={primarySlot?.voiceDemoText}
         onSend={send}
+        preparedDraft={preparedDraft}
+        onPreparedDraftUsed={() => setPreparedDraft(null)}
       />
     </div>
   );

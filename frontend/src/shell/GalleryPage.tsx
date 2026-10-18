@@ -26,7 +26,7 @@ const confirmation: ConfirmationView = {
   display_fields: [confirmationFields[0], ...confirmationFields.slice(1)], created_at: at, expires_at: later, decision: "pending",
 };
 const verification: VerificationView = {
-  challenge_id: "g-challenge", task_id: "g-task", summary: null, required_methods: ["code", "mock_face"],
+  challenge_id: "g-challenge", task_id: "g-task", created_at: at, summary: null, required_methods: ["code", "mock_face"],
   code_expires_at: later, face_started_at: null, face_expires_at: null, code_result: "pending", face_result: "pending",
   challenge_status: "pending", consecutive_code_failures: 0,
 };

@@ -5,7 +5,10 @@ export type SessionView = PublicContract["SessionView"];
 export type ThreadView = PublicContract["ThreadView"];
 export type MessageAccepted = PublicContract["MessageAccepted"];
 export type MessageView = PublicContract["MessageView"];
-export type TaskView = PublicContract["TaskView"];
+// Stream events intentionally carry a module-neutral TaskView whose data is unknown.
+// The task list endpoint remains the typed transfer surface used by the current UI.
+export type TaskView = PublicContract["TaskPage"]["items"][number];
+export type TaskRecordsView = PublicContract["TaskRecordsView"];
 export type ConfirmationView = PublicContract["ConfirmationView"];
 export type VerificationView = PublicContract["VerificationView"];
 export type VerificationResponse = PublicContract["VerificationResponse"];
