@@ -33,3 +33,7 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 ## 拆票
 
 Erwin 自拆：证据汇总与 completion 更新归 `docs/versions/`（文档票）；如需代码修复，回到对应归属目录的实施票，本包不跨目录改代码。
+
+## 候选证据（已产出，待联合验收汇总时正式并入）
+
+- 2026-10-18 [票 05 阶段一（L01）独立检查验收记录](../v04-platform/issues/05-real-bills-integration.md)：真实 GLM 规划（`glm-5.3`）→ 消息入口 → `bills.summarize` 任务（`module=bills`）→ 月份等待 → 恢复 → succeeded（15 笔 / 576100 fen / 账户 A1+A5），零资金动作，审计成对、无验证码原文；两次独立运行一致。基线 main `c10ba00`（PR #143 白名单 `81345b5` + #144 接线 `c10ba00`，代行已记录）。阶段二与前端/账单线纵向联调证据仍缺。
