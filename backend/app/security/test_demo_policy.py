@@ -5,9 +5,11 @@ from uuid import uuid4
 
 import pytest
 
-from app.contracts.common import Phase, RiskLevel
+from app.contracts.common import OperationLevel, Phase, RiskLevel
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
+from app.modules.bills.manifest import MANIFEST as BILLS_MANIFEST
+from app.modules.bills.reads import PRIVATE_TOOLS as BILLS_PRIVATE_TOOLS
 from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.services.mock_bank.verification import AdminContext
 from app.security.demo_policy import (
@@ -117,6 +119,53 @@ def test_public_capability_requires_the_fixed_user_current_round_and_declaration
     )
     assert not policy.authorize_capability(
         context, declaration.model_copy(update={"name": "transfer.unknown"}),
+    )
+
+
+def test_bills_read_tools_are_whitelisted_under_the_interim_read_policy():
+    """Issue #137 v0.4 interim policy: own-account bills reads are whitelisted
+    with frozen declarations; any field drift equals a policy change."""
+    policy, _ = make_policy(lambda *_: evidence())
+    context = execution_context()
+
+    for declaration in BILLS_PRIVATE_TOOLS:
+        assert declaration.name in {"bills.bank.list_accounts", "bills.bank.list_transactions"}
+        assert (declaration.required_permissions, declaration.operation_level,
+                declaration.side_effect, declaration.confirmation_policy,
+                declaration.timeout_ms, declaration.retry_policy) == (
+                ["bills.read"], OperationLevel.READ, False, "none", 10_000, "read_only")
+        assert policy.authorize_tool(context, action_for(declaration.name), declaration)
+        drifted = declaration.model_copy(update={"timeout_ms": declaration.timeout_ms + 1})
+        assert not policy.authorize_tool(context, action_for(declaration.name), drifted)
+        without_permission = declaration.model_copy(update={"required_permissions": []})
+        assert not policy.authorize_tool(context, action_for(declaration.name), without_permission)
+
+    assert not policy.authorize_tool(
+        context, action_for("bills.bank.list_transactions"), BILLS_PRIVATE_TOOLS[0])
+
+
+def test_bills_public_capability_is_whitelisted_for_the_demo_scope():
+    policy, _ = make_policy(lambda *_: evidence())
+    declaration = BILLS_MANIFEST.capabilities[0]
+    assert declaration.name == "bills.summarize"
+    context = TrustedContext(
+        user_id=USER,
+        session_id="session-1",
+        task_id="task-1",
+        run_id="run-1",
+        parent_task_id=None,
+        demo_round_id=ROUND,
+    )
+
+    assert policy.authorize_capability(context, declaration)
+    assert not policy.authorize_capability(
+        context.model_copy(update={"user_id": "other-user"}), declaration,
+    )
+    assert not policy.authorize_capability(
+        context, declaration.model_copy(update={"name": "bills.unknown"}),
+    )
+    assert not policy.authorize_capability(
+        context, declaration.model_copy(update={"required_permissions": ["bills.export"]}),
     )
 
 

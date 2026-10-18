@@ -15,6 +15,8 @@ from uuid import UUID
 from app.contracts.common import RiskLevel
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
+from app.modules.bills.manifest import MANIFEST as BILLS_MANIFEST
+from app.modules.bills.reads import PRIVATE_TOOLS as BILLS_PRIVATE_TOOLS
 from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.services.mock_bank.verification import AdminContext
 from app.security.gate import RiskAssessment, RiskFactsUnavailable
@@ -100,9 +102,12 @@ class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
     policy_version = "v03-local-demo-risk-1"
-    _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit"})
-    _capabilities = {item.name: item for item in MANIFEST.capabilities}
-    _private_tools = {item.name: item for item in PRIVATE_TOOLS}
+    # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
+    # low-risk own-account queries; frozen declarations are compared for full
+    # equality, so any field drift in the module equals a policy change.
+    _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read"})
+    _capabilities = {item.name: item for item in (*MANIFEST.capabilities, *BILLS_MANIFEST.capabilities)}
+    _private_tools = {item.name: item for item in (*PRIVATE_TOOLS, *BILLS_PRIVATE_TOOLS)}
 
     def __init__(
         self,
