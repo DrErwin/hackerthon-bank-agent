@@ -239,3 +239,65 @@ def test_bound_medium_high_and_missing_facts_never_submit(tmp_path, amount, paye
                     assert answered.status_code == 200
                     assert answered.json()["data"]["task"]["status"] == "succeeded"
                     assert submitted_ledger_count(app) == 1
+
+
+def test_real_bills_module_registered_and_serves_consecutive_stage_one_tasks(tmp_path):
+    """v04-platform/05 stage one: the real bills module is registered by the
+    deployment factory, the contract stub steps aside, and two consecutive
+    tasks get per-task read gates without registration collisions."""
+    app = app_for(configuration(tmp_path))
+    api = app.state.api
+    catalog = [item["name"] for item in api.runtime.harness.registry.public_catalog()]
+    assert "transfer.start_transfer" in catalog and "bills.summarize" in catalog
+    assert not {"bills.detect_anomalies", "bills.generate_report"} & set(catalog)
+
+    with patch.object(api.runtime.harness.planner, "select",
+                      return_value=TransferProposal(capability_name="bills.summarize")):
+        with TestClient(app) as client:
+            enter(client)
+            thread = post(client, "/threads").json()["data"]["thread_id"]
+            for text in ("查2026年9月所有账户的账单", "再查2026年8月所有账户的账单"):
+                accepted = post(client, f"/threads/{thread}/messages", text=text)
+                assert accepted.status_code == 202, accepted.text
+            task_ids = [item["task_id"] for item in
+                        client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]]
+            assert len(task_ids) == 2 and task_ids[0] != task_ids[1]
+            for task_id in task_ids:
+                task = client.get(f"/api/v1/tasks/{task_id}").json()["data"]
+                assert task["module"] == "bills", task
+                assert task["status"] == "succeeded", task
+                assert task["data"]["scope"]["account_ids"]
+                assert task["data"]["transaction_count"] > 0
+                assert "契约形状桩" not in task["message"]
+    assert submitted_ledger_count(app) == 0
+
+
+def test_bills_stage_one_waits_for_choices_and_resumes_to_success(tmp_path):
+    app = app_for(configuration(tmp_path))
+    api = app.state.api
+    with patch.object(api.runtime.harness.planner, "select",
+                      return_value=TransferProposal(capability_name="bills.summarize")):
+        with TestClient(app) as client:
+            enter(client)
+            thread = post(client, "/threads").json()["data"]["thread_id"]
+            accepted = post(client, f"/threads/{thread}/messages", text="查一下账单")
+            assert accepted.status_code == 202, accepted.text
+            items = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]
+            assert len(items) == 1
+            task_id = items[0]["task_id"]
+            task = client.get(f"/api/v1/tasks/{task_id}").json()["data"]
+            assert task["module"] == "bills" and task["status"] == "waiting_input"
+            interaction = task["interaction"]
+            month = next(o for o in interaction["options"] if o["label"] == "上月")
+            chosen = post(client, f"/tasks/{task_id}/inputs",
+                          interaction_id=interaction["interaction_id"], selected_option_id=month["id"])
+            assert chosen.status_code == 200, chosen.text
+            task = chosen.json()["data"]
+            interaction = task["interaction"]
+            accounts = next(o for o in interaction["options"] if o["label"] == "所有本人账户")
+            final = post(client, f"/tasks/{task_id}/inputs",
+                         interaction_id=interaction["interaction_id"], selected_option_id=accounts["id"])
+            task = final.json()["data"]
+            assert task["status"] == "succeeded", task
+            assert task["data"]["transaction_count"] > 0
+    assert submitted_ledger_count(app) == 0
