@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -13,9 +14,15 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, m
 
 from app.api.app import ApiConfig, create_app
 from app.audit.journal import AuditJournal
+from app.contracts.audit import SecurityDecidedPayload
 from app.contracts.bank import SavedPayee
+from app.contracts.common import SecurityDecisionCode
+from app.contracts.security import ExecutionSecurityContext
 from app.memory.adapter import MemoryAdapter
+from app.modules.bills.entry import register_bills
+from app.modules.bills.reads import GatewayBillsReads
 from app.modules.transfer.tools import TransferSnapshots
+from app.security import SecurityGate, ToolRegistry
 from app.security.demo_policy import DemoRiskEvidence, DemoRiskSignal, DemoSecurityPolicy
 from app.security.gate import RiskFactsUnavailable
 from app.services.mock_bank.core import MockBankService
@@ -110,6 +117,43 @@ def load_config(path: Path) -> LocalDemoConfig:
         raise ValueError("LOCAL_DEMO_CONFIG_INVALID") from None
 
 
+def _bills_reads_factory(runtime: TransferRuntime):
+    """Per-task bills read tools behind the platform's real security services.
+
+    v04-platform/05 stage one: a fresh SecurityGate is built for every task
+    (reads.py rejects duplicate tool registration), scope/risk decisions come
+    from the same DemoSecurityPolicy as transfers, and the read-only path has
+    no confirmation, verification or funds operation to prepare.
+    """
+    def reads_factory(trusted, trace):
+        def no_sensitive_flow(*args):
+            raise ValueError("BILLS_READ_PATH_HAS_NO_SENSITIVE_FLOW")
+
+        def record_decision(decision):
+            trace.record("security.decided", SecurityDecidedPayload(decision=decision),
+                "succeeded" if decision.decision == SecurityDecisionCode.ALLOW else "denied",
+                module="security")
+
+        def security_context(context):
+            return ExecutionSecurityContext(**context.model_dump(exclude={"parent_task_id"}),
+                source_task_id=None, operation_id=None, action_revision=None,
+                confirmation_id=None, confirmation_version=None, verification_ids=[],
+                release_authorization_id=None)
+
+        gate = SecurityGate(
+            ToolRegistry(), runtime.confirmations,
+            scope_authorizer=runtime.authorize_tool,
+            task_state_resolver=runtime._task_terminated,
+            risk_assessor=runtime.assess_risk,
+            confirmation_preparer=no_sensitive_flow, verification_preparer=no_sensitive_flow,
+            verification_resolver=no_sensitive_flow, challenge_resolver=no_sensitive_flow,
+            decision_sink=record_decision, snapshot_writer=no_sensitive_flow,
+            summary_validator=lambda *_: False,
+        )
+        return GatewayBillsReads(runtime.gateway, gate, security_context, trace)
+    return reads_factory
+
+
 def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     model = ChatOpenAI(
         model=config.model_name, api_key=config.api_key,
@@ -131,9 +175,12 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     snapshots = TransferSnapshots(paths.application)
 
     def risk_facts(context, action, declaration):
-        parameters = snapshots.resolve(context, action)
         if not declaration.side_effect:
+            # Read tools (transfer reads and the bills L01 module) share the read
+            # fixture; bills parameters live in their own per-task store, so they
+            # must never be resolved through transfer snapshots.
             return config.read_fixture.evidence(config.facts_version)
+        parameters = snapshots.resolve(context, action)
         # These are operator-defined fictional scenarios, bound to the same
         # immutable parameters used for confirmation and eventual execution.
         for fixture in config.transfer_fixtures:
@@ -156,13 +203,19 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     )
     # The bills line reads real flows; the demo bank carries the shared sample history.
     bank.seed_flow_history()
-    return TransferRuntime(
+    runtime = TransferRuntime(
         application, MemoryAdapter(application, active_round=lambda: config.demo_round_id),
         AuditJournal(paths.application), bank,
         planner, authorize_capability=policy.authorize_capability,
         authorize_tool=policy.authorize_tool, assess_risk=policy.assess_risk,
         authorize_face=policy.authorize_face,
     )
+    # Register the real bills module before ApiService construction so the
+    # contract-shaped stub steps aside as a whole (v04-platform/05; "all or
+    # nothing": with only L01 registered, L02/L03 leave the public catalog).
+    register_bills(runtime.harness.registry, _bills_reads_factory(runtime),
+                   lambda: datetime.now(timezone.utc))
+    return runtime
 
 
 def create_local_app():
