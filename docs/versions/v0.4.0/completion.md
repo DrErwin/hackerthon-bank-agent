@@ -29,12 +29,12 @@
 - 账单业务与评测：公开能力（L01—L03）、BF01—BF07 通过、评测下限与实跑证据（周恩宇）。
 - 安全：真实风险检测器与评测完整性（#86/#88）——2026-10-18 PM 代行范围裁定**转 v0.5**，缺口已记录于两单评论，不代签专业结论。
 - 完整前端双场景与替换（FE-01—FE-06、适老化走查，梁爽/六水）。
-- 平台：真实账单模块接入与纵向联调（[票 05](../../../.scratch/v04-platform/issues/05-real-bills-integration.md)，**分阶段口径**：L01 先行、L02/L03 追加）；**前置只剩安全侧读账口径 [Issue #137](https://github.com/DrErwin/hackerthon-bank-agent/issues/137)**——票 10（规划入口）、票 11（审计 outcome）、票 12（L02/L03 契约模型）已全部合入（PR #138/#139/#141）。
+- 平台：真实账单模块接入与纵向联调（[票 05](../../../.scratch/v04-platform/issues/05-real-bills-integration.md)，**分阶段口径**：L01 先行、L02/L03 追加）；**前置已满足**——票 10（规划入口，PR #139）、票 11（审计 outcome，PR #141）、票 12（L02/L03 契约模型，PR #138）全部合入，读账口径亦于 2026-10-18 出 v0.4 临时口径（PM 代行，[Issue #137](https://github.com/DrErwin/hackerthon-bank-agent/issues/137)）；**剩余落地**：`backend/app/security/` 补三处白名单（`bills.read`、两条 `bills.bank.*` 私有工具、`bills.summarize` 公共能力，须单独成票）+ 装配前注册真工厂（桩整体让位）+ 阶段一端到端证据。
 - 联合验收与收口：证据汇总、`completion.md` 终稿、docs/README 与 ROADMAP 状态翻转、飞书同步与甘特图重建。
 - PM 节点：10-28 答疑前确认"安全自评是否必交"、11-01 报名、11-02 提交材料（比赛材料最终制作不在本版范围）。
 
 ## 验证状态
 
-- 平台 / 底座线已有可复核证据：各票测试、CI 与主线全量回归（合并后主线后端全量 **605 passed**），链接见各 PR 与票据 Comments；AI 审查（含独立子代理）**不代表真人专业审查**。2026-10-18 补充审查：#141 的审计 outcome 修复已合入，但**转账节点级** `task.transition` 仍把 `status=failed` 写 `succeeded`（`transfer_runtime.py:93-97`）；`unknown` 兜底使 `NEEDS_ATTENTION`/`PARTIALLY_SUCCEEDED` 由 succeeded 变 unknown（转账线可恢复的安全拒绝走的正是前者）；真实 deny-all 路径建议补 1 行 outcome 断言——待「审计 outcome 口径」小票收口。
+- 平台 / 底座线已有可复核证据：各票测试、CI 与主线全量回归（合并后主线后端全量 **612 passed**，含 2026-10-18 #140 合入），链接见各 PR 与票据 Comments；AI 审查（含独立子代理）**不代表真人专业审查**。2026-10-18 补充审查：#141 的审计 outcome 修复已合入，但**转账节点级** `task.transition` 仍把 `status=failed` 写 `succeeded`（`transfer_runtime.py:93-97`）；`unknown` 兜底使 `NEEDS_ATTENTION`/`PARTIALLY_SUCCEEDED` 由 succeeded 变 unknown（转账线可恢复的安全拒绝走的正是前者）；真实 deny-all 路径建议补 1 行 outcome 断言——待「审计 outcome 口径」小票收口。
 - 账单、安全、前端三线在本版本尚无完成验证与实跑证据；代表性用例文档检查通过不替代真实运行。
 - 联合验收未启动；真人专业安全审查仍待（v0.4 相关豁免记录见 [v04-platform 票 02](../../../.scratch/v04-platform/issues/02-export-chain.md) 与 PR #116/#119）。
