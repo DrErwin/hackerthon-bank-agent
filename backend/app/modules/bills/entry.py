@@ -138,7 +138,7 @@ class BillsEntry:
                 accounts = self.service.accounts(context).accounts
             except BillsError as exc:
                 if exc.code in {"DEPENDENCY_UNAVAILABLE", "INCOMPLETE_FACTS"}:
-                    return self._wait(context, state, exc.args[0] + "，账户暂时查不到，请稍后重试原范围。",
+                    return self._wait(context, state, "账户暂时查不到，请稍后重试原范围。",
                         [("重新查询原范围", {"retry": True})], "retry")
                 return fail(context, exc)
             except Exception:

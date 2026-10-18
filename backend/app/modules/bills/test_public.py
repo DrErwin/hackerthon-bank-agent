@@ -324,6 +324,8 @@ def test_b01_temporary_failure_waits_and_retries_original_scope():
     actor = entry(reads)
     waiting = start(actor, '2026年9月所有账户账单')
     assert waiting.status == 'waiting_input' and waiting.data is None
+    # User-facing wait copy must not leak the internal English error code (review P2).
+    assert waiting.message == '账户暂时查不到，请稍后重试原范围。'
     assert not any(x[0] == 'transactions' for x in reads.calls)
     assert any('重新查询' in x.label for x in waiting.interaction.options)
     reads.accounts_failure = False
