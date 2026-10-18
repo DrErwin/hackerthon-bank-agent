@@ -4,7 +4,7 @@ Ticket ID: v04-ethan-bills-backend/08
 Type: 开发
 Owner: 周恩宇（Ethan）
 Directory: backend/app/modules/bills/
-Status: open
+Status: resolved
 Package: [v04-bills/packages/01-bills-backend：v0.4 账单业务能力与评测](../../v04-bills/packages/01-bills-backend.md)
 Spec: [v04-ethan-bills-backend 账单实施规格](../spec.md)
 Core scenarios: BF01 / BF05（查询失败与恢复口径、结论不误导）；局部返修不改变场景边界
@@ -27,3 +27,4 @@ Source issue: [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## Comments
 
 - 2026-10-16：PM 侧按 [PR #131 审查结论第四节](https://github.com/DrErwin/hackerthon-bank-agent/pull/131#issuecomment-6198615597) 开票（[Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136)），Owner 周恩宇接手实施。
+- 2026-10-18：[PR #140](https://github.com/DrErwin/hackerthon-bank-agent/pull/140) 三轴审查后 squash 合入 main（`e7e7b8f`）。四项交付由作者完成并通过审查；唯一合前必修 P2（`entry.py:141` 内部码进用户文案）为 **PM 授权代行修复、非作者本人修改**，代行与验证记录见 [PR #140 评论](https://github.com/DrErwin/hackerthon-bank-agent/pull/140#issuecomment-6250305741)。Verification（P2 部分，固定 worktree 实测）：`app/modules/bills` **159 passed**（含新增 message 断言）；后端全量 **612 passed / 0 failed**；变异检验 1/1 杀（放回 `exc.args[0]` 前缀用例变红，实测消息「INCOMPLETE_FACTS，账户暂时查不到…」）；分支已 rebase 最新 main，合并后主线树与已测树一致（tree `089c78f`）、CI 绿。P3 顺手项（summarize 安全拒绝镜像用例、entry 层非 BillsError 用例、流程补记）不阻塞，留作者后续取舍。票面置 resolved。
