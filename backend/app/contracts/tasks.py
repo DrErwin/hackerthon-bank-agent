@@ -32,7 +32,7 @@ class InteractionRequest(ContractModel):
 
 class ModuleError(ContractModel):
     code: ID
-    source: Literal["platform", "security", "bank", "transfer", "bills", "cross"]
+    source: Literal["platform", "security", "bank", "transfer", "bills", "subscription", "cross"]
     field: str | None
     reason: str
     upstream_code: str | None
@@ -99,7 +99,7 @@ class TransferSummary(ContractModel):
 class TaskView(ModuleResult[T], Generic[T]):
     # Which business module owns the task; the frontend picks its slot with it (§6.5).
     # Nullable so views written before the platform fills it stay readable.
-    module: Literal["transfer", "bills", "cross"] | None = None
+    module: Literal["transfer", "bills", "subscription", "cross"] | None = None
     thread_id: ID
     demo_round_id: ID
     snapshot_at: Timestamp
