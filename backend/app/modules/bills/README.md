@@ -47,6 +47,8 @@ L02、L03、报告与敏感导出、真实模型/HTTP/页面、专业安全审�
 
 ## 验证
 
+L03 对非法月份、未支持的细分时间或类别/明细限制先追问，不把请求静默扩大为全年或全部类别；用户确认查看完整报告后才读取本人账户。已生成报告的原任务重放恢复为真实 `BillReport`，沿用原 report_id，不重新取数或生成新报告。年度/月度报告仍只提供聚合内容，敏感明细导出与生产权限由公共平台处理。
+
 ```sh
 cd backend
 python -m pytest -q app/modules/bills/
@@ -55,3 +57,11 @@ python -m pytest -q app/modules/bills/
 `test_public.py` 验证公共模型、错误、回执、范围及 entry 协议（网关/checkpointer 为测试替身）；`test_public_integration.py` 使用仓库真实 Harness、SQLite scoped saver、SecurityGate、BankGateway 和公共种子 Mock Bank，**规划器与风险策略仍是明确测试替身**。不能据此声称真实模型、页面或专业安全验收通过。具体提交和 CI 结果以本次 PR 评论为准。
 
 既有 `_statistics.py` 和其97项测试来自已合并 #92，本次未改动。规则依据：[公共契约 §5.3/§5.9/§6.11](../../../../docs/contracts/公共契约-2026-09-23.md) · [02 PRD](../../../../docs/prd/02-账单分析-PRD-2026-09-23.md)。
+
+
+## L03 月度/年度报告开发增量（PR #151）
+
+- 新增 `BillsReportService.generate_report(trusted, GenerateReportInput)`：只在本人的 B01/B08 全量读取通过且生成 `SpendingSummary` 后返回冻结公共 `BillReport`；月均按 gross×30÷实际北京时间天数，最终舍入到整数分；本期不足、银行失败不生成假报告。
+- 新增独立 `REPORT_MANIFEST`（`bills.generate_report`，`GenerateReportInput` → `BillReport`）与 `register_bills_report(registry, reads_factory, clock)`：不能把 L03 简单追加到既有 `MANIFEST`，因为每次 `register_module` 会复用同一个 factory。该 L03 factory 使用 `BillsReportService` 和原有 scoped checkpoint 及账户/月度澄清；支持今年、去年和明确年度的账单范围，当前年度只统计至受信时钟。
+- 仅表达 `purpose=self_view|print|share_request`，**分享请求不授予第三方权限**；不在模块中保存验证码、生成敏感导出链接或代替 F22—F24 的审批/验证。
+- **尚需平台/安全工作线实际调用 `register_bills_report` 并将 L03 公共只读能力纳入正式审批清单**；生产聊天规划路由、真实报告落库、F21—F24 与前端联调均需另做真实验收。PR #151 模块级测试通过不等于 BF03/BF04 最终完成。
