@@ -15,6 +15,7 @@ from app.contracts.common import ContractModel, ID, OperationLevel, Phase, Secur
 from app.contracts.bank import QueryFailure, QueryOk
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.tasks import ModuleError
+from app.storage.database import parameter_digest
 from .service import BillsError
 
 
@@ -96,7 +97,7 @@ class GatewayBillsReads:
             event = self.trace.record("tool.started", ToolStartedPayload(tool_call_id=call_id,
                 tool_name=action_name, tool_version="0.4.0-l01", arguments_ref=ref,
                 decision_id=decision.decision_id, operation_id=None), "started",
-                evidence={"parameters": parameters}, evidence_id=ref, module="bills")
+                evidence={"parameters_sha256": parameter_digest(parameters)}, evidence_id=ref, module="bills")
             outcome = self.executor.execute(context, action)
             if (not outcome.executed or outcome.state != "completed" or outcome.decision is None
                     or outcome.decision.decision != SecurityDecisionCode.ALLOW):
@@ -107,13 +108,22 @@ class GatewayBillsReads:
             failed = isinstance(outcome.result, QueryFailure)
             error = ModuleError(code="BILLS_BANK_QUERY_FAILED", source="bank", field=None,
                 reason="银行查询未返回完整事实", upstream_code=None) if failed else None
-            # Shared AuditJournal redacts successful bank facts. Untrusted error
-            # details never enter audit; an error result is NOT logged as success.
-            evidence = ({"kind": "error", "code": "BILLS_BANK_QUERY_FAILED"} if failed
-                        else outcome.result.model_dump(mode="json"))
+            # The journal is not a bank-fact filter. This reference identifies only
+            # the summary snapshot in the original trace's user/task/round scope;
+            # audit readers must not expand it into the full bank response.
+            status, row_count = ("failed" if failed else "succeeded"), None
+            if not failed:
+                field = "accounts" if action_name.endswith("list_accounts") else "transactions"
+                data = outcome.result.data
+                rows = data.get(field) if isinstance(data, dict) else getattr(data, field, None)
+                if isinstance(rows, list):
+                    row_count = len(rows)
+            evidence = {"result_ref": result_ref, "status": status, "row_count": row_count}
+            if failed:
+                evidence["code"] = "BILLS_BANK_QUERY_FAILED"
             self.trace.record("tool.finished", ToolFinishedPayload(tool_call_id=call_id, operation_id=None,
                 result_ref=result_ref, duration_ms=int((monotonic() - started) * 1000), error=error),
-                "failed" if failed else "succeeded", evidence=evidence, evidence_id=result_ref,
+                status, evidence=evidence, evidence_id=result_ref,
                 module="bills", parent_span_id=event.span_id)
             return outcome.result
         except Exception:

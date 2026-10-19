@@ -4,12 +4,13 @@ The planner and the LOW-risk test policy are explicit test doubles. This does
 not claim real-model, HTTP, frontend or professional-security acceptance.
 """
 from datetime import datetime, timedelta, timezone
+import json
 import sqlite3
 from uuid import uuid4
 
 import pytest
 
-from app.audit.journal import AuditJournal
+from app.audit.journal import AuditJournal, redact
 from app.agent_platform.harness import AgentHarness
 from app.agent_platform.model import TransferProposal
 from app.agent_platform.registry import CapabilityRegistry
@@ -24,6 +25,7 @@ from app.services.bank_gateway.gateway import BankGateway
 from app.services.mock_bank.core import MockBankService
 from app.storage.application import ApplicationStore
 from app.storage.mock_bank.repository import MockBankStore
+from app.storage.database import parameter_digest
 
 from app.modules.bills.entry import register_bills
 from app.modules.bills.reads import GatewayBillsReads
@@ -256,3 +258,65 @@ def test_bank_failure_is_a_failed_trace_and_retryable_original_task(env, monkeyp
     result = env.harness.resume(trusted(run="R2"), {"choice": result.interaction.options[0].id})
     assert result.status == TaskStatus.SUCCEEDED and result.task_id == "T1"
     assert env.gateway.bank_writes == 0
+
+
+def bills_audit_evidence(env):
+    """Read the persisted tool snapshots, not a mocked trace.record argument."""
+    events = [event for event in env.audit._events("D1", "T1")
+              if event.module == "bills" and event.event_type in {"tool.started", "tool.finished"}]
+    with sqlite3.connect(env.application.path) as connection:
+        snapshots = {ref: (round_id, task_id, content) for ref, round_id, task_id, content in
+                     connection.execute("SELECT evidence_id, demo_round_id, task_id, content FROM audit_evidence")}
+    assert events
+    for event in events:
+        assert (event.target_user_id, event.task_id, event.demo_round_id) == ("U1", "T1", "D1")
+        round_id, task_id, content = snapshots[event.evidence_ref]
+        assert (round_id, task_id) == ("D1", "T1")
+        for field in ("counterparty_name", "amount_fen", "summary", "transaction_id", "available_balance_fen"):
+            assert field not in content
+    return events, {ref: json.loads(row[2]) for ref, row in snapshots.items()}
+
+
+def test_successful_read_audit_persists_only_parameter_hash_and_scoped_result_counts(env):
+    result = env.harness.start(trusted(), uuid4(), "2026年9月所有账户账单")
+    assert result.status == TaskStatus.SUCCEEDED
+    events, evidence = bills_audit_evidence(env)
+    starts = [event for event in events if event.event_type == "tool.started"]
+    finishes = {event.payload.tool_call_id: event for event in events if event.event_type == "tool.finished"}
+    assert len(starts) == len(finishes) == len(env.gateway.reads) > 1
+    assert {event.payload.tool_name for event in starts} == {
+        "bills.bank.list_accounts", "bills.bank.list_transactions"}
+    for start, read in zip(starts, env.gateway.reads):
+        if read[0] == "accounts":
+            parameters = {}
+            rows = BankGateway.list_accounts(env.gateway, trusted()).data.accounts
+        else:
+            parameters = {"account_id": read[2], "start_at": read[3].isoformat(), "end_at": read[4].isoformat()}
+            rows = BankGateway.list_transactions(env.gateway, trusted(), *read[2:]).data.transactions
+        assert start.evidence_ref == start.payload.arguments_ref
+        # The shared journal can mask long digit sequences even within a digest.
+        assert evidence[start.evidence_ref] == redact({"parameters_sha256": parameter_digest(parameters)})
+        finish = finishes[start.payload.tool_call_id]
+        assert finish.outcome == "succeeded" and finish.payload.error is None
+        assert finish.parent_span_id == start.span_id
+        assert finish.evidence_ref == finish.payload.result_ref
+        assert evidence[finish.evidence_ref] == {
+            "result_ref": finish.payload.result_ref, "status": "succeeded", "row_count": len(rows)}
+
+
+def test_failed_read_audit_keeps_controlled_error_and_unknown_count(env, monkeypatch):
+    upstream_detail = "untrusted-bank-response-must-not-enter-audit"
+    monkeypatch.setattr(env.gateway, "list_transactions", lambda *_: QueryFailure(kind="error",
+        error=BankError(code="CALL_TIMEOUT", details={"summary": upstream_detail, "amount_fen": 87654321})))
+    result = env.harness.start(trusted(), uuid4(), "2026年9月所有账户账单")
+    assert result.status == TaskStatus.WAITING_INPUT and result.data is None
+    events, evidence = bills_audit_evidence(env)
+    failures = [event for event in events if event.event_type == "tool.finished" and event.outcome == "failed"]
+    assert len(failures) == 1
+    failed = failures[0]
+    assert failed.payload.error.code == "BILLS_BANK_QUERY_FAILED"
+    assert failed.evidence_ref == failed.payload.result_ref
+    assert evidence[failed.evidence_ref] == {
+        "result_ref": failed.payload.result_ref, "status": "failed", "row_count": None,
+        "code": "BILLS_BANK_QUERY_FAILED"}
+    assert upstream_detail not in json.dumps(evidence)
