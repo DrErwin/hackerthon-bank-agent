@@ -389,6 +389,10 @@ def write_evidence(directory: Path, reports: list[CheckLog], outcomes: dict[str,
     lines = ["# 场景 05 订阅代扣评测运行报告", ""]
     for item in manifest:
         lines.extend(_manifest_markdown(item, entries if item["label"] == label else None))
+    # CI rejects a new blank line at EOF, so keep exactly one terminating newline even
+    # when a generated section already ends with an empty line.
+    while lines and not lines[-1].strip():
+        lines.pop()
     (directory / "manifest.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return entry
 
