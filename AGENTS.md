@@ -16,14 +16,15 @@ AI Banking Agent：为银发人群打造的银行智能助理，用自然语言�
 | `backend/app/memory/` | 底座（Erwin）：Agent 长期记忆与上下文后端，随 harness 走；安全规则由安全侧定 |
 | `backend/app/modules/transfer/` | 转账（梁爽） |
 | `backend/app/modules/bills/` | 账单（周恩宇；2026-09-28 全员会起由六水移交） |
+| `backend/app/modules/subscription/` | 订阅 / 代扣（Erwin；2026-10-19 起） |
 | `backend/app/modules/cross/` | 联动（周恩宇） |
 | `backend/app/services/` `storage/` | 底座共享 |
 | `frontend/` | 前端 / 适老化（梁爽负责，六水协助；2026-09-25 确认） |
-| `evals/` | 评测集，按子目录归属：transfer Erwin · bills 周恩宇 · cross 周恩宇 · security Ringo · mockbank Erwin（2026-09-28 全员会调整） |
+| `evals/` | 评测集，按子目录归属：transfer Erwin · bills 周恩宇 · subscription Erwin · cross 周恩宇 · security Ringo · mockbank Erwin（2026-09-28 全员会调整；2026-10-19 增 subscription） |
 
-### 版本执行状态（2026-10-11 更新）
+### 版本执行状态（2026-10-19 更新）
 
-v0.3 已于 2026-10-11 收口（含明示例外）；v0.4 同日启动：账单 + 完整安全 + 完整前端（转账+账单双场景，目标 10-20），联动移至 v0.5。各线交付包、开始条件与领取状态的正式入口是[项目跟踪](docs/01-项目跟踪.md)。v0.3 期间的临时分工（Erwin 代行底座/最小安全门/转账参考路径/简易前端等）已随收口结束，目录归属回归上表。
+v0.3 已于 2026-10-11 收口（含明示例外）；v0.4 同日启动：账单 + 完整安全 + 完整前端（转账+账单双场景，目标 10-20），2026-10-19 新增场景 05 订阅 / 代扣管理（Erwin 负责，`v04-subscription`），联动移至 v0.5。各线交付包、开始条件与领取状态的正式入口是[项目跟踪](docs/01-项目跟踪.md)。v0.3 期间的临时分工（Erwin 代行底座/最小安全门/转账参考路径/简易前端等）已随收口结束，目录归属回归上表。
 
 同一个人可以按顺序承担多个目录，但一张实施票、一个分支和一个 PR 仍只对应一个目录，禁止把底座、安全和转账做成一个无法独立审查的大改动。
 

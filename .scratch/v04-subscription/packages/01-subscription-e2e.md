@@ -1,0 +1,52 @@
+# v04-subscription/01: 订阅代扣管理端到端闭环（盘点、单笔退订与 30 天到期提醒）
+
+Status: in_progress
+Owner: Erwin
+Accepted by: Erwin
+Accepted at: 2026-10-19
+Version: v0.4.0
+Spec: `.scratch/v04-subscription/spec.md`
+PRD: `docs/prd/05-订阅代扣管理-PRD-2026-10-19.md`
+
+---
+
+## 交付包目标
+
+在 v0.4 阶段完成**场景 05：订阅代扣管理（Subscription / Auto-Debit Management）**的纵向端到端交付，覆盖：
+
+1. **SOP-1 代扣与周期性扣费盘点**：支持盘点本行签约代扣协议（`bank_contract`）与流水聚合识别的疑似周期性扣费（`suspected_ledger`），计算月度折算总金额。
+2. **SOP-2 单笔本行签约代扣退订**：支持单笔退订消歧、拦截疑似周期扣费并给出外部关闭引导、幂等提示已退订项；对生效中的本行签约代扣执行**前端确认门 + 会话级基础身份短信验证码（`purpose="basic_identity"`，`scope="session"`，无刷脸 `mock_face`）**后调用 `B30 bank.cancel_subscription` 完成解约；高危操控信号（`_HIGH_RISK_SIGNALS`）直接阻断终止；确认与回执文案严格只承诺**“从下一期（YYYY-MM-DD）起不再自动扣费，之前已经扣掉的钱不退”**。
+3. **SOP-3 被动式 30 天到期/续费提醒**：在盘点结果中自动标注未来 30 天内即将扣款的生效协议（`is_upcoming_renewal=True`、`upcoming_renewal_count`），并在回复中主动提醒。
+
+---
+
+## 涉及目录与实施票拆分（一票一目录）
+
+按 [AGENTS.md](../../../AGENTS.md) 目录边界要求，本交付包拆分为以下 7 张单目录实施票：
+
+| 实施票标识 | 标题 | 唯一归属目录 | 依赖关系 | 实施票文件 |
+|---|---|---|---|---|
+| `v04-subscription/01-contract-models` | 订阅代扣公共契约模型与错误源扩展 | `backend/app/contracts/` | 无（底座先行） | [01-contract-models.md](../issues/01-contract-models.md) |
+| `v04-subscription/02-mockbank-subscriptions` | 模拟银行 B29/B30 接口、自包含表与种子数据 | `backend/app/services/` | 依赖 `01` | [02-mockbank-subscriptions.md](../issues/02-mockbank-subscriptions.md) |
+| `v04-subscription/03-subscription-module` | 订阅代扣业务模块（SOP-1/2/3 与 S01/S02 工具） | `backend/app/modules/subscription/` | 依赖 `01`、`02` | [03-subscription-module.md](../issues/03-subscription-module.md) |
+| `v04-subscription/04-security-policy-subscription` | 订阅代扣权限注册与退订风险评估策略 | `backend/app/security/` | 依赖 `01`、`03` | [04-security-policy-subscription.md](../issues/04-security-policy-subscription.md) |
+| `v04-subscription/05-platform-subscription-wiring` | 主 Agent 平台注册、意图路由与退订确认验证编排 | `backend/app/agent_platform/` | 依赖 `01`、`02`、`03`、`04` | [05-platform-subscription-wiring.md](../issues/05-platform-subscription-wiring.md) |
+| `v04-subscription/06-api-subscription-wiring` | FastAPI 路由泛型放宽、F10 消歧输入与订阅模块接线 | `backend/app/api/` | 依赖 `01`–`05` | [06-api-subscription-wiring.md](../issues/06-api-subscription-wiring.md) |
+| `v04-subscription/07-subscription-evals` | 订阅代扣黄金评测集与端到端回归测试 | `evals/subscription/` | 依赖 `01`–`06` | [07-subscription-evals.md](../issues/07-subscription-evals.md) |
+
+---
+
+## 验收标准（Definition of Done）
+
+1. **契约与模拟银行（M19–M21）**：
+   - `B29 bank.list_subscriptions` 正确返回 `U1` 的 3 条本行签约代扣（`sub_001` 优酷视频、`sub_002` 云端网盘、`sub_003` 喜马拉雅）与 1 条流水聚合的疑似周期扣费（`sus_oasis_01` 绿洲健身）；
+   - `B30 bank.cancel_subscription` 在提供有效 `confirmation_token` 与 `idempotency_key` 时将 `active` 签约项更新为 `cancelled`，写入 `operation_records` 并支持幂等重放与 `B14 get_operation` 查询。
+2. **业务 SOP 与话术红线（SF01–SF06）**：
+   - SOP-1 + SOP-3 盘点列表按优先级排序，准确计算 `upcoming_renewal_count` 与 `active_total_monthly_equivalent_cents`，附带 30 天续费提醒；
+   - SOP-2 严格单笔退订（拒绝一键全退、多候选进 `WAITING_INPUT`）、拦截 `suspected_ledger` 并给出外部引导、对 `cancelled` 项幂等告知；
+   - 确认与回执文案只声明**“从下一期（YYYY-MM-DD）起不再自动扣费，之前已经扣掉的钱不退”**，零“会员还能用到哪天”承诺、零“先退再重订”建议。
+3. **安全与验证门**：
+   - 正常退订走 `WAITING_CONFIRMATION → WAITING_VERIFICATION (basic_identity, session) → COMPLETED`，不拉起 `mock_face`，同一有效会话内第 2 笔退订可复用已通过的 `basic_identity` 验证；
+   - 命中 `_HIGH_RISK_SIGNALS` 时直接拦截并置为 `TERMINATED`。
+4. **评测回归**：
+   - 各票单测与 `evals/subscription/` 黄金评测集全部通过，且不破坏既有 `transfer`、`security`、`mock_bank` 测试。
