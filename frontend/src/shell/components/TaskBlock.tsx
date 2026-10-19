@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { administratorUrl } from "../../api";
 import { isTerminal, taskStatusLabel } from "../format";
 import type { BusinessSlot } from "../slots";
 import type { DataOrigin, ResultView, TaskEnvelope } from "../types";
@@ -8,9 +9,14 @@ import { Notice } from "./Primitives";
 import { InputCard, NeedsAttentionCard, RecoveryCard, ResultCard, WaitingCard } from "./StatusCards";
 import { VerificationCard } from "./VerificationCard";
 
-function adminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
+export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
+  if (origin === "real-api") return administratorUrl({ taskId, challengeId, demoRoundId: roundId });
   const params = new URLSearchParams({ task_id: taskId, challenge_id: challengeId, demo_round_id: roundId });
-  return (origin === "real-api" ? "/admin?" : "/v04/admin?") + params.toString();
+  return "/v04/admin?" + params.toString();
+}
+
+export function verificationAdminLabel(origin: DataOrigin): string {
+  return origin === "real-api" ? "打开独立管理员会话处理模拟人脸" : "演示用：在新窗口打开管理员演示入口";
 }
 
 export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModification }: {
@@ -142,7 +148,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModif
             active={isCurrent}
             canVerify={task.allowed_actions.includes("verify")}
             busy={busy}
-            adminHref={adminHref(task.task_id, view.challenge_id, task.demo_round_id, origin)}
+            adminHref={verificationAdminHref(task.task_id, view.challenge_id, task.demo_round_id, origin)}
+            adminLabel={verificationAdminLabel(origin)}
             onSubmitCode={(code) => actions.submitCode(task, view, code)}
             onResend={() => void actions.resendCode(task, view)}
             onStartFace={() => void actions.startFace(task, view)}

@@ -87,6 +87,8 @@ export function useConversation(source: ShellDataSource) {
   const pendingIds = useRef(new Map<string, string>());
   const fetched = useRef(new Set<string>());
   const didBoot = useRef(false);
+  const loadFlight = useRef<Promise<void> | null>(null);
+  const loadAgain = useRef(false);
 
   const expire = useCallback(() => {
     setExpired(true);
@@ -104,42 +106,78 @@ export function useConversation(source: ShellDataSource) {
   }, []);
 
   const loadThread = useCallback(async (markRecovery: boolean) => {
-    const current = await source.ensureThread();
-    const [messageList, taskList] = await Promise.all([source.listMessages(current.thread_id), source.listTasks(current.thread_id)]);
-    const recordLists = await Promise.all(taskList.map(({ task }) => source.listTaskRecords(task.task_id)));
-    setThread(current);
-    setMessages((previous) => mergeMessages(markRecovery ? [] : previous, messageList));
-    setTasks((previous) => {
-      const next = markRecovery ? new Map<string, TaskEnvelope>() : new Map(previous);
-      for (const envelope of taskList) {
-        const existing = next.get(envelope.task.task_id);
-        if (!existing || existing.task.task_revision <= envelope.task.task_revision) next.set(envelope.task.task_id, envelope);
-      }
-      return next;
-    });
-    setConfirmations((previous) => {
-      const next = markRecovery ? {} : { ...previous };
-      for (const records of recordLists) {
-        for (const confirmation of records.confirmations) next[confirmation.confirmation_id] = confirmation;
-      }
-      return next;
-    });
-    setVerifications((previous) => {
-      const next = markRecovery ? {} : { ...previous };
-      for (const records of recordLists) {
-        for (const verification of records.verifications) next[verification.challenge_id] = verification;
-      }
-      return next;
-    });
-    if (markRecovery) {
-      const restored = readHistory(current.thread_id);
-      for (const records of recordLists) {
-        restored[records.task_id] = restoreServerRecordHistory(restored[records.task_id] ?? [], records);
-      }
-      setHistory(restored);
-      fetched.current.clear();
-      setBootRecovery(new Set(taskList.filter((envelope) => needsRecovery(envelope.task)).map((envelope) => envelope.task.task_id)));
-      setRecovered(new Map());
+    if (loadFlight.current) {
+      loadAgain.current = true;
+      await loadFlight.current;
+      return;
+    }
+
+    const run = (async () => {
+      let recovery = markRecovery;
+      do {
+        loadAgain.current = false;
+        const current = await source.ensureThread();
+        const [messageList, taskList] = await Promise.all([source.listMessages(current.thread_id), source.listTasks(current.thread_id)]);
+        const recordResults = await Promise.all(taskList.map(async ({ task }) => {
+          try {
+            return await source.listTaskRecords(task.task_id);
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 401) throw error;
+            return null;
+          }
+        }));
+        const recordLists = recordResults.filter((records): records is TaskRecordsView => records !== null);
+        setThread(current);
+        setMessages((previous) => mergeMessages(recovery ? [] : previous, messageList));
+        setTasks((previous) => {
+          const next = recovery ? new Map<string, TaskEnvelope>() : new Map(previous);
+          for (const envelope of taskList) {
+            const existing = next.get(envelope.task.task_id);
+            if (!existing || existing.task.task_revision <= envelope.task.task_revision) next.set(envelope.task.task_id, envelope);
+          }
+          return next;
+        });
+        setConfirmations((previous) => {
+          const next = recovery ? {} : { ...previous };
+          for (const records of recordLists) {
+            for (const confirmation of records.confirmations) next[confirmation.confirmation_id] = confirmation;
+          }
+          return next;
+        });
+        setVerifications((previous) => {
+          const next = recovery ? {} : { ...previous };
+          for (const records of recordLists) {
+            for (const verification of records.verifications) next[verification.challenge_id] = verification;
+          }
+          return next;
+        });
+        if (recovery) {
+          const restored = readHistory(current.thread_id);
+          for (const records of recordLists) {
+            restored[records.task_id] = restoreServerRecordHistory(restored[records.task_id] ?? [], records);
+          }
+          setHistory(restored);
+          fetched.current.clear();
+          setBootRecovery(new Set(taskList.filter((envelope) => needsRecovery(envelope.task)).map((envelope) => envelope.task.task_id)));
+          setRecovered(new Map());
+        } else if (recordLists.length > 0) {
+          setHistory((previous) => {
+            const restored = { ...previous };
+            for (const records of recordLists) {
+              restored[records.task_id] = restoreServerRecordHistory(restored[records.task_id] ?? [], records);
+            }
+            return restored;
+          });
+        }
+        recovery = false;
+      } while (loadAgain.current);
+    })();
+
+    loadFlight.current = run;
+    try {
+      await run;
+    } finally {
+      if (loadFlight.current === run) loadFlight.current = null;
     }
   }, [source]);
 

@@ -4,7 +4,7 @@ Ticket ID: liangshuang-frontend-complete/03
 Type: 开发
 Owner: 梁爽
 Directory: frontend/
-Status: planned
+Status: in_review
 Package: [frontend-complete/packages/01：v0.4 完整前端实现与替换](../../frontend-complete/packages/01-v04-complete-frontend.md)
 Spec: [梁爽完整前端实施规格](../spec.md)
 Core scenarios: [FE-01、FE-03、FE-04](../../frontend-complete/spec.md)
@@ -24,3 +24,4 @@ Verification: 先以契约 demo 走通候选→确认→验证→等待→结果
 
 - 2026-10-13：承接 [PR #108 返修清单](https://github.com/DrErwin/hackerthon-bank-agent/pull/108#issuecomment-6126114071)。F39 后端已由 PR #109 / #110 / #112 / #111 合入；本票落实类型生成与真实回放接入，不在票 02 的 stub 中提前实现。
 - 票 02 的 Ringo 审查为 PM 豁免，不延伸至本票或票 05。接入前核对 Issue #85 的可见性和保留口径复核情况，并请 Ringo 审查真实确认 / 验证和回放边界。
+- 2026-10-19：按 PR #142 双轴审查补上三处必修和协助项。单条 F39 失败只缺那张历史卡，不再打断整页；断线重连会合并服务端确认 / 验证历史；真实接口的管理员入口改走 `administratorUrl`，避免覆盖当前登录。另补了记录请求在途去重、重连与失败用例，页面数据源改用共享的 `API_MODE`。真实接口走查和 Ringo 审查仍未做，本票保持 in_review，不标记完成。

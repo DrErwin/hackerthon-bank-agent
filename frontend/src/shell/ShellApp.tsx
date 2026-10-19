@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { API_MODE, type ApiMode } from "../api";
 import { AdminDemoPage } from "./AdminDemoPage";
 import { AssistantPage } from "./AssistantPage";
 import { GalleryPage } from "./GalleryPage";
@@ -8,6 +9,10 @@ import { transferSlot } from "./slots/transferDemoSlot";
 import { createDemoBackend } from "./stub/demoBackend";
 import "./shell.css";
 
+export function shellUsesContractDemo(mode: ApiMode = API_MODE): boolean {
+  return mode === "contract-demo";
+}
+
 export default function ShellApp() {
   const backend = useMemo(() => createDemoBackend(), []);
   const realSource = useMemo(() => createRealDataSource(), []);
@@ -15,5 +20,5 @@ export default function ShellApp() {
   const path = window.location.pathname;
   if (path.startsWith("/v04/admin")) return <AdminDemoPage admin={backend.admin} stubExtras={backend.admin} />;
   if (path.startsWith("/v04/gallery")) return <GalleryPage />;
-  return <AssistantPage source={import.meta.env.VITE_API_MODE === "contract-demo" ? backend.user : realSource} slots={slots} />;
+  return <AssistantPage source={shellUsesContractDemo() ? backend.user : realSource} slots={slots} />;
 }
