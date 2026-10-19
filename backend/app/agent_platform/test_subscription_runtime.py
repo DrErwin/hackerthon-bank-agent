@@ -304,6 +304,11 @@ def test_sf02_cancel_is_confirmed_then_session_code_then_bank_receipt(tmp_path):
     assert any(event.event_type == "tool.finished"
                and event.payload.operation_id is not None and event.outcome == "succeeded"
                for event in events(app))
+    # The per-module dispatch must own the audit label too, not only the flow.
+    assert any(event.event_type == "confirmation.changed" and event.outcome == "succeeded"
+               and event.module == "subscription" for event in events(app))
+    assert any(event.event_type == "verification.changed"
+               and event.module == "subscription" for event in events(app))
 
 
 # --------------------------------------------------------------------------- SF03
