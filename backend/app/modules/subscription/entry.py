@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from hashlib import sha256
+import json
 import logging
 import re
 from typing import Callable
@@ -102,7 +103,8 @@ class SubscriptionEntry:
                 "mandate_id": named_mandate_id(request.intent_text),
                 "risk": risk_observations(request.intent_text),
                 "reminder_days": 30, "waiting": None, "selected": None, "candidates": [],
-                "operation_id": None, "pending_cancel": None}
+                "operation_id": None, "pending_cancel": None,
+                "cancel_revision": 0, "frozen_action": None}
 
     def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None) -> ModuleResult:
         if not isinstance(request, StartTransferInput):
@@ -219,10 +221,11 @@ class SubscriptionEntry:
     def _decide_cancel(self, trusted: TrustedContext, state: dict, item: SubscriptionItem,
                        plan) -> ModuleResult:
         state["waiting"] = None
-        answer = self.service.check_cancel(trusted, plan)
+        revision = self._cancel_revision(state, plan)
+        answer = self.service.check_cancel(trusted, plan, revision=revision)
         state["operation_id"] = answer.operation_id
         if answer.decision == SecurityDecisionCode.ALLOW:
-            outcome = self.service.execute_cancel(trusted, plan)
+            outcome = self.service.execute_cancel(trusted, plan, revision=revision)
             result = self.service.cancel_task(trusted, item, plan, outcome)
             if result.status == TaskStatus.NEEDS_ATTENTION:
                 # Freeze exactly what was submitted: a later resume must query this
@@ -248,6 +251,35 @@ class SubscriptionEntry:
             return self.service.security_stop(trusted, answer.reason_code)
         return self.service.failed(trusted, "SECURITY_REJECTED", source="security",
                                    upstream=answer.reason_code)
+
+    @staticmethod
+    def _cancel_revision(state: dict, plan) -> int | None:
+        """A monotonic revision of the frozen facts (the transfer workflow's counter).
+
+        The security state keeps only the newest confirmation per task and rejects a
+        different operation whose revision is not greater, as OPERATION_CONFLICT. A
+        payload hash is an arbitrary number that can fall either side of that guard,
+        which made the same input end in "reissue confirmation v2" or in a misleading
+        security rejection at random (Issue #176). The counter rises by one whenever
+        the frozen facts change, so the second branch becomes the only one.
+
+        A checkpoint written before this counter exists keeps the payload-hash
+        revision: its already-answered confirmation was frozen under that number, and
+        the operator reuses its operation number for the same facts, so switching that
+        task to a counter would deterministically conflict. ``None`` lets the ports fall
+        back to the old derivation; such in-flight tasks keep their pre-fix behaviour
+        and the demo store is reset on deploy.
+        """
+
+        if "cancel_revision" not in state:
+            return None
+        frozen = sha256(
+            json.dumps(plan.payload(), sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        if state.get("frozen_action") != frozen:
+            state["frozen_action"] = frozen
+            state["cancel_revision"] = int(state["cancel_revision"]) + 1
+        return int(state["cancel_revision"])
 
     def checkpoint_context(self, trusted: TrustedContext, *, thread_id=None):
         saved, state = self._load(trusted, thread_id)

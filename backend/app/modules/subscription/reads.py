@@ -314,11 +314,14 @@ class GatewaySubscriptionPorts:
             raise ValueError("SUBSCRIPTION_OPERATION_RESERVER_REQUIRED")
         return self.operation_reserver(trusted, plan.payload())
 
-    def _write_context(self, trusted: TrustedContext, plan: CancellationPlan, *, phase):
+    def _write_context(self, trusted: TrustedContext, plan: CancellationPlan, *, phase,
+                       revision: int | None = None):
         from app.contracts.security import ExecutionSecurityContext
         operation_id = self._reserve(trusted, plan)
         payload = {**plan.payload(), "operation_id": str(operation_id)}
-        revision = action_revision(payload)
+        # The module supplies a monotonic revision of the frozen facts (Issue #176); a
+        # standalone caller that has none still gets a stable payload-derived number.
+        revision = action_revision(payload) if revision is None else revision
         # The platform resolves the task's answered confirmation and its session-scoped
         # verifications here; without them the gate can never see the user's own button.
         context = self.context_factory(trusted, operation_id, revision)
@@ -328,8 +331,10 @@ class GatewaySubscriptionPorts:
         ref, action = self._bind(context, "subscription.bank.cancel_subscription", payload, phase=phase)
         return context, action
 
-    def check_cancel(self, trusted: TrustedContext, plan: CancellationPlan) -> GateAnswer:
-        context, action = self._write_context(trusted, plan, phase=Phase.ADMISSION)
+    def check_cancel(self, trusted: TrustedContext, plan: CancellationPlan, *,
+                     revision: int | None = None) -> GateAnswer:
+        context, action = self._write_context(trusted, plan, phase=Phase.ADMISSION,
+                                              revision=revision)
         decision = self.gate.check_action(context, action)
         return GateAnswer(
             decision=decision.decision, interaction=decision.interaction,
@@ -363,12 +368,14 @@ class GatewaySubscriptionPorts:
                 transaction_id=None, receipt_ref=None, error=None), "unknown",
                 module="bank_gateway", parent_span_id=parent_span_id)
 
-    def execute_cancel(self, trusted: TrustedContext, plan: CancellationPlan) -> ExecutionOutcome:
+    def execute_cancel(self, trusted: TrustedContext, plan: CancellationPlan, *,
+                       revision: int | None = None) -> ExecutionOutcome:
         from app.contracts.audit import ToolFinishedPayload, ToolStartedPayload
         from app.contracts.bank import OperationResult, QueryFailure
         # The shared executor only claims a funds/state-changing handler in the
         # execution phase; the reference stays identical to the approved confirmation.
-        context, action = self._write_context(trusted, plan, phase=Phase.EXECUTION)
+        context, action = self._write_context(trusted, plan, phase=Phase.EXECUTION,
+                                              revision=revision)
         decision = self.gate.check_action(context, action)
         call_id, call_ref, started, event = str(uuid4()), str(uuid4()), monotonic(), None
         try:
