@@ -27,7 +27,7 @@ evidence = detector(inputs)                                      # 检测器实�
 | `risk-input-action-binding-required` | 参数引用过期/越权：`transfer_snapshots` 中 user、demo_round、task、action、operation、action_revision 任一项与上下文不符；参数形状不合法 |
 | `risk-input-action-unsupported` | 非 `bank.submit_transfer` 写动作（本接缝暂只覆盖转账写入；订阅退订沿用其专用事实） |
 
-`evidence_ref = risk-inputs:<sha256(...)[:24]>`：由 user/session/demo_round/task/action/parameters_ref、请求文本哈希与三维事实确定性计算，**不含原文**。事实状态不变时同一动作得到同一引用（`run_id` 不参与摘要：恢复会换 run，但可信范围与输入没变）；两阶段之间银行流水发生变化时引用会变，这是期望行为。
+`evidence_ref = risk-inputs-<sha256(...)[:24]>`：由 user/session/demo_round/task/action_name/parameters_ref/operation_id/action_revision、`request_id` + 请求文本哈希与三维事实确定性计算，**不含原文**。事实状态不变时同一动作得到同一引用（`run_id` 不参与摘要：恢复会换 run，但可信范围与输入没变）；两阶段之间银行流水发生变化时引用会变，这是期望行为。
 
 ## 3. `RiskInputs` 字段
 
@@ -71,7 +71,7 @@ PM 待确认口径（180 天窗口、2 倍金额阈值、设备来源）在 [v04
 
 1. 导入 `app.agent_platform.risk_inputs` 时不要同时 import 全平台：`app.agent_platform/__init__` 会装载 `transfer_runtime`。把 import 放在检测器模块的**函数内**，或先 `import app.security` 再导入（安全包已完成初始化，不会循环）。
 2. 检测器输出的证据：`source` / `source_version` 填检测器版本；`evidence_ref` 用 `inputs.evidence_ref`；`signals` / `checked_signals` 只填实际检查过的维度（见 §4.1）。
-3. 离线注入用法见 `app/agent_platform/test_risk_inputs.py` 的 `flow_control_detector()` / `fact_backed_detector()`：真实 HTTP / harness / 安全门 / 执行器 / 审计 / 模拟银行，仅检测器是替身。
+3. 离线注入用法见 `app/agent_platform/test_risk_inputs.py`：真实 HTTP / harness / 安全门 / 执行器 / 审计 / 模拟银行，仅检测器是替身。**真实检测器请参照 `fact_backed_detector()` 的 checked 口径（只声明事实支持的维度），不要照抄 `flow_control_detector()` 的全维度声明**——后者与既有夹具同级，只用于流程对照。
 4. 生产装配（`local_demo.build_runtime`）的接入属于 `v04-risk-inputs/02`：装配层只做「`resolve` → `detector`」，不写识别规则，也不回退 `transfer_fixtures`。
 
 ## 6. 已知边界

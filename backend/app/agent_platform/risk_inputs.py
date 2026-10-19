@@ -20,7 +20,6 @@ from pydantic import TypeAdapter
 
 from app.contracts.bank import (
     PayeeDisplay, PayeeInput, PayeeVerification, QueryFailure, QueryOk, Transaction,
-    TransactionList,
 )
 from app.contracts.common import TaskStatus
 from app.contracts.platform import CapabilityDefinition, TrustedContext
@@ -257,13 +256,13 @@ class TrustedRiskInputs:
         start = end - self.history_window
         verification = self.gateway.verify_payee(trusted, payee)
         history = self.gateway.list_transactions(trusted, payer_account_id, start, end)
-        transactions = (history.data.transactions
-                        if not isinstance(history, QueryFailure) else None)
+        failure_code = history.error.code if isinstance(history, QueryFailure) else None
+        transactions = history.data.transactions if failure_code is None else None
         display = None
         if not isinstance(verification, QueryFailure):
             display = verification.data.payee if verification.data.matched else None
-        payee_fact = self._payee_fact(verification, history, transactions, display)
-        amount_fact = self._amount_fact(history, transactions, amount_fen)
+        payee_fact = self._payee_fact(verification, failure_code, transactions, display)
+        amount_fact = self._amount_fact(failure_code, transactions, amount_fen)
         environment = RiskFact(
             name="environment", status="unknown",
             source="platform:no-trusted-device-source",
@@ -273,8 +272,8 @@ class TrustedRiskInputs:
 
     def _payee_fact(
         self, verification: QueryOk[PayeeVerification] | QueryFailure,
-        history: QueryOk[TransactionList] | QueryFailure,
-        transactions: list[Transaction] | None, display: PayeeDisplay | None,
+        failure_code: str | None, transactions: list[Transaction] | None,
+        display: PayeeDisplay | None,
     ) -> RiskFact:
         """The facts of this payee, not a risk verdict: saved status and prior outflows.
 
@@ -296,10 +295,9 @@ class TrustedRiskInputs:
                 scope="收款人无法解析为银行已存收款人；熟悉度未检查",
             )
         if transactions is None:
-            code = history.error.code if isinstance(history, QueryFailure) else "b08"
             return RiskFact(
                 name="payee_history", status="unknown",
-                source=f"mock-bank:{code}",
+                source=f"mock-bank:{failure_code}",
                 scope=f"收款人已解析，但近 {window} 天流水读取失败；熟悉度未检查",
             )
         prior = [
@@ -316,14 +314,14 @@ class TrustedRiskInputs:
         )
 
     def _amount_fact(
-        self, history: QueryOk[TransactionList] | QueryFailure,
-        transactions: list[Transaction] | None, amount_fen: int,
+        self, failure_code: str | None, transactions: list[Transaction] | None,
+        amount_fen: int,
     ) -> RiskFact:
         window = int(self.history_window.total_seconds() // 86400)
         if transactions is None:
-            code = history.error.code if isinstance(history, QueryFailure) else "b08"
             return RiskFact(
-                name="amount_history", status="unknown", source=f"mock-bank:{code}",
+                name="amount_history", status="unknown",
+                source=f"mock-bank:{failure_code}",
                 scope=f"近 {window} 天转出流水读取失败；金额习惯未检查",
             )
         prior = [
@@ -368,7 +366,7 @@ class TrustedRiskInputs:
         digest = sha256(json.dumps(
             canonical, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
-        return f"{_EVIDENCE_PREFIX}{digest[:24]}"
+        return f"{_EVIDENCE_PREFIX}{digest[:_EVIDENCE_LENGTH]}"
 
     def _unavailable(self, rule_id: str) -> None:
         raise self._binding_error(rule_id) from None

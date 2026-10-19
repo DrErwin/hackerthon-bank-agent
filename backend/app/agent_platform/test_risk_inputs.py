@@ -67,11 +67,16 @@ LEGAL_TEXT = "给妈妈转 500 元"
 
 
 class AnyTextPlanner(ProposalModel):
-    """The production planner is replaced; any text still produces the demo proposal."""
+    """The production planner is replaced; any text still produces a demo proposal."""
+
+    def __init__(self, payee_hint="妈妈"):
+        super().__init__()
+        self.payee_hint = payee_hint
 
     def select(self, intent_text, trusted, catalog, memory, thread_id, context_summary=None):
         self.calls += 1
-        return TransferProposal(payee_hint="妈妈", amount_fen=50_000, payer_account_id="A1")
+        return TransferProposal(payee_hint=self.payee_hint, amount_fen=50_000,
+                                payer_account_id="A1")
 
 
 def evidence(inputs, signals, checked):
@@ -135,7 +140,7 @@ def read_declaration():
     return next(item for item in PRIVATE_TOOLS if item.name == "bank.list_payees")
 
 
-def wired(tmp_path, detect, *, seed_history=True):
+def wired(tmp_path, detect, *, seed_history=True, payee_hint="妈妈"):
     """Production components; only the detector is injected through the seam."""
     application = ApplicationStore(tmp_path / "application.sqlite")
     bank = MockBankService(
@@ -150,7 +155,7 @@ def wired(tmp_path, detect, *, seed_history=True):
 
     app = TransferRuntime(
         application, MemoryAdapter(application, active_round=lambda: "D1"),
-        AuditJournal(application.path), bank, AnyTextPlanner(),
+        AuditJournal(application.path), bank, AnyTextPlanner(payee_hint),
         authorize_capability=lambda *_: True, authorize_tool=lambda *_: True,
         assess_risk=assess, authorize_face=lambda *_: False,
     )
@@ -308,7 +313,7 @@ def test_legal_request_completes_with_one_bank_effect_after_the_standard_gates(t
 
 
 def test_fact_backed_detector_pauses_while_the_environment_has_no_source(tmp_path):
-    """Issue #160 fail-closed default: an unchecked device dimension must pause."""
+    """A detector that only claims fact-backed dimensions pauses on this platform."""
     detect = fact_backed_detector()
     app, bank, application, _ = wired(tmp_path, detect)
     before = len(bank.store.list_ledger("U1", "A1"))
@@ -330,6 +335,40 @@ def test_fact_backed_detector_pauses_while_the_environment_has_no_source(tmp_pat
     ]
     assert paused and paused[0].reason_codes == ["DEPENDENCY_UNAVAILABLE"]
     assert "risk-signal-coverage-required" in paused[0].rule_ids
+    app.close()
+
+
+def test_only_the_missing_device_dimension_pauses_a_legal_request(tmp_path):
+    """Isolated causality: every dimension but the device one is checked and low."""
+    detect = flow_control_detector(
+        LOW_SIGNALS - {DemoRiskSignal.FAMILIAR_DEVICE},
+        checked=ALL_SIGNALS - {DemoRiskSignal.FAMILIAR_DEVICE},
+    )
+    app, bank, application, _ = wired(tmp_path, detect)
+    before = len(bank.store.list_ledger("U1", "A1"))
+    result = app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
+
+    assert result.status == TaskStatus.NEEDS_ATTENTION
+    assert len(bank.store.list_ledger("U1", "A1")) == before
+    assert detect.seen[0].fact("environment").status == "unknown"
+    paused = [
+        event.payload.decision for event in app.audit._events("D1", "T1")
+        if event.event_type == "security.decided"
+        and event.payload.decision.decision == SecurityDecisionCode.PAUSE
+    ]
+    assert paused and "risk-signal-coverage-required" in paused[0].rule_ids
+    app.close()
+
+
+def test_saved_payee_without_transfer_history_is_known_and_never_visited(tmp_path):
+    """The "saved but never transacted" state is expressible: prior_outflows == 0."""
+    detect = flow_control_detector(LOW_SIGNALS)
+    app, bank, application, _ = wired(tmp_path, detect, payee_hint="家庭")
+    app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
+    payee = detect.seen[0].fact("payee_history")
+
+    assert payee.status == "known"
+    assert payee.value == {"saved": True, "prior_outflows": 0}
     app.close()
 
 
