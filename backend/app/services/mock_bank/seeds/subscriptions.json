@@ -1,0 +1,49 @@
+[
+  {
+    "mandate_id": "sub_001",
+    "user_id": "U1",
+    "account_id": "A1",
+    "account_masked": "****0001",
+    "merchant_id": "M_UYUN",
+    "merchant_name": "优酷视频",
+    "service_name": "优酷 VIP 连续包月",
+    "amount_fen": 2500,
+    "cycle": "monthly",
+    "status": "active",
+    "signed_month_offset": 12,
+    "last_billed_month_offset": 1,
+    "next_billing_day_offset": 5
+  },
+  {
+    "mandate_id": "sub_002",
+    "user_id": "U1",
+    "account_id": "A1",
+    "account_masked": "****0001",
+    "merchant_id": "M_UDRV",
+    "merchant_name": "云端网盘",
+    "service_name": "超级会员连续包月",
+    "amount_fen": 3900,
+    "cycle": "monthly",
+    "status": "active",
+    "signed_month_offset": 8,
+    "last_billed_month_offset": 1,
+    "next_billing_day_offset": 12
+  },
+  {
+    "mandate_id": "sub_003",
+    "user_id": "U1",
+    "account_id": "A1",
+    "account_masked": "****0001",
+    "merchant_id": "M_XMAL",
+    "merchant_name": "喜马拉雅",
+    "service_name": "巅峰会员连续包月",
+    "amount_fen": 1500,
+    "cycle": "monthly",
+    "status": "cancelled",
+    "signed_month_offset": 18,
+    "last_billed_month_offset": 3,
+    "next_billing_day_offset": null,
+    "cancelled_month_offset": 2,
+    "cancel_operation_id": "c81d5e3f-4a2b-4c7d-8e9f-0a1b2c3d4e5f"
+  }
+]

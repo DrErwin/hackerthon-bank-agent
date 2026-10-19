@@ -10,6 +10,7 @@ from pathlib import Path
 import sqlite3
 import threading
 import time
+from typing import Literal
 from uuid import UUID, uuid4
 
 from app.contracts.bank import (
@@ -20,9 +21,13 @@ from app.contracts.bank import (
     TransferQuote, TransferReceipt,
 )
 from app.contracts.platform import TrustedContext
+from app.contracts.subscription import (
+    SubscriptionCancelReceipt, SubscriptionMandate, SubscriptionMandateList,
+)
 from app.storage.database import connect, parameter_digest, transaction
 from app.storage.mock_bank.repository import BankAccount, MockBankStore
 
+from . import subscriptions
 from .flow_seeds import build_flow_rows, shift_months
 from .verification import MockBankVerification
 
@@ -87,6 +92,7 @@ class MockBankService:
         self._slow_once: set[str] = set()
         self._slow_lock = threading.Lock()
         self.seed_demo()
+        self.seed_subscriptions()
         with transaction(self.store.path) as connection:
             connection.execute("""CREATE TABLE IF NOT EXISTS bank_operation_scopes (
                 operation_id TEXT PRIMARY KEY,
@@ -132,8 +138,29 @@ class MockBankService:
             ))
 
     def seed_flow_history(self) -> int:
-        """Load the shared demo flow facts at the bank clock; idempotent per transaction id."""
-        return self.store.seed_ledger_rows(build_flow_rows(self.clock()))
+        """Load the demo flow facts at the bank clock; idempotent per transaction id.
+
+        The subscription debits ride along because they are ordinary B08 facts that the
+        bills and subscription lines both read; like the shared history they stay
+        opt-in, so an isolated bank unit test still starts with an empty ledger.
+        """
+        at = self.clock()
+        return (
+            self.store.seed_ledger_rows(build_flow_rows(at))
+            + self.store.seed_ledger_rows(
+                build_flow_rows(at, filename=subscriptions.FLOW_SEED_FILE))
+        )
+
+    def seed_subscriptions(self) -> int:
+        """Create the mandate table and load the seeded agreements at the bank clock.
+
+        Signing facts are always present, like the demo accounts: B29 has an answer
+        before anyone calls anything. Ledger evidence is a separate, opt-in seed.
+        """
+        at = self.clock()
+        with transaction(self.store.path) as connection:
+            subscriptions.ensure_schema(connection)
+            return subscriptions.seed(connection, at)
 
     def arm_slow_once(self, user_id: str) -> None:
         """Bank-internal demo control; no ordinary gateway method exposes it."""
@@ -517,6 +544,121 @@ class MockBankService:
             except sqlite3.Error:
                 return _error("BANK_UNAVAILABLE")
 
+    def list_subscriptions(self, user_id: str, account_id: str | None = None,
+                           status: Literal["active", "cancelled"] | None = None):
+        """B29: one user's signed auto-debit agreements, never another person's."""
+        if not isinstance(user_id, str) or not user_id.strip():
+            return _error("INVALID_ARGUMENT", field="user_id", reason="must not be blank")
+        if status is not None and (
+            not isinstance(status, str) or status not in {"active", "cancelled"}
+        ):
+            return _error("INVALID_ARGUMENT", field="status", reason="active or cancelled")
+        if account_id is not None and (
+            not isinstance(account_id, str) or not account_id.strip()
+        ):
+            return _error("INVALID_ARGUMENT", field="account_id", reason="must not be blank")
+        if account_id is not None and self.store.get_account(user_id, account_id) is None:
+            return _error("ACCESS_DENIED")
+        with closing(connect(self.store.path)) as connection:
+            mandates = subscriptions.list_mandates(connection, user_id, account_id, status)
+        return QueryOk(kind="ok", data=SubscriptionMandateList(mandates=mandates, as_of=self.clock()))
+
+    def _stored_cancel_result(self, user_id: str, operation_id: UUID, parameters: dict):
+        """The first outcome of this exact B30 call, or None while nothing was written."""
+        with closing(connect(self.store.path)) as connection:
+            row = connection.execute(
+                """SELECT user_id, action_name, parameters_digest FROM bank_operations
+                   WHERE operation_id = ?""", (str(operation_id),),
+            ).fetchone()
+        if row is None:
+            return None
+        if (row["user_id"], row["action_name"], row["parameters_digest"]) != (
+            user_id, "bank.cancel_subscription", parameter_digest(parameters),
+        ):
+            return _error("OPERATION_CONFLICT")
+        operation = self.store.get_operation(user_id, str(operation_id))
+        return OperationResult[SubscriptionCancelReceipt].model_validate(operation.result)
+
+    def cancel_subscription(self, context: TrustedContext, operation_id: UUID, mandate_id: str):
+        """B30: stop the next and later debits of one active mandate of this user."""
+        user_id = context.user_id
+        if not isinstance(operation_id, UUID) or operation_id.version != 4:
+            return _error("INVALID_ARGUMENT", field="operation_id", reason="UUID v4 required")
+        if not isinstance(mandate_id, str) or not mandate_id.strip():
+            return _error("INVALID_ARGUMENT", field="mandate_id", reason="must not be blank")
+        if not self._reserve_scope(context, operation_id):
+            return _error("OPERATION_CONFLICT")
+        parameters = {"mandate_id": mandate_id}
+        with transaction(self.store.path) as connection:
+            bound = subscriptions.bind_request(
+                connection, user_id, str(operation_id), mandate_id)
+        if not bound:
+            return _error("OPERATION_CONFLICT")
+        prior = self._stored_cancel_result(user_id, operation_id, parameters)
+        if prior is not None:
+            return prior
+        with closing(connect(self.store.path)) as connection:
+            stored = subscriptions.get_mandate(connection, mandate_id)
+        if stored is None:
+            return _error("RECORD_NOT_FOUND")
+        owner_id, mandate = stored
+        if owner_id != user_id:
+            return _error("ACCESS_DENIED")
+        if mandate.status != "active":
+            return _error("STATE_CONFLICT", reason="mandate_already_cancelled")
+        if mandate.next_billing_at is None:
+            return _error("STATE_CONFLICT", reason="mandate_without_next_billing")
+        account = self.store.get_account(user_id, mandate.account_id)
+        if account is None or account.account_status != "active":
+            return _error(
+                "ACCOUNT_UNAVAILABLE",
+                account_status="closed" if account is None else account.account_status,
+            )
+        at = self.clock()
+        receipt = SubscriptionCancelReceipt(
+            mandate_id=mandate.mandate_id, account_id=mandate.account_id,
+            account_masked=mandate.account_masked, merchant_id=mandate.merchant_id,
+            merchant_name=mandate.merchant_name, service_name=mandate.service_name,
+            amount_fen=mandate.amount_fen, cycle=mandate.cycle,
+            previous_next_billing_at=mandate.next_billing_at,
+            effective_stop_at=mandate.next_billing_at, cancelled_at=at,
+        )
+        result = OperationResult[SubscriptionCancelReceipt](
+            operation_id=operation_id, operation_type="bank.cancel_subscription",
+            operation_status="succeeded", recorded_at=at, updated_at=at, receipt=receipt,
+            failure=None,
+        )
+        try:
+            with transaction(self.store.path) as connection:
+                subscriptions.cancel_mandate(
+                    connection, user_id, mandate.mandate_id, str(operation_id), at)
+            saved = self.store.commit_operation(
+                user_id, str(operation_id), "bank.cancel_subscription", parameters,
+                "succeeded", result.model_dump(mode="json"), at.isoformat(), [], [],
+            )
+        except ValueError:
+            return self._undo_cancellation(user_id, mandate, operation_id, "OPERATION_CONFLICT")
+        except sqlite3.Error:
+            return self._undo_cancellation(user_id, mandate, operation_id, "BANK_UNAVAILABLE")
+        return OperationResult[SubscriptionCancelReceipt].model_validate(saved.result)
+
+    def _undo_cancellation(self, user_id: str, previous: SubscriptionMandate,
+                           operation_id: UUID, code: str):
+        """Undo this call's own change before reporting that its operation record was refused.
+
+        A receipt and the state change it describes are one fact: if the second write is
+        refused (another action already owns the number, or the bank database failed), the
+        agreement goes back exactly as it was, so "no receipt" always means "nothing
+        changed". Without this, B30 would leave a cancelled agreement nobody can look up.
+        """
+        try:
+            with transaction(self.store.path) as connection:
+                subscriptions.restore_mandate(
+                    connection, user_id, previous.mandate_id, str(operation_id), previous)
+        except sqlite3.Error:
+            return _error("BANK_UNAVAILABLE")
+        return _error(code)
+
     def get_operation(self, context: TrustedContext, operation_id: UUID):
         user_id = context.user_id
         with closing(connect(self.store.path)) as connection:
@@ -532,6 +674,12 @@ class MockBankService:
         ):
             return _error("ACCESS_DENIED")
         operation = self.store.get_operation(user_id, str(operation_id))
+        if operation.action_name == "bank.cancel_subscription":
+            return OperationFound[SubscriptionCancelReceipt](
+                lookup="found",
+                operation=OperationResult[SubscriptionCancelReceipt].model_validate(
+                    operation.result),
+            )
         return OperationFound[TransferReceipt](
             lookup="found", operation=OperationResult[TransferReceipt].model_validate(operation.result),
         )
