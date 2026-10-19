@@ -39,9 +39,6 @@ _HIGH_RISK_PATTERNS = {
     "secrecy_or_urgency": ("别告诉", "不要告诉", "偷偷", "赶紧退", "马上退", "快点退"),
 }
 _MANDATE_ID = re.compile(r"sub_[A-Za-z0-9_]+")
-# A checkpoint written before Issue #176 has no revision counter and may hold a
-# payload-hash revision up to 2**32-1; the first counter value must clear it.
-_LEGACY_REVISION_BASE = 1 << 32
 
 
 def _actor(context: TrustedContext) -> tuple[str, str, str]:
@@ -256,7 +253,7 @@ class SubscriptionEntry:
                                    upstream=answer.reason_code)
 
     @staticmethod
-    def _cancel_revision(state: dict, plan) -> int:
+    def _cancel_revision(state: dict, plan) -> int | None:
         """A monotonic revision of the frozen facts (the transfer workflow's counter).
 
         The security state keeps only the newest confirmation per task and rejects a
@@ -265,16 +262,23 @@ class SubscriptionEntry:
         which made the same input end in "reissue confirmation v2" or in a misleading
         security rejection at random (Issue #176). The counter rises by one whenever
         the frozen facts change, so the second branch becomes the only one.
+
+        A checkpoint written before this counter exists keeps the payload-hash
+        revision: its already-answered confirmation was frozen under that number, and
+        the operator reuses its operation number for the same facts, so switching that
+        task to a counter would deterministically conflict. ``None`` lets the ports fall
+        back to the old derivation; such in-flight tasks keep their pre-fix behaviour
+        and the demo store is reset on deploy.
         """
 
+        if "cancel_revision" not in state:
+            return None
         frozen = sha256(
             json.dumps(plan.payload(), sort_keys=True, ensure_ascii=False).encode("utf-8")
         ).hexdigest()
         if state.get("frozen_action") != frozen:
             state["frozen_action"] = frozen
-            current = state.get("cancel_revision")
-            base = current if isinstance(current, int) else _LEGACY_REVISION_BASE
-            state["cancel_revision"] = base + 1
+            state["cancel_revision"] = int(state["cancel_revision"]) + 1
         return int(state["cancel_revision"])
 
     def checkpoint_context(self, trusted: TrustedContext, *, thread_id=None):

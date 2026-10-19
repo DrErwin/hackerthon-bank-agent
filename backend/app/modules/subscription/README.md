@@ -55,4 +55,6 @@ B14 回查（查到成功按真实回执、查到失败如实报失败、仍未�
 
 ## 确认失效与动作修订号（Issue #176）
 
-`entry._cancel_revision` 为每次写检查给出**单调递增**的 `action_revision`（冻结事实一变就 +1，同一事实重复核对沿用原号），与转账工作流的 `action_revision` 计数同构。安全状态只保留任务最近一张确认单，新动作的修订号不高于它时按 `OPERATION_CONFLICT` 拒绝；拿参数哈希当修订号等于掷硬币，同一输入会随机落到「重出确认单 v2」或「安全拒绝」两支。现在「关键内容变化 → 旧确认失效 → 重出确认单 v2 → 用户继续办理」是唯一分支，回归见 `test_subscription_ports.py::test_changed_facts_always_reissue_confirmation_v2_never_an_operation_conflict`。
+`entry._cancel_revision` 为每次写检查给出**单调递增**的 `action_revision`（冻结事实一变就 +1，同一事实重复核对沿用原号），与转账工作流的 `action_revision` 计数同构。安全状态只保留任务最近一张确认单，新动作的修订号不高于它时按 `OPERATION_CONFLICT` 拒绝；拿参数哈希当修订号等于掷硬币，同一输入会随机落到「重出确认单 v2」或「安全拒绝」两支。现在「关键内容变化 → 旧确认失效 → 重出确认单 v2 → 用户继续办理」是唯一分支。
+
+回归分两层：`test_subscription.py::test_changed_facts_raise_the_frozen_action_revision_monotonically` 钉住计数器本身（事实变化 +1、同事实不涨号、没有计数器的旧 checkpoint 退回旧哈希），`test_subscription_ports.py::test_changed_facts_always_reissue_confirmation_v2_never_an_operation_conflict` 钉住真实安全门下「改金额 → 新操作号 + 重出 v2、零银行提交」。升级前写入的在途任务保持原有哈希行为（见 `entry._cancel_revision` 注释），演示库在部署时重置，不会带着旧 checkpoint 进新版本。

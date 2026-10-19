@@ -67,8 +67,9 @@ class CancellationPlan:
 def plan_from_payload(payload: dict) -> CancellationPlan:
     """Rebuild one frozen plan from its checkpointed payload, byte-for-byte.
 
-    The payload decides the parameter reference and the action revision the executor
-    and the answered confirmation are keyed by, so it must round-trip unchanged.
+    The payload decides the parameter reference and when the entry's action-revision
+    counter advances (Issue #176); the answered confirmation and the executor are keyed
+    by that revision, so the payload must round-trip unchanged.
     """
 
     return CancellationPlan(

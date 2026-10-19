@@ -566,6 +566,31 @@ def test_changed_facts_raise_the_frozen_action_revision_monotonically():
     assert ports.revisions == [1, 2, 2]
 
 
+def test_checkpoint_written_before_the_counter_keeps_the_old_hash_revision():
+    """升级前写入的 checkpoint 没有计数器：退回旧哈希修订号，不制造确定性冲突。
+
+    安全状态把「同一操作、不同修订号」判为 OPERATION_CONFLICT，而在途任务的已答
+    确认单冻结在哈希修订号下，硬切计数器会让这类任务必然失败。
+    """
+
+    bank, gate = FakeBank(), FakeGate()
+    ports = Ports(bank, gate)
+    saver = MemorySaver()
+    task = SubscriptionEntry(SubscriptionService(ports, lambda: NOW), saver, None)
+    task.start(context(), start_request("把优酷视频的自动扣费退了"))
+    state = saver.rows["T1"].checkpoint["channel_values"]["subscription_state"]
+    # A checkpoint from before Issue #176: the counter keys do not exist yet.
+    state.pop("cancel_revision")
+    state.pop("frozen_action")
+    saver.rows["T1"].checkpoint["channel_values"]["subscription_state"] = state
+
+    task.resume(context(), {"choice": "approve"})
+
+    assert ports.revisions[-1] is None
+    reloaded = saver.rows["T1"].checkpoint["channel_values"]["subscription_state"]
+    assert "cancel_revision" not in reloaded and "frozen_action" not in reloaded
+
+
 def test_intent_helpers():
     assert wants_cancel("把优酷视频的自动扣费退了") and not wants_cancel("帮我查查有哪些自动扣费")
     assert named_mandate_id("退掉 sub_002 吧") == "sub_002" and named_mandate_id("退了优酷") is None
