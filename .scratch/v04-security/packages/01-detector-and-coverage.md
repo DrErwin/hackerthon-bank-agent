@@ -1,9 +1,9 @@
 # 交付包 01：v0.4 检测器与评测完整性（#86 + #88）
 
-Status: in_progress（2026-10-15 已建立本人规格与七张实施票；待按票执行，MAT 子项等 Issue #133）
+Status: in_progress（2026-10-19：追加 #137 读取边界；#86/#88 原实施范围按 PM 最新决定留在 v0.4）
 Owner: Ringo；**PM 代行条款**（v0.3 先例，含三要素）：**2026-10-14 24:00 前 Ringo 未确认领取本包，即启动 PM（Erwin）代行**——代行期限至 v0.4 收口，代行期间拆票与实施由 PM 承担、审查人 Erwin（自审如实记录），Ringo 回归即交还；始终如实记录为代行，不冒充 Ringo 本人审查
 Activation: 2026-10-11 Erwin 建立（v0.4 正式启动同日）
-Start when: v0.4 已于 2026-10-11 正式启动，#86 检测器规格与 #88 用例扩充可立即开展；前置 [Issue #84](https://github.com/DrErwin/hackerthon-bank-agent/issues/84) 已于 2026-10-12 关闭（提供方 Erwin，见[规划上下文工作组](../../v04-planning-context/spec.md)）。SEC-C-001 原余 14 轮记录须对照最新台账核对；33 轮 gated 补验仍须满足各自检测与观测能力条件，领取与前置关闭均不代表补验通过。
+Start when: #137 按 PM 已定本人读取口径先行；#86 检测器及全量补验、#88 用例扩充与 MAT 按 2026-10-19 最新决定保留 v0.4。原 #84 依赖已关闭，前置满足的票立即推进。
 Spec: [v0.4 安全完整性规格](../spec.md)
 
 Accepted by: Ringo（GitHub @RingoDontpanic；本人在本会话明确确认领取）
@@ -61,3 +61,9 @@ v0.3 收口时安全侧的四类明示例外在 v0.4 补齐：真实威胁检测
 - Ringo 接包（或 PM 代行）后走 `to-spec → to-tickets`，在本人 `.scratch/` 工作组建立规格与实施票，回填本包 `Work spec`。
 - 顺序建议：检测器规格 → #88 用例扩充（不依赖 #84，先行）→ #84 完成后集中复跑转正。
 - PM 代行时同样按单目录拆票，票据与验收记录注明代行。
+
+## 2026-10-19 最新排期与追加范围
+
+[Issue #86 最新决定](https://github.com/DrErwin/hackerthon-bank-agent/issues/86#issuecomment-6260282588)和 [Issue #88 最新决定](https://github.com/DrErwin/hackerthon-bank-agent/issues/88#issuecomment-6260283007)撤回 10-18 延期裁定，检测器、全量补验及覆盖完整性均留在 v0.4。七张原票保留编号，前置已满足即按票实施；真实模型仍需入口与预算确认。122 / 274 / 330 是变更前基线，新增用例后按实际规模重算，历史报告保持。
+
+MAT 范围已由 [#133](https://github.com/DrErwin/hackerthon-bank-agent/issues/133#issuecomment-6199304472)明确为最小集合适用项必交，额外扩充可选；范围待定依赖解除，实施与观察端条件保持。当前追加 [v04-ringo-security/08：账单读取安全边界与声明冻结](../../v04-ringo-security/issues/08-bills-read-security-boundary.md)，业务规则沿用 [#137 临时决定](https://github.com/DrErwin/hackerthon-bank-agent/issues/137#issuecomment-6250123462)。账单审计整改仍由 [#145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145)的账单负责人独立实施。领取、AI 辅助复核、真人签核与联合验收分别记录。

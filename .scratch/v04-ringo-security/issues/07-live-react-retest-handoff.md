@@ -7,7 +7,7 @@ Core scenarios: RS01 至 RS10 中需要真实模型或页面观察的部分
 Type: 评测
 Owner: Ringo
 Directory: evals/security/
-Status: blocked
+Status: blocked（仍在 v0.4，范围已定，等待所列技术前置）
 Blocked by: [v04-ringo-security/06：离线集成与全量覆盖核查](06-offline-integration-and-audit.md)核心检查通过；Ringo 执行前确认真实模型入口与预算；所测前端公开路径就绪
 Source issue: #86 / #88（[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)）
 Verification: 已确认预算后按独立实例及共享轮运行，观察真实模型输入与回复、页面交互和独立银行事实；逐轮判定说明缺口，计算报告 sha256，移交时链接完整证据。
@@ -34,3 +34,5 @@ Verification: 已确认预算后按独立实例及共享轮运行，观察真实
 ## Comments
 
 - 2026-10-15：Ringo 本人在本会话确认测试边界及七项拆票。接票执行前补实际领取时间与状态；本条不作为已执行或验收通过的记录。
+
+- 2026-10-19：[Issue #86 最新 PM 排期结论](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)撤回 10-18 的延期决定，本票保留在 v0.4。分母随实际用例变更重算，旧批次及其 Blocked 状态保持；本条仅更新排期与依赖。
