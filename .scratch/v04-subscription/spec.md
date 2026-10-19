@@ -69,7 +69,7 @@ PM 指示：**「把契约全部统一一下。之前冻结的契约是可以再
 
 | 场景 | 触发 | 期望状态流转 | 关键输出与断言（契约口径） |
 |---|---|---|---|
-| **SF01** 盘点 + 30 天提醒 | 「帮我查查有哪些自动扣费」 | `PLANNING → EXECUTING → SUCCEEDED` | `SubscriptionTaskView(action="list")`；`list_result.items` 含 3 条 `mandate`（优酷视频 active、云端网盘 active、喜马拉雅 cancelled）与 1 条 `suspected_ledger`（绿洲健身）；`upcoming_renewals` 2 条、`upcoming_total_fen == 2500 + 3900`；`active_count == 2`；优酷视频 `billed_count == 6` / `billed_total_fen == 15000`；回复含 7 天内扣款标注与 30 天提醒 |
+| **SF01** 盘点 + 30 天提醒 | 「帮我查查有哪些自动扣费」 | `PLANNING → EXECUTING → SUCCEEDED` | `SubscriptionTaskView(action="list")`；`list_result.items` 含 3 条 `mandate`（优酷视频 active、云端网盘 active、喜马拉雅 cancelled）与绿洲健身等 `suspected_ledger` 条目（**疑似条数不锁死**：契约 §5.9 第 4/5 条按流水事实判定，演示银行里物业/水费/通信/食堂/公交等连续 ≥3 月同额扣款同样命中，评测只断言绿洲健身存在且 `can_cancel_in_bank=False`）；`upcoming_renewals` 2 条、`upcoming_total_fen == 2500 + 3900`；`active_count == 2`；优酷视频 `billed_count == 6` / `billed_total_fen == 15000`；回复含 7 天内扣款标注与 30 天提醒 |
 | **SF02** 单笔退订全链路 | 「把优酷视频自动扣费退了」→ 确认 → 验证码 | `WAITING_CONFIRMATION → WAITING_VERIFICATION → SUCCEEDED` | 确认单含「从下一期（`D+5`）起不再自动扣费，之前已经扣掉的钱不退」，**不含**会员可用截止日；验证 `purpose="basic_identity"`、`scope="session"`、`required_methods=["code"]`（**非** `mock_face`）；`cancel_receipt.mandate_id=="sub_001"`、`status=="cancelled"`、`effective_stop_at` 等于解约前 `next_billing_at`；B29 复查该协议已 `cancelled` |
 | **SF03** 同会话第 2 笔复用验证 | 同 `session_id` 下「再把云端网盘自动续费退了」→ 确认 | `WAITING_CONFIRMATION → SUCCEEDED` | 仍过确认门（`per_action`），确认后复用同会话已通过的 `basic_identity`（**不再要求新验证码**），直接执行 B30 成功 |
 | **SF04** 疑似项拦截引导 | 「帮我把绿洲健身的每月扣款退订」 | `PLANNING → EXECUTING → SUCCEEDED` | 不进 `WAITING_CONFIRMATION`、不调用 B30；`selected_item.can_cancel_in_bank == False`；回复含 `external_cancel_guide`（微信/支付宝/商户端） |
@@ -186,7 +186,7 @@ def cancel_subscription(self, context: TrustedContext, operation_id: UUID, manda
   规则（§7A）：非 UUID4 → `INVALID_ARGUMENT`；`(user_id, demo_round_id)` 作用域预留（复用 `bank_operation_scopes`）；同 `operation_id` + 同参数幂等重放；同 `operation_id` 不同参数 → `OPERATION_CONFLICT`；跨用户 → `ACCESS_DENIED`；不存在 → `RECORD_NOT_FOUND`；换新 `operation_id` 对已 `cancelled` 再退 → `STATE_CONFLICT`；绑定账户非 `active` → `ACCOUNT_UNAVAILABLE`；成功写入 `bank_operations`（`action_name="bank.cancel_subscription"`，`receipt_json` 为 `SubscriptionCancelReceipt`）并更新该行 `status="cancelled"`、`next_billing_at=NULL`、`cancelled_at`、`cancel_operation_id`。
 - B14 `get_operation` 扩展：`operation_type == "bank.cancel_subscription"` 时还原 `OperationResult[SubscriptionCancelReceipt]`（`OperationFound[SubscriptionCancelReceipt]`）。
 - `BankGateway`（`services/bank_gateway/gateway.py`）新增 `list_subscriptions(context, account_id=None, status=None)` 与 `cancel_subscription(context, operation_id, mandate_id)`；写路径与 `submit_transfer` 同样超时保护与授权回调（`authorize_cancel`，未配置时 fail-closed 返回 `ACCESS_DENIED`）。
-- 订阅种子流水单独成文件 `seeds/subscription_flows.json`（与 `flow_history.json` 同 schema），由 `MockBankService.seed_subscriptions()` 幂等写入，**不改动 `flow_history.json`**。
+- 订阅种子流水单独成文件 `seeds/subscription_flows.json`（与 `flow_history.json` 同 schema），随既有显式入口 `MockBankService.seed_flow_history()` 幂等写入（**不在 `__init__` 默认播种**：仓库约定演示流水由显式入口启用，且本票目录外有 40+ 处账本长度断言；签约协议行仍在 `__init__` 播种），**不改动 `flow_history.json`**。`agent_platform/local_demo.py` 已调用该入口，演示链路自动获得订阅流水。
 
 **种子数据（D = 银行 clock 当天）**
 
@@ -205,10 +205,17 @@ def cancel_subscription(self, context: TrustedContext, operation_id: UUID, manda
   - `S01 subscription.list_subscriptions`：`input_schema_ref="SubscriptionListInput"`、`output_schema_ref="ModuleResult[SubscriptionTaskView]"`、`required_permissions=["subscription.read"]`、`OperationLevel.READ`、`side_effect=False`、`confirmation_policy="none"`、`retry_policy="read_only"`
   - `S02 subscription.cancel_subscription`：`input_schema_ref="SubscriptionCancelInput"`、`output_schema_ref="ModuleResult[SubscriptionTaskView]"`、`required_permissions=["subscription.cancel"]`、`OperationLevel.MODIFY`、`side_effect=True`、`confirmation_policy="per_action"`、`retry_policy="none"`
 - `reads.py`：`SUBSCRIPTION_PRIVATE_TOOLS`（命名按 bills 的模块前缀惯例，避免与 transfer 的 `bank.*` 私有工具在同一个策略字典里冲突）：
+  - `subscription.bank.list_accounts`（READ / `subscription.read` / none / read_only；用于枚举本人账户后按账户取流水）
   - `subscription.bank.list_subscriptions`（READ / `subscription.read` / none / read_only）
   - `subscription.bank.list_transactions`（READ / `subscription.read` / none / read_only）
   - `subscription.bank.cancel_subscription`（MODIFY / `subscription.cancel` / per_action / side_effect=True / retry none）
-  并实现 `GatewaySubscriptionReads`：与 `modules/bills/reads.py` 同构（任务级 `SecurityGate` + `DeterministicExecutor` + `parameters_ref` 解析，所有读写都过安全门，绝不直连银行表）。
+  写动作的 `ActionDescriptor` 必须用 `Phase.EXECUTION`（读与确认预检用 `ADMISSION`）：统一执行器对 `side_effect=True` 的声明要求执行相位，否则按策略拦截、银行调用永不发生。
+  **参数引用 `parameters_ref` 按 `(task_id + 冻结事实)` 确定性派生**，check/confirm/verify/execute 全过程复用同一个引用（已批准确认单据此匹配），但**审计证据键每次调用新生成**（`audit_evidence.evidence_id` 唯一）。
+  平台需提供三样东西（`ports.py` 是唯一接缝，详见模块 `README.md`）：
+  `context_factory(trusted, operation_id=None, action_revision=None)`（返回带**已答确认**与会话级验证记录的 `ExecutionSecurityContext`）、
+  `operation_reserver(trusted, payload)`（按冻结事实幂等返回同一 `operation_id`）、
+  可选的 `on_bind(security_context, action_name, parameters_ref, payload)`（把绑定事实交给平台的风险事实解析器）。
+  并实现 `GatewaySubscriptionPorts`：与 `modules/bills/reads.py` 同构（任务级 `SecurityGate` + `DeterministicExecutor` + `parameters_ref` 解析，所有读写都过安全门，绝不直连银行表）。
 - `service.py`：`SubscriptionService(ports, clock)`
   - `list_subscriptions(context, SubscriptionListInput)`：B29 + B08 流水 → 组装 `SubscriptionListResult`（排序：`active` 按 `next_billing_at` 升序 → `suspected` → `cancelled`）→ 适老化回复（分清「本行签约可直接退」与「疑似需去微信/支付宝/商户端」；列出 30 天内扣款项与合计；7 天内标「7 天内会扣款」；`insufficient_data` 时如实说明）→ `SUCCEEDED`。
   - `prepare_cancel(context, SubscriptionCancelInput)`：批量全退拒绝 / 多候选 / 未命中 → `WAITING_INPUT` + 单选候选；`suspected_ledger` → `SUCCEEDED` + 外部引导；`cancelled` → `SUCCEEDED` + 幂等告知；唯一 `active` 且 `can_cancel_in_bank` → 生成确认单 6 项展示字段与待执行参数（`mandate_id`、`amount_fen`、`merchant_name`、`service_name`、`account_id`、`account_masked`、`effective_stop_at`）。
