@@ -7,7 +7,7 @@ Core scenarios: SF01、SF02、SF03、SF06（银行侧事实）
 Verification: 本票局部——`pytest backend/app/services/test_subscriptions.py -q`；整条路径由 `07-subscription-evals` 覆盖
 Owner: Erwin
 Directory: `backend/app/services/`
-Status: todo
+Status: resolved
 Blocked by: [`v04-subscription/01-contract-models`](01-contract-models.md)
 Source issue: Issue #123
 
@@ -67,3 +67,13 @@ Source issue: Issue #123
 pytest backend/app/services/test_subscriptions.py -q
 pytest backend/app/services -q          # 不破坏既有 mock bank 用例
 ```
+
+---
+
+## Comments
+
+- 2026-10-19 实施：`mock_bank/subscriptions.py` 自包含建表 + 相对日期种子（`seeds/subscriptions.json` / `subscription_flows.json`）、B29/B30、B14 还原解约回执、`BankGateway` 两个方法（超时 `CALL_TIMEOUT`、未配 `authorize_cancel` fail-closed）、7 项单测。
+- 与票据的已接受差异：① 订阅流水随既有显式入口 `seed_flow_history()` 播种（不在 `__init__` 默认播种，避免打破本票目录外 40+ 处账本长度断言）；② `sub_003` 历史流水未单独播种；③ `account_masked` 用契约口径 `****0001`。
+- 2026-10-19 独立审查（`a6a8fc1`）：**有条件通过**，1 项必修——B30 第二次写失败/并发时不补偿，会留下「无回执的解约」；另有 3 项建议。已修复（`restore_mandate` 按快照回滚 + 编号首次参数绑定 + 非字符串入参 `INVALID_ARGUMENT` + 空 `next_billing_at` 显式拒绝，+6 回归）。
+- 2026-10-19 合入 main：**PR #148**（squash `f0e020c`，含修复提交 `159faca`）；`evals/mockbank` 14 passed、后端全量 641 passed。
+- 遗留（已登记，非本票）：跨动作占用同一编号仍可绑定（需共享作用域表改造）；两段写合一事务需 `storage/` 暴露共享事务入口。

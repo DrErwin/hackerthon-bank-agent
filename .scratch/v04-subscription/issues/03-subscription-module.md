@@ -7,7 +7,7 @@ Core scenarios: SF01–SF06（[spec §4](../spec.md)）
 Verification: 本票局部——`pytest backend/app/modules/subscription/test_subscription.py -q`；整条路径由 `07-subscription-evals` 覆盖
 Owner: Erwin
 Directory: `backend/app/modules/subscription/`
-Status: todo
+Status: resolved
 Blocked by: [`v04-subscription/01-contract-models`](01-contract-models.md)、[`v04-subscription/02-mockbank-subscriptions`](02-mockbank-subscriptions.md)
 Source issue: Issue #123
 
@@ -68,3 +68,13 @@ Source issue: Issue #123
 pytest backend/app/modules/subscription/test_subscription.py -q
 pytest backend/app/modules -q      # 不破坏 transfer / bills 既有用例
 ```
+
+---
+
+## Comments
+
+- 2026-10-19 实施：新建 `modules/subscription/`（manifest / ports / _rules / service / entry / reads / README + 单测）：S01 盘点（B29 签约 + B08 扣款证据 + 契约 §5.9 规则 4/5 疑似线索、三种事实等级、7 天标注与 30 天提醒）、S02 单笔退订（拒绝批量、多候选 `WAITING_INPUT`、疑似与已退不进确认门、6 项确认单、话术红线）、写路径只经安全门与统一执行器。
+- 2026-10-19 首轮独立审查（`215285d`）：**不通过**——① 写动作用了 `Phase.ADMISSION`，统一执行器必然按策略拦截，B30 永不执行；② `parameters_ref` 每次 uuid4，已批准确认单必然 `CONFIRMATION_STALE`；③ 任意 `BLOCK` 都被渲染成胁迫话术。已修（相位参数化 + 确定性引用 + `security_stop` 按 `reason_code` 分流，并补 4 项真实 SecurityGate/Executor 集成回归）。
+- 2026-10-19 复审（`bd7924b`）：3 项必修**验证通过**（含变异 A/B/C 被杀），新发现 1 项 P1——重复执行/恢复重提把银行已成功报成 `SECURITY_REJECTED`；另 2 处测试缺口。已修（`OperationResult` 一律按银行回执上报、非 HIGH_RISK 阻断如实回报、`VERIFICATION_FAILED` 用专门终止说明、候选只含可在线退订项），单测 33 项。
+- 平台联调中由票 05 发现并修：确定性参数引用被复用为审计证据键撞 `audit_evidence` 唯一约束（`df61d23`）；spec SF05 原话「把所有自动扣费都关了」缺词（`07a20a5`）。
+- 2026-10-19 合入 main：**PR #147**（squash `d3f298c`）。

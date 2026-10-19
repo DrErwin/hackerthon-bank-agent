@@ -7,7 +7,7 @@ Core scenarios: SF01–SF06（[spec §4](../spec.md)）
 Verification: 本票局部——`pytest backend/app/contracts/test_subscription_contracts.py -q`；整条路径由 `07-subscription-evals` 覆盖
 Owner: Erwin
 Directory: `backend/app/contracts/`
-Status: todo
+Status: resolved
 Blocked by: None
 Source issue: Issue #123（场景 05 票据组）
 
@@ -63,3 +63,11 @@ Source issue: Issue #123（场景 05 票据组）
 pytest backend/app/contracts/test_subscription_contracts.py -q
 pytest backend/app/contracts -q
 ```
+
+---
+
+## Comments
+
+- 2026-10-19 实施：新增 `backend/app/contracts/subscription.py`（§5.5/§7A 模型与字面量）、`tasks.py` 两处枚举扩值、契约测试 11 项。
+- 2026-10-19 独立审查（worktree 固定 `eed5a71`）：**有条件通过**，3 项必修——① `SubscriptionItem.merchant_id` 应可空（契约 §5.5）；② 取消「cancelled 必带 `cancel_operation_id`」的额外约束；③ `can_cancel_in_bank` 的 active 半边缺回归（变异存活）。已全部修复（含 `days_until_renewal` 严格整数、来源/状态配对、死代码清理），新增反例回归。
+- 2026-10-19 合入 main：**PR #146**（squash `c20553e`，含修复提交 `e4c350b`）；后端全量 627 passed。

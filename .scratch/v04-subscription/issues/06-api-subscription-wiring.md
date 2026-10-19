@@ -7,7 +7,7 @@ Core scenarios: SF01–SF05（F05/F06/F07/F08/F10 全链路）
 Verification: 本票局部——`pytest backend/app/api/test_subscription_api.py -q`；整条路径由 `07-subscription-evals` 覆盖
 Owner: Erwin
 Directory: `backend/app/api/`
-Status: todo
+Status: in_progress
 Blocked by: [`01-contract-models`](01-contract-models.md)、[`02-mockbank-subscriptions`](02-mockbank-subscriptions.md)、[`03-subscription-module`](03-subscription-module.md)、[`04-security-policy-subscription`](04-security-policy-subscription.md)、[`05-platform-subscription-wiring`](05-platform-subscription-wiring.md)
 Source issue: Issue #123
 
@@ -50,3 +50,10 @@ HTTP 全链路（TestClient + 确定性测试双击）：
 pytest backend/app/api/test_subscription_api.py -q
 pytest backend/app/api -q      # 不破坏既有 API 用例
 ```
+
+---
+
+## Comments
+
+- 2026-10-19 开工（API 线，worktree 基于票 05 提交 `5a810b6`）：放宽 `/tasks/{task_id}/verifications` 等端点的窄化返回类型、按任务模块构造失败结果（`verification_fault`）、`input_response` 支持订阅 `WAITING_INPUT` 的 `selected_option_id`/`text` 消歧，并补 HTTP 全链路测试。
+- 验收命令以目录为准：`pytest backend/app/api -q`（避免只跑单个文件出现假绿）。

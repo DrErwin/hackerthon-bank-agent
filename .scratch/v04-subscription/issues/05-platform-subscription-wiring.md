@@ -7,7 +7,7 @@ Core scenarios: SF01–SF06（[spec §4](../spec.md)）
 Verification: 本票局部——`pytest backend/app/agent_platform/test_subscription_runtime.py -q`；整条路径由 `07-subscription-evals` 覆盖
 Owner: Erwin
 Directory: `backend/app/agent_platform/`
-Status: todo
+Status: in_progress
 Blocked by: [`v04-subscription/01-contract-models`](01-contract-models.md)、[`02-mockbank-subscriptions`](02-mockbank-subscriptions.md)、[`03-subscription-module`](03-subscription-module.md)、[`04-security-policy-subscription`](04-security-policy-subscription.md)
 Source issue: Issue #123
 
@@ -54,3 +54,13 @@ Source issue: Issue #123
 pytest backend/app/agent_platform/test_subscription_runtime.py -q
 pytest backend/app/agent_platform -q     # 不破坏既有 harness / transfer runtime 用例
 ```
+
+---
+
+## Comments
+
+- 2026-10-19 实施（平台线）：新增 `agent_platform/subscription_runtime.py` 与 `test_subscription_runtime.py`；`transfer_runtime` 的 `answer_confirmation`/`bind_verification` 按任务模块分派（transfer 原路径与审计标签不变）；`local_demo.risk_facts` 增订阅分支并注册模块；`model.py` 增订阅意图路由。
+- 联调中发现并推动修复票 03 的 4 处缺陷（写相位、参数引用、审计证据键、SF05 词表），并补上平台侧「带 operation_id 的 `tool.started` 必须先落参数快照」的审计职责（与 transfer 的 decision sink 同构）。
+- 与票据字面的差异（已接受）：`model.py` 不做槽位提取（契约的入口信封没有订阅槽位，模块按原话确定性解析，加槽位是死代码）；订阅待答确认/验证复用平台既有 `agent_transfer_*` 事实表（表名为历史包袱，语义是平台 task→绑定事实，未新建表）。
+- 验证：`test_subscription_runtime.py` 15 passed、`agent_platform` 146 passed（真实 MockBank B29/B30 + 真实门/执行器/审计/存储；替身仅模型入口）。
+- 交付：**PR #152**（分支 `feat/subscription/05-platform-subscription-wiring`，待审查与合入）。

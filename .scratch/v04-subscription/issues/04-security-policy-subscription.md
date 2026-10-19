@@ -7,7 +7,7 @@ Core scenarios: SF02、SF06（风险裁决与 `BLOCK`）
 Verification: 本票局部——`pytest backend/app/security/test_gate.py -q`；整条路径由 `07-subscription-evals` 覆盖
 Owner: Erwin
 Directory: `backend/app/security/`
-Status: todo
+Status: resolved
 Blocked by: [`v04-subscription/01-contract-models`](01-contract-models.md)、[`v04-subscription/03-subscription-module`](03-subscription-module.md)
 Source issue: Issue #123
 
@@ -49,3 +49,13 @@ Source issue: Issue #123
 pytest backend/app/security/test_gate.py -q
 pytest backend/app/security -q      # 不破坏既有安全用例
 ```
+
+---
+
+## Comments
+
+- 2026-10-19 实施：`demo_policy.py` 三处白名单登记（权限 6 项、`SUBSCRIPTION_MANIFEST.capabilities`、`SUBSCRIPTION_PRIVATE_TOOLS`，全字段相等比较）+ `assess_risk` 订阅两档分支（命中高危信号 → HIGH/BLOCK；其余一律 LOW，走确认按钮 + `basic_identity` 会话级验证码，**不启用 mock_face**，前置授权与证据覆盖检查不变）。新增 `test_subscription_policy.py`。
+- 2026-10-19 独立审查（`ba05273`）：**有条件通过**，1 项必修（纯测试）——`authorize_capability` 的权限子集判断与 `_permissions` 精确内容缺回归（两个变异存活）；4 项建议（HIGH 用例第二段是空断言、缺订阅路径会话复用用例、README 未同步、票据验收命令指向 `test_gate.py` 会假绿）。
+- 已修：补权限闸门回归与 `_permissions` 精确断言、HIGH 用例改为「先批准确认单再首次检查」并断言 `reason_codes == ["HIGH_RISK"]`、补同会话复用用例（57 passed）、README 记录场景 05 两档例外、修正 PRD 章节号。
+- 2026-10-19 合入 main：**PR #150**（squash `1df0af6`）。
+- 待办（流程）：按 PRD/公共契约，安全策略 PR 仍须 Ringo 本人审查或 PM 豁免留痕——本次为 AI 独立审查 + 作者修复，**非 Ringo 签署**。
