@@ -61,7 +61,7 @@ python -m pytest evals/subscription -q
 | 跨用户（E11/T16；§5.4） | SUB-INV-07 | SUB-INV-07 | — | — | SUB-INV-07 | 拒绝话术属规划层（§8） |
 | 话术红线（§2.3/§5.3；PRD §五） | SUB-RED-03 | SUB-RED-03 | — | SUB-RED-03 | SUB-RED-03 | 只覆盖后端可见文本，前端渲染与语音播报另计 |
 | 确认门红线 | SUB-RED-01 | SUB-RED-01 | SUB-RED-01 | SUB-CAN-07 | SUB-CAN-13 | — |
-| 审计链路与写前快照（§5.10） | SUB-SEC-01、SUB-OBS-03 | — | — | — | — | 审计规则验收归安全侧 |
+| 审计链路（§5.10） | SUB-SEC-01、SUB-OBS-03 | — | — | — | — | 写前 AuthorizationSnapshot 只在 SENSITIVE 动作产生，而退订在 spec/契约声明为 MODIFY（见 §8）；审计规则验收归安全侧 |
 | 脱敏与数据最小化（§5.6） | SUB-SEC-02、SUB-INV-09 | — | — | — | SUB-SEC-02 | — |
 | 首启稳定性与终止任务重复读取（票 05/08 观测项） | SUB-OBS-01、SUB-OBS-02、SUB-OBS-03 | — | — | SUB-OBS-02 | — | 底座修复属票 08 PR |
 
@@ -142,4 +142,5 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | `reminder_days` / `status_filter` 参数化 | 平台入口（S01 逻辑入参）未接线，评测无法从用户请求传入 | 平台规划槽位 |
 | SOP-3「下一期异常需核实」标注 | 只实现「不猜日期」，标注文案未实现；`SUB-REM-04` 断言不猜半边 | 订阅模块后续 |
 | 关键内容变化后的「重新确认」路径 | 现状是安全拒绝并终态失败（零提交、旧确认不复用）；`SUB-CAN-11` 钉住安全半边 | 订阅模块后续 |
+| 退订的写前 AuthorizationSnapshot | 取消订阅在 spec/契约中声明为 `OperationLevel.MODIFY`（二级），安全门只在 `SENSITIVE` 动作前写授权快照；PRD §5.10 称其为三级敏感操作，两处口径不一致。`SUB-SEC-01` 只断言审计链路与操作编号，不伪造快照断言 | 安全侧 / 契约口径（Ringo 与 Erwin 确认后再定） |
 | 真实 GLM 意图理解、前端渲染/语音播报、两进程并发同一退订 | 属真实模型 / 前端 / 并发评测 | v0.5 端到端 E2E 与安全评测 |

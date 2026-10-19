@@ -196,6 +196,8 @@ def test_sub_gud_01_suspected_clue_is_guided_outside(subscription_runtime, case_
     log.eq("guide.source_type", item.source_type, facts["selected_source_type"])
     log.eq("guide.can_cancel_in_bank", item.can_cancel_in_bank, facts["selected_can_cancel_in_bank"])
     log.ok("guide.no_interaction", result.interaction is None, None)
+    log.eq("guide.security_confirmations", security_confirmations(comp, "T1"),
+           facts["security_confirmations"])
     assert_envelope(log, case, comp, result, produced=texts(result))
 
 
@@ -689,7 +691,8 @@ def test_sub_can_19_lookup_reports_a_bank_side_failure(
            settled.message)
     log.eq("lookup.cancel_operations", cancel_operations(comp.bank),
            facts["cancel_operations"])
-    log.eq("mandate.still_active", mandate_status(comp.bank, "sub_001"), "active")
+    log.eq("lookup.mandate_status", mandate_status(comp.bank, "sub_001"),
+           facts["mandate_status"])
     assert_envelope(log, case, comp, settled,
                     produced=texts(started, verification, first, settled,
                                    confirmation_texts(record)))

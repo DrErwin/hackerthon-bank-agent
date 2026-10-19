@@ -1591,7 +1591,7 @@
           "upstream_code": "VERIFICATION_FAILED",
           "failures_recorded": 3,
           "fourth_attempt_error": "TASK_TERMINATED",
-          "verification_records": 0,
+          "no_verification_record": true,
           "cancel_operations": 0
         }
       }
@@ -1734,8 +1734,7 @@
         "facts": {
           "error_code": "SECURITY_REJECTED",
           "error_source": "security",
-          "cancel_operations": 0,
-          "gap": "重新确认路径未实现，见 README 缺口表"
+          "cancel_operations": 0
         }
       }
     },
@@ -1922,7 +1921,8 @@
             "task.transition"
           ],
           "write_tool_events_have_operation_id": true,
-          "allow_decisions_have_snapshot_ref": true
+          "allow_decision_has_operation_id": true,
+          "bank_observed": "found"
         }
       }
     },
@@ -1965,7 +1965,7 @@
         "facts": {
           "code_in_user_texts": false,
           "code_in_audit_events": false,
-          "raw_account_in_user_texts": false,
+          "no_raw_account_id": false,
           "masked_account_shown": true
         }
       }
@@ -2244,7 +2244,7 @@
           "error_code": "BANK_REJECTED",
           "upstream_code": "BANK_UNAVAILABLE",
           "cancel_operations": 0,
-          "mandate_untouched": true
+          "mandate_status": "active"
         }
       }
     }

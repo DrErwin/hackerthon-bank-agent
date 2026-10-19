@@ -213,6 +213,12 @@ def resume(comp: Composition, task="T1", run="R2", *, session=None, **response):
     return comp.runtime.harness.resume(owner(comp, task, run, session), response)
 
 
+def typed_answer(comp: Composition, task="T1", run="R2", text=""):
+    """Answer the disambiguation menu with words instead of an option id."""
+
+    return comp.runtime.harness.resume(owner(comp, task, run), {"text": text})
+
+
 def recover_to_new_session(comp: Composition, task="T1", *, run="R9", session="S2"):
     """A fresh login session takes over the owned task; the old one keeps nothing."""
 
@@ -518,10 +524,28 @@ class CheckLog:
             "assertions_total": len(self.items),
             "assertions_passed": len([item for item in self.items if item["passed"]]),
             "failed_assertions": failed,
-            "assertions": self.items,
+            "assertions": _json_safe(self.items),
             "notes": self.notes,
             **(extras or {}),
         }
+
+
+def _json_safe(value):
+    """One evidence payload must always serialize: models, times and bytes included."""
+
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    dump = getattr(value, "model_dump", None)
+    if callable(dump):
+        return _json_safe(dump(mode="json"))
+    isoformat = getattr(value, "isoformat", None)
+    if callable(isoformat):
+        return isoformat()
+    return repr(value)
 
 
 def load_cases() -> dict:
@@ -589,6 +613,7 @@ def write_evidence(directory: Path, reports: list[CheckLog], outcomes: dict[str,
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%SZ")
     label = f"subscription-platform-{stamp}"
     entries = [report.report(outcome=outcomes.get(report.nodeid)) for report in reports]
+    verification = _source_verification()
     payload = {
         "module": "subscription",
         "layer": "platform-runtime",
@@ -597,6 +622,7 @@ def write_evidence(directory: Path, reports: list[CheckLog], outcomes: dict[str,
         "python": sys.version.split()[0],
         "app_file": _app_file(),
         "commands": commands,
+        "source_verification": verification,
         **({"extra": extra} if extra else {}),
         "summary": {
             "cases_run": len(entries),
@@ -633,6 +659,9 @@ def write_evidence(directory: Path, reports: list[CheckLog], outcomes: dict[str,
         "failed_cases": payload["summary"]["failed_cases"],
         "evidence_file": report_path.name,
         "decompressed_sha256": sha256(encoded).hexdigest(),
+        # What the runner really checks: the listed source files are byte-identical to
+        # the measured commit, so the report cannot silently describe another tree.
+        "source_verification": verification,
         "extra": extra or {},
     }
     manifest_path = directory / "manifest.json"
@@ -663,6 +692,13 @@ def _manifest_markdown(item: dict, entries: list[dict] | None) -> list[str]:
         f"断言：{item['assertions_passed']}/{item['assertions_total']}",
         f"- 原始报告：`{item['evidence_file']}`（解压后 sha256 `{item['decompressed_sha256']}`）",
     ]
+    verification = item.get("source_verification") or {}
+    if verification:
+        matches = verification.get("all_match_head")
+        lines.append(
+            f"- 源文件校验：{len(verification.get('files', {}))} 个评测源文件与提交 "
+            f"`{verification.get('head_revision')}` 逐字节一致："
+            f"{'是' if matches else '否'}（逐文件 blob sha 见 manifest.json）")
     if item.get("extra"):
         lines.append(f"- 附加观测：`{json.dumps(item['extra'], ensure_ascii=False)}`")
     if entries:
@@ -702,6 +738,36 @@ def _git(args: list[str]) -> str:
                               check=False).stdout.strip()
     except OSError:
         return ""
+
+
+def _source_verification() -> dict:
+    """Blob-level check that every listed source file equals the measured commit.
+
+    The runner only guarantees the files it lists: this suite's own Python modules and
+    the machine-readable expectations. Unlisted code (``backend/``) is pinned by the
+    module version and by the backend regression run, not claimed here.
+    """
+
+    repo = Path(__file__).resolve().parents[2]
+    here = Path(__file__).resolve().parent
+    names = []
+    for path in sorted(here.glob("*.py")):
+        names.append(path.relative_to(repo).as_posix())
+    names.append("evals/subscription/golden_cases.json")
+    files = {}
+    for name in names:
+        worktree_blob = _git(["hash-object", name])
+        head_blob = _git(["rev-parse", f"HEAD:{name}"])
+        files[name] = {
+            "head_blob": head_blob,
+            "worktree_blob": worktree_blob,
+            "match": bool(worktree_blob) and worktree_blob == head_blob,
+        }
+    return {
+        "head_revision": _git(["rev-parse", "HEAD"]),
+        "files": files,
+        "all_match_head": all(item["match"] for item in files.values()),
+    }
 
 
 def evidence_directory() -> Path | None:
