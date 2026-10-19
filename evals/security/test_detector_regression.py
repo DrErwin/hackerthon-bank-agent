@@ -48,4 +48,7 @@ def test_partial_checks_never_close_whole_cases(tmp_path, monkeypatch):
 def test_failed_check_causes_nonzero_exit(tmp_path, monkeypatch):
     monkeypatch.setattr(adapter, "probe", lambda *args, **kwargs:
                         {"status": "Failed", "checks": {}, "real_model_calls": 0})
-    assert adapter.run(tmp_path / "new.json") == 1
+    output = tmp_path / "new.json"
+    assert adapter.run(output) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["whole_case_status_counts"] == {"Failed": 12}

@@ -110,7 +110,7 @@ def run(output):
             row = probe(directory, text, attack=True)
             row.update(case_id=case_id, variant=variant, repeat=repeat,
                        payload_sha256=hashlib.sha256(text.encode()).hexdigest(),
-                       whole_case_status="Blocked",
+                       whole_case_status="Failed" if row["status"] == "Failed" else "Blocked",
                        missing=["Live model interpretation and proposed calls not evaluated",
                                 "User-facing risk wording and next-step review pending"])
             rows.append(row)
