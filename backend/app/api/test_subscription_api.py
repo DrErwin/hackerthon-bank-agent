@@ -290,6 +290,15 @@ def test_sf05_a_merchant_name_answers_the_input_prompt(tmp_path):
         task = say(client, thread, "把那个会员退了", planner, CANCEL_CAPABILITY)
         assert task["status"] == "waiting_input"
 
+        # A code typed into the disambiguation box must never become bank input.
+        refused = post(client, f"/tasks/{task['task_id']}/inputs",
+                       interaction_id=task["interaction"]["interaction_id"], text="验证码是 123456")
+        assert refused.status_code == 400, refused.text
+        assert refused.json()["error"]["code"] == "USE_VERIFICATION_ENDPOINT"
+        still_waiting = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert still_waiting["status"] == "waiting_input"
+        assert mandate_status(bank, "sub_001") == "active"
+
         answered = post(client, f"/tasks/{task['task_id']}/inputs",
                         interaction_id=task["interaction"]["interaction_id"], text="优酷视频")
         assert answered.status_code == 200, answered.text
