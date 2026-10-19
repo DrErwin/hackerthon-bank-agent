@@ -136,7 +136,7 @@ class FakeGate:
     def check(self, context, plan):
         self.plans.append(plan)
         if self.blocked:
-            return GateAnswer(decision=SecurityDecisionCode.BLOCK, reason_code="HIGH_RISK_BLOCKED",
+            return GateAnswer(decision=SecurityDecisionCode.BLOCK, reason_code="HIGH_RISK",
                               operation_id=self.operation_id)
         if not self.confirmed:
             return GateAnswer(decision=SecurityDecisionCode.REQUIRE_CONFIRMATION,
@@ -253,6 +253,14 @@ def test_insufficient_flow_coverage_is_reported_not_denied():
     assert "未发现" not in message
 
 
+def test_insufficient_coverage_without_mandates_never_says_nothing_was_found():
+    bank = FakeBank(rows=[flow("UY0", "M_UYUN", "优酷视频", 2500, 2026, 10, 1)], mandates=[])
+    result = entry(bank).start(context(), start_request("帮我查查有哪些自动扣费"))
+    assert result.status == TaskStatus.SUCCEEDED
+    assert "没有查到自动扣费" not in result.message
+    assert "不足 3 个月" in result.message
+
+
 def test_rule_four_needs_three_consecutive_months_and_identical_amounts():
     exact = [flow(f"E{index}", "M_ZOO", "动物园", 3900, 2026, month, 28)
              for index, month in enumerate((7, 8, 9))]
@@ -262,6 +270,26 @@ def test_rule_four_needs_three_consecutive_months_and_identical_amounts():
     missing = [exact[0], exact[2]]
     assert find_suspected_series(missing, excluded_merchants=set(), account_masked={}) == []
     assert MIN_CONSECUTIVE_MONTHS == 3
+
+
+def test_rule_four_day_tolerance_is_inclusive_at_three_days():
+    anchor = flow("T0", "M_TOL", "容忍度", 1000, 2026, 7, 10)
+    within = [anchor,
+              flow("T1", "M_TOL", "容忍度", 1000, 2026, 8, 7),     # 期望 8-10，差 -3 天
+              flow("T2", "M_TOL", "容忍度", 1000, 2026, 9, 13)]    # 期望 9-10，差 +3 天
+    assert len(find_suspected_series(within, excluded_merchants=set(), account_masked={})) == 1
+    beyond = [anchor,
+              flow("T3", "M_TOL", "容忍度", 1000, 2026, 8, 10),
+              flow("T4", "M_TOL", "容忍度", 1000, 2026, 9, 14)]    # 期望 9-10，差 +4 天
+    assert find_suspected_series(beyond, excluded_merchants=set(), account_masked={}) == []
+
+
+def test_rule_four_keeps_the_first_anchor_on_a_month_end():
+    month_end = [flow("M0", "M_END", "月末商户", 1000, 2026, 1, 31),
+                 flow("M1", "M_END", "月末商户", 1000, 2026, 2, 28),
+                 flow("M2", "M_END", "月末商户", 1000, 2026, 3, 31)]
+    found = find_suspected_series(month_end, excluded_merchants=set(), account_masked={})
+    assert len(found) == 1 and found[0].next_at.month == 4
 
 
 # ------------------------------------------------------------------- cancel side
@@ -297,6 +325,11 @@ def test_cancel_entry_full_flow_confirmation_then_verification():
     receipt = third.data.operation.receipt
     assert receipt.mandate_id == "sub_001" and receipt.effective_stop_at.date().isoformat() == "2026-10-25"
     assert "已经退了" in third.message and "2026-10-25" in third.message
+    assert "之前已经扣掉的钱不退" in third.message
+    # The agreement is stopped: the view must not keep promising a next debit.
+    assert third.data.selected_item.next_billing_at is None
+    assert third.data.selected_item.is_upcoming_renewal is False
+    assert third.data.selected_item.can_cancel_in_bank is False
     assert bank.cancel_calls == 1
     assert not any(phrase in third.message for phrase in FORBIDDEN)
 
@@ -310,6 +343,18 @@ def test_batch_cancel_is_refused_and_offers_one_choice():
     assert result.interaction.required_fields == ["merchant_hint"]
     chosen = task.resume(context(), {"selected_option_id": "sub_002"})
     assert chosen.status == TaskStatus.WAITING_APPROVAL and chosen.interaction.kind == "confirmation"
+
+
+def test_batch_words_still_refuse_when_one_merchant_is_named():
+    result = entry().start(context(), start_request("全部退掉优酷视频的自动扣费"))
+    assert result.status == TaskStatus.WAITING_INPUT
+    assert [option.id for option in result.interaction.options] == ["sub_001", "sub_002"]
+
+
+def test_short_merchant_prefix_still_identifies_the_target():
+    result = entry().start(context(), start_request("把优酷的会员退了"))
+    assert result.status == TaskStatus.WAITING_APPROVAL
+    assert result.interaction.kind == "confirmation"
 
 
 def test_text_reply_disambiguates_and_an_unknown_merchant_falls_back_to_the_menu():

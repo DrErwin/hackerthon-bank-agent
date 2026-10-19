@@ -46,6 +46,8 @@ INSUFFICIENT_SCAN = (
     "本行签约的项目照常显示。"
 )
 CYCLE_TEXT = {"monthly": "每月", "yearly": "每年"}
+# The gate's only coercion stop reason; every other BLOCK keeps its own honest wording.
+HIGH_RISK_REASON = "HIGH_RISK"
 
 _MESSAGES = {
     "ACCESS_DENIED": "只能查看和退订您本人的自动扣费。",
@@ -241,7 +243,10 @@ class SubscriptionService:
             parts.append("已经退订过、不会再扣的有：" + "、".join(
                 f"「{item.merchant_name}」" for item in closed) + "。")
         if not actives and not clues:
-            parts.append("没有查到自动扣费。" if not closed else "现在没有生效中的自动扣费。")
+            # Never claim "nothing found" when the flow history cannot support that claim.
+            parts.append("本行没有查到生效中的自动扣费。"
+                         if result.suspected_scan_status == "insufficient_data"
+                         else "没有查到自动扣费。" if not closed else "现在没有生效中的自动扣费。")
         if result.upcoming_renewals:
             parts.append(
                 f"往后 {reminder_days} 天里还有 {len(result.upcoming_renewals)} 笔会自动扣："
@@ -275,9 +280,12 @@ class SubscriptionService:
             actives = [item for item in matched if item.can_cancel_in_bank]
             if len(actives) == 1:
                 return self._classify(actives[0], result)
+            if actives:
+                return CancelResolution("candidates", candidates=tuple(actives), list_result=result)
             if matched:
-                return CancelResolution("candidates", candidates=tuple(actives or matched),
-                                        list_result=result)
+                # Nothing in this match can be cancelled online; explain instead of offering it.
+                return (self._classify(matched[0], result) if len(matched) == 1
+                        else CancelResolution("not_found", list_result=result))
         candidates = tuple(item for item in items if item.can_cancel_in_bank)
         if not candidates:
             return CancelResolution("not_found", list_result=result)
@@ -427,6 +435,13 @@ class SubscriptionService:
             error=ModuleError(code=code, source=source, field=None, reason=text, upstream_code=upstream),
             allowed_actions=[], recovery_required=False, recovery_reason=None)
 
+    def security_stop(self, context: TrustedContext, reason_code: str | None) -> ModuleResult:
+        """Only the coercion block gets the anti-fraud wording; other stops stay honest."""
+
+        if reason_code == HIGH_RISK_REASON:
+            return self.failed(context, "HIGH_RISK_BLOCKED", source="security", upstream=reason_code)
+        return self.failed(context, "SECURITY_REJECTED", source="security", upstream=reason_code)
+
     def cancel_task(self, context: TrustedContext, item: SubscriptionItem, plan: CancellationPlan,
                     outcome: ExecutionOutcome) -> ModuleResult:
         """Report exactly what the bank returned; unknown is never written as success."""
@@ -434,8 +449,7 @@ class SubscriptionService:
         if not outcome.executed:
             answer = outcome.decision
             if answer is not None and answer.decision == SecurityDecisionCode.BLOCK:
-                return self.failed(context, "HIGH_RISK_BLOCKED", source="security",
-                                   upstream=answer.reason_code)
+                return self.security_stop(context, answer.reason_code)
             return self.failed(context, "SECURITY_REJECTED", source="security",
                                message=_MESSAGES["SECURITY_REJECTED"])
         result = outcome.result
@@ -456,7 +470,7 @@ class SubscriptionService:
         stopped = self._cancelled_item(item, receipt)
         message = (f"「{receipt.merchant_name}（{receipt.service_name}）」已经退了。"
                    f"从下一期（{receipt.effective_stop_at.date().isoformat()}）起不会再自动扣费；"
-                   f"前面已经扣掉的钱不退。")
+                   f"之前已经扣掉的钱不退。")
         return ModuleResult(
             task_id=context.task_id, run_id=context.run_id, status=TaskStatus.SUCCEEDED,
             data=self._view(action="cancel", item=stopped, operation_id=outcome.operation_id,

@@ -97,14 +97,32 @@ def action_revision(payload: dict) -> int:
     return int(digest[:8], 16) or 1
 
 
+def parameters_ref(context, action_name: str, payload: dict) -> str:
+    """A stable, task-scoped parameter reference.
+
+    A ``per_action`` confirmation freezes the reference of the action it approved, so
+    rebuilding the same frozen facts must yield the same reference — only the phase may
+    differ between the admission check and the execution claim.
+    """
+
+    digest = sha256(json.dumps(
+        {"task_id": context.task_id, "action": action_name, "payload": payload},
+        sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+    return f"sub-ref-{digest[:24]}"
+
+
 class GatewaySubscriptionPorts:
     """Task-scoped implementation of ``ports.SubscriptionPorts``."""
 
     def __init__(self, gateway, gate, context_factory, trace,
-                 operation_reserver: Callable | None = None):
+                 operation_reserver: Callable | None = None,
+                 on_bind: Callable | None = None):
         from app.security import DeterministicExecutor
         self.gateway, self.gate, self.context_factory, self.trace = gateway, gate, context_factory, trace
         self.operation_reserver = operation_reserver
+        # The platform keeps the bound facts reachable for its risk resolver; this
+        # module's parameter store is in memory and cleared when one call ends.
+        self.on_bind = on_bind
         self._parameters: dict[str, tuple] = {}
         handlers = {
             "subscription.bank.list_accounts": self._accounts_handler,
@@ -137,12 +155,15 @@ class GatewaySubscriptionPorts:
             raise PermissionError("ACCESS_DENIED")
         return deepcopy(stored[2])
 
-    def _bind(self, context, action_name: str, parameters: dict) -> tuple[str, object]:
-        ref = str(uuid4())
+    def _bind(self, context, action_name: str, parameters: dict, *,
+              phase=Phase.ADMISSION) -> tuple[str, object]:
+        ref = parameters_ref(context, action_name, parameters)
         self._parameters[ref] = (context.model_dump(mode="json"), action_name, deepcopy(parameters))
+        if self.on_bind is not None:
+            self.on_bind(context, action_name, ref, parameters)
         from app.contracts.security import ActionDescriptor
         return ref, ActionDescriptor(action_name=action_name, parameters_ref=ref,
-                                     resource_refs=[], phase=Phase.ADMISSION)
+                                     resource_refs=[], phase=phase)
 
     @staticmethod
     def _observe_result(result: object):
@@ -175,7 +196,7 @@ class GatewaySubscriptionPorts:
         from app.contracts.audit import ToolFinishedPayload, ToolStartedPayload
         from app.contracts.bank import QueryFailure, QueryOk
         from app.contracts.security import ExecutionSecurityContext
-        context = self.context_factory(trusted)
+        context = self.context_factory(trusted, None, None)
         if not isinstance(context, ExecutionSecurityContext) or self._trusted(context) != trusted:
             raise ValueError("ACCESS_DENIED")
         if context.operation_id is not None or context.action_revision is not None:
@@ -256,21 +277,22 @@ class GatewaySubscriptionPorts:
             raise ValueError("SUBSCRIPTION_OPERATION_RESERVER_REQUIRED")
         return self.operation_reserver(trusted, plan.payload())
 
-    def _write_context(self, trusted: TrustedContext, plan: CancellationPlan):
+    def _write_context(self, trusted: TrustedContext, plan: CancellationPlan, *, phase):
         from app.contracts.security import ExecutionSecurityContext
-        context = self.context_factory(trusted)
-        if not isinstance(context, ExecutionSecurityContext) or self._trusted(context) != trusted:
-            raise ValueError("ACCESS_DENIED")
         operation_id = self._reserve(trusted, plan)
         payload = {**plan.payload(), "operation_id": str(operation_id)}
-        context = context.model_copy(update={
-            "operation_id": operation_id, "action_revision": action_revision(payload),
-        })
-        ref, action = self._bind(context, "subscription.bank.cancel_subscription", payload)
+        revision = action_revision(payload)
+        # The platform resolves the task's answered confirmation and its session-scoped
+        # verifications here; without them the gate can never see the user's own button.
+        context = self.context_factory(trusted, operation_id, revision)
+        if (not isinstance(context, ExecutionSecurityContext) or self._trusted(context) != trusted
+                or context.operation_id != operation_id or context.action_revision != revision):
+            raise ValueError("ACCESS_DENIED")
+        ref, action = self._bind(context, "subscription.bank.cancel_subscription", payload, phase=phase)
         return context, action
 
     def check_cancel(self, trusted: TrustedContext, plan: CancellationPlan) -> GateAnswer:
-        context, action = self._write_context(trusted, plan)
+        context, action = self._write_context(trusted, plan, phase=Phase.ADMISSION)
         decision = self.gate.check_action(context, action)
         return GateAnswer(
             decision=decision.decision, interaction=decision.interaction,
@@ -299,7 +321,9 @@ class GatewaySubscriptionPorts:
     def execute_cancel(self, trusted: TrustedContext, plan: CancellationPlan) -> ExecutionOutcome:
         from app.contracts.audit import ToolFinishedPayload, ToolStartedPayload
         from app.contracts.bank import OperationResult
-        context, action = self._write_context(trusted, plan)
+        # The shared executor only claims a funds/state-changing handler in the
+        # execution phase; the reference stays identical to the approved confirmation.
+        context, action = self._write_context(trusted, plan, phase=Phase.EXECUTION)
         decision = self.gate.check_action(context, action)
         call_id, started, event = str(uuid4()), monotonic(), None
         try:
