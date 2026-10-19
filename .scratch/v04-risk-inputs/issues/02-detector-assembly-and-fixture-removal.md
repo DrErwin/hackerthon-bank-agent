@@ -5,7 +5,7 @@ Type: 开发
 Owner: Erwin
 Directory: backend/app/agent_platform/
 Status: blocked（依赖 Ringo 检测器交付）
-Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../v04-platform/packages/01-foundation-agent-mockbank.md)
+Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../../v04-platform/packages/01-foundation-agent-mockbank.md)
 Spec: [v04-risk-inputs 规格](../spec.md)
 Core scenarios: 转账风险链路（RS01 / RS02 / RS03 生产装配侧）；对应 [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160) 第 3 项
 Verification: 生产装配（`local_demo.build_runtime`）在配置检测器时只调用「可信风险输入 + 检测器」，查不到夹具；未配置检测器时 fail-closed（暂停而不是退回夹具）；固定等级夹具只在测试对照路径；真实 GLM 本地演示的转账链路回归。

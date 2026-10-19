@@ -67,3 +67,13 @@ v0.3 收口时安全侧的四类明示例外在 v0.4 补齐：真实威胁检测
 [Issue #86 最新决定](https://github.com/DrErwin/hackerthon-bank-agent/issues/86#issuecomment-6260282588)和 [Issue #88 最新决定](https://github.com/DrErwin/hackerthon-bank-agent/issues/88#issuecomment-6260283007)撤回 10-18 延期裁定，检测器、全量补验及覆盖完整性均留在 v0.4。七张原票保留编号，前置已满足即按票实施；真实模型仍需入口与预算确认。122 / 274 / 330 是变更前基线，新增用例后按实际规模重算，历史报告保持。
 
 MAT 范围已由 [#133](https://github.com/DrErwin/hackerthon-bank-agent/issues/133#issuecomment-6199304472)明确为最小集合适用项必交，额外扩充可选；范围待定依赖解除，实施与观察端条件保持。当前追加 [v04-ringo-security/08：账单读取安全边界与声明冻结](../../v04-ringo-security/issues/08-bills-read-security-boundary.md)，业务规则沿用 [#137 临时决定](https://github.com/DrErwin/hackerthon-bank-agent/issues/137#issuecomment-6250123462)。账单审计整改仍由 [#145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145)的账单负责人独立实施。领取、AI 辅助复核、真人签核与联合验收分别记录。
+
+## 2026-10-19 离线实施回填
+
+Ringo按本会话授权交付PR #149（账单读取边界）、#159（覆盖扩充与B18），另交Draft #162（导出回归）、#163（MAT，依赖#159）及#165（声明漂移加固，依赖#149）。五个当前head的CI均成功，交付与整体安全通过分别记录。
+
+覆盖扩充批次137/289/345；MAT追加后当前137/294/356，64项评测器回归通过，完整356行20 Passed / 0 Failed / 336 Blocked。导出专项另有4条真实Failed交#161，现行全量适配器未覆盖，缺陷独立保留。真实检测输入接线依赖#160，算法及其他观察端仍待完成。
+
+补审#150发现同对象声明降权绕过，追加[票09](../../v04-ringo-security/issues/09-module-declaration-boundary.md)在security目录修复原始声明边界，定向288 passed，最新CI完整后端897 passed及模拟银行14 passed。既定业务属性保持，真人专业批准另记。所有细节及原始证据指纹见[执行记录](../../v04-ringo-security/verification-2026-10-19.md)。本轮0真实模型调用，后续另确认入口及预算；包状态保持in_progress。
+
+Erwin已建立v04-risk-inputs/01-02及v04-platform/13接收#160/#161，当前实现未据规格视为完成。票09本机全量单次重放断言失败另交#166，隔离复跑通过但根因未确认，CI897/14结果与异常分开记录。

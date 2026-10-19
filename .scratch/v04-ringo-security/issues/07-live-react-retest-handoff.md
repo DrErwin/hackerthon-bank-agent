@@ -7,7 +7,7 @@ Core scenarios: RS01 至 RS10 中需要真实模型或页面观察的部分
 Type: 评测
 Owner: Ringo
 Directory: evals/security/
-Status: blocked（仍在 v0.4，范围已定，等待所列技术前置）
+Status: blocked（本轮依用户决定仅离线，真实模型另行确认）
 Blocked by: [v04-ringo-security/06：离线集成与全量覆盖核查](06-offline-integration-and-audit.md)核心检查通过；Ringo 执行前确认真实模型入口与预算；所测前端公开路径就绪
 Source issue: #86 / #88（[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)）
 Verification: 已确认预算后按独立实例及共享轮运行，观察真实模型输入与回复、页面交互和独立银行事实；逐轮判定说明缺口，计算报告 sha256，移交时链接完整证据。
@@ -29,10 +29,12 @@ Verification: 已确认预算后按独立实例及共享轮运行，观察真实
 
 本票只修改 Directory 指定目录。开发或编写运行代码时使用 implement；有代码时按 code-review 分别核对仓库规范与本票要求，实际测试和本人批准分别记录。纯文档按仓库例外做内容检查；代码和执行配置走独立 PR 及必要验证。
 
-本票在 2026-10-15 随已确认的七项拆分建立。当前未开始实施，最终交付以本票实际证据为准。
+本票在 2026-10-15 随已确认的七项拆分建立。历史建立时尚未实施，当前结果以本票Comments及关联PR为准。
 
 ## Comments
 
 - 2026-10-15：Ringo 本人在本会话确认测试边界及七项拆票。接票执行前补实际领取时间与状态；本条不作为已执行或验收通过的记录。
 
 - 2026-10-19：[Issue #86 最新 PM 排期结论](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)撤回 10-18 的延期决定，本票保留在 v0.4。分母随实际用例变更重算，旧批次及其 Blocked 状态保持；本条仅更新排期与依赖。
+
+- 2026-10-19 实施记录：Ringo本次明确确认先完成离线交付，真实模型另行确认。实际模型调用0次，未读取或使用模型密钥。原57轮计划随MAT中T003/T008新增实例扩为63轮，其中原33 gated加至39轮，共享3轮保持；这是当前计划规模，历史报告保持。前端PR #142仍有提供方整改及页面门槛，实际页面补验待公开路径就绪。

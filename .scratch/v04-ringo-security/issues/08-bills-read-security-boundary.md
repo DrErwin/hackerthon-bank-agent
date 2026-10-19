@@ -8,7 +8,7 @@ Verification: 验证本人只读放行、跨用户及旧轮次拒绝、声明变
 Type: 开发
 Owner: Ringo
 Directory: backend/app/security/
-Status: in_review（2026-10-19，AI 辅助实现及验证已完成，待代码 PR、真人签核及合并）
+Status: in_review（PR #149代码及验证已提交，待真人批准与最终合并）
 Blocked by: None（业务口径引用 Issue #137 的 PM 临时决定）
 Source issue: [Issue #137](https://github.com/DrErwin/hackerthon-bank-agent/issues/137)
 
@@ -28,3 +28,5 @@ Source issue: [Issue #137](https://github.com/DrErwin/hackerthon-bank-agent/issu
 
 - 2026-10-19：依据 Ringo 当前的逐项执行授权开始，业务规则采用 [PM 临时结论](https://github.com/DrErwin/hackerthon-bank-agent/issues/137#issuecomment-6250123462)，本票范围为安全目录，公共契约和账单实现保持。
 - 2026-10-19：实现、测试和 AI 双轴审查见 [执行记录](../verification-2026-10-19.md)。单目录代码准备提交，真人签核与最终合并保持待办；账单审计整改沿用 Issue #145。
+
+- 2026-10-19 实施记录：[PR #149](https://github.com/DrErwin/hackerthon-bank-agent/pull/149)已重基main ecf90d0并保留订阅策略，head fad93a3 CI成功。最新安全目录100 passed、完整后端751 passed；两轴AI复核遗留0。#137四项书面意见已提交，#145审计原文整改由周恩宇另票实施。实际真人签核仍单独记录。

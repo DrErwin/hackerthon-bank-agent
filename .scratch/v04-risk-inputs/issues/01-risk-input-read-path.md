@@ -5,7 +5,7 @@ Type: 开发
 Owner: Erwin
 Directory: backend/app/agent_platform/
 Status: in_progress（2026-10-19）
-Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../v04-platform/packages/01-foundation-agent-mockbank.md)
+Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../../v04-platform/packages/01-foundation-agent-mockbank.md)
 Spec: [v04-risk-inputs 规格](../spec.md)
 Core scenarios: 转账风险链路（RS01 / RS02 / RS06 输入侧）；对应 [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160) 第 1、2、4 项
 Verification: 单元级绑定校验 + 真实 HTTP 链路集成测试（真实安全门/执行器/审计/模拟银行，仅检测器为注入的测试实现）：真实原文高风险终止且零资金副作用、合法对照完成确认与验证、未知事实暂停、跨任务/跨会话引用拒绝；审计证据无原文与认证秘密。命令与输出记入本票 Comments。
