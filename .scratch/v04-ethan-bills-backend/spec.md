@@ -5,6 +5,8 @@ Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Source package: [v04-bills/packages/01-bills-backend：账单业务能力与评测](../v04-bills/packages/01-bills-backend.md)
 Baseline: 65d1a706941f336e1820d64a4f9b662acdc4584e（2026-10-11）
 
+下列问题、方案与基线判断保留 10-11 启动时的依据；10-19 的实际实现、验证和剩余验收范围见文末续记及[实施台账](progress.md)。
+
 ## Problem Statement
 
 v0.4 已于 10-11 正式启动，周恩宇应从代表性评测准备进入账单后端实施。账单当前只有 README/AGENTS；既有21条核心例不能等同于可运行的三类业务。cross 已移至 v0.5，不在本轮实施。
@@ -62,13 +64,22 @@ v0.4 已于 10-11 正式启动，周恩宇应从代表性评测准备进入账�
 | [v04-ethan-bills-backend/07](issues/07-integration-evidence.md) | 前端/HTTP/模型联调证据 | evals/bills/ | 可运行公开路径、前端槽及合法模型配置 |
 | [v04-ethan-bills-backend/08](issues/08-l01-rework-consistency.md) | L01 返修：失败口径/结论文案/错误映射/清单声明（PM 侧 2026-10-16 按 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136) 开票） | backend/app/modules/bills/ | 基于 PR #131 合入的 L01 切片，可立即执行 |
 | [v04-ethan-bills-backend/09](issues/09-module-dedup-test-coverage.md) | 模块防重用例补真实覆盖（杀变异 M2；PM 侧 2026-10-16 按 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136) 开票） | backend/app/modules/bills/ | 与 08 相互独立，可并行 |
+| [v04-ethan-bills-backend/10](issues/10-read-audit-evidence.md) | 按 [Issue #145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145) 收窄只读审计证据并补真实持久化测试 | backend/app/modules/bills/ | 安全线书面口径已提供；共享审计实现不在本票修改 |
 
 ## Out of Scope
 
 cross/v0.5、完整前端代码、银行共享实现、安全检测器、公共契约修改、代签专业安全结论、擅自合并代码PR。联合收口复用 [v04-bills/02](../v04-bills/packages/02-v04-acceptance.md)，不代Erwin建立新验收层。
 
-## Further Notes
+## Further Notes（2026-10-11 历史记录）
 
 已读取仓库固定来源 d81f3a183412e71a5b1e84ca21bc1a35eea03a60 的 to-spec/to-tickets/implement/code-review 内容作流程参考。本次执行环境为ChatGPT工作容器与GitHub连接器，未安装/调用用户Mac的Codex slash Skill，不能记为本机Skill检查通过；无独立并行审查代理，当前仅执行者自查，独立审查留PR。无法联网clone整个私有仓库，局部代码测试不等于整个仓库回归。
 
 规则未明处：06:00恰好端点及展示比率取整保留待确认，见 evals/bills/gaps.md 后续交付。不用其他常识补成项目既定规则。
+
+## 2026-10-19 续记
+
+- 本轮首批完整工作区基于 `9741053c304a194a4c3d5ab3048f4dbb8be3b0f9`；Erwin 合入 PR #153 后，本过程文档分支已更新至 `cd7c91ad80652852bb10fef139c2442d756ef359`。已逐一校验原始文件、Git 树与提交对象；不再沿用 10-11 的“仅源码切片”环境结论。各分支受测提交、远端提交及结果分别记录在 [本人台账](progress.md) 和对应票 Comments。
+- [02](issues/02-coverage-and-fixtures.md) 已补齐 PR #93 的完整检出运行器证据；96 条设计、33 个黄金样本、130 项算术、17 项工具和 147 项合跑分开计数。[06](issues/06-full-business-eval.md) 已完成真实公共 L01 首批 14 场景归档，再补三项就绪缺口完整复跑 17 场景；新版含旧版，不累计成 31，后续路径仍逐项验收，不能用算术全绿覆盖业务缺口。
+- [05](issues/05-report-export.md) 已实现模块级 L03 月度/年度报告，并修复不支持范围、比较、筛选及重放的行为。[07](issues/07-integration-evidence.md) 另以显式评测 runtime 实跑 7 个真实报告/导出 HTTP 场景，证明自动报告落库、F21—F24 与真实银行验证可贯通；默认工厂的生产 L02/L03 装配、真实模型、页面和专业安全仍按具体依赖验收。
+- [09](issues/09-module-dedup-test-coverage.md) 直接测试模块入口防重；实际杀死 **1 个 M2 变异，0 个存活，2 个参数化测试变红**。[10](issues/10-read-audit-evidence.md) 测试实际 `audit_evidence`，覆盖只读参数摘要、受控结果引用、状态和条数。
+- 已进行独立 Spec / Standards 代码复核；这与 Erwin 合入决策、Ringo 专业安全签核不同。尚未合入的工作继续保持 `in_progress`，不标记 `closed`，不扩写为 BF01—BF07 联合验收完成。10-11 的执行环境与审查状态作为历史保留，不代表本轮最新状态。
