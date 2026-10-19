@@ -1832,6 +1832,150 @@ def test_details_export_fails_after_three_wrong_codes(tmp_path):
         assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
 
 
+def _bank_money_counts(path):
+    """Issue #174 验收：导出链路不得新增资金动作（账户、流水、银行操作）。"""
+
+    from app.storage.database import connect
+
+    with connect(path / "bank.sqlite") as connection:
+        return {table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                for table in ("accounts", "ledger_entries", "bank_operations")}
+
+
+def _details_export_awaiting_code(client, service, owner, task_id):
+    """A details export waiting on its F07 code, with that challenge id."""
+
+    report = service.capture_report(owner, task_id, _bill_report())
+    created = post(client, f"/reports/{report.report_id}/exports", kind="details")
+    assert created.status_code == 200, created.text
+    export = created.json()["data"]
+    waiting = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+    return export, waiting["interaction"]["record_ref"]
+
+
+def _submit_details_code(client, challenge):
+    code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+    return post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code)
+
+
+def _assert_export_generation_failed(client, export):
+    """F23/F24 口径：导出 failed、受控错误码、下载拒绝、任务 failed。"""
+
+    status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+    assert status["status"] == "failed"
+    assert status["error"]["code"] == "EXPORT_GENERATION_FAILED"
+    assert status["download_path"] is None
+    assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+    task = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+    assert task["status"] == "failed"
+    assert task["error"]["code"] == "EXPORT_GENERATION_FAILED"
+    assert task["interaction"] is None
+
+
+def test_details_export_generator_fault_fails_instead_of_raising_http_500(tmp_path):
+    """Issue #174：生成器异常必须收口为 failed 导出，而不是 500 + 卡在等待态。"""
+
+    app = make_app(tmp_path)
+    _seed_details_row(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        export, challenge = _details_export_awaiting_code(client, service, owner, task["task_id"])
+        money_before = _bank_money_counts(tmp_path)
+
+        def broken_generator(trusted, report):
+            raise RuntimeError("generator fault")
+
+        service._details_csv = broken_generator
+        done = _submit_details_code(client, challenge)
+        assert done.status_code == 200, done.text  # 受控失败，不是 HTTP 500
+        assert done.json()["data"]["kind"] == "verified"
+        assert done.json()["data"]["task"]["status"] == "failed"
+        _assert_export_generation_failed(client, export)
+        assert _bank_money_counts(tmp_path) == money_before
+
+
+@pytest.mark.parametrize("content", [
+    "",                                                          # 中断后的空串
+    "  \n\t\n",                                                   # 只有空白
+    "occurred_at,account_id\n2026-09-05T12:30:00+08:00,A1\n",     # 表头不完整
+    "tx,amount\n1,2\n",                                           # 表头不对
+])
+def test_details_export_rejects_an_empty_or_headerless_product(tmp_path, content):
+    """Issue #174：只有真实表头才算有效产物；空/部分文件一律拒绝。"""
+
+    app = make_app(tmp_path)
+    _seed_details_row(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        export, challenge = _details_export_awaiting_code(client, service, owner, task["task_id"])
+        money_before = _bank_money_counts(tmp_path)
+
+        service._details_csv = lambda trusted, report: content
+        done = _submit_details_code(client, challenge)
+        assert done.status_code == 200, done.text
+        assert done.json()["data"]["kind"] == "verified"
+        assert done.json()["data"]["task"]["status"] == "failed"
+        _assert_export_generation_failed(client, export)
+        assert _bank_money_counts(tmp_path) == money_before
+
+
+def test_details_export_with_no_rows_still_downloads_the_header_only_csv(tmp_path):
+    """零条明细是合法账单：带表头的空导出仍 ready、可下载、任务 succeeded。"""
+
+    app = make_app(tmp_path)  # 不 seed 任何流水：范围内确实没有明细
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        export, challenge = _details_export_awaiting_code(client, service, owner, task["task_id"])
+
+        done = _submit_details_code(client, challenge)
+        assert done.status_code == 200, done.text
+        assert done.json()["data"]["kind"] == "verified"
+        assert done.json()["data"]["task"]["status"] == "succeeded"
+
+        status = client.get(f"/api/v1/exports/{export['export_id']}").json()["data"]
+        assert status["status"] == "ready"
+        assert status["file_name"].endswith(".csv")
+        download = client.get(f"/api/v1/exports/{export['export_id']}/download")
+        assert download.status_code == 200, download.text
+        # 表头即导出契约（账单附件 §6.7），零明细时只有这一行。
+        assert download.text == (
+            "occurred_at,account_id,direction,nature,category,amount_fen,counterparty_name,"
+            "counterparty_account_masked,channel,summary,transaction_id\n")
+        assert list(csv.DictReader(io.StringIO(download.text))) == []
+
+
+def test_details_export_generation_fault_closes_out_on_the_lazy_refresh(tmp_path):
+    """F23 懒刷新同样走失败收口：GET 不抛异常，导出与任务都落到 failed。"""
+
+    app = make_app(tmp_path)
+    _seed_details_row(tmp_path)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        export, challenge = _details_export_awaiting_code(client, service, owner, task["task_id"])
+
+        # 崩溃间隙：银行侧验证已通过，API 还没来得及收尾，F23 的懒刷新接手。
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        trusted = service.record_context(owner, "verification", challenge)
+        assert service.runtime.gateway.verify_code(
+            trusted, challenge, uuid4(), code).verification_id is not None
+
+        service._details_csv = lambda trusted, report: ""
+        refreshed = client.get(f"/api/v1/exports/{export['export_id']}")
+        assert refreshed.status_code == 200, refreshed.text
+        assert refreshed.json()["data"]["status"] == "failed"
+        assert refreshed.json()["data"]["error"]["code"] == "EXPORT_GENERATION_FAILED"
+        assert client.get(f"/api/v1/exports/{export['export_id']}/download").status_code == 409
+        assert client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]["status"] == "failed"
+
+
 def test_exports_stay_invisible_to_other_users(tmp_path):
     app = make_app(tmp_path)
     with TestClient(app) as client:
