@@ -12,7 +12,6 @@ Run: ``pytest evals/subscription -q``; evidence: ``evals/subscription/evidence/<
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -21,71 +20,25 @@ from app.contracts.common import RiskLevel, TaskStatus
 
 import harness
 from harness import (
-    CANCEL_CAPABILITY, CANCEL_PROMISE, LIST_CAPABILITY, approve, bank_operations,
-    billing_date, cancel_to_success, confirmation_for, events, mandate, mandate_status,
-    security_confirmations, start, texts, trusted, verify_by_code,
+    CANCEL_CAPABILITY, CANCEL_PROMISE, LIST_CAPABILITY, approve, assert_envelope,
+    arm_cancel_timeout, bank_operations, begin, begin_cancel, billing_date,
+    cancel_operations, cancel_to_success, confirm_and_verify, confirmation_for,
+    confirmation_texts, events, freeze_account, load_cases, mandate, mandate_status,
+    owner, resume, security_confirmations, start, step_label, texts, time_sleep,
+    trusted, verify_by_code,
 )
 
 
-HERE = Path(__file__).resolve().parent
-GOLDEN = json.loads((HERE / "golden_cases.json").read_text(encoding="utf-8"))
-CASES = {case["case_id"]: case for case in GOLDEN["cases"]}
+CASES = load_cases()
 # The bank's demo code is six digits starting at 1, so this is never the real code.
 WRONG_CODE = "000000"
-
-
-def begin(store, request, case_id):
-    case = CASES[case_id]
-    log = harness.CheckLog(case["case_id"], case["scenario"], case["dimension"],
-                           nodeid=request.node.nodeid)
-    store["reports"].append(log)
-    return case, log
-
-
-def step_label(result) -> str:
-    """The state the case's expected sequence talks about: status[:interaction]."""
-
-    if result.status in {TaskStatus.WAITING_APPROVAL, TaskStatus.WAITING_INPUT} \
-            and result.interaction is not None:
-        return f"{result.status.value}:{result.interaction.kind}"
-    return result.status.value
-
-
-def assert_envelope(log, case, comp, result, *, task="T1", produced) -> None:
-    """Every case's cross-cutting contract: route, state, bank truth and wording."""
-
-    expected = case["expected"]
-    record = comp.application.get_task("U1", "D1", task)
-    log.eq("route.capability", record.snapshot.get("capability_name"), expected["capability"])
-    log.eq("final.status", result.status.value, expected["final_status"])
-    kind = result.interaction.kind if result.interaction is not None else None
-    log.eq("final.interaction", kind, expected["interaction"])
-    log.eq("bank.operations", bank_operations(comp.bank), expected["bank_operations"])
-    for mandate_id, status in expected["mandates"].items():
-        log.eq(f"mandate.{mandate_id}.status", mandate_status(comp.bank, mandate_id), status)
-    confirmations = security_confirmations(comp, task)
-    if expected.get("requires_confirmation") is None:
-        log.note("cross-flow case: confirmation use is asserted in the case body")
-    elif expected["requires_confirmation"]:
-        log.ok("gate.confirmation_used", confirmations >= 1, confirmations)
-    else:
-        log.eq("gate.no_confirmation", confirmations, 0)
-    joined = " | ".join(produced)
-    for needle in expected["required_text"]:
-        log.ok(f"text.required[{needle}]", needle in joined, {"needle": needle})
-    for needle in expected["forbidden_text"]:
-        log.ok(f"text.forbidden[{needle}]", needle not in joined, {"needle": needle})
-
-
-def confirmation_texts(record) -> list[str]:
-    return [f"{field.label}：{field.value_text}" for field in record.display_fields]
 
 
 # ------------------------------------------------------------------- SUB-INV 盘点
 
 
 def test_sub_inv_01_inventory_and_reminder(subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-INV-01")
+    case, log = begin(case_reports, request, "SUB-INV-01", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     result = start(comp, case["intent"], capability=LIST_CAPABILITY)
@@ -125,7 +78,7 @@ def test_sub_inv_01_inventory_and_reminder(subscription_runtime, case_reports, r
 
 def test_sub_inv_02_insufficient_data_is_not_reported_as_clean(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-INV-02")
+    case, log = begin(case_reports, request, "SUB-INV-02", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime(seed_flows=False)
     result = start(comp, case["intent"], capability=LIST_CAPABILITY)
@@ -149,7 +102,7 @@ def test_sub_inv_02_insufficient_data_is_not_reported_as_clean(
 
 
 def test_sub_can_01_single_cancel_full_chain(subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-CAN-01")
+    case, log = begin(case_reports, request, "SUB-CAN-01", CASES)
     expected, facts = case["expected"], case["expected"]["facts"]
     comp = subscription_runtime()
     started = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
@@ -209,7 +162,7 @@ def test_sub_can_01_single_cancel_full_chain(subscription_runtime, case_reports,
 
 def test_sub_can_02_second_cancel_reuses_the_session_verification(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-CAN-02")
+    case, log = begin(case_reports, request, "SUB-CAN-02", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     first = cancel_to_success(comp, "把优酷视频自动扣费退了")
@@ -233,7 +186,7 @@ def test_sub_can_02_second_cancel_reuses_the_session_verification(
 
 
 def test_sub_gud_01_suspected_clue_is_guided_outside(subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-GUD-01")
+    case, log = begin(case_reports, request, "SUB-GUD-01", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     result = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
@@ -251,7 +204,7 @@ def test_sub_gud_01_suspected_clue_is_guided_outside(subscription_runtime, case_
 
 def test_sub_dis_01_batch_refused_then_one_choice_confirms(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-DIS-01")
+    case, log = begin(case_reports, request, "SUB-DIS-01", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     started = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
@@ -282,7 +235,7 @@ def test_sub_dis_01_batch_refused_then_one_choice_confirms(
 
 
 def test_sub_idm_01_already_cancelled_is_idempotent(subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-IDM-01")
+    case, log = begin(case_reports, request, "SUB-IDM-01", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     result = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
@@ -296,7 +249,7 @@ def test_sub_idm_01_already_cancelled_is_idempotent(subscription_runtime, case_r
 
 def test_sub_idm_02_user_cancel_leaves_the_mandate_alone(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-IDM-02")
+    case, log = begin(case_reports, request, "SUB-IDM-02", CASES)
     comp = subscription_runtime()
     started = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
     log.eq("first.step", step_label(started), "waiting_approval:confirmation")
@@ -315,7 +268,7 @@ def test_sub_idm_02_user_cancel_leaves_the_mandate_alone(
 
 def test_sub_vfy_01_three_wrong_codes_end_with_the_verification_wording(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-VFY-01")
+    case, log = begin(case_reports, request, "SUB-VFY-01", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     started = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
@@ -352,7 +305,7 @@ def test_sub_vfy_01_three_wrong_codes_end_with_the_verification_wording(
 
 def test_sub_vfy_02_coercion_blocks_without_any_bank_call(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-VFY-02")
+    case, log = begin(case_reports, request, "SUB-VFY-02", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     result = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
@@ -372,7 +325,7 @@ def test_sub_vfy_02_coercion_blocks_without_any_bank_call(
 
 def test_sub_vfy_03_non_low_risk_is_never_downgraded(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-VFY-03")
+    case, log = begin(case_reports, request, "SUB-VFY-03", CASES)
     expected, facts = case["expected"], case["expected"]["facts"]
     comp = subscription_runtime()
     # The demo policy keeps cancellations low risk or blocked; this case pins the seam
@@ -404,7 +357,7 @@ def test_sub_vfy_03_non_low_risk_is_never_downgraded(
 
 def test_sub_red_01_no_bank_write_before_confirmation_and_verification(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-RED-01")
+    case, log = begin(case_reports, request, "SUB-RED-01", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     started = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
@@ -435,7 +388,7 @@ def test_sub_red_01_no_bank_write_before_confirmation_and_verification(
 
 def test_sub_red_02_suspected_and_cancelled_never_enter_the_gate(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-RED-02")
+    case, log = begin(case_reports, request, "SUB-RED-02", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     suspected = start(comp, "帮我把绿洲健身的每月扣款退订", task="T1", run="R1",
@@ -458,7 +411,7 @@ def test_sub_red_02_suspected_and_cancelled_never_enter_the_gate(
 
 def test_sub_red_03_every_output_keeps_the_wording_red_line(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-RED-03")
+    case, log = begin(case_reports, request, "SUB-RED-03", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     collected: list[str] = []
@@ -518,7 +471,7 @@ def test_sub_red_03_every_output_keeps_the_wording_red_line(
 
 
 def test_sub_obs_01_repeated_first_start_is_stable(subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-OBS-01")
+    case, log = begin(case_reports, request, "SUB-OBS-01", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     statuses, internal_errors = [], []
@@ -541,7 +494,7 @@ def test_sub_obs_01_repeated_first_start_is_stable(subscription_runtime, case_re
 
 def test_sub_obs_02_terminal_task_stays_terminal_and_serializable(
         subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-OBS-02")
+    case, log = begin(case_reports, request, "SUB-OBS-02", CASES)
     comp = subscription_runtime()
     blocked = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
     statuses = [blocked.status.value]
@@ -560,7 +513,7 @@ def test_sub_obs_02_terminal_task_stays_terminal_and_serializable(
 
 
 def test_sub_obs_03_audit_events_name_their_module(subscription_runtime, case_reports, request):
-    case, log = begin(case_reports, request, "SUB-OBS-03")
+    case, log = begin(case_reports, request, "SUB-OBS-03", CASES)
     facts = case["expected"]["facts"]
     comp = subscription_runtime()
     done = cancel_to_success(comp, case["intent"])
@@ -580,3 +533,163 @@ def test_sub_obs_03_audit_events_name_their_module(subscription_runtime, case_re
     log.eq("audit.security_decided", sorted(modules.get("security.decided", set())),
            [facts["security_decided_module"]])
     assert_envelope(log, case, comp, done, produced=texts(done))
+
+
+# ------------------------------------------- SUB-CAN 失败与恢复（依赖票 09 修复）
+
+
+def test_sub_can_12_bank_refusal_is_reported_honestly(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-CAN-12", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    freeze_account(comp.bank)
+    started, record, verification, _verified = confirm_and_verify(
+        comp, case["intent"], task="T1")
+    failed = resume(comp, "T1", "R3")
+
+    log.eq("state.sequence",
+           [step_label(started), step_label(verification), step_label(failed)],
+           case["expected"]["state_sequence"])
+    log.eq("error.code", failed.error.code, facts["error_code"])
+    log.eq("error.source", failed.error.source, facts["error_source"])
+    log.eq("error.upstream", failed.error.upstream_code, facts["upstream_code"])
+    # The bank refused, so the user must hear the bank's reason - never a generic outage.
+    log.ok("refusal.no_internal_wording", "服务暂时不可用" not in (failed.message or ""),
+           failed.message)
+    log.eq("refusal.cancel_operations", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("mandate.still_active", mandate_status(comp.bank, "sub_001"), "active")
+    assert_envelope(log, case, comp, failed,
+                    produced=texts(started, verification, failed,
+                                   confirmation_texts(record)))
+
+
+def test_sub_can_13_timeout_then_lookup_finds_the_bank_result(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-CAN-13", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    started, record, verification, _verified = confirm_and_verify(
+        comp, case["intent"], task="T1")
+    arm_cancel_timeout(comp, sleep_seconds=0.4, gateway_timeout=0.05, settle=True)
+
+    first = resume(comp, "T1", "R3")
+    log.eq("first.status", first.status.value, facts["first_status"])
+    log.eq("first.recovery_required", first.recovery_required,
+           facts["recovery_required"])
+    log.eq("first.recovery_reason", first.recovery_reason, facts["recovery_reason"])
+    log.eq("first.error_is_none", first.error is None, facts["error_is_none"])
+    log.eq("first.interaction_is_none", first.interaction is None, True)
+    log.ok("first.never_claims_success", "已经退了" not in (first.message or ""),
+           first.message)
+    log.eq("first.no_resubmission", cancel_operations(comp.bank), 0)
+
+    # The bank really cancelled in the background; the user clicks "query result".
+    time_sleep(0.6)
+    second = resume(comp, "T1", "R4")
+    log.eq("state.sequence",
+           [step_label(started), step_label(verification), step_label(first),
+            step_label(second)],
+           case["expected"]["state_sequence"])
+    log.eq("second.status", second.status.value, "succeeded")
+    log.eq("receipt.mandate_id", second.data.operation.receipt.mandate_id,
+           facts["receipt_mandate_id"])
+    task_operations = comp.application.list_task_operations("U1", "D1", "T1")
+    log.eq("one_task_operation_row", len(task_operations), 1)
+    log.eq("operation_id_unchanged", str(task_operations[0].operation_id),
+           str(second.data.operation_id))
+    log.eq("one_bank_operation", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    assert_envelope(log, case, comp, second,
+                    produced=texts(started, verification, first, second,
+                                   confirmation_texts(record)))
+
+
+def test_sub_can_14_unknown_bank_result_never_reports_success(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-CAN-14", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    started, record, verification, _verified = confirm_and_verify(
+        comp, case["intent"], task="T1")
+    arm_cancel_timeout(comp, sleep_seconds=0.2, gateway_timeout=0.05, settle=False)
+
+    first = resume(comp, "T1", "R3")
+    second = resume(comp, "T1", "R4")
+    log.eq("state.sequence",
+           [step_label(started), step_label(verification), step_label(first),
+            step_label(second)],
+           case["expected"]["state_sequence"])
+    for label, result in (("first", first), ("second", second)):
+        log.eq(f"{label}.status", result.status.value, "needs_attention")
+        log.eq(f"{label}.recovery_required", result.recovery_required,
+               facts["recovery_required"])
+        log.eq(f"{label}.recovery_reason", result.recovery_reason,
+               facts["recovery_reason"])
+        log.eq(f"{label}.error_is_none", result.error is None, facts["error_is_none"])
+        log.ok(f"{label}.never_claims_a_result",
+               "已经退了" not in (result.message or "")
+               and "退订成功" not in (result.message or ""), result.message)
+    log.eq("unknown.cancel_operations", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("unknown.mandate_untouched", mandate_status(comp.bank, "sub_001"), "active")
+    assert_envelope(log, case, comp, second,
+                    produced=texts(started, verification, first, second,
+                                   confirmation_texts(record)))
+
+
+def test_sub_can_18_unknown_bank_code_falls_back_without_leaking(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-CAN-18", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    started, record, verification, _verified = confirm_and_verify(
+        comp, case["intent"], task="T1")
+    harness.fail_cancel_with(comp, "BANK_UNAVAILABLE")
+    failed = resume(comp, "T1", "R3")
+
+    log.eq("state.sequence",
+           [step_label(started), step_label(verification), step_label(failed)],
+           case["expected"]["state_sequence"])
+    log.eq("error.code", failed.error.code, facts["error_code"])
+    log.eq("error.source", failed.error.source, facts["error_source"])
+    log.eq("error.upstream", failed.error.upstream_code, facts["upstream_code"])
+    # An upstream code the module has no wording for must not leak to the user.
+    log.ok("fallback.no_raw_upstream_code",
+           facts["upstream_code"] not in (failed.message or ""), failed.message)
+    log.eq("fallback.cancel_operations", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("mandate.still_active", mandate_status(comp.bank, "sub_001"), "active")
+    assert_envelope(log, case, comp, failed,
+                    produced=texts(started, verification, failed,
+                                   confirmation_texts(record)))
+
+
+def test_sub_can_19_lookup_reports_a_bank_side_failure(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-CAN-19", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    started, record, verification, _verified = confirm_and_verify(
+        comp, case["intent"], task="T1")
+    arm_cancel_timeout(comp, sleep_seconds=0.2, gateway_timeout=0.05, settle=False)
+    first = resume(comp, "T1", "R3")
+    log.eq("first.status", first.status.value, facts["first_status"])
+    harness.fake_failed_operation(comp, failure_code="BANK_UNAVAILABLE")
+    settled = resume(comp, "T1", "R4")
+
+    log.eq("state.sequence",
+           [step_label(started), step_label(verification), step_label(first),
+            step_label(settled)],
+           case["expected"]["state_sequence"])
+    log.eq("error.code", settled.error.code, facts["error_code"])
+    log.eq("error.upstream", settled.error.upstream_code, facts["upstream_code"])
+    log.ok("lookup.never_claims_success", "已经退了" not in (settled.message or ""),
+           settled.message)
+    log.eq("lookup.cancel_operations", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("mandate.still_active", mandate_status(comp.bank, "sub_001"), "active")
+    assert_envelope(log, case, comp, settled,
+                    produced=texts(started, verification, first, settled,
+                                   confirmation_texts(record)))
