@@ -1,5 +1,12 @@
 # bills 评测集
 
+## 2026-10-19 23:22 · 第06票最新源码 L01 17 项真实业务实跑
+
+- 本次真实受测提交：`b5ae210c40c24df9c85a461d50d9ed21e941eb3e`（基于 #93、含已合并 #151 的 L03 源码，生产注册仍独立）。[GitHub Actions #39277287794](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39277287794)：**17 passed /0 failed /0 skipped /0 errors**；从 122 份追踪源文件逐字节核对、测试运行前后再核对完整后端和本 eval 范围。
+- [原始 gzip](evidence/2026-10-19/20261019T152252495297Z-python3.12.15-public-l01-phase1-b5ae210c40c2.json.gz) 压缩 SHA256 `cc6153930d9ab1ef3adc6a4f8abc9f2570fed8fde82a00b08f92d768da445531`；解压 JSON SHA256 `2b8bb7afb7b3fead67b7d0bba244f132fe45d8470788e30472cd7ca4d554fa96`。运行 UTC 15:22:46—15:22:52。历史旧源码的报告均原样保留。
+- 这17条只覆盖已注册 L01 的公共业务/失败/权限/恢复阶段，不等于 96 条设计全部通过。manifest 正确记明 L03 源码已合并但默认运行时注册、安全批准与前端联调未做；其余7个 Blocked 依赖未计入通过或 skipped。
+
+
 ## 票06：L01 注册链路的 17 条独立业务评测（继承 #93）
 
 - 本分支依赖评测 PR #93：新增 [17条虚构银行公共业务场景](public-business-cases.md)、[机器清单](public-business-cases.json)、可执行 [测试](test_public_business_eval.py) 与 [固定源码证据工具](run_business_evidence.py)。不把这17条算作96条全部业务设计通过。
