@@ -355,10 +355,7 @@ def test_sf04_flow_only_clue_is_guided_outside_without_gate_or_bank_call(tmp_pat
 
 def test_sf05_batch_request_is_refused_and_one_choice_then_confirms(tmp_path):
     app, bank, planner = composition(tmp_path)
-    # Spec SF05's phrasing is 「把所有自动扣费都关了」; the module's own cancel detector
-    # currently lacks 「关了」, so this uses the equivalent 「都退订」 wording and the
-    # missing word is reported to the module owner instead of being papered over here.
-    started = start(app, planner, "把所有自动扣费都退订")
+    started = start(app, planner, "把所有自动扣费都关了")
 
     assert started.status == TaskStatus.WAITING_INPUT
     assert started.interaction.kind == "input"
