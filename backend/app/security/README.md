@@ -38,3 +38,11 @@
 修复票 `v03-transfer-eval-fixes/06`：安全门保存已签发的脱敏验证挑战来源，每次敏感操作前从银行接入端重新核对该任务的可信状态。`failed` 或中风险 `expired` 形成持久终止标记及带挑战证据的BLOCK；基础前两错和基础验证码过期不被永久终止。源事实查询异常保持PAUSE，不按异常文案判断输错或超时。旧会话来源仅用于阻止原任务，不能授权新会话。测试：`python -m pytest app/security/test_gate.py app/security/test_verification_terminal.py -q`，25项门测试及8项真实平台/银行终止与技术暂停测试通过；六类终止均零流水且重建后不复活。HTTP集中联调、TF-VFY矩阵对照及真人安全审查仍待。
 
 重发中断窗口依赖 `v03-transfer-eval-fixes/05` 的银行类型化终止事实（PR #53）：安全门只接受同用户/轮次/任务的真实VerificationChallenge终止状态，异常字符串不形成终止。组合定向34通过（25门测试、9生命周期/恢复测试），包含重发落库后应用未登记即关闭、替代挑战三错、重建仍failed且零流水。
+
+## v0.4 本人账单读取（Issue #137）
+
+按 [PM 10-18 临时口径](https://github.com/DrErwin/hackerthon-bank-agent/issues/137#issuecomment-6250123462)，本人账户读取为 LOW，免确认及免验证。`bills.read` 仅准入 `bills.summarize` 和两条 `bills.bank` 读取，API 负责当前登录及任务归属，银行逐账户核验可信用户身份；该权限不包含敏感导出或新业务写操作。
+
+账单预期声明固定在安全目录，逐项全等比较。业务模块修改六项安全属性、输入输出模型引用或处理器引用后，原白名单拒绝该声明，须新安全审阅；业务对象的原地修改同样不能改写安全预期。该策略返回带版本与规则依据的读取分类，跳过转账演示夹具。转账仍要求原有可信风险事实，缺失事实继续暂停。
+
+审计口径要求采用参数摘要与结果引用；当前实现仍记录原始参数与完整银行结果，具体边界及已知落盘缺口见 [安全意见](bills-read-security-review-2026-10-19.md) §3。[Issue #145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145)由账单负责人整改，本次安全目录改动不代替该修复，也不构成真人签核。

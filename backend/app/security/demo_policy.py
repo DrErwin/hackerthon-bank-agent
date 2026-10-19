@@ -12,11 +12,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from app.contracts.common import RiskLevel
+from app.contracts.common import OperationLevel, RiskLevel
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
-from app.modules.bills.manifest import MANIFEST as BILLS_MANIFEST
-from app.modules.bills.reads import PRIVATE_TOOLS as BILLS_PRIVATE_TOOLS
 from app.modules.subscription.manifest import MANIFEST as SUBSCRIPTION_MANIFEST
 from app.modules.subscription.reads import PRIVATE_TOOLS as SUBSCRIPTION_PRIVATE_TOOLS
 from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
@@ -100,10 +98,30 @@ RiskFactsResolver = Callable[
 CurrentDemoRound = Callable[[], str]
 
 
+# Security-owned snapshots, deliberately independent of module declarations.
+# A new module release must not silently change the set of authorized tools.
+_BILLS_READ_TOOLS = tuple(CapabilityDefinition(
+    name="bills.bank." + name,
+    input_schema_ref=("bills.reads.TransactionsReadInput" if name == "list_transactions"
+                      else "bills.reads.AccountsReadInput"),
+    output_schema_ref="TransactionList" if name == "list_transactions" else "AccountList",
+    required_permissions=["bills.read"], operation_level=OperationLevel.READ,
+    side_effect=False, confirmation_policy="none", timeout_ms=10_000,
+    retry_policy="read_only", handler_ref="bills.bank." + name,
+) for name in ("list_accounts", "list_transactions"))
+_BILLS_READ_CAPABILITY = CapabilityDefinition(
+    name="bills.summarize", input_schema_ref="BillSummarizeInput",
+    output_schema_ref="SpendingSummary", required_permissions=["bills.read"],
+    operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
+    timeout_ms=10_000, retry_policy="read_only", handler_ref="bills.summarize",
+)
+_BILLS_READ_NAMES = frozenset(item.name for item in _BILLS_READ_TOOLS)
+
+
 class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
-    policy_version = "v03-local-demo-risk-1"
+    policy_version = "v04-local-demo-read-1"
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.
@@ -111,9 +129,9 @@ class DemoSecurityPolicy:
     _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read",
                               "subscription.read", "subscription.cancel"})
     _capabilities = {item.name: item for item in (
-        *MANIFEST.capabilities, *BILLS_MANIFEST.capabilities, *SUBSCRIPTION_MANIFEST.capabilities)}
+        *MANIFEST.capabilities, _BILLS_READ_CAPABILITY, *SUBSCRIPTION_MANIFEST.capabilities)}
     _private_tools = {item.name: item for item in (
-        *PRIVATE_TOOLS, *BILLS_PRIVATE_TOOLS, *SUBSCRIPTION_PRIVATE_TOOLS)}
+        *PRIVATE_TOOLS, *_BILLS_READ_TOOLS, *SUBSCRIPTION_PRIVATE_TOOLS)}
 
     def __init__(
         self,
@@ -195,6 +213,14 @@ class DemoSecurityPolicy:
     ) -> RiskAssessment:
         if not self.authorize_tool(context, action, declaration):
             raise RiskFactsUnavailable("risk assessment is outside the authorized demo scope", rule_id="risk-assessment-out-of-scope", policy_version=self.policy_version)
+        if declaration.name in _BILLS_READ_NAMES:
+            # Issue #137: LOW is a reviewed read-policy classification, not a
+            # claim that transfer fraud signals were detected or checked.
+            # The bank still checks each requested account against trusted identity.
+            return RiskAssessment(
+                RiskLevel.LOW, self.policy_version, "bills-own-account-read",
+                "policy:issue-137:pm-interim-20261018",
+            )
         evidence = self.risk_facts(context, action, declaration)
         if not isinstance(evidence, DemoRiskEvidence):
             raise RiskFactsUnavailable("trusted risk evidence is unavailable", rule_id="trusted-risk-evidence-required", policy_version=self.policy_version)
