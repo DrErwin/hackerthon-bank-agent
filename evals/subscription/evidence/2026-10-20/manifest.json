@@ -1,0 +1,70 @@
+[
+  {
+    "label": "subscription-platform-2026-10-19T160946Z",
+    "layer": "platform-runtime",
+    "generated_at": "2026-10-19T160946Z",
+    "revision": "9a8a4174e083fdc5da6e0041ef340f312b800926",
+    "dirty_paths": [],
+    "app_file": "D:\\hb-worktrees\\sub-evals10\\backend\\app\\__init__.py",
+    "python": "3.12.3",
+    "commands": [
+      [
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Scripts\\python.exe",
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Lib\\site-packages\\pytest\\__main__.py",
+        "evals/subscription",
+        "-q"
+      ]
+    ],
+    "cases_run": 48,
+    "counts": {
+      "Passed": 48
+    },
+    "assertions_total": 1068,
+    "assertions_passed": 1068,
+    "failed_cases": [],
+    "evidence_file": "subscription-platform-2026-10-19T160946Z.json.gz",
+    "decompressed_sha256": "d12068bb626661feec584663e6991b30e589868754c12d03d2cee77921540fe9",
+    "source_verification": {
+      "head_revision": "9a8a4174e083fdc5da6e0041ef340f312b800926",
+      "files": {
+        "evals/subscription/conftest.py": {
+          "head_blob": "b3c1d33256cbe4d03cb347a75a1d9991e25e4d3f",
+          "worktree_blob": "b3c1d33256cbe4d03cb347a75a1d9991e25e4d3f",
+          "match": true
+        },
+        "evals/subscription/harness.py": {
+          "head_blob": "7c17f84c2321c0e3536c7c866ae92f87e248d320",
+          "worktree_blob": "7c17f84c2321c0e3536c7c866ae92f87e248d320",
+          "match": true
+        },
+        "evals/subscription/stability_sample.py": {
+          "head_blob": "23018df7c38e5766169073d60c781802b87756f3",
+          "worktree_blob": "23018df7c38e5766169073d60c781802b87756f3",
+          "match": true
+        },
+        "evals/subscription/test_subscription_cancel_evals.py": {
+          "head_blob": "a9067b46caed97e490a007c5e8fbd4971805434d",
+          "worktree_blob": "a9067b46caed97e490a007c5e8fbd4971805434d",
+          "match": true
+        },
+        "evals/subscription/test_subscription_evals.py": {
+          "head_blob": "5f0a36476495145c2c8f7a2f21d43bce7afaaa4d",
+          "worktree_blob": "5f0a36476495145c2c8f7a2f21d43bce7afaaa4d",
+          "match": true
+        },
+        "evals/subscription/test_subscription_read_evals.py": {
+          "head_blob": "d120fed3d55b500956607418fc781e982feca8ed",
+          "worktree_blob": "d120fed3d55b500956607418fc781e982feca8ed",
+          "match": true
+        },
+        "evals/subscription/golden_cases.json": {
+          "head_blob": "c531034ccc6c6cdaa9d85ab0a14adce515392c64",
+          "worktree_blob": "c531034ccc6c6cdaa9d85ab0a14adce515392c64",
+          "match": true
+        }
+      },
+      "all_match_head": true
+    },
+    "extra": {}
+  }
+]
