@@ -17,6 +17,8 @@ from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
 from app.modules.bills.manifest import MANIFEST as BILLS_MANIFEST
 from app.modules.bills.reads import PRIVATE_TOOLS as BILLS_PRIVATE_TOOLS
+from app.modules.subscription.manifest import MANIFEST as SUBSCRIPTION_MANIFEST
+from app.modules.subscription.reads import PRIVATE_TOOLS as SUBSCRIPTION_PRIVATE_TOOLS
 from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.services.mock_bank.verification import AdminContext
 from app.security.gate import RiskAssessment, RiskFactsUnavailable
@@ -105,9 +107,13 @@ class DemoSecurityPolicy:
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.
-    _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read"})
-    _capabilities = {item.name: item for item in (*MANIFEST.capabilities, *BILLS_MANIFEST.capabilities)}
-    _private_tools = {item.name: item for item in (*PRIVATE_TOOLS, *BILLS_PRIVATE_TOOLS)}
+    # Scenario 05 adds its own read permission plus the single cancellation write.
+    _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read",
+                              "subscription.read", "subscription.cancel"})
+    _capabilities = {item.name: item for item in (
+        *MANIFEST.capabilities, *BILLS_MANIFEST.capabilities, *SUBSCRIPTION_MANIFEST.capabilities)}
+    _private_tools = {item.name: item for item in (
+        *PRIVATE_TOOLS, *BILLS_PRIVATE_TOOLS, *SUBSCRIPTION_PRIVATE_TOOLS)}
 
     def __init__(
         self,
@@ -195,6 +201,14 @@ class DemoSecurityPolicy:
         if not _ALL_RISK_SIGNALS <= evidence.checked_signals:
             raise RiskFactsUnavailable("risk evidence does not cover every signal dimension", rule_id="risk-signal-coverage-required", policy_version=self.policy_version)
         evidence_ref = f"{evidence.source}:{evidence.source_version}:{evidence.evidence_ref}"
+        if declaration.name == "subscription.bank.cancel_subscription":
+            # Scenario 05 keeps two outcomes only (PRD §5.1): coercion blocks, and every
+            # ordinary own-account cancellation stays low risk so it goes through the
+            # confirmation button plus a session-scoped basic-identity code — never the
+            # medium action-step-up face path, whatever transfer-style signals arrive.
+            level = RiskLevel.HIGH if evidence.signals & _HIGH_RISK_SIGNALS else RiskLevel.LOW
+            rule = "demo-risk-high" if level == RiskLevel.HIGH else "demo-risk-low"
+            return RiskAssessment(level, self.policy_version, rule, evidence_ref)
         if evidence.signals & _HIGH_RISK_SIGNALS:
             return RiskAssessment(
                 RiskLevel.HIGH, self.policy_version, "demo-risk-high", evidence_ref,
