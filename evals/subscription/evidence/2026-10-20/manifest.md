@@ -18,6 +18,15 @@
 - 原始报告：`subscription-platform-2026-10-19T161745Z.json.gz`（解压后 sha256 `a91d34aa2ae0e7cff84e933764f11f7c14a88dba3f8b29f1041f81e3a5919364`）
 - 源文件校验：7 个评测源文件与提交 `d901225aedf9de9573470115441ec4b7287fb546` 逐字节一致：是（逐文件 blob sha 见 manifest.json）
 
+## subscription-platform-2026-10-19T193122Z（platform-runtime）
+
+- 运行时间：`2026-10-19T193122Z`；提交：`62f9680eb4e11fb629ca961067030b555aeaa874`；脏文件：0 个
+- 解释器：`python 3.12.3`；被测包：`C:\Users\57652\AppData\Local\Temp\wk-176-evals\backend\app\__init__.py`
+- 命令：D:\hackerthon-bank-agent\backend\.venv\Scripts\python.exe D:\hackerthon-bank-agent\backend\.venv\Lib\site-packages\pytest\__main__.py evals/subscription -q --no-header -p no:cacheprovider
+- 用例：48；状态分布：{"Passed": 48}；断言：1070/1070
+- 原始报告：`subscription-platform-2026-10-19T193122Z.json.gz`（解压后 sha256 `076efc2eba8cb862276059e5750e5d6a3352aa717320ed9e30936e4c98f5eef7`）
+- 源文件校验：7 个评测源文件与提交 `62f9680eb4e11fb629ca961067030b555aeaa874` 逐字节一致：是（逐文件 blob sha 见 manifest.json）
+
 | 用例 | 场景 | 维度 | 状态 | 断言 | 失败断言 |
 |---|---|---|---|---|---|
 | SUB-CAN-03 | E01/T12 | 文字消歧 | Passed | 22/22 | — |
@@ -28,7 +37,7 @@
 | SUB-CAN-08 | E10/边界 | 验证码第 3/4 次边界 | Passed | 27/27 | — |
 | SUB-CAN-09 | E10/失败恢复 | 错两次后正确 | Passed | 20/20 | — |
 | SUB-CAN-10 | E05/交叉 | 换会话后旧确认失效 | Passed | 18/18 | — |
-| SUB-CAN-11 | §5.2/交叉 | 关键内容变化使原确认失效 | Passed | 17/17 | — |
+| SUB-CAN-11 | §5.2/交叉 | 关键内容变化使原确认失效 | Passed | 19/19 | — |
 | SUB-CAN-16 | T13/失败恢复 | 已退任务终态稳定 | Passed | 18/18 | — |
 | SUB-CAN-17 | SOP-3 例外/反例 | 无下一期日期不硬退 | Passed | 18/18 | — |
 | SUB-DIS-02 | E08/E05/交叉 | 批量拒绝后取消 | Passed | 21/21 | — |
