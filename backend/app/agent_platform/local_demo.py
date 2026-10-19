@@ -19,7 +19,7 @@ from app.contracts.bank import SavedPayee
 from app.contracts.common import SecurityDecisionCode
 from app.contracts.security import ExecutionSecurityContext
 from app.memory.adapter import MemoryAdapter
-from app.modules.bills.entry import register_bills
+from app.modules.bills.entry import register_bills, register_bills_report
 from app.modules.bills.reads import GatewayBillsReads
 from app.modules.transfer.tools import TransferSnapshots
 from app.security import SecurityGate, ToolRegistry
@@ -221,11 +221,14 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
         authorize_tool=policy.authorize_tool, assess_risk=policy.assess_risk,
         authorize_face=policy.authorize_face,
     )
-    # Register the real bills module before ApiService construction so the
-    # contract-shaped stub steps aside as a whole (v04-platform/05; "all or
-    # nothing": with only L01 registered, L02/L03 leave the public catalog).
+    # Register the real bills capabilities before ApiService construction so the
+    # contract-shaped stub steps aside as a whole (v04-platform/05): L01 and L03 are
+    # real now, only L02 (`bills.detect_anomalies`) stays out of the public catalog.
+    # L03 keeps its own REPORT_MANIFEST/factory because one manifest shares one factory.
     register_bills(runtime.harness.registry, _bills_reads_factory(runtime),
                    lambda: datetime.now(timezone.utc))
+    register_bills_report(runtime.harness.registry, _bills_reads_factory(runtime),
+                          lambda: datetime.now(timezone.utc))
     # Scenario 05 rides the same confirmation service, audit journal and bank gateway;
     # its one write is authorized by a live claim from the shared executor.
     subscription_runtime.register_subscription(runtime, bank.clock)

@@ -12,6 +12,7 @@ import pytest
 from app.api.app import ApiConfig, create_app
 from app.api.test_app import approve, enter, post, start
 from app.contracts.platform import TrustedContext
+from app.modules.bills.manifest import REPORT_MANIFEST
 
 from .local_demo import LocalDemoConfig, build_runtime, create_local_app, load_config
 from .test_harness import ScriptedChatModel
@@ -248,8 +249,13 @@ def test_real_bills_module_registered_and_serves_consecutive_stage_one_tasks(tmp
     app = app_for(configuration(tmp_path))
     api = app.state.api
     catalog = [item["name"] for item in api.runtime.harness.registry.public_catalog()]
-    assert "transfer.start_transfer" in catalog and "bills.summarize" in catalog
-    assert not {"bills.detect_anomalies", "bills.generate_report"} & set(catalog)
+    assert "transfer.start_transfer" in catalog
+    # Issue #123: L01 and L03 are real; the absent L02 is not advertised.
+    assert {"bills.summarize", "bills.generate_report"} <= set(catalog)
+    assert "bills.detect_anomalies" not in catalog
+    # The real L03 manifest owns the capability, i.e. the contract-shaped stub
+    # (app.agent_platform.bills_stub.BILLS_MANIFEST) did not provide it.
+    assert api.runtime.harness.registry.get("bills.generate_report").manifest is REPORT_MANIFEST
 
     with patch.object(api.runtime.harness.planner, "select",
                       return_value=TransferProposal(capability_name="bills.summarize")):
