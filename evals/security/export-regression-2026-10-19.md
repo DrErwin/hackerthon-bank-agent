@@ -44,4 +44,4 @@ Spec复核补充了已验证明细跨用户下载的缺口，Standards复核补�
 
 独立审查的 1 项必修要求补齐 #161 的「前置空白/制表符」公式变体。`test_export_boundary.py` 的公式型文本参数由 4 组扩为 6 组（新增 `" =1+1"`、`"\t+1"`），并把断言从「不以公式符起头」加强为「单引号前缀后逐字保留原文」，runner 合计 20 项。
 
-2026-10-20 实跑：20 项 **20 Passed / 0 Failed**，报告见 [2026-10-20 supplement](evidence/2026-10-20/2026-10-20-offline-export-boundary-supplement.json.gz)，解压后 sha256 `7432C090946D2408C3109BDB7639B1AA8E412CC3281AE77D468BE0836A7A4AC0`。来源为 main `25b0738`（本 PR rebase 后），`backend/app/api` 与 #161 修复版本自 `e43765a` 起未变。原 18 项 retest 报告（`036109E2…`）保持历史，不重写。本批仍为受控 L03 夹具与平台替身，不代表真实账单 L01—L03 或生产检测器通过。
+2026-10-20 实跑：20 项 **20 Passed / 0 Failed**，报告见 [2026-10-20 supplement](evidence/2026-10-20/2026-10-20-offline-export-boundary-supplement.json.gz)，解压后 sha256 `7432C090946D2408C3109BDB7639B1AA8E412CC3281AE77D468BE0836A7A4AC0`。来源基线为报告产生时的 main `25b0738`；其后合并 #149 只改 `backend/app/security`，不影响本专项记录的文件哈希；`backend/app/api` 与 #161 修复版本自 `e43765a` 起未变。原 18 项 retest 报告（`036109E2…`）保持历史，不重写。本批仍为受控 L03 夹具与平台替身，不代表真实账单 L01—L03 或生产检测器通过。

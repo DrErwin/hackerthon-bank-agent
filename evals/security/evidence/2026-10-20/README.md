@@ -10,7 +10,7 @@
 |---|---|
 | [supplement](2026-10-20-offline-export-boundary-supplement.json.gz) | 7432C090946D2408C3109BDB7639B1AA8E412CC3281AE77D468BE0836A7A4AC0 |
 
-来源基线为 main `25b0738`（本 PR rebase 后）；`backend/app/api` 与 #161 修复版本自 `e43765a` 起未变。报告内记录的来源 sha256：
+来源基线为报告产生时的 main `25b0738`；其后合并 #149 只改 `backend/app/security`，不影响本专项记录的文件哈希。`backend/app/api` 与 #161 修复版本自 `e43765a` 起未变。报告内记录的来源 sha256：
 
 | 文件 | sha256 |
 |---|---|
