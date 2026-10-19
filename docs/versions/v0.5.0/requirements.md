@@ -14,7 +14,7 @@
 - 核对审计证据、恢复、防重复和用户状态表达。
 - 补齐契约已定义、尚未实现的管理端审计导出：F35 `POST /admin/audit/exports`（按固定筛选范围导出，返回 `ExportView(kind=audit)`）与 F24 的 audit 下载分支（核验独立管理权限 + 创建时固定的导出范围；数据源用既有 `audit/journal` 只读端）。来源 [Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)：2026-10-13 PM 决定**不进 v0.4、挂 v0.5**，实施票在本版本开工时按一票一目录拆（`backend/app/api/`），拆票前不改变本决定。
 - 打磨关键演示路径和适老化交互。
-- 前端剩余范围（2026-10-20 由 v0.4 顺延，PM 方案 A）：账单业务插槽（票 04，待账单公开能力 L03 可调用）、替换简易前端 + 全面回归与适老化走查（票 05）、订阅场景 05 前端插槽（**v0.5 第一优先**，已定）。票据与证据入口：[`.scratch/liangshuang-frontend-complete/`](../../../.scratch/liangshuang-frontend-complete/spec.md)、[Issue #89](https://github.com/DrErwin/hackerthon-bank-agent/issues/89) 收尾记录；v0.4 已交付的转账插槽（[PR #142](https://github.com/DrErwin/hackerthon-bank-agent/pull/142) squash `92ee700`）不回退。
+- 前端剩余范围：**账单业务插槽（票 04）与替换简易前端 + 全面回归 / 适老化走查（票 05）已于 2026-10-20 01:45 由 PM 决定留在 v0.4 完成、不顺延**（01:41 版本曾记为顺延 v0.5，同日撤回）；v0.5 前端只保留**订阅场景 05 前端插槽（v0.5 第一优先，已定）**，以及 v0.4 收口时如实登记的已知非阻塞项（如旧会话历史条目逐条 F14/F16 刷新返回 409 `SESSION_RECONFIRMATION_REQUIRED`，F39 视图已直接渲染、页面无缺失）。票据与证据入口：[`.scratch/liangshuang-frontend-complete/`](../../../.scratch/liangshuang-frontend-complete/spec.md)、[Issue #89](https://github.com/DrErwin/hackerthon-bank-agent/issues/89)；v0.4 已交付的转账插槽（[PR #142](https://github.com/DrErwin/hackerthon-bank-agent/pull/142) squash `92ee700`）不回退。
 - 形成核心能力验收记录。
 
 ## 验收标准

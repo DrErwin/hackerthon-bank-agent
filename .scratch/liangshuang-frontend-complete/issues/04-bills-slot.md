@@ -4,7 +4,7 @@ Ticket ID: liangshuang-frontend-complete/04
 Type: 开发
 Owner: 梁爽
 Directory: frontend/
-Status: deferred（v0.5，PM 2026-10-20 方案 A：v0.4 只收票 03。前置未满足——账单公开能力 L03 平台未注册、安全白名单只认 L01，真实联调跑不通）
+Status: planned（v0.4，**PM 2026-10-20 01:45 决定：不顺延，本期完成**〔撤回同日 01:41 的 deferred 记录〕。两个硬前置在平台/安全目录：① 平台 `local_demo.py`/`build_runtime` 只 `register_bills`（L01），`bills.generate_report`（L03）未注册；② 安全 `demo_policy.py` 的 `_capabilities` 只收 `BILLS_MANIFEST`（L01），未收 `REPORT_MANIFEST`。前置解除前只能做明确标注的 stub，不得记真实联调）
 Package: [frontend-complete/packages/01：v0.4 完整前端实现与替换](../../frontend-complete/packages/01-v04-complete-frontend.md)
 Spec: [梁爽完整前端实施规格](../spec.md)
 Core scenarios: [FE-02、FE-03、FE-06](../../frontend-complete/spec.md)
@@ -19,4 +19,4 @@ Verification: 用契约形状 stub 走通入口、明细与报告；公开能力
 - 缺少必要数据格式时提出契约变更，不在前端自定义平行 schema。
 
 ## Comments
-- 2026-10-20（PM 方案 A，AI 代填）：本票**顺延 v0.5**，v0.4 不做 stub 切片。原因：账单公开能力 `bills.generate_report`（L03）平台未注册、安全白名单只认 L01，真实联调跑不通；v0.4 前端只收转账票 03。v0.5 接入时与订阅前端插槽一并排。
+- 2026-10-20（PM 01:45 撤回顺延，AI 代填）：本票**留在 v0.4 完成**。同日 01:41 记录的「顺延 v0.5 / v0.4 不做 stub 切片」作废。前置不变：`bills.generate_report`（L03）需平台注册 + 安全白名单收录 `REPORT_MANIFEST`；在前置解除前只做明确标注的 stub，不发出可联调完成信号。
