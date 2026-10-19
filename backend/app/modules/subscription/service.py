@@ -101,6 +101,14 @@ def day_text(at: datetime) -> str:
     return f"{at.month}月{at.day}日"
 
 
+def account_label(masked: str) -> str:
+    """One readable account line: the bank already prefixes ``尾号`` in B01 labels."""
+
+    text = (masked or "").strip()
+    text = text.removeprefix("尾号").strip()
+    return f"尾号 {text}" if text else masked
+
+
 def _options(items) -> list[InteractionOption]:
     return [
         InteractionOption(
@@ -157,7 +165,7 @@ class SubscriptionService:
             rows.extend(facts.transactions)
         mask = {account_id: owned[account_id].account_masked for account_id in selected}
         items = [
-            self._mandate_item(mandate, rows, now, reminder_days, mask.get(mandate.account_id, ""))
+            self._mandate_item(mandate, rows, now, reminder_days)
             for mandate in mandates.mandates if mandate.account_id in owned
         ]
         excluded = {mandate.merchant_id for mandate in mandates.mandates}
@@ -188,7 +196,7 @@ class SubscriptionService:
         )
 
     def _mandate_item(self, mandate: SubscriptionMandate, rows: list[Transaction], now: datetime,
-                      reminder_days: int, account_masked: str) -> SubscriptionItem:
+                      reminder_days: int) -> SubscriptionItem:
         matched = [row for row in rows if row.counterparty_id == mandate.merchant_id]
         last = max((row.occurred_at for row in matched), default=None)
         days = (mandate.next_billing_at - now).days if mandate.next_billing_at is not None else None
@@ -196,7 +204,9 @@ class SubscriptionService:
             subscription_id=mandate.mandate_id, source_type="mandate", mandate_id=mandate.mandate_id,
             merchant_id=mandate.merchant_id, merchant_name=mandate.merchant_name,
             service_name=mandate.service_name, amount_fen=mandate.amount_fen, cycle=mandate.cycle,
-            account_id=mandate.account_id, account_masked=account_masked,
+            # The bank's own field for this agreement, so the item, the confirmation card
+            # and the B30 receipt all show the same masked account.
+            account_id=mandate.account_id, account_masked=mandate.account_masked,
             last_billed_at=last or mandate.last_billed_at, next_billing_at=mandate.next_billing_at,
             status=mandate.status, can_cancel_in_bank=mandate.status == "active",
             days_until_renewal=days,
@@ -324,7 +334,7 @@ class SubscriptionService:
         fields = (
             DisplayField(name="merchant", label="退订项目",
                          value_text=f"{item.merchant_name}（{item.service_name}）"),
-            DisplayField(name="account", label="扣款账户", value_text=f"尾号 {item.account_masked}"),
+            DisplayField(name="account", label="扣款账户", value_text=account_label(item.account_masked)),
             DisplayField(name="amount", label="金额与周期",
                          value_text=f"{CYCLE_TEXT[item.cycle]} {money(item.amount_fen)} 元"),
             DisplayField(name="billed", label="已扣记录", value_text=billed),
@@ -355,8 +365,9 @@ class SubscriptionService:
     @staticmethod
     def confirmation_message(item: SubscriptionItem) -> str:
         return (
-            f"请核对退订信息：「{item.merchant_name}（{item.service_name}）」扣款账户尾号 "
-            f"{item.account_masked}，{CYCLE_TEXT[item.cycle]} {money(item.amount_fen)} 元，"
+            f"请核对退订信息：「{item.merchant_name}（{item.service_name}）」"
+            f"扣款账户{account_label(item.account_masked)}，"
+            f"{CYCLE_TEXT[item.cycle]} {money(item.amount_fen)} 元，"
             f"原定下一期 {item.next_billing_at.date().isoformat()} 扣款。"
             "点「确认退订」后还要填一次短信验证码；退了以后从下一期起不再自动扣费，"
             "之前已经扣掉的钱不退。"
