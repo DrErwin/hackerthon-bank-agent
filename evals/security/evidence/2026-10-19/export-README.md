@@ -19,6 +19,6 @@ Spec要求补已验证明细跨用户下载，已新增独立U2下载拒绝及�
 
 ## Issue #161 修复后的独立批次
 
-PR #168 合入后独立复验18 Passed / 0 Failed。报告为[修复后复验](2026-10-19-offline-export-boundary-retest.json.gz)，解压后sha256为`036109E268DB504EA01C85EDEA11F19C452D3436832F0B7E4C1FCC5759D32BD0`。retest_of 指向上节 final 报告及其完整指纹，历史报告保持原样。
+PR #168 合入后独立复验18 Passed / 0 Failed。报告为[修复后复验](2026-10-19-offline-export-boundary-retest.json.gz)，解压后sha256为`036109E268DB504EA01C85EDEA11F19C452D3436832F0B7E4C1FCC5759D32BD0`。本台账的retest_of关联为`2026-10-19-offline-export-boundary-final.json.gz`，原报告完整指纹`F07AC22730C35AAF88D5911BFFEDC0B50DB420A0A38A1FA22EF7F056E024EC5B`。关联写在本台账，原始JSON未新增retest_of字段；历史报告保持原样。
 
 本地后端 `be771bb` 以 main `e43765a0dec7737a64fd235e3a65c21a0b265656` 的API及风险输入文件更新，另含 PR #149/#165 安全声明修复。本专项风险及授权回调是平台夹具，未消费声明修复或真实检测器。runner、测试及service的实际sha256在新报告中，未将本地组合标记为纯main检出。模型调用仍为0次。
