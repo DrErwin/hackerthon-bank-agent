@@ -69,6 +69,14 @@ def safe_text(text: str, *, numeric_field: bool = False) -> str:
 # text cells get the literal apostrophe prefix. Non-strings (amounts) keep their type.
 CSV_FORMULA_OPENERS = ("=", "+", "-", "@")
 
+# Issue #174: the details export has one frozen header row. Generation and validation
+# share this constant so an accepted product can never drift from what we emit.
+DETAILS_CSV_HEADER = (
+    "occurred_at", "account_id", "direction", "nature", "category", "amount_fen",
+    "counterparty_name", "counterparty_account_masked", "channel", "summary",
+    "transaction_id",
+)
+
 
 def safe_csv_cell(value):
     """One spreadsheet-literal cell honouring the value's own semantics."""
@@ -710,11 +718,28 @@ class ApiService:
             WHERE report_id=? AND user_id=? AND demo_round_id=?""",
             (row["report_id"], row["user_id"], row["demo_round_id"]))
         report = BillReport.model_validate(json.loads(rows[0]["report_json"]))
-        content = self._details_csv(self._export_trusted(row), report)
+        try:
+            content = self._details_csv(self._export_trusted(row), report)
+        except Exception:
+            # Issue #174: a generator fault closes the export out instead of escaping as
+            # an HTTP 500 that leaves it stuck in waiting_verification.
+            self._fail_export(row, code="EXPORT_GENERATION_FAILED",
+                reason="账单明细生成失败，导出未完成。",
+                task_status=TaskStatus.FAILED, message="账单明细生成失败，导出未完成。",
+                publish=True)
+            return
         if content is None:
             self._fail_export(row, code="DEPENDENCY_UNAVAILABLE",
                 reason="暂时无法读取账单明细，导出未完成。",
                 task_status=TaskStatus.FAILED, message="账单明细读取失败，导出未完成。",
+                publish=True)
+            return
+        if not self._usable_details_csv(content):
+            # Issue #174: an interrupted generator can produce an empty or partial file;
+            # a ready download must carry the frozen header, exactly like a real bill.
+            self._fail_export(row, code="EXPORT_GENERATION_FAILED",
+                reason="账单明细生成结果无效，导出未完成。",
+                task_status=TaskStatus.FAILED, message="账单明细生成结果无效，导出未完成。",
                 publish=True)
             return
         self.store.finish_export(row["export_id"], "ready",
@@ -724,6 +749,15 @@ class ApiService:
                                  "身份验证完成，账单明细已生成，可以下载。", None)
         self.publish_task(Identity(row["user_id"], row["session_id"], row["demo_round_id"], "user"),
                           row["task_id"])
+
+    @staticmethod
+    def _usable_details_csv(content) -> bool:
+        """A generated export is the frozen header plus optional rows; nothing less."""
+
+        if not isinstance(content, str) or not content.strip():
+            return False
+        first_line, *_ = content.splitlines()
+        return first_line == ",".join(DETAILS_CSV_HEADER)
 
     def _fail_export(self, row, *, code, reason, task_status, message, publish):
         self.store.finish_export(row["export_id"], "failed", error_code=code, error_reason=reason)
@@ -760,9 +794,7 @@ class ApiService:
         rows.sort(key=lambda item: (item.occurred_at, item.account_id, item.transaction_id))
         buffer = io.StringIO()
         writer = csv.writer(buffer, lineterminator="\n")
-        writer.writerow(["occurred_at", "account_id", "direction", "nature", "category",
-                         "amount_fen", "counterparty_name", "counterparty_account_masked",
-                         "channel", "summary", "transaction_id"])
+        writer.writerow(DETAILS_CSV_HEADER)
         for item in rows:
             writer.writerow([safe_csv_cell(item.occurred_at.isoformat()),
                              safe_csv_cell(item.account_id), safe_csv_cell(item.direction),
