@@ -50,6 +50,8 @@ PRD: `docs/prd/05-订阅代扣管理-PRD-2026-10-19.md`
 | 06 API 泛型放宽与 F10 消歧 | [#154](https://github.com/DrErwin/hackerthon-bank-agent/pull/154) | 已合入 |
 | 07 黄金评测集与端到端回归 | [#155](https://github.com/DrErwin/hackerthon-bank-agent/pull/155) | 已合入（17 用例 / 349 断言 + 证据包） |
 | 08 底座修复：审计脱敏不改写不透明引用 | [#153](https://github.com/DrErwin/hackerthon-bank-agent/pull/153) | 已合入（审查通过、5/5 变异被杀） |
+| 09 退订明确拒绝 / 结果未知如实回执 | [#172](https://github.com/DrErwin/hackerthon-bank-agent/pull/172) | 已合入（`c1cdde3`；拒绝如实、超时/未知→`needs_attention`→按原 `operation_id` 回查 B14 不重提；后端 738 passed） |
+| 10 完整验收集 | [#175](https://github.com/DrErwin/hackerthon-bank-agent/pull/175) | 已合入（`d6cb6a8`；17→48 条用例、同提交证据 `evals/subscription/evidence/2026-10-20/`） |
 
 **每票均配独立子代理审查**（AI 审查，非真人专业审查）。票 06/07 的审查在合并后返回「有条件通过」，审查驱动的三项补丁已另开单目录 PR 合入：[#156](https://github.com/DrErwin/hackerthon-bank-agent/pull/156)（确认单账户行「尾号 尾号 0001」用户可见缺陷）、[#157](https://github.com/DrErwin/hackerthon-bank-agent/pull/157)（消歧输入的验证码守卫回归）、[#158](https://github.com/DrErwin/hackerthon-bank-agent/pull/158)（话术红线等值断言 + 稳定性工具自举 + 证据干净树重归档）；票 06/07 的审查子代理在合并时仍在运行，结论到后按需以补丁追加。安全策略票按 PRD 仍需 Ringo 本人审查或 PM 豁免留痕（本次为 AI 独立审查 + 作者修复，**非 Ringo 签署**）。
 
@@ -57,7 +59,14 @@ PRD: `docs/prd/05-订阅代扣管理-PRD-2026-10-19.md`
 1. 演示银行里按契约 §5.9 会命中物业/水费/通信等「疑似周期扣费」，疑似区条数不锁死（属正确行为）；
 2. 订阅待答确认/验证复用平台既有 `agent_transfer_*` 事实表（表名为历史包袱，语义为平台 task→绑定事实）；
 3. 跨动作占用同一 `operation_id` 仍可绑定（需共享作用域表改造）；B30 两段写合一事务需 `storage/` 共享事务入口；
-4. 真实 GLM 路由、`reminder_days` 等入参参数化、两进程并发、前端订阅插槽未覆盖。
+4. 真实 GLM 路由、`reminder_days` / `status_filter` 等入参参数化、两进程并发未覆盖；**完整验收集已由票 10 交付（48 条）**，仍如实 Blocked 的项见 `evals/subscription/README.md`（T17 B26/B27 未实现、E03/E11 话术、E02 第二分支、E04 processing、SOP-3「需要核实」）；**前端订阅插槽不在本包范围**，按 PM 2026-10-20 决定列为 v0.5 第一优先。
+
+## 2026-10-20 票 09 / 10 补充（AI 代填 · 非真人审查）
+
+- **票 09（[#172](https://github.com/DrErwin/hackerthon-bank-agent/pull/172) `c1cdde3`）**：退订「明确拒绝」与「结果未知」如实回执；提交后超时 / 未知转 `needs_attention`，按原 `operation_id` 回查 B14，不重复提交；批量意图被拒后的文字消歧补齐。
+- **票 10（[#175](https://github.com/DrErwin/hackerthon-bank-agent/pull/175) `d6cb6a8`）**：完整验收集 17→48 条；同提交证据 `evals/subscription/evidence/2026-10-20/`（48 passed、7 源文件 blob 对 HEAD、`dirty_paths=[]`、`PYTHONHASHSEED=0/1/42` 三次全量一致、独立复核两轴通过）。
+- **遗留（不阻塞收口，如实登记）**：[Issue #176](https://github.com/DrErwin/hackerthon-bank-agent/issues/176) 关键内容变化后确认失效路径随进程哈希序非确定（两支均零提交、安全）；退订声明 `OperationLevel.MODIFY` 与 PRD §5.10 三级敏感口径不一致（写前 `AuthorizationSnapshot` 不产生）。
+- **本期收口口径**：后端闭环 + 完整验收集；真实模型 E2E 与前端订阅插槽留 v0.5。
 
 ## 验收标准（Definition of Done）
 

@@ -1,6 +1,6 @@
 # 交付包 02：v0.4 联合验收与收口
 
-Status: planned（依赖各线交付，条件见 Start when；不冒充通过）
+Status: planned（依赖各线交付，条件见 Start when；不冒充通过。**2026-10-20 收口日核对**：① 账单——L01/L03/评测/审计证据已合入，L02 与 Issue #136 票 09 未开 PR，BF01—BF06 未全部通过；② 前端——票 03 已交付，票 04/05 按 PM 01:45 决定留在本期、不顺延；③ 安全——三张 Ready（#149/#159/#162）待退修合并，检测器与观察端未完成；④ 平台——F21—F24 与票 05 阶段一已合入，L03 注册与阶段二未完成。**任一线未齐不启动、不记通过**）
 Owner: Erwin 牵头；参与：周恩宇（账单）、梁爽/六水（前端）、Ringo 或 PM 代行（安全）、Erwin（平台/底座，[v04-platform/01](../v04-platform/packages/01-foundation-agent-mockbank.md)）
 Activation: 2026-10-11 建立（v0.4 启动同日）
 Start when: ① [包 01 账单业务能力与评测](01-bills-backend.md) 主体交付（BF01—BF06 通过、评测下限达标）；② [frontend-complete/01](../../frontend-complete/packages/01-v04-complete-frontend.md) 交付（FE-01—FE-06 通过、替换简易前端）；③ [v04-security/01](../../v04-security/packages/01-detector-and-coverage.md) 检测器与评测完整性完成；④ [v04-platform/01](../v04-platform/packages/01-foundation-agent-mockbank.md) 主体交付——F21—F24 报告与文件交付已合入 main，**真实账单模块接入（[票 05](../v04-platform/issues/05-real-bills-integration.md)）完成**后账单纵向链路才具备联调条件。任一线未齐时如实记录阻塞与提供方

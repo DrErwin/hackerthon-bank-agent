@@ -57,3 +57,10 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 已接受新包，新工作组 [v04-ethan-bills-backend](../../v04-ethan-bills-backend/spec.md)；原代表性评测包和票保持已验收，不重新打开。本人过程台账见 [progress.md](../../v04-ethan-bills-backend/progress.md)。
 
 实际代码检查发现银行接入层 B08 与账单公共类型尚待实现，已登记 [Issue #91](https://github.com/DrErwin/hackerthon-bank-agent/issues/91) 给 Erwin。先做本模块私有统计内核、局部测试与覆盖/数据，不修改公共目录、不伪造注册入口或权限通过。局部65项模块测试与26个算术黄金样本合跑91项通过；L01—L03真实业务、HTTP/模型/页面未验证，整包仍in_progress。该事实不改变原本BF01—BF07验收要求。
+
+## 2026-10-20 账单线交付状态（AI 代填 · 非真人审查）
+
+- **已合入**：L01 最小切片（[#131](https://github.com/DrErwin/hackerthon-bank-agent/pull/131) `85a119d`）、L03 类型化报告（[#151](https://github.com/DrErwin/hackerthon-bank-agent/pull/151) `40a61c3`——复审「可合」，比较意图与未来月份拦截实测有效，模块 214 passed）、评测覆盖与 head 绑定证据（[#93](https://github.com/DrErwin/hackerthon-bank-agent/pull/93) `c2f9067`——147 passed：130 算术 + 17 工具；Actions artifact 与入库 gzip 逐字节一致）、读路径审计证据收窄（[#171](https://github.com/DrErwin/hackerthon-bank-agent/pull/171) `f119482`，[Issue #145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145) 已关闭）。
+- **未合 / 未开 PR**：L02 私有规则分支 `feat/bills/l02-private-rules` 与 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136) 票 09 分支 `test/bills/l01-module-dedup-136-09` 仍未开 PR（受「一人最多两张未合 PR」限制）；#136 保持 OPEN。
+- **跨线前置**：L03 `bills.generate_report` 尚未在平台注册、安全白名单只收 L01 → 前端票 04 账单插槽真实联调不可用（见 [平台票 05](../v04-platform/issues/05-real-bills-integration.md) 2026-10-20 留痕）。
+- **BF 口径（如实）**：BF01/BF03/BF05/BF06 仅有部分算术断言；BF02/BF04/BF07 未完成；96 条设计 ≠ 96 条全部通过，评测证据只覆盖 147 项算术/工具合跑。
