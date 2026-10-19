@@ -52,3 +52,7 @@ B14 回查（查到成功按真实回执、查到失败如实报失败、仍未�
 - `operation_reserver(trusted, payload)`：按冻结事实幂等返回同一 `operation_id`；
 - 可选的 `on_bind(security_context, action_name, parameters_ref, payload)`：把绑定事实交给平台的风险事实解析器（模块的参数存储是内存态、单次调用后清理）；
 - `SubscriptionPorts` 的其余读写方法由 `reads.GatewaySubscriptionPorts` 实现，全部过安全门。
+
+## 确认失效与动作修订号（Issue #176）
+
+`entry._cancel_revision` 为每次写检查给出**单调递增**的 `action_revision`（冻结事实一变就 +1，同一事实重复核对沿用原号），与转账工作流的 `action_revision` 计数同构。安全状态只保留任务最近一张确认单，新动作的修订号不高于它时按 `OPERATION_CONFLICT` 拒绝；拿参数哈希当修订号等于掷硬币，同一输入会随机落到「重出确认单 v2」或「安全拒绝」两支。现在「关键内容变化 → 旧确认失效 → 重出确认单 v2 → 用户继续办理」是唯一分支，回归见 `test_subscription_ports.py::test_changed_facts_always_reissue_confirmation_v2_never_an_operation_conflict`。

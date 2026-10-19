@@ -352,15 +352,17 @@ class SubscriptionService:
 
     # ------------------------------------------------------------- gate passthroughs
 
-    def check_cancel(self, context: TrustedContext, plan: CancellationPlan) -> GateAnswer:
+    def check_cancel(self, context: TrustedContext, plan: CancellationPlan, *,
+                     revision: int | None = None) -> GateAnswer:
         """Ask the security gate what this cancellation still needs (nothing is executed)."""
 
-        return self.ports.check_cancel(context, plan)
+        return self.ports.check_cancel(context, plan, revision=revision)
 
-    def execute_cancel(self, context: TrustedContext, plan: CancellationPlan) -> ExecutionOutcome:
+    def execute_cancel(self, context: TrustedContext, plan: CancellationPlan, *,
+                       revision: int | None = None) -> ExecutionOutcome:
         """Run the single write through the shared executor; the gate decides admission."""
 
-        return self.ports.execute_cancel(context, plan)
+        return self.ports.execute_cancel(context, plan, revision=revision)
 
     @staticmethod
     def confirmation_message(item: SubscriptionItem) -> str:

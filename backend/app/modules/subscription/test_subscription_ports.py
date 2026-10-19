@@ -11,6 +11,7 @@ parameter reference, the context hand-off or the replay result mapping regress.
 from __future__ import annotations
 
 from datetime import timedelta
+import json
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -88,7 +89,7 @@ class Harness:
         self.gateway = (gateway_factory or FakeGateway)(self.bank)
         self.trace = Trace()
         self.state = {"answered": None, "challenges": [], "records": {}, "verification_ids": [],
-                      "operation_id": None, "refs": [], "payloads": []}
+                      "operation_id": None, "operations": {}, "refs": [], "payloads": []}
         self.confirmations = ConfirmationService(tmp_path / db, clock=lambda: NOW)
         self.ports = GatewaySubscriptionPorts(
             self.gateway, self._build_gate(allow_scope), self._context_factory,
@@ -141,6 +142,12 @@ class Harness:
 
     def _context_factory(self, trusted, operation_id=None, action_revision=None):
         answered = self.state["answered"]
+        if answered is not None and (
+                answered.operation_id != operation_id
+                or answered.action_revision != action_revision):
+            # The platform binds a confirmation only to the exact action it was answered
+            # for; changed facts therefore start a fresh confirmation instead of a stale one.
+            answered = None
         return ExecutionSecurityContext(
             user_id=trusted.user_id, session_id=trusted.session_id,
             demo_round_id=trusted.demo_round_id, task_id=trusted.task_id, run_id=trusted.run_id,
@@ -151,9 +158,14 @@ class Harness:
             release_authorization_id=None)
 
     def _reserve(self, trusted, payload):
-        if self.state["operation_id"] is None:
-            self.state["operation_id"] = uuid4()
-        return self.state["operation_id"]
+        # One operation per frozen fact set, like the production platform reserver.
+        digest = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        operation_id = self.state["operations"].get(digest)
+        if operation_id is None:
+            operation_id = uuid4()
+            self.state["operations"][digest] = operation_id
+        self.state["operation_id"] = operation_id
+        return operation_id
 
     def _on_bind(self, context, action_name, ref, payload):
         if action_name == "subscription.bank.cancel_subscription":
@@ -217,6 +229,39 @@ def test_real_gate_runs_the_write_once_with_a_stable_reference(tmp_path):
     events = [name for name, _ in harness.trace.events]
     assert events.count("tool.started") == 1 and events.count("tool.finished") == 1
     assert "bank.observed" in events
+
+
+def test_changed_facts_always_reissue_confirmation_v2_never_an_operation_conflict(tmp_path):
+    """Issue #176: 关键内容变化后的确认失效必须确定地重出确认单 v2。
+
+    安全状态只保留任务最近一张确认单，新动作的修订号不高于它时按 OPERATION_CONFLICT
+    拒绝；模块因此像转账工作流一样给出单调修订号（1、2、…），而不是对参数做哈希。
+    """
+
+    harness = Harness(tmp_path)
+    first_plan = harness.plan()
+    first = harness.ports.check_cancel(context(), first_plan, revision=1)
+    assert first.decision.value == "require_confirmation"
+    harness.answer_confirmation(first)
+
+    # The bank changes the amount after the user pressed the button: new frozen facts,
+    # a new operation number and the next revision on the same task.
+    harness.bank.mandates = [
+        item.model_copy(update={"amount_fen": 2600}) if item.mandate_id == "sub_001" else item
+        for item in harness.bank.mandates
+    ]
+    changed_plan = harness.plan()
+    assert changed_plan.payload() != first_plan.payload()
+
+    second = harness.ports.check_cancel(context(), changed_plan, revision=2)
+    assert second.decision.value == "require_confirmation", second.reason_code
+    record = harness.confirmations.get(
+        harness._context_factory(context(), second.operation_id, 2),
+        second.interaction.record_ref)
+    assert record.confirmation_version == 2
+    assert record.action_revision == 2
+    assert record.operation_id != first.operation_id
+    assert harness.gateway.cancels == 0
 
 
 def test_real_gate_refuses_to_execute_without_the_session_verification(tmp_path):

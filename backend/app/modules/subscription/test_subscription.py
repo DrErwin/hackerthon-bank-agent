@@ -154,6 +154,7 @@ class FakeGate:
 class Ports:
     def __init__(self, bank, gate):
         self.bank, self.gate = bank, gate
+        self.revisions: list[int | None] = []
 
     def accounts(self, context):
         return self.bank.accounts(context)
@@ -164,10 +165,12 @@ class Ports:
     def transactions(self, context, account_id, start_at, end_at):
         return self.bank.transactions(context, account_id, start_at, end_at)
 
-    def check_cancel(self, context, plan):
+    def check_cancel(self, context, plan, *, revision=None):
+        self.revisions.append(revision)
         return self.gate.check(context, plan)
 
-    def execute_cancel(self, context, plan):
+    def execute_cancel(self, context, plan, *, revision=None):
+        self.revisions.append(revision)
         return ExecutionOutcome(
             executed=True, state="completed",
             result=self.bank.cancel(context, UUID(self.gate.operation_id), plan.mandate_id),
@@ -534,6 +537,33 @@ def test_session_recovery_re_checks_the_gate():
     assert recovered.status == TaskStatus.WAITING_APPROVAL
     assert recovered.interaction.kind == "verification" and bank.cancel_calls == 0
     assert saver.rows["T1"].checkpoint["channel_values"]["subscription_state"]["session_id"] == "S2"
+
+
+def test_changed_facts_raise_the_frozen_action_revision_monotonically():
+    """Issue #176: 冻结事实一变，修订号就 +1；同一事实重复核对沿用同一修订号。
+
+    安全状态用「新动作修订号必须大于最近一张确认单」来判失效，哈希出来的修订号会
+    随机撞上这条规则，导致同一输入两种用户可见结果；单调计数让「旧确认失效 → 重出
+    确认单 v2」成为唯一分支。
+    """
+
+    bank, gate = FakeBank(), FakeGate()
+    ports = Ports(bank, gate)
+    task = SubscriptionEntry(SubscriptionService(ports, lambda: NOW), MemorySaver(), None)
+
+    started = task.start(context(), start_request("把优酷视频的自动扣费退了"))
+    assert started.interaction.kind == "confirmation"
+
+    bank.mandates = [
+        item.model_copy(update={"amount_fen": 2600}) if item.mandate_id == "sub_001" else item
+        for item in bank.mandates
+    ]
+    changed = task.resume(context(), {"choice": "approve"})
+    assert changed.interaction.kind == "confirmation"
+    # Same frozen facts again: the version stays the same, so the reviewed card is reused.
+    task.resume(context(), {"choice": "approve"})
+
+    assert ports.revisions == [1, 2, 2]
 
 
 def test_intent_helpers():
