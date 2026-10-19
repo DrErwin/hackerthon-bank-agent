@@ -1,5 +1,16 @@
 # 账单评测运行台账
 
+## 2026-10-19 23:04：L03 合入后最新主线独立实跑与原始报告
+
+- 受测提交（对应最新含 PR #151 主线）：`49ce93a0353dcac5923e329d240eff7c7963373f`，父提交 `40a61c32e64c34f4b3872576f05a3d7fc3ee8cc7`。
+- [GitHub Actions #39274554945](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39274554945) 全仓源码检出，Python 3.12.15 / pytest 9.1.1，实际执行 `python evals/bills/run_evidence.py --revision 49ce93a0353dcac5923e329d240eff7c7963373f`。
+- **147 passed / 0 failed / 0 skipped / 0 errors**；130 算术 + 17 工具，14/14 固定 Git 源码校验。
+- [原始 gzip](evidence/2026-10-19/20261019T150402083715Z-python3.12.15-private-arithmetic-49ce93a0353d.json.gz)，gzip SHA256 `81b6c86671711bed31c4e9e58ca03874bd631a2580879b399dc191dd34034245`；解压 JSON SHA256 `fb67e684e7513f24b57c37e513c9c819fbd74b3fb16c5ffa9608b74488a72914`。
+- 时间：UTC 2026-10-19T15:03:59.813010 → 15:04:02.079143。测试模式仅证明14个固定源文件，不证明整仓或完整 BF01–BF07 联合验收。
+
+- [本次原始运行日志](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39274554945) 的编号 Base64 块已完整还原并交 GitHub 保存为二进制 Git Blob `4bc002edb0dbeeabd8e17fe268d4a5bd0e3abed7`，未手写测试样本。此次独立运行所在主线已含 #151 L03 模块，解决之前 `manifest.py` 被新主线修改造成的来源漂移。
+- 旧 gz 以及 PR #93 前面的所有时间、测试计数和SHA 保持原值；多次跑的是同一个测试集合，**不能累计为新的业务场景数量**。
+
 ## 2026-10-19 22:11 · 当前新源码正式运行并原字节归档
 
 - **测试提交（源代码，报告提交前）**：`999c1c062cc946f89bae6607eafe6234f4f76a40`，以 10-19 最新 main `399a2feb27637bed3818b198e2bb914b5de2966d` 为父版本；仅在 `evals/bills/run_evidence.py` 增强 tier 分类且兼容现有 SimpleNamespace 钩子测试。

@@ -1,5 +1,15 @@
 # bills 评测集
 
+## 2026-10-19 23:04：L03 合入后最新主线独立实跑与原始报告
+
+- 受测提交（对应最新含 PR #151 主线）：`49ce93a0353dcac5923e329d240eff7c7963373f`，父提交 `40a61c32e64c34f4b3872576f05a3d7fc3ee8cc7`。
+- [GitHub Actions #39274554945](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39274554945) 全仓源码检出，Python 3.12.15 / pytest 9.1.1，实际执行 `python evals/bills/run_evidence.py --revision 49ce93a0353dcac5923e329d240eff7c7963373f`。
+- **147 passed / 0 failed / 0 skipped / 0 errors**；130 算术 + 17 工具，14/14 固定 Git 源码校验。
+- [原始 gzip](evidence/2026-10-19/20261019T150402083715Z-python3.12.15-private-arithmetic-49ce93a0353d.json.gz)，gzip SHA256 `81b6c86671711bed31c4e9e58ca03874bd631a2580879b399dc191dd34034245`；解压 JSON SHA256 `fb67e684e7513f24b57c37e513c9c819fbd74b3fb16c5ffa9608b74488a72914`。
+- 时间：UTC 2026-10-19T15:03:59.813010 → 15:04:02.079143。测试模式仅证明14个固定源文件，不证明整仓或完整 BF01–BF07 联合验收。
+
+- 新增本归档提交仅加 gzip 与三份说明，不更动上述14个被测源码文件。早前报告作为历史证据保留，不能拿不同源码版本报告冒充本次结果。
+
 ## 2026-10-19 22:11 · 最新 GitHub 完整检出固定源码运行（本轮当前证据）
 
 - 受测源码提交：`999c1c062cc946f89bae6607eafe6234f4f76a40`。GitHub Actions **[39266604025](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39266604025)**：Python 3.12.15 / pytest 9.1.1，真实运行 `python evals/bills/run_evidence.py --revision 999c1c062cc946f89bae6607eafe6234f4f76a40`，无需来源切片替身。
