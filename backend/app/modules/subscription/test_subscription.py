@@ -77,8 +77,10 @@ class FakeBank:
         self.cancel_calls = 0
 
     def accounts(self, context):
+        # The real bank labels its own accounts "尾号 0001"; the fake must match it so a
+        # double prefix in the confirmation card cannot hide behind a fixture format.
         return QueryOk(kind="ok", data=AccountList(accounts=[AccountSummary(
-            account_id="A1", account_type="class_i", account_masked="****0001",
+            account_id="A1", account_type="class_i", account_masked="尾号 0001",
             available_balance_fen=1_000_000, display_name="主账户", bank_name="模拟银行")]))
 
     def mandates_for(self, context, account_id=None, status=None):
@@ -295,6 +297,23 @@ def test_rule_four_keeps_the_first_anchor_on_a_month_end():
 
 
 # ------------------------------------------------------------------- cancel side
+
+def test_the_confirmation_names_the_account_exactly_once():
+    """The bank already labels its accounts; the module must not prefix a second time."""
+
+    bank, gate = FakeBank(), FakeGate()
+    first = entry(bank, gate).start(context(), start_request("把优酷视频的自动扣费退了"))
+    assert first.status == TaskStatus.WAITING_APPROVAL
+    plan = gate.plans[-1]
+    assert plan.fields[1].value_text == "尾号 ****0001"
+    assert plan.account_masked == "****0001"
+    assert "扣款账户尾号 ****0001" in first.message
+    assert "尾号 尾号" not in first.message and "尾号 尾号" not in plan.fields[1].value_text
+    # A flow-only clue carries the bank's own B01 label, which is already prefixed.
+    inventory = service(bank, gate).inventory(context())
+    clue = next(item for item in inventory.items if item.source_type == "suspected_ledger")
+    assert clue.account_masked == "尾号 0001"
+
 
 def test_list_mode_returns_the_list_view():
     result = entry().start(context(), start_request("帮我查查有哪些自动扣费"))
