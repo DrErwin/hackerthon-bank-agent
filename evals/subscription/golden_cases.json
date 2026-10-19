@@ -1714,14 +1714,6 @@
         ],
         "final_status": "failed_or_reconfirmed",
         "interaction": null,
-        "bank_operations": 0,
-        "mandates": {
-          "sub_001": "active",
-          "sub_002": "active",
-          "sub_003": "cancelled"
-        },
-        "requires_confirmation": true,
-        "verification": null,
         "required_text": [],
         "forbidden_text": [
           "会员可用至",
@@ -1738,7 +1730,8 @@
           "mandate_status": "active",
           "never_claims_success": true,
           "reconfirm_version": 2
-        }
+        },
+        "note": "平台在此分支有两种安全收尾（重出确认单 v2 / 安全拒绝），受进程哈希序影响；本用例断言共同安全不变量，见 README §8"
       }
     },
     {

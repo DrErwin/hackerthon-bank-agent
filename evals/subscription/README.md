@@ -75,7 +75,7 @@ python -m pytest evals/subscription -q
 | E01 说不清/多候选 | 4 | SUB-CAN-03、SUB-CAN-04、SUB-CAN-05、SUB-DIS-01 | 含用文字而非选项 id 回答候选 |
 | E02 只有流水、无签约 | 3 | SUB-GUD-01、SUB-GUD-02、SUB-RED-02 | 「不是我订的」多轮分支 **Blocked**（需真实模型） |
 | E03 追问退已扣款 | 0 | — | **Blocked**：退款追问话术属规划/问答槽位，脚本替身入口无法断言 |
-| E04 处理中/已退 | 2 | SUB-IDM-01、SUB-CAN-16 | `processing` 分支 v0.4 无该状态（契约 §7A）；「无 active 提醒」见 E12 行，「无下一期日期不硬退」见覆盖表 SOP-3 例外行（SUB-CAN-17） |
+| E04 处理中/已退 | 2 | SUB-IDM-01、SUB-CAN-16 | `processing` 分支 v0.4 无该状态（契约 §7A）；「无 active 提醒」见 §2「SOP-3 无生效签约」行（SUB-REM-03），「无下一期日期不硬退」见 §2 SOP-3 例外行（SUB-CAN-17） |
 | E05 反悔/取消/会话失效 | 4 | SUB-IDM-02、SUB-CAN-07、SUB-CAN-10、SUB-CAN-11 | 覆盖确认前、验证阶段、换会话、内容变化四个时点 |
 | E06 结果未知 | 3 | SUB-CAN-13、SUB-CAN-14、SUB-CAN-19 | 回查成功/未受理/银行判失败三种收尾 |
 | E07 重复点击 | 2 | SUB-CAN-06、SUB-CAN-13 | 同一确认记录只执行一次 |
