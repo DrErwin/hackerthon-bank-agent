@@ -34,6 +34,11 @@ from .security import (
     SecurityDecision, VerificationChallenge,
     VerificationRecord, VerificationSummary, VerificationView,
 )
+from .subscription import (
+    SubscriptionCancelInput, SubscriptionCancelReceipt, SubscriptionCycle, SubscriptionItem,
+    SubscriptionListInput, SubscriptionListResult, SubscriptionMandate, SubscriptionMandateList,
+    SubscriptionScanStatus, SubscriptionSourceType, SubscriptionStatus, SubscriptionTaskView,
+)
 from .tasks import (
     InteractionOption, InteractionRequest, ModuleError, ModuleResult, RejectedRequest,
     TaskView, TransferSummary, TransferTaskView,
