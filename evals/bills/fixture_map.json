@@ -1,0 +1,104 @@
+{
+  "ARITH-01": [
+    "BILL-001"
+  ],
+  "ARITH-02": [
+    "BILL-001"
+  ],
+  "ARITH-03": [
+    "BILL-004",
+    "BILL-STAT-25"
+  ],
+  "ARITH-04": [
+    "BILL-STAT-06"
+  ],
+  "ARITH-05": [
+    "BILL-STAT-07"
+  ],
+  "ARITH-06": [
+    "BILL-003",
+    "BILL-REP-04"
+  ],
+  "ARITH-07": [
+    "BILL-STAT-07"
+  ],
+  "ARITH-08": [
+    "BILL-001"
+  ],
+  "ARITH-09": [
+    "BILL-STAT-03"
+  ],
+  "ARITH-10": [
+    "BILL-STAT-05",
+    "BILL-STAT-25"
+  ],
+  "ARITH-11": [
+    "BILL-019"
+  ],
+  "ARITH-12": [
+    "BILL-REP-08"
+  ],
+  "ARITH-13": [
+    "BILL-REP-03"
+  ],
+  "ARITH-14": [
+    "BILL-REP-02"
+  ],
+  "ARITH-15": [
+    "BILL-REP-07"
+  ],
+  "ARITH-16": [
+    "BILL-STAT-12"
+  ],
+  "ARITH-17": [
+    "BILL-STAT-26"
+  ],
+  "ARITH-18": [
+    "BILL-STAT-15"
+  ],
+  "ARITH-19": [
+    "BILL-STAT-12"
+  ],
+  "ARITH-20": [
+    "BILL-STAT-27"
+  ],
+  "ARITH-21": [
+    "BILL-STAT-16"
+  ],
+  "ARITH-22": [
+    "BILL-005"
+  ],
+  "ARITH-23": [
+    "BILL-STAT-08"
+  ],
+  "ARITH-24": [
+    "BILL-STAT-11"
+  ],
+  "ARITH-25": [
+    "BILL-STAT-06"
+  ],
+  "ARITH-26": [
+    "BILL-STAT-16"
+  ],
+  "ARITH-27": [
+    "BILL-STAT-24"
+  ],
+  "ARITH-28": [
+    "BILL-STAT-24"
+  ],
+  "ARITH-29": [
+    "BILL-STAT-24"
+  ],
+  "ARITH-30": [
+    "BILL-STAT-25"
+  ],
+  "ARITH-31": [
+    "BILL-STAT-25"
+  ],
+  "ARITH-32": [
+    "BILL-STAT-17"
+  ],
+  "ARITH-33": [
+    "BILL-STAT-25"
+  ]
+}
