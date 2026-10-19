@@ -54,7 +54,7 @@
 - 实际命令：`python evals/bills/run_evidence.py --revision 17031a174aed5b586032ed4c455b0c594182ab9e`，无 `--source-manifest`。Python **3.12.14**，仓库固定 pytest **9.1.1**。
 - 开始：`2026-10-19T07:56:07.088480+00:00`；结束：`2026-10-19T07:56:07.857506+00:00`（北京时间15:56:07）。实际结果：**147 passed / 0 failed / 0 skipped / 0 errors / 0 collection errors**。
 - 原始新报告：[20261019T075607860590Z-python3.12.14-private-arithmetic-17031a174aed.json.gz](evidence/2026-10-19/20261019T075607860590Z-python3.12.14-private-arithmetic-17031a174aed.json.gz)。解压 JSON **SHA256=`dfd6416bbafcee6f8fd17070ccdc6b42b2d79b5d64b2c837fd14e4b035e6bf33`**。报告模式 **`git_object_verified_source_files`**；14/14 被测文件与提交的 Git 对象一致，真实包初始化器存在。
-- 分层：**96条设计 / 33个黄金样本 / 130项算术（97模块与契约+33黄金）/ 17项工具 / 147项合跑**。运行器当前 `tier_counts` 仍把147项合记为 `private_arithmetic`，这是 PM 已登记的非阻塞分类缺陷；此处按实际测试文件单列130+17，未修改原始报告。
+- 分层：**96条设计 / 33个黄金样本 / 130项算术（97模块与契约+33黄金）/ 17项工具 / 147项合跑**。运行器当时把147项合记为 `private_arithmetic`（PM 已登记的非阻塞分类缺陷）；该缺陷随后已修（`run_evidence.py` 改按 `item.path` 文件名判定分层），后续新报告 `tier_counts` 为 `{private_arithmetic: 130, evidence_tooling: 17}`。本历史报告保留原字段字节不改。
 - 另行实际运行 `python -m pytest -q evals/bills/`：**50 passed in 0.23s**。此50项与147项中的黄金/工具测试重叠，不相加为197项覆盖。
 - 后继提交只增加新报告并更新README、gaps和本台账；14份被测源码保持相同。历史gzip保留原字节。本轮 14 份源码比对仅证明指定文件来源，不提供整树完整性、干净工作区或依赖闭包校验，也不将局部算术报告扩写为真实模型、HTTP、页面或全部业务验收。
 
@@ -71,7 +71,7 @@
 
 依据 [Erwin 的 PR #93 最新审查](https://github.com/DrErwin/hackerthon-bank-agent/pull/93#issuecomment-6267314630)，本轮选择把验证措辞收窄，而不是虚称整仓完整校验：git_object_verified_source_files 仅核实 **14 份指定源文件**的 Git Blob 和工作树字节一致，且 pytest 在该工作树执行；没有检查全部 Git 对象、完整依赖闭包、HEAD 对齐或 git status clean。
 
-历史测试的时间、报告和 hash 保留原字节，不以旧版本报告冒充最新 HEAD 的新一轮实跑。审查仍要求在最新 HEAD 真正执行 run_evidence.py --revision HEAD完整SHA，并归档该提交的 gzip、解压 SHA256 和各层统计；在报告上传之前此项保持未完成。
+历史测试的时间、报告和 hash 保留原字节，不以旧版本报告冒充最新 HEAD 的新一轮实跑。审查仍要求在最新 HEAD 真正执行 `run_evidence.py --revision <完整SHA>`，并归档该提交的 gzip、解压 SHA256 和各层统计。**此项已于 2026-10-19 23:04 完成**：受测提交 `49ce93a`，GitHub Actions run 39274554945 全仓检出实跑，147 passed（130 算术 + 17 工具），报告已入库（见 README 最新一节）。
 
 ## 始终未被本算术报告证明的范围
 

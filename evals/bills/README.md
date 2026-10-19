@@ -10,7 +10,9 @@
 
 - 新增本归档提交仅加 gzip 与三份说明，不更动上述14个被测源码文件。早前报告作为历史证据保留，不能拿不同源码版本报告冒充本次结果。
 
-## 2026-10-19 22:11 · 最新 GitHub 完整检出固定源码运行（本轮当前证据）
+## 2026-10-19 22:11 · 历史批次：999c1c0 上的完整检出运行（已被上方 23:04 批次取代）
+
+> 本批次仅作历史证据保留，**不是当前有效结论**：`999c1c0` 不是最终 head 的祖先，且 `manifest.py` 的 Git blob 后来已变化（`ef23a08` → `6fa39fd`）；引用最新结果请用上方 23:04 的 `49ce93a` 批次。
 
 - 受测源码提交：`999c1c062cc946f89bae6607eafe6234f4f76a40`。GitHub Actions **[39266604025](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39266604025)**：Python 3.12.15 / pytest 9.1.1，真实运行 `python evals/bills/run_evidence.py --revision 999c1c062cc946f89bae6607eafe6234f4f76a40`，无需来源切片替身。
 - [原始 gzip 报告](evidence/2026-10-19/20261019T141112115688Z-python3.12.15-private-arithmetic-999c1c062cc9.json.gz)：**147 passed / 0 failed / 0 skipped / 0 errors / 0 collection errors**；按真实路径识别 **130 项算术 + 17 项证据工具**。
