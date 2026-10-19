@@ -10,7 +10,7 @@ substitutes a lower risk level for a missing fact.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
@@ -18,7 +18,10 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import TypeAdapter
 
-from app.contracts.bank import PayeeInput, QueryFailure
+from app.contracts.bank import (
+    PayeeDisplay, PayeeInput, PayeeVerification, QueryFailure, QueryOk, Transaction,
+    TransactionList,
+)
 from app.contracts.common import TaskStatus
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
@@ -41,11 +44,13 @@ ACTION_BINDING_REQUIRED = "risk-input-action-binding-required"
 ACTION_UNSUPPORTED = "risk-input-action-unsupported"
 
 _TERMINAL = frozenset({TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED})
-_FACT_NAMES = ("payee_familiarity", "amount_history", "environment")
+_FACT_NAMES = ("payee_history", "amount_history", "environment")
 _PAYEE = TypeAdapter(PayeeInput)
 _EVIDENCE_PREFIX = "risk-inputs-"
+_EVIDENCE_LENGTH = 24
 
-FactName = Literal["payee_familiarity", "amount_history", "environment"]
+# FactName mirrors _FACT_NAMES for typing; _FACT_NAMES is the runtime source.
+FactName = Literal["payee_history", "amount_history", "environment"]
 RiskDetector = Callable[["RiskInputs"], "DemoRiskEvidence"]
 
 
@@ -54,8 +59,9 @@ class RiskFact:
     """One risk dimension with its actual source and checked scope.
 
     ``known`` always carries a value and the source that produced it; ``unknown``
-    never carries a value. An unknown fact means the dimension was not checked,
-    so the detector must not read it as a safe or low-risk result.
+    never carries a value. An unknown fact means the dimension was not checked:
+    the detector must not read it as a safe result, and must not report it as a
+    checked signal dimension.
     """
 
     name: FactName
@@ -99,12 +105,12 @@ class RiskInputs:
     task_id: str
     run_id: str
     request_id: str
-    request_text: str
+    request_text: str = field(repr=False)
     action_name: str
     parameters_ref: str
     operation_id: str | None
     action_revision: int | None
-    action_facts: Mapping[str, object]
+    action_facts: Mapping[str, object] = field(repr=False)
     facts: tuple[RiskFact, ...]
     evidence_ref: str
 
@@ -121,7 +127,7 @@ class RiskInputs:
             raise ValueError("risk inputs must carry every registered fact once")
         if not isinstance(self.evidence_ref, str) or not self.evidence_ref.startswith(
             _EVIDENCE_PREFIX
-        ) or len(self.evidence_ref) != len(_EVIDENCE_PREFIX) + 24:
+        ) or len(self.evidence_ref) != len(_EVIDENCE_PREFIX) + _EVIDENCE_LENGTH:
             raise ValueError("risk input evidence reference must be an opaque digest")
 
     def fact(self, name: FactName) -> RiskFact:
@@ -266,25 +272,33 @@ class TrustedRiskInputs:
         return (payee_fact, amount_fact, environment)
 
     def _payee_fact(
-        self, verification, history, transactions, display,
+        self, verification: QueryOk[PayeeVerification] | QueryFailure,
+        history: QueryOk[TransactionList] | QueryFailure,
+        transactions: list[Transaction] | None, display: PayeeDisplay | None,
     ) -> RiskFact:
+        """The facts of this payee, not a risk verdict: saved status and prior outflows.
+
+        In the current bank path a payee only reaches a write action after B04
+        resolved it, so a known fact always carries ``saved=True``; the detector
+        tells "常用收款人" from "新收款人" by ``prior_outflows``.
+        """
         window = int(self.history_window.total_seconds() // 86400)
         if isinstance(verification, QueryFailure):
             return RiskFact(
-                name="payee_familiarity", status="unknown",
+                name="payee_history", status="unknown",
                 source=f"mock-bank:{verification.error.code}",
-                scope=f"收款人核验读取失败；近 {window} 天流水未检查",
+                scope=f"收款人核验读取失败，无法确认对手方；近 {window} 天流水未检查",
             )
         if display is None:
             return RiskFact(
-                name="payee_familiarity", status="unknown",
+                name="payee_history", status="unknown",
                 source="mock-bank:b04",
                 scope="收款人无法解析为银行已存收款人；熟悉度未检查",
             )
         if transactions is None:
             code = history.error.code if isinstance(history, QueryFailure) else "b08"
             return RiskFact(
-                name="payee_familiarity", status="unknown",
+                name="payee_history", status="unknown",
                 source=f"mock-bank:{code}",
                 scope=f"收款人已解析，但近 {window} 天流水读取失败；熟悉度未检查",
             )
@@ -292,21 +306,19 @@ class TrustedRiskInputs:
             item for item in transactions
             if item.direction == "outflow" and (
                 item.counterparty_id == display.payee_id
-                or (
-                    display.account_masked is not None
-                    and item.counterparty_account_masked == display.account_masked
-                )
+                or item.counterparty_account_masked == display.account_masked
             )
         ]
-        familiar = verification.data.matched or bool(prior)
         return RiskFact(
-            name="payee_familiarity", status="known", source="mock-bank:b04+b08",
+            name="payee_history", status="known", source="mock-bank:b04+b08",
             scope=f"本人账户近 {window} 天转出流水 + 银行已存收款人核验",
-            value={"familiar": familiar, "saved": verification.data.matched,
-                   "prior_outflows": len(prior)},
+            value={"saved": verification.data.matched, "prior_outflows": len(prior)},
         )
 
-    def _amount_fact(self, history, transactions, amount_fen: int) -> RiskFact:
+    def _amount_fact(
+        self, history: QueryOk[TransactionList] | QueryFailure,
+        transactions: list[Transaction] | None, amount_fen: int,
+    ) -> RiskFact:
         window = int(self.history_window.total_seconds() // 86400)
         if transactions is None:
             code = history.error.code if isinstance(history, QueryFailure) else "b08"
@@ -359,7 +371,7 @@ class TrustedRiskInputs:
         return f"{_EVIDENCE_PREFIX}{digest[:24]}"
 
     def _unavailable(self, rule_id: str) -> None:
-        raise self._binding_error(rule_id)
+        raise self._binding_error(rule_id) from None
 
     def _binding_error(self, rule_id: str) -> RuntimeError:
         # Imported locally so this module stays importable while app.security loads.

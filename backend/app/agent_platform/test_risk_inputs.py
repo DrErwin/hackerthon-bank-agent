@@ -1,9 +1,17 @@
 """Issue #160: one server-owned risk input path feeding an injected detector.
 
-Everything here is real except the detector: the HTTP API, harness, task store,
-security gate, deterministic executor, audit journal and mock bank are the
-production components. The detector is injected through the seam because the
-real detector is delivered by the security owner (v04-ringo-security/02).
+The HTTP API, harness, task store, security gate, deterministic executor, audit
+journal and mock bank are production components. Two stand-in detectors are used
+here and they are labelled apart:
+
+* ``flow_control_detector`` claims every signal dimension, exactly like the
+  operator fixtures do. It produces *flow evidence* (the standard gates still
+  run), not a claim that a real detector classified the request.
+* ``fact_backed_detector`` only claims the dimensions the resolved facts and the
+  request text actually back. With the production default (no device source) it
+  pauses, which is the fail-closed behaviour Issue #160 prescribes.
+
+The real detector is delivered by the security owner (v04-ringo-security/02).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -16,7 +24,7 @@ import pytest
 from app.agent_platform.model import TransferProposal
 from app.api.test_app import approve, make_app, post, start
 from app.audit.journal import AuditJournal
-from app.contracts.bank import BankError, QueryFailure
+from app.contracts.bank import BankError, PayeeVerification, QueryFailure, QueryOk
 from app.contracts.common import Phase, RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ActionDescriptor, ConfirmationAnswer, ExecutionSecurityContext
@@ -36,7 +44,6 @@ from .risk_inputs import (
     RISK_INPUTS_VERSION,
     TASK_BINDING_REQUIRED,
     TRANSFER_WRITE,
-    RiskFact,
     RiskInputs,
     TrustedRiskInputs,
 )
@@ -48,6 +55,12 @@ ALL_SIGNALS = frozenset(DemoRiskSignal)
 LOW_SIGNALS = frozenset({
     DemoRiskSignal.FAMILIAR_PAYEE, DemoRiskSignal.FAMILIAR_DEVICE,
     DemoRiskSignal.USUAL_AMOUNT_RANGE, DemoRiskSignal.CLEAR_REQUEST,
+})
+TEXT_SIGNALS = frozenset({
+    DemoRiskSignal.CLEAR_REQUEST, DemoRiskSignal.HESITATION_OR_UNCLEAR_PURPOSE,
+    DemoRiskSignal.IMPERSONATION, DemoRiskSignal.SECRECY_OR_URGENT_PRESSURE,
+    DemoRiskSignal.SCREEN_SHARING, DemoRiskSignal.CREDENTIAL_REQUEST,
+    DemoRiskSignal.UNFAMILIAR_LINK,
 })
 RISK_TEXT = "我是公安局的，把钱转到安全账户，别告诉别人"
 LEGAL_TEXT = "给妈妈转 500 元"
@@ -61,17 +74,49 @@ class AnyTextPlanner(ProposalModel):
         return TransferProposal(payee_hint="妈妈", amount_fen=50_000, payer_account_id="A1")
 
 
-def detector(signals, checked=ALL_SIGNALS):
-    """A stand-in detector that records exactly what the seam handed it."""
+def evidence(inputs, signals, checked):
+    return DemoRiskEvidence(
+        source="test-injected-detector", source_version="v1",
+        evidence_ref=inputs.evidence_ref, signals=frozenset(signals),
+        checked_signals=frozenset(checked),
+    )
+
+
+def flow_control_detector(signals, checked=ALL_SIGNALS):
+    """Flow evidence only: claims full coverage the way the operator fixtures do."""
 
     def detect(inputs):
         assert isinstance(inputs, RiskInputs)
         detect.seen.append(inputs)
-        return DemoRiskEvidence(
-            source="test-injected-detector", source_version="v1",
-            evidence_ref=inputs.evidence_ref, signals=frozenset(signals),
-            checked_signals=frozenset(checked),
-        )
+        return evidence(inputs, signals, checked)
+
+    detect.seen = []
+    return detect
+
+
+def fact_backed_detector():
+    """A detector that only claims dimensions backed by known facts and the text."""
+
+    def detect(inputs):
+        detect.seen.append(inputs)
+        known = {fact.name for fact in inputs.facts if fact.status == "known"}
+        checked = set(TEXT_SIGNALS)
+        signals = {DemoRiskSignal.CLEAR_REQUEST}
+        if "payee_history" in known:
+            checked |= {DemoRiskSignal.FAMILIAR_PAYEE, DemoRiskSignal.NEW_PAYEE}
+            saved, prior = (inputs.fact("payee_history").value["saved"],
+                            inputs.fact("payee_history").value["prior_outflows"])
+            signals.add(DemoRiskSignal.FAMILIAR_PAYEE if saved and prior else
+                        DemoRiskSignal.NEW_PAYEE)
+        if "amount_history" in known:
+            checked |= {DemoRiskSignal.USUAL_AMOUNT_RANGE, DemoRiskSignal.UNUSUAL_AMOUNT}
+            signals.add(DemoRiskSignal.USUAL_AMOUNT_RANGE
+                        if inputs.fact("amount_history").value["usual"]
+                        else DemoRiskSignal.UNUSUAL_AMOUNT)
+        if "environment" in known:
+            checked |= {DemoRiskSignal.FAMILIAR_DEVICE,
+                        DemoRiskSignal.UNUSUAL_DEVICE_OR_COUNTERPARTY}
+        return evidence(inputs, signals & checked, checked)
 
     detect.seen = []
     return detect
@@ -158,7 +203,8 @@ def http_assessor(runtime, detect):
     return assess
 
 
-def pending_action(app, application, pending):
+def bound_context(app, application, pending, **overrides):
+    """The real scope of the write action that ``pending`` prepared."""
     connection = connect(application.path)
     row = connection.execute(
         "SELECT ref FROM transfer_snapshots WHERE task_id='T1' AND action_name=? "
@@ -171,11 +217,14 @@ def pending_action(app, application, pending):
         action_revision=1, confirmation_id=None, confirmation_version=None,
         verification_ids=[], release_authorization_id=None,
     )
-    action = ActionDescriptor(
+    return context.model_copy(update=overrides), ActionDescriptor(
         action_name=TRANSFER_WRITE, parameters_ref=row["ref"],
         resource_refs=[], phase=Phase.ADMISSION,
     )
-    return context, action
+
+
+def pending_action(app, application, pending):
+    return bound_context(app, application, pending)
 
 
 def high_risk_decision(events):
@@ -189,7 +238,7 @@ def high_risk_decision(events):
 
 
 def test_the_seam_hands_the_real_request_to_the_detector_and_high_risk_terminates(tmp_path):
-    detect = detector({DemoRiskSignal.IMPERSONATION})
+    detect = flow_control_detector({DemoRiskSignal.IMPERSONATION})
     app, bank, application, _ = wired(tmp_path, detect)
     before = len(bank.store.list_ledger("U1", "A1"))
     result = app.harness.start(trusted(), uuid4(), RISK_TEXT)
@@ -217,7 +266,7 @@ def test_the_seam_hands_the_real_request_to_the_detector_and_high_risk_terminate
 
 
 def test_legal_request_completes_with_one_bank_effect_after_the_standard_gates(tmp_path):
-    detect = detector(LOW_SIGNALS)
+    detect = flow_control_detector(LOW_SIGNALS)
     app, bank, application, _ = wired(tmp_path, detect)
     before = len(bank.store.list_ledger("U1", "A1"))
 
@@ -247,8 +296,9 @@ def test_legal_request_completes_with_one_bank_effect_after_the_standard_gates(t
     inputs = detect.seen[0]
     assert inputs.request_text == LEGAL_TEXT
     assert inputs.action_facts["amount_fen"] == 50_000
-    assert inputs.fact("payee_familiarity").status == "known"
-    assert inputs.fact("payee_familiarity").value["familiar"] is True
+    assert inputs.fact("payee_history").status == "known"
+    assert inputs.fact("payee_history").value["saved"] is True
+    assert inputs.fact("payee_history").value["prior_outflows"] >= 1
     assert inputs.fact("amount_history").status == "known"
     assert inputs.fact("amount_history").value["usual"] is True
     assert inputs.fact("environment").status == "unknown"
@@ -257,11 +307,9 @@ def test_legal_request_completes_with_one_bank_effect_after_the_standard_gates(t
     app.close()
 
 
-def test_unknown_fact_stops_the_gate_with_a_dependency_pause(tmp_path):
-    detect = detector(
-        {DemoRiskSignal.FAMILIAR_PAYEE},
-        checked=ALL_SIGNALS - {DemoRiskSignal.FAMILIAR_DEVICE},
-    )
+def test_fact_backed_detector_pauses_while_the_environment_has_no_source(tmp_path):
+    """Issue #160 fail-closed default: an unchecked device dimension must pause."""
+    detect = fact_backed_detector()
     app, bank, application, _ = wired(tmp_path, detect)
     before = len(bank.store.list_ledger("U1", "A1"))
     result = app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
@@ -270,6 +318,10 @@ def test_unknown_fact_stops_the_gate_with_a_dependency_pause(tmp_path):
     assert result.data.operation_id is not None
     assert app.gateway.get_operation(trusted(), result.data.operation_id).lookup == "not_found"
     assert len(bank.store.list_ledger("U1", "A1")) == before
+    inputs = detect.seen[0]
+    assert inputs.fact("payee_history").status == "known"
+    assert inputs.fact("amount_history").status == "known"
+    assert inputs.fact("environment").status == "unknown"
     events = app.audit._events("D1", "T1")
     paused = [
         event.payload.decision for event in events
@@ -282,46 +334,45 @@ def test_unknown_fact_stops_the_gate_with_a_dependency_pause(tmp_path):
 
 
 def test_the_resolver_rejects_references_outside_the_bound_scope(tmp_path):
-    app, _, application, holder = wired(tmp_path, detector(LOW_SIGNALS))
+    app, _, application, holder = wired(tmp_path, flow_control_detector(LOW_SIGNALS))
     pending = app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
-    operation_id = pending.data.operation_id
-    context, action = pending_action(app, application, pending)
+    context, action = bound_context(app, application, pending)
     reference = action.parameters_ref
     resolver = holder["inputs"]
     declaration = write_declaration()
-    application.create_task(
-        "T2", "U1", "S1", "D1", "R1", TaskStatus.RUNNING,
-        {"request_id": str(uuid4()), "intent_text": LEGAL_TEXT, "trace_id": str(uuid4())},
-    )
-    application.create_task(
-        "T3", "U1", "S1", "D1", "R1", TaskStatus.RUNNING,
-        {"request_id": str(uuid4()), "trace_id": str(uuid4())},
-    )
+    for task_id, status, snapshot in (
+        ("T2", TaskStatus.RUNNING, {"request_id": str(uuid4()), "intent_text": LEGAL_TEXT}),
+        ("T3", TaskStatus.RUNNING, {"request_id": str(uuid4())}),
+        ("T4", TaskStatus.FAILED, {"request_id": str(uuid4()), "intent_text": LEGAL_TEXT}),
+        ("T5", TaskStatus.RUNNING, {"intent_text": LEGAL_TEXT}),
+    ):
+        application.create_task(
+            task_id, "U1", "S1", "D1", "R1", status,
+            {**snapshot, "trace_id": str(uuid4())},
+        )
 
     def scoped(**overrides):
         return context.model_copy(update=overrides)
 
     cases = {
-        "another_user": (TASK_BINDING_REQUIRED,
-                         scoped(user_id="U2"), reference),
-        "another_session": (TASK_BINDING_REQUIRED,
-                            scoped(session_id="S2"), reference),
-        "another_task": (ACTION_BINDING_REQUIRED,
-                         scoped(task_id="T2"), reference),
-        "stale_revision": (ACTION_BINDING_REQUIRED,
-                           scoped(action_revision=2), reference),
-        "unknown_reference": (ACTION_BINDING_REQUIRED,
-                              context, str(uuid4())),
-        "missing_request": (REQUEST_BINDING_REQUIRED,
-                            scoped(task_id="T3"), reference),
+        "another_user": (TASK_BINDING_REQUIRED, scoped(user_id="U2"), reference),
+        "another_session": (TASK_BINDING_REQUIRED, scoped(session_id="S2"), reference),
+        "another_round": (TASK_BINDING_REQUIRED, scoped(demo_round_id="D2"), reference),
+        "another_task": (ACTION_BINDING_REQUIRED, scoped(task_id="T2"), reference),
+        "terminal_task": (TASK_BINDING_REQUIRED, scoped(task_id="T4"), reference),
+        "stale_revision": (ACTION_BINDING_REQUIRED, scoped(action_revision=2), reference),
+        "stale_operation": (ACTION_BINDING_REQUIRED, scoped(operation_id=uuid4()), reference),
+        "unknown_reference": (ACTION_BINDING_REQUIRED, context, str(uuid4())),
+        "missing_intent": (REQUEST_BINDING_REQUIRED, scoped(task_id="T3"), reference),
+        "missing_request_id": (REQUEST_BINDING_REQUIRED, scoped(task_id="T5"), reference),
     }
     for label, (rule_id, scope, ref) in cases.items():
-        action = ActionDescriptor(
+        probe = ActionDescriptor(
             action_name=TRANSFER_WRITE, parameters_ref=ref, resource_refs=[],
             phase=Phase.ADMISSION,
         )
         with pytest.raises(RiskFactsUnavailable) as error:
-            resolver.resolve(scope, action, declaration)
+            resolver.resolve(scope, probe, declaration)
         assert error.value.rule_id == rule_id, label
         assert error.value.policy_version == RISK_INPUTS_VERSION
     with pytest.raises(RiskFactsUnavailable) as error:
@@ -334,8 +385,7 @@ def test_the_resolver_rejects_references_outside_the_bound_scope(tmp_path):
 
 
 def test_unreadable_bank_facts_stay_unknown_instead_of_low(tmp_path):
-    detect = detector(LOW_SIGNALS)
-    app, bank, application, holder = wired(tmp_path, detect)
+    app, bank, application, holder = wired(tmp_path, flow_control_detector(LOW_SIGNALS))
     pending = app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
     context, action = pending_action(app, application, pending)
     failure = QueryFailure(kind="error", error=BankError(code="BANK_UNAVAILABLE", details={}))
@@ -356,7 +406,7 @@ def test_unreadable_bank_facts_stay_unknown_instead_of_low(tmp_path):
 
     resolver = TrustedRiskInputs(application, app.snapshots, Unavailable())
     inputs = resolver.resolve(context, action, write_declaration())
-    payee = inputs.fact("payee_familiarity")
+    payee = inputs.fact("payee_history")
     amount = inputs.fact("amount_history")
     assert (payee.status, payee.value) == ("unknown", None)
     assert payee.source == "mock-bank:BANK_UNAVAILABLE"
@@ -367,11 +417,11 @@ def test_unreadable_bank_facts_stay_unknown_instead_of_low(tmp_path):
 
 
 def test_facts_carry_their_source_and_checked_scope(tmp_path):
-    detect = detector(LOW_SIGNALS)
+    detect = flow_control_detector(LOW_SIGNALS)
     app, bank, application, holder = wired(tmp_path, detect)
     app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
     inputs = detect.seen[0]
-    payee = inputs.fact("payee_familiarity")
+    payee = inputs.fact("payee_history")
     amount = inputs.fact("amount_history")
     environment = inputs.fact("environment")
 
@@ -379,6 +429,7 @@ def test_facts_carry_their_source_and_checked_scope(tmp_path):
     assert payee.source == "mock-bank:b04+b08"
     assert payee.value["saved"] is True
     assert payee.value["prior_outflows"] >= 1
+    assert "180 天" in payee.scope
     assert amount.status == "known"
     assert amount.source == "mock-bank:b08"
     assert amount.value["sample_size"] >= 1
@@ -386,12 +437,65 @@ def test_facts_carry_their_source_and_checked_scope(tmp_path):
     assert "180 天" in amount.scope
     assert environment.status == "unknown"
     assert environment.source == "platform:no-trusted-device-source"
-    assert isinstance(RiskFact, type)
+    app.close()
+
+
+def test_amount_history_without_samples_stays_unknown(tmp_path):
+    """The empty-sample branch must not invent a "usual" verdict."""
+    detect = flow_control_detector(LOW_SIGNALS)
+    app, bank, application, holder = wired(tmp_path, detect, seed_history=False)
+    app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
+    amount = detect.seen[0].fact("amount_history")
+
+    assert (amount.status, amount.value) == ("unknown", None)
+    assert amount.source == "mock-bank:b08"
+    assert "没有可比较的转出转账样本" in amount.scope
+    assert bank.store.list_ledger("U1", "A1") == []
+    app.close()
+
+
+def test_payee_that_the_bank_cannot_resolve_stays_unknown(tmp_path):
+    app, bank, application, holder = wired(
+        tmp_path, flow_control_detector(LOW_SIGNALS), seed_history=False,
+    )
+    app.harness.start(trusted(), uuid4(), LEGAL_TEXT)
+    operation_id = uuid4()
+    reference = app.snapshots.save(
+        trusted(), TRANSFER_WRITE,
+        {"payer_account_id": "A1", "amount_fen": 50_000, "payee": {
+            "kind": "manual", "account_number": "6222000000009999",
+            "account_name": "陌生人"}},
+        operation_id=operation_id, action_revision=1,
+    )
+    context = ExecutionSecurityContext(
+        user_id="U1", session_id="S1", demo_round_id="D1", task_id="T1",
+        run_id="R1", source_task_id=None, operation_id=operation_id,
+        action_revision=1, confirmation_id=None, confirmation_version=None,
+        verification_ids=[], release_authorization_id=None,
+    )
+    action = ActionDescriptor(
+        action_name=TRANSFER_WRITE, parameters_ref=reference,
+        resource_refs=[], phase=Phase.ADMISSION,
+    )
+
+    class Unresolvable:
+        def __getattr__(self, name):
+            return getattr(app.gateway, name)
+
+        @staticmethod
+        def verify_payee(*_args):
+            return QueryOk(kind="ok", data=PayeeVerification(matched=False, payee=None))
+
+    resolver = TrustedRiskInputs(application, app.snapshots, Unresolvable())
+    payee = resolver.resolve(context, action, write_declaration()).fact("payee_history")
+    assert (payee.status, payee.value) == ("unknown", None)
+    assert payee.source == "mock-bank:b04"
+    assert "无法解析" in payee.scope
     app.close()
 
 
 def test_http_high_risk_request_blocks_before_any_bank_effect(tmp_path):
-    detect = detector({DemoRiskSignal.IMPERSONATION})
+    detect = flow_control_detector({DemoRiskSignal.IMPERSONATION})
     app = make_app(tmp_path)
     app.state.api.runtime.assess_risk = http_assessor(app.state.api.runtime, detect)
     with TestClient(app) as client:
@@ -407,7 +511,7 @@ def test_http_high_risk_request_blocks_before_any_bank_effect(tmp_path):
 
 
 def test_http_legal_control_finishes_with_one_bank_effect(tmp_path):
-    detect = detector(LOW_SIGNALS)
+    detect = flow_control_detector(LOW_SIGNALS)
     app = make_app(tmp_path)
     app.state.api.runtime.assess_risk = http_assessor(app.state.api.runtime, detect)
     with TestClient(app) as client:
