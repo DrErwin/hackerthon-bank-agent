@@ -1,15 +1,17 @@
-# 场景 05 订阅代扣评测集（v0.4）
+# 场景 05 订阅代扣评测集（v0.4 · 首批代表性）
 
-票 [`v04-subscription/07-subscription-evals`](../../.scratch/v04-subscription/issues/07-subscription-evals.md) 的黄金评测集：把 spec §4 的 SF01–SF07 与三条红线（确认门 / 口径边界 / 话术）变成可复跑的机器断言，覆盖 PRD 验收例 T01/T04/T08/T09/T12/T13/T14/T15。
+票 [`v04-subscription/07-subscription-evals`](../../.scratch/v04-subscription/issues/07-subscription-evals.md) 的**首批代表性**评测集：把 spec §4 的 SF01–SF06（另加 PRD T15/E12 的 `insufficient_data` 场景，编号 SF07）与三条红线（确认门 / 口径边界 / 话术）变成可复跑的机器断言，覆盖 PRD 验收例 T01/T04/T08/T09/T12/T13/T14/T15。
+
+> **运行前提**：需要包含票 08 审计脱敏修复（[PR #153](https://github.com/DrErwin/hackerthon-bank-agent/pull/153)）的基座，否则 `SUB-OBS-01` 会按预期变红（约 2%/引用的确定性碰撞）。`main` 已包含该修复。
 
 - 运行层次：**平台运行时** —— 真实 `MockBankService`（B29/B30 与签约、流水种子）、真实 `SecurityGate` + `DeterministicExecutor`、真实 `AuditJournal`/存储、真实 `DemoSecurityPolicy`、模块自身 checkpoint 状态机。
 - 唯一替身：**模型入口**（`harness.RoutedPlanner` 直接给出目标 capability）。本票不评模型理解力，真实 GLM 的意图路由另计。
-- HTTP 层（F05/F06/F07/F10）由票 06 的 API 测试覆盖，本票不重复。
+- HTTP 层（F05/F06/F07/F10）由票 06 的 `backend/app/api/test_subscription_api.py`（8 项 HTTP 全链路，已合入 main）覆盖，本票不重复。
 
 ## 1. 怎样跑
 
 ```powershell
-$env:PYTHONPATH = "D:\hb-worktrees\sub-evals\backend"   # 或先 cd <worktree>\backend
+$env:PYTHONPATH = "<仓库>\backend"   # 可选：conftest.py / stability_sample.py 已把本检出的 backend 置前
 $env:PYTHONIOENCODING = "utf-8"
 cd D:\hb-worktrees\sub-evals
 
@@ -27,7 +29,7 @@ $env:SUB_EVAL_EVIDENCE = "evals/subscription/evidence/2026-10-19"
 python -m pytest evals/subscription -q
 ```
 
-`conftest.py` 会把本 worktree 的 `backend/` 插到 `sys.path` 最前，避免共享 venv 里 editable 安装的主仓库 `app` 抢先被导入（证据里的 `app_file` 字段会打印实际被测包路径）。
+`conftest.py` 与 `stability_sample.py` 都会把**本检出**的 `backend/` 插到 `sys.path` 最前，避免共享 venv 里 editable 安装的主仓库 `app` 抢先被导入；证据与稳定性取样都会写入 `app_file` 字段，用来核对「测的是哪棵树」。
 
 ## 2. 覆盖表
 
@@ -59,7 +61,7 @@ python -m pytest evals/subscription -q
 |---|---|---|---|---|---|---|---|
 | SUB-INV-01 | 盘点与提醒 | spec §4 SF01；PRD T01/T14 | 签约 sub_001 优酷 2500 月 active(D+5)、sub_002 云端网盘 3900 月 active(D+12)、sub_003 喜马拉雅 cancelled；共享流水含绿洲健身 3900×5 | 帮我查查有哪些自动扣费 | 直接返回清单与提醒，不进确认门 | `active_count==2`；`upcoming_renewals==2`；`upcoming_total_fen==6400`；优酷 `billed_count==6`/`billed_total_fen==15000`；回复含「7 天内会扣款」与 30 天提醒；绿洲健身在疑似区且 `can_cancel_in_bank==False`；**疑似总条数不锁死**（共享流水命中物业/水费/通信等属正确行为）；已解约项不混入待退与疑似 | `test_sub_inv_01_inventory_and_reminder` Passed |
 | SUB-INV-02 | 证据不足 | spec §4 SF07；PRD T15/E12 | 同一银行只有签约种子、无任何流水（覆盖 0 个月） | 帮我查查有哪些自动扣费 | 如实说明证据不足，签约照常展示 | `suspected_scan_status=="insufficient_data"`；疑似区为空；回复含「账单记录不足 3 个月」；**严禁**「没有查到自动扣费/未发现异常」 | `test_sub_inv_02_insufficient_data_is_not_reported_as_clean` Passed |
-| SUB-CAN-01 | 单笔退订全链路 | spec §4 SF02；PRD T04 | sub_001 下一期 D+5；已登录会话 | 把优酷视频自动扣费退了 | 确认单 → 短信验证码 → 回执 | 状态序列 `WAITING_CONFIRMATION→WAITING_VERIFICATION→succeeded`；验证 `purpose=="basic_identity"`、`scope=="session"`、`required_methods==["code"]`、无摘要、**非 mock_face**；确认单 6 项字段含「从下一期（2026-10-24）起不再自动扣费，之前已经扣掉的钱不退」；回执 `mandate_id=="sub_001"`、`effective_stop_at==previous_next_billing_at`；B29 复查已 cancelled；重复 resume 不产生第二笔操作 | `test_sub_can_01_single_cancel_full_chain` Passed |
+| SUB-CAN-01 | 单笔退订全链路 | spec §4 SF02；PRD T04 | sub_001 下一期 D+5；已登录会话 | 把优酷视频自动扣费退了 | 确认单 → 短信验证码 → 回执 | 状态序列 `WAITING_CONFIRMATION→WAITING_VERIFICATION→succeeded`；验证 `purpose=="basic_identity"`、`scope=="session"`、`required_methods==["code"]`、无摘要、**非 mock_face**；确认单 6 项字段中 `notice` **精确等于**「从下一期（2026-10-24）起不再自动扣费，之前已经扣掉的钱不退。」（等值断言，追加同义承诺会被判红）；回执 `mandate_id=="sub_001"`、`effective_stop_at==previous_next_billing_at`；B29 复查已 cancelled；重复 resume 不产生第二笔操作 | `test_sub_can_01_single_cancel_full_chain` Passed |
 | SUB-CAN-02 | 同会话复用验证 | spec §4 SF03 | 同一会话 S1，第一笔（sub_001）已通过会话级验证 | 再把云端网盘自动续费退了 | 仍出确认单，确认后直接成功 | 第二笔仍过 `per_action` 确认门；**不再要求新验证码**（挑战数 0）；状态序列 `WAITING_CONFIRMATION→succeeded`；银行操作总数 2 | `test_sub_can_02_second_cancel_reuses_the_session_verification` Passed |
 | SUB-GUD-01 | 疑似项外部引导 | spec §4 SF04；PRD T08 | 绿洲健身 3900×5 快捷支付、无签约记录 | 帮我把绿洲健身的每月扣款退订 | 不进确认门，直接给外部关闭引导 | `WAITING_CONFIRMATION` 数为 0；银行操作 0；`can_cancel_in_bank==False`；回复含「银行那边没有…签约代扣记录」与「微信支付/支付宝」 | `test_sub_gud_01_suspected_clue_is_guided_outside` Passed |
 | SUB-DIS-01 | 消歧与拒绝批量 | spec §4 SF05；PRD T12 | 两个可在线退订的 active 签约 | 把所有自动扣费都关了（spec 原话） | `WAITING_INPUT` 单选候选，拒绝一键全退 | 候选仅 `sub_001`/`sub_002`；拒绝文案含「每次只能退订一项」；选择前确认单 0、银行操作 0；选择 sub_001 后进确认门 | `test_sub_dis_01_batch_refused_then_one_choice_confirms` Passed |
@@ -70,7 +72,7 @@ python -m pytest evals/subscription -q
 | SUB-VFY-03 | 验证强度边界 | spec §5.3/§8.4 | 注入非 LOW 风险裁决（策略实际只给 LOW/HIGH） | 把优酷视频自动扣费退了 | 用动作级 step-up，而非会话验证码 | 挑战 `purpose=="action_step_up"`、`required_methods==["code","mock_face"]`、带 6 项展示字段摘要；不降级为 `basic_identity`；银行操作 0 | `test_sub_vfy_03_non_low_risk_is_never_downgraded` Passed |
 | SUB-RED-01 | 确认门红线 | spec §4 SF02 注；PRD §五 | sub_001 完整链路逐步核对 | 把优酷视频自动扣费退了 | 确认门与验证门逐一停留 | 各步银行操作数 `[0,0,0,1]`：确认前 0、已确认未验证 0、验证码已通过但未绑定 0；绑定后才 1；未绑定 resume 仍停在验证门 | `test_sub_red_01_no_bank_write_before_confirmation_and_verification` Passed |
 | SUB-RED-02 | 口径边界红线 | spec §4 SF04/SF06；契约 §5.9 | 疑似项与已解约项各退一次 | 绿洲健身退订 / 喜马拉雅退订 | 都不进确认门 | 两任务确认单均为 0、银行操作 0；协议状态不变 | `test_sub_red_02_suspected_and_cancelled_never_enter_the_gate` Passed |
-| SUB-RED-03 | 话术红线 | spec §2.3/§5.3；PRD §五 | 一轮内产生盘点、确认单、验证提示、成功回执、疑似引导、已退告知、高危阻断说明 | 盘点→退订 sub_001→绿洲健身引导→喜马拉雅幂等→云端网盘高危阻断 | 全链路 | 扫描 ≥15 条用户可见文本，**零**「会员可用至/还能用到/先退订再重新订阅/先解约再重签」；确认单与回执都含「从下一期（2026-10-24）起不再自动扣费，之前已经扣掉的钱不退」口径；仅被退项产生 1 张确认单 | `test_sub_red_03_every_output_keeps_the_wording_red_line` Passed |
+| SUB-RED-03 | 话术红线 | spec §2.3/§5.3；PRD §五 | 一轮内产生盘点、确认单、验证提示、成功回执、疑似引导、已退告知、高危阻断说明 | 盘点→退订 sub_001→绿洲健身引导→喜马拉雅幂等→云端网盘高危阻断 | 全链路 | 扫描 ≥15 条用户可见文本，**零**「会员可用至/还能用到/先退订再重新订阅/先解约再重签」（含同义表述同义表述「继续享受/会员有效/到期日/可以用到/会员可以继续/权益可用」）；确认单与回执都含「从下一期（2026-10-24）起不再自动扣费，之前已经扣掉的钱不退」口径；仅被退项产生 1 张确认单 | `test_sub_red_03_every_output_keeps_the_wording_red_line` Passed |
 | SUB-OBS-01 | 首启稳定性 | 票 05 审查观测项；票 08 `f202e5d` | 同一组装下连续首启 10 次盘点任务 | 帮我查查有哪些自动扣费 ×10 | 每次都应正常完成 | 10/10 `succeeded`；`SUBSCRIPTION_INTERNAL_ERROR` 次数 0；银行操作 0 | `test_sub_obs_01_repeated_first_start_is_stable` Passed |
 | SUB-OBS-02 | 终止任务重复读取 | 票 05 审查建议；契约 §6.5 | 高危阻断后的 FAILED 任务 | 高危话术退订 → 终止后再读两次 | 只读终态，状态不倒退 | `get`/`resume` 三次均为 `failed`；载荷可 JSON 序列化；银行操作 0 | `test_sub_obs_02_terminal_task_stays_terminal_and_serializable` Passed |
 | SUB-OBS-03 | 审计模块标签 | 票 05 审查建议 1（`f30cc1d`） | sub_001 完整链路后按事件类型核对 | 把优酷视频自动扣费退了 | — | `confirmation.changed`/`verification.changed`/`tool.*` 的 `module=="subscription"`；`security.decided` 的 `module=="security"` | `test_sub_obs_03_audit_events_name_their_module` Passed |
@@ -104,7 +106,7 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 `evals/README.md` §六 的正本与索引都落在 [`evidence/<YYYY-MM-DD>/`](evidence/)：
 
 - `subscription-platform-<UTC 时间戳>.json.gz`：本次运行的原始结构化报告（逐用例状态、逐条断言名与通过情况、失败清单、命令、解释器、`app_file`）；文件名唯一，不覆盖。
-- `manifest.json`：追加式台账（标签、层、提交 SHA、脏文件、命令、状态分布、断言统计、报告解压后 sha256）。
+- `manifest.json`：台账（标签、层、**受测提交 SHA**、`dirty_paths`、命令、状态分布、断言统计、报告解压后 sha256）；`dirty_paths` 必须为空，否则说明证据不是在某个提交上跑出来的。
 - `manifest.md`：人读摘要（以上字段 + 本次运行逐用例表）。
 
 生成方式见 §1 的 `SUB_EVAL_EVIDENCE`；未设置该环境变量时评测不写任何文件。
@@ -121,4 +123,4 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | 审计与存储 | 真实 `AuditJournal`、`ApplicationStore`、`tool_operations`/`security_executions` |
 | 时间 | 固定银行时钟 `2026-10-19 04:00Z`（北京 12:00），种子偏移与提醒窗口因此确定 |
 
-未覆盖（明确不宣称）：真实 GLM 意图理解与线上模型稳定性、HTTP/前端（票 06）、真实反诈检测效果（安全评测）、两进程并发同一退订、`reminder_days`/`status_filter` 等入参参数化、银行侧失败码在平台层的表现。
+未覆盖（明确不宣称）：真实 GLM 意图理解与线上模型稳定性、前端渲染/语音播报、真实反诈检测效果（安全评测）、两进程并发同一退订、`reminder_days`/`status_filter` 等入参参数化、银行侧失败码在平台层的表现、PRD T02/T03/T05/T07/T10/T11/T16/T17（其中 T03 签约读取失败不降级、T05 B30 超时后按 `operation_id` 回查 B14 属实质缺口，下一轮补）。HTTP 层见票 06。

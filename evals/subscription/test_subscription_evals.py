@@ -160,9 +160,10 @@ def test_sub_can_01_single_cancel_full_chain(subscription_runtime, case_reports,
     record = confirmation_for(comp, trusted(), started)
     fields = {field.name: field.value_text for field in record.display_fields}
     log.eq("confirmation.field_names", list(fields), facts["display_field_names"])
-    log.ok("confirmation.promise",
-           CANCEL_PROMISE.format(date=facts["effective_stop_date"]) in fields["notice"],
-           fields["notice"])
+    # Exact equality, not a substring: an extra promise sentence in the notice field
+    # ("会员可以继续享受到本期末") is exactly what the PRD forbids.
+    log.eq("confirmation.promise",
+           fields["notice"], CANCEL_PROMISE.format(date=facts["effective_stop_date"]) + "。")
 
     approve(comp, trusted(), started)
     verification = comp.runtime.harness.resume(trusted(run="R2"), {"choice": "approve"})
