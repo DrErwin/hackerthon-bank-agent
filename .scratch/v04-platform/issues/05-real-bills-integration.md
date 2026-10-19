@@ -4,7 +4,7 @@ Ticket ID: v04-platform/05
 Type: 开发
 Owner: Erwin
 Directory: backend/app/api/
-Status: in_progress（2026-10-18 阶段一〔L01〕经独立检查会话验收通过，见 Comments；阶段二未启动）
+Status: in_progress（2026-10-18 阶段一〔L01〕经独立检查会话验收通过；2026-10-20 L03 `bills.generate_report` 装配注册已接线〔PR #178 `2791e40`〕，安全白名单 `REPORT_MANIFEST` 仍未收录〔Issue #177，Ringo〕，阶段二汇报/导出未启动）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P01、P02、P03、P04](../spec.md)（真实数据链路下的端到端验收）
@@ -42,3 +42,5 @@ Source issue: [Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issu
   - **已知缺口（不阻塞阶段一）**：① 读路径 `audit_evidence` 仍整包 dump 银行事实（`reads.py:96-99,112-117`），与 #137 临时口径（摘要/引用式）不符 → 归 `modules/bills`（周恩宇）另票实施；② 阶段二（报告落库→F21→F22/F24、L02/L03）未启动；③ 前端账单插槽与 BF01—BF07 纵向联调未启动；④ `bills.export_details` 对账维持票面结论（导出不进 harness，阶段二再定）。
   - 代行记录：PM 授权代行、票 05 Owner（Erwin）与 Ringo 均未参与上述代做改动的本人审查；本条为验收事实核对，**非安全专业结论**；回归后复核，长期规则不变。Status 置 in_progress（阶段一已验收、阶段二未启动）。
 - 2026-10-20：**L03 `bills.generate_report` 注册成为前端票 04 账单插槽的硬前置**（[`liangshuang-frontend-complete/04`](../../liangshuang-frontend-complete/issues/04-bills-slot.md) 按 PM 01:45 决定留在 v0.4）。现状：`local_demo.py`/`build_runtime` 只在 L01 调 `register_bills`，`register_bills_report` 已存在于 `modules/bills/entry.py:361` 但未接线；同时安全侧 `demo_policy.py` 的 `_capabilities` 只收 `BILLS_MANIFEST`，需同步收录 `REPORT_MANIFEST`（`backend/app/security/`，Ringo 目录，按 PM 代行或本人审查记录）。前置解除前票 04 只做明确标注的 stub，不发出可联调完成信号。此接线同时服务阶段二（报告落库 → F21 → F22/F24）。
+
+- 2026-10-20 收口日实施：**L03 `bills.generate_report` 装配注册已接线**（[PR #178](https://github.com/DrErwin/hackerthon-bank-agent/pull/178) squash `2791e40`，目录 `backend/app/agent_platform/`）。`local_demo.build_runtime` 在 ApiService 构造前、L01 注册之后调用 `register_bills_report(runtime.harness.registry, _bills_reads_factory(runtime), clock)`；`public_catalog()` 实测含 `bills.summarize` + `bills.generate_report`、不含 L02 `bills.detect_anomalies`，且身份断言证明该能力来自真实 `REPORT_MANIFEST`（不是 `bills_stub.BILLS_MANIFEST` 桩，桩整体让位）。独立审查（AI 子代理、非真人）结论「有条件通过」、无 P0：变异 M1（删注册调用）/M2（断言换成桩清单）/M3（注入 L02）全部被杀；`agent_platform` 158 passed、CI 绿。**边界如实记录**：安全侧 `demo_policy.py::_capabilities` 仍未收录 `REPORT_MANIFEST`（[Issue #177](https://github.com/DrErwin/hackerthon-bank-agent/issues/177)，Ringo），真实 L03 调用的用户可见表现是 API 兜底 `DEPENDENCY_UNAVAILABLE` / `error_completed`、不建任务——**不是可用的报告链路，不能记真实联调完成**；前端票 04 仍需 #177 合入后才能真联调。阶段二（报告落库 → F21 → F22/F24 → 前端插槽）仍未完成，L02 仍待账单线交付。本条为实施与测试事实，AI 辅助、非真人审查。
