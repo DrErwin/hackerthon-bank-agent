@@ -22,6 +22,7 @@ from app.contracts.bills import BillReport
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
+from app.contracts.subscription import SubscriptionTaskView
 from app.contracts.tasks import InteractionRequest, ModuleError, ModuleResult, TaskView, TransferTaskView
 
 from .store import ApiProblem, ApiStore, dump
@@ -34,6 +35,16 @@ def now():
 # The deployed API serves the one registered business runtime; task views and events
 # both name it, so a second module resolves its name here instead of in two places.
 SERVED_MODULE = "transfer"
+
+# Contract §6.5: each business module owns its payload schema, so the API keeps a typed
+# view for the modules it serves and leaves any other payload opaque to the frontend.
+MODULE_TASK_VIEWS = {"transfer": TransferTaskView, "subscription": SubscriptionTaskView}
+
+
+def task_view_model(module: str | None):
+    """The typed task view for one module, or None when its payload stays generic."""
+
+    return MODULE_TASK_VIEWS.get(module)
 
 
 @dataclass(frozen=True)
@@ -166,16 +177,17 @@ class ApiService:
         link = self.link(identity, task_id)
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
         module = self._task_module(task)
-        # A second module's payload is its own displayable result (§6.5);
-        # transfer keeps its typed view so existing consumers stay typed.
-        typed = module == SERVED_MODULE
+        # A second module's payload is its own displayable result (§6.5); transfer and
+        # subscription keep their typed views so existing consumers stay typed.
+        model = task_view_model(module)
         if task and "result" in task.snapshot:
-            result = (ModuleResult[TransferTaskView] if typed else ModuleResult) \
+            result = (ModuleResult[model] if model is not None else ModuleResult) \
                 .model_validate(task.snapshot["result"])
         else:
             interrupted = task_id not in self.active_tasks
             cancelled = task is None and bool(link["cancel_requested"])
-            result = ModuleResult[TransferTaskView](task_id=task_id, run_id=task.run_id if task else link["run_id"],
+            result = (ModuleResult[model] if model is not None else ModuleResult)(
+                task_id=task_id, run_id=task.run_id if task else link["run_id"],
                 status=TaskStatus.CANCELLED if cancelled else TaskStatus.RUNNING, data=None,
                 message="请求尚未开始处理，已取消。" if cancelled else "正在处理请求。", interaction=None,
                 error=None, allowed_actions=[] if cancelled else
@@ -183,7 +195,7 @@ class ApiService:
                 ["resume"] if interrupted else ["cancel"] if task is None else [],
                 recovery_required=interrupted and not cancelled,
                 recovery_reason="INTERRUPTED_REQUEST" if interrupted and not cancelled else None)
-        view = (TaskView[TransferTaskView] if typed else TaskView)(**result.model_dump(),
+        view = (TaskView[model] if model is not None else TaskView)(**result.model_dump(),
             module=module, thread_id=link["thread_id"],
             demo_round_id=identity.demo_round_id, snapshot_at=now(), task_revision=task.revision if task else int(link["cancel_requested"]),
             cancel_requested=bool(link["cancel_requested"]))
@@ -620,8 +632,7 @@ class ApiService:
         if challenge.challenge_status == "passed":
             self._complete_export(export)
             task = self.task_view(identity, export["task_id"])
-            return VerificationResponse[TransferTaskView](kind="verified", verification=view,
-                                                          task=task, error=None)
+            return self.verification_response("verified", view, task, None)
         if challenge.challenge_status != "pending":
             code = ("VERIFICATION_EXPIRED" if challenge.challenge_status == "expired"
                     else "VERIFICATION_REJECTED")
@@ -630,14 +641,14 @@ class ApiService:
                 task_status=TaskStatus.FAILED, message="验证未通过，账单明细导出未完成。",
                 publish=True)
             task = self.task_view(identity, export["task_id"])
-            return VerificationResponse[TransferTaskView](kind="rejected", verification=view,
-                task=task, error=ModuleError(code=code, source="platform", field=None,
-                                             reason="验证尚未通过。", upstream_code=None))
+            return self.verification_response("rejected", view, task,
+                ModuleError(code=code, source="platform", field=None,
+                            reason="验证尚未通过。", upstream_code=None))
         # Wrong code with attempts left: the export keeps waiting on the same task.
         task = self.publish_task(identity, export["task_id"])
-        return VerificationResponse[TransferTaskView](kind="rejected", verification=view,
-            task=task, error=ModuleError(code="VERIFICATION_REJECTED", source="bank", field=None,
-                                         reason="验证尚未通过。", upstream_code=None))
+        return self.verification_response("rejected", view, task,
+            ModuleError(code="VERIFICATION_REJECTED", source="bank", field=None,
+                        reason="验证尚未通过。", upstream_code=None))
 
     def fail_export_for_challenge(self, trusted, challenge):
         """A terminal challenge fails its export; returns False for business tasks."""
@@ -832,6 +843,14 @@ class ApiService:
     def verification_view(challenge):
         return VerificationView.model_validate(challenge.model_dump(include=set(VerificationView.model_fields)))
 
+    @staticmethod
+    def verification_response(kind, verification, task, error):
+        """F07's envelope stays typed for the module that owns the task (§5.6)."""
+
+        model = task_view_model(task.module)
+        response = VerificationResponse[model] if model is not None else VerificationResponse
+        return response(kind=kind, verification=verification, task=task, error=error)
+
     def audit_step(self, actor, trusted, event_type, payload, outcome):
         """An API invocation has its own run; link it to the original task trace."""
         task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
@@ -851,7 +870,11 @@ class ApiService:
         task = self.runtime.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
         if task.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
             return
-        result = ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
+        # §5.6: the fault envelope is rebuilt from whatever the task's own module wrote,
+        # so a subscription task is never re-validated as a transfer task.
+        model = task_view_model(self._task_module(task))
+        result = (ModuleResult[model] if model is not None else ModuleResult) \
+            .model_validate(task.snapshot["result"])
         result = result.model_copy(update={
             "status": TaskStatus.NEEDS_ATTENTION, "interaction": None,
             "message": "验证结果待核实，请使用原提交重试；这不是验证未通过。",
@@ -978,17 +1001,34 @@ class ApiService:
         self._refresh_waiting_export(export)
         return self.publish_task(identity, export["task_id"])
 
-    def current_interaction(self, identity, task_id, interaction_id):
+    def current_input_task(self, identity, task_id, interaction_id):
+        """The task whose live input interaction the caller is answering (§6.5)."""
+
         self.link(identity, task_id, mutate=True)
         task = self.task_view(identity, task_id)
         if not task.interaction or task.interaction.kind != "input" or task.interaction.interaction_id != interaction_id:
             raise ApiProblem(409, "INTERACTION_STALE")
-        return task.interaction
+        return task
 
-    def input_response(self, task_id, interaction, request):
+    def input_response(self, task, request):
+        """F10: turn one answer into the response the task's own module expects (§5.6)."""
+
+        interaction = task.interaction
+        if task.module == "subscription":
+            # S02: the module disambiguates by subscription id, or by the merchant the
+            # user named in their own words.
+            if request.selected_option_id is not None:
+                if request.text is not None or request.selected_option_id not in {
+                    item.id for item in interaction.options
+                }:
+                    raise ApiProblem(400, "INVALID_OPTION")
+                return {"selected_option_id": request.selected_option_id}
+            if interaction.required_fields == ["merchant_hint"]:
+                return {"text": safe_text(request.text)}
+            raise ApiProblem(400, "USE_CURRENT_INPUT_FIELDS")
         if request.selected_option_id is not None:
             searches = self.store.rows("SELECT candidates_json FROM api_payee_searches WHERE task_id=? AND interaction_id=?",
-                                       (task_id, interaction.interaction_id))
+                                       (task.task_id, interaction.interaction_id))
             if searches and interaction.required_fields == ["payee_hint"]:
                 candidates = json.loads(searches[0]["candidates_json"])
                 if request.text is not None or request.selected_option_id not in {item["payee_id"] for item in candidates}:
