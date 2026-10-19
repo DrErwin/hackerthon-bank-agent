@@ -1,0 +1,43 @@
+{
+  "repository": "DrErwin/hackerthon-bank-agent",
+  "tested_revision": "bd3c2620913ebbb1ea194a599ecf10983eb0fb79",
+  "runner": "evals/bills/run_evidence.py",
+  "source_verification": "connector_verified_file_slice",
+  "explanation": "One-on-one git blob SHA verification for all 14 pinned source files against the named remote PR commit; local test environment is a source slice and is NOT full git-object checkout or end-to-end bank runtime.",
+  "full_runner_report_uncompressed_sha256": "8672d792872ccddee093b1b3b1a5e905915dac6a1e59d594fc99177fc371d181",
+  "full_runner_report_location": "evals/bills/evidence/2026-10-19/20261019T060007618888Z-python3.13.5-private-arithmetic-bd3c2620913e.json.gz",
+  "summary": {
+    "passed": 147,
+    "failed": 0,
+    "skipped": 0,
+    "error": 0,
+    "collection_errors": 0
+  },
+  "tier_counts": {
+    "private_arithmetic": 130,
+    "evidence_tooling": 17
+  },
+  "arithmetic": {
+    "module_and_contract_tests": 97,
+    "golden_samples": 33
+  },
+  "source_git_blobs": {
+    "backend/app/contracts/common.py": "1a88ec0f4c60ec082b5b83752ff9ce569ac65798",
+    "backend/app/modules/bills/_statistics.py": "ef17b450dd085db617c93b1d10b6df9d257f4faf",
+    "backend/app/modules/bills/manifest.py": "6fa39fdee97f206785325cf7dd32429432d3e1a4",
+    "backend/app/modules/bills/test_statistics.py": "a0b727bc6f3dbb0a727bbce37d7e71c247a97f74",
+    "backend/app/modules/bills/test_statistics_contract.py": "87898b8e2ff40f9b2d88b7f3cf6e258f6be7562a",
+    "evals/bills/conftest.py": "dfbca9099fc78321f346e01b2769ef2756b4f0da",
+    "evals/bills/test_statistics_eval.py": "0c9fe50cffe4450bb6326c125770ffb8edeaae7b",
+    "evals/bills/fixtures/arithmetic-cases.json": "8d905b33529b1f7b0fab29fdba0c7f40f093c1fa",
+    "evals/bills/fixture_map.json": "a9ae7db5ecfed49b7ed45fa7ee37b4463ed28cf9",
+    "evals/bills/run_evidence.py": "cc5ea79c8eb48f2270df31708e3aa655d3657cf0",
+    "evals/bills/test_evidence_integrity.py": "74e3227e52b5dfc6aa40f85e2166abed409b33dc",
+    "evals/bills/representative-cases.md": "36ddcdc680269bb7ad461b4f0dcd6b79e31f29db",
+    "evals/bills/expanded-cases.md": "1633da44edde2490129f371d693f15bcdb346f75",
+    "evals/bills/coverage-matrix.md": "f6b96a65ad6e6cb12c786e6dee79abbe84f2fd8e"
+  },
+  "disclaimer": "Verification receipt for a local source-slice run (147 passed), not a full Git checkout, API/Model/React or BF01-BF07 acceptance. Full runner-generated gzip is now archived at full_runner_report_location with the unchanged original blob SHA; the restoration itself did not rerun tests.",
+  "full_runner_report_git_blob_sha": "f5aa47b5e9c846ee04dff00976314c9b3a3d5b60",
+  "evidence_restoration_note": "Both original 2026-10-19 evidence blobs were restored byte-for-byte from prior PR head f713374ab7fb33a9c4f56de09f13bec501714956 after an incomplete rebase; no tests were rerun by this restoration. All 14 source blob hashes were independently checked against PR head 558dd97849f8e9f5f5df5cdd063cbfb075fdd73a and match."
+}
