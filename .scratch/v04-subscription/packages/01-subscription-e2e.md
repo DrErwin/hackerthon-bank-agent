@@ -51,7 +51,7 @@ PRD: `docs/prd/05-订阅代扣管理-PRD-2026-10-19.md`
 | 07 黄金评测集与端到端回归 | [#155](https://github.com/DrErwin/hackerthon-bank-agent/pull/155) | 已合入（17 用例 / 349 断言 + 证据包） |
 | 08 底座修复：审计脱敏不改写不透明引用 | [#153](https://github.com/DrErwin/hackerthon-bank-agent/pull/153) | 已合入（审查通过、5/5 变异被杀） |
 
-**每票均配独立子代理审查**（AI 审查，非真人专业审查）；票 06/07 的审查子代理在合并时仍在运行，结论到后按需以补丁追加。安全策略票按 PRD 仍需 Ringo 本人审查或 PM 豁免留痕（本次为 AI 独立审查 + 作者修复，**非 Ringo 签署**）。
+**每票均配独立子代理审查**（AI 审查，非真人专业审查）。票 06/07 的审查在合并后返回「有条件通过」，审查驱动的三项补丁已另开单目录 PR 合入：[#156](https://github.com/DrErwin/hackerthon-bank-agent/pull/156)（确认单账户行「尾号 尾号 0001」用户可见缺陷）、[#157](https://github.com/DrErwin/hackerthon-bank-agent/pull/157)（消歧输入的验证码守卫回归）、[#158](https://github.com/DrErwin/hackerthon-bank-agent/pull/158)（话术红线等值断言 + 稳定性工具自举 + 证据干净树重归档）；票 06/07 的审查子代理在合并时仍在运行，结论到后按需以补丁追加。安全策略票按 PRD 仍需 Ringo 本人审查或 PM 豁免留痕（本次为 AI 独立审查 + 作者修复，**非 Ringo 签署**）。
 
 **已知残留**（详见各票 Comments 与评测 README）：
 1. 演示银行里按契约 §5.9 会命中物业/水费/通信等「疑似周期扣费」，疑似区条数不锁死（属正确行为）；

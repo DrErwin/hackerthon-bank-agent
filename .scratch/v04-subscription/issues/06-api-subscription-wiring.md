@@ -61,3 +61,6 @@ pytest backend/app/api -q      # 不破坏既有 API 用例
 - 票据口径更正（实现与票据字面不符，属票据文字问题）：验证码用银行 F19 演示码（`GET /verifications/{id}/demo-code`），票据字面的 `123456` 不成立——银行只认自己按 `demo_secret` 签发的 6 位码，既有 transfer HTTP 用例同做法；F07 的 `VerificationView` 不含 `purpose`/`scope`，这两项在平台接缝断言（与票 05 运行时测试一致），若要 HTTP 响应直接带需契约层加字段另开票。
 - 2026-10-19 联调阻塞：订阅任务出现约 1.9%/引用的随机失败，根因在 `audit/`（脱敏改写不透明引用），另立票 08（PR #153）修复；本票测试在修复后稳定全绿（`backend/app/api` 84 passed、`backend/app/api + audit` 95 passed）。
 - 交付：**PR #154**。
+- 2026-10-19 独立审查（`7b10a01`，PR #154）：**有条件通过**，2 项必修——①（属模块目录）确认单与话术出现「尾号 尾号 0001」：银行 B01 的 `account_masked` 已是「尾号 0001」，模块又拼一次；②（本目录）订阅消歧输入的 `safe_text` 守卫无回归（变异 M7 存活且非等价，「验证码是 123456」会 200 写入任务）。
+- 已修（各一票一目录的补丁 PR）：① [PR #156](https://github.com/DrErwin/hackerthon-bank-agent/pull/156）——签约条目改用协议自身的打码账户（与 B30 回执同口径）+ `account_label()` 只前缀一次，测试夹具改为银行真实格式并补回归；② [PR #157](https://github.com/DrErwin/hackerthon-bank-agent/pull/157）——消歧输入框提交验证码 → 400 `USE_VERIFICATION_ENDPOINT`、任务仍 `waiting_input`、银行不变。
+- 其余为建议项（README 同步、抽 conftest、`/details` 保持转账定型的注释），已在票面记录。

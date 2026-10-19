@@ -56,3 +56,7 @@ pytest backend -q      # 后端全量回归
 - 证据：`evidence/2026-10-19/manifest.json|md` + 原始报告 gzip（17/17 Passed、349/349 断言，revision `654a0e8`）；`dirty_paths` 如实记录了运行时暂存的票 08 修复。Lead 复核：`pytest evals/subscription -q` 17 passed、`stability_sample.py --attempts 40` 40/40 succeeded。
 - 数量口径：本票交付票据要求的 SF01–SF07 + 三红线 + 审查补充，**未宣称** `evals/README.md` §四 的「完整验收集」规模（README 已写明）。
 - 交付：**PR #155**（含 CI 空白检查修复 `37dc9fc`）。独立审查子代理在合并时仍在运行，结论到后按需以补丁追加（见最终报告）。
+- 2026-10-19 独立审查（`690c52f`，PR #155）：**有条件通过**，4 项必修——① 验收命令在受审提交不绿（该基座不含票 08 审计修复，`SUB-OBS-01` 必红）；② 归档证据来自「手工带上修复的脏工作区」，分支上没有对应提交；③ `stability_sample.py` 未把本检出 `backend` 置前，不设 PYTHONPATH 会悄悄测主仓库；④ 话术红线只挡黑名单，语义等价越界承诺（追加「会员可以继续享受到本期末」）存活。
+- 审查同时确认评测设计有牙齿：真实组件装配（唯一替身=模型入口）、17 用例与 `golden_cases.json` 一一对应、11 个有效变异被杀（确认门/验证门/疑似引导/幂等/审计标签等）、证据 sha256 可复算、稳定性趋势与 README 一致（受审 HEAD 40 次首启 5 失败且失败下标确定，修复后 40/40）。
+- 已修（[PR #158](https://github.com/DrErwin/hackerthon-bank-agent/pull/158)）：确认单 `notice` 改**精确等值**断言、禁用词补同义表述；`stability_sample.py` 自举路径并输出 `app_file`；`dirty_paths` 只记源码脏文件、证据在含票 08 的提交（`9ca1935`）干净工作区重归档（17/17、355/355、dirty 为空、sha256 已记），并移除旧的脏树条目；README 改称「首批代表性」、注明依赖票 08、SF07 编号来源、HTTP 层指向票 06 用例、补列未覆盖 PRD 用例；删除 `golden_cases.json` 9 个无引用 `facts` 键。
+- 未覆盖（如实）：PRD T02/T03/T05/T07/T10/T11/T16/T17（T03 签约读取失败不降级、T05 B30 超时后按 `operation_id` 回查 B14 属实质缺口）、真实 GLM 路由、前端渲染/语音播报、两进程并发。
