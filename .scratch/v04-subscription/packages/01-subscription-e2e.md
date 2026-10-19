@@ -1,6 +1,6 @@
 # v04-subscription/01: 订阅代扣管理端到端闭环（盘点、单笔退订与 30 天到期提醒）
 
-Status: in_progress
+Status: accepted
 Owner: Erwin
 Accepted by: Erwin
 Accepted at: 2026-10-19
@@ -35,6 +35,29 @@ PRD: `docs/prd/05-订阅代扣管理-PRD-2026-10-19.md`
 | `v04-subscription/07-subscription-evals` | 订阅代扣黄金评测集与端到端回归测试 | `evals/subscription/` | 依赖 `01`–`06` | [07-subscription-evals.md](../issues/07-subscription-evals.md) |
 
 ---
+
+## 交付与验收记录（2026-10-19）
+
+7 张单目录实施票全部完成并合入 main，另因联调暴露底座缺陷补开票 08：
+
+| 实施票 | PR | 状态 |
+|---|---|---|
+| 01 契约模型与枚举扩值 | [#146](https://github.com/DrErwin/hackerthon-bank-agent/pull/146) | 已合入（含审查必修修复） |
+| 02 模拟银行 B29/B30 与种子 | [#148](https://github.com/DrErwin/hackerthon-bank-agent/pull/148) | 已合入（含审查必修：B30 补偿事务） |
+| 03 订阅代扣业务模块 | [#147](https://github.com/DrErwin/hackerthon-bank-agent/pull/147) | 已合入（首轮不通过 → 修 3 项致命 → 复审通过 + 修 P1 重放上报） |
+| 04 安全白名单与退订风险策略 | [#150](https://github.com/DrErwin/hackerthon-bank-agent/pull/150) | 已合入（含权限闸门回归补强） |
+| 05 平台注册、路由与确认验证编排 | [#152](https://github.com/DrErwin/hackerthon-bank-agent/pull/152) | 已合入（审查通过；审计标签断言补强） |
+| 06 API 泛型放宽与 F10 消歧 | [#154](https://github.com/DrErwin/hackerthon-bank-agent/pull/154) | 已合入 |
+| 07 黄金评测集与端到端回归 | [#155](https://github.com/DrErwin/hackerthon-bank-agent/pull/155) | 已合入（17 用例 / 349 断言 + 证据包） |
+| 08 底座修复：审计脱敏不改写不透明引用 | [#153](https://github.com/DrErwin/hackerthon-bank-agent/pull/153) | 已合入（审查通过、5/5 变异被杀） |
+
+**每票均配独立子代理审查**（AI 审查，非真人专业审查）；票 06/07 的审查子代理在合并时仍在运行，结论到后按需以补丁追加。安全策略票按 PRD 仍需 Ringo 本人审查或 PM 豁免留痕（本次为 AI 独立审查 + 作者修复，**非 Ringo 签署**）。
+
+**已知残留**（详见各票 Comments 与评测 README）：
+1. 演示银行里按契约 §5.9 会命中物业/水费/通信等「疑似周期扣费」，疑似区条数不锁死（属正确行为）；
+2. 订阅待答确认/验证复用平台既有 `agent_transfer_*` 事实表（表名为历史包袱，语义为平台 task→绑定事实）；
+3. 跨动作占用同一 `operation_id` 仍可绑定（需共享作用域表改造）；B30 两段写合一事务需 `storage/` 共享事务入口；
+4. 真实 GLM 路由、`reminder_days` 等入参参数化、两进程并发、前端订阅插槽未覆盖。
 
 ## 验收标准（Definition of Done）
 

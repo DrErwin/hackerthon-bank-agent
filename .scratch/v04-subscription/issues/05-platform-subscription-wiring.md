@@ -7,7 +7,7 @@ Core scenarios: SF01–SF06（[spec §4](../spec.md)）
 Verification: 本票局部——`pytest backend/app/agent_platform/test_subscription_runtime.py -q`；整条路径由 `07-subscription-evals` 覆盖
 Owner: Erwin
 Directory: `backend/app/agent_platform/`
-Status: in_progress
+Status: resolved
 Blocked by: [`v04-subscription/01-contract-models`](01-contract-models.md)、[`02-mockbank-subscriptions`](02-mockbank-subscriptions.md)、[`03-subscription-module`](03-subscription-module.md)、[`04-security-policy-subscription`](04-security-policy-subscription.md)
 Source issue: Issue #123
 
@@ -64,3 +64,5 @@ pytest backend/app/agent_platform -q     # 不破坏既有 harness / transfer ru
 - 与票据字面的差异（已接受）：`model.py` 不做槽位提取（契约的入口信封没有订阅槽位，模块按原话确定性解析，加槽位是死代码）；订阅待答确认/验证复用平台既有 `agent_transfer_*` 事实表（表名为历史包袱，语义是平台 task→绑定事实，未新建表）。
 - 验证：`test_subscription_runtime.py` 15 passed、`agent_platform` 146 passed（真实 MockBank B29/B30 + 真实门/执行器/审计/存储；替身仅模型入口）。
 - 交付：**PR #152**（分支 `feat/subscription/05-platform-subscription-wiring`，待审查与合入）。
+- 2026-10-19 独立审查（`5a810b6`）：**通过**，无必修项；6 项建议（审计模块标签缺回归、终止任务重复 resume 的 data 退化、复用事件标签、snapshot_writer 在 MODIFY 下惰性、常量重复、门装配重复）。已采纳建议 1（补 `confirmation.changed`/`verification.changed` 的 `module=="subscription"` 断言，`f30cc1d`），其余记录在案。
+- 2026-10-19 合入 main：**PR #152**（squash `9741053`）。审查观测到的「约 3/60 偶发首启失败」由票 06/08 追到根因（审计脱敏改写不透明引用），票 07 以 150 次取样复现并闭环。
