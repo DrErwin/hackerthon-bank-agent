@@ -41,9 +41,14 @@ OPAQUE_UUID = re.compile(
 )
 NAME = re.compile(r"((?:姓名|户名|收件人)\s*[:：]\s*)([\u4e00-\u9fff]{2,4})")
 ADDRESS = re.compile(r"((?:地址|住址)\s*[:：]\s*)([^\s,，;；]+)")
+# Opaque identifiers (evidence, argument, parameter and receipt references). The journal
+# looks snapshots up by these exact strings, so masking a digit run inside one would
+# break the evidence linkage — and a reference is not personal data.
+REF_FIELD = re.compile(r"(?:^|_)refs?$")
 
 
-def redact(value: object, known_secrets: Iterable[str] = (), *, free_text: bool = False) -> object:
+def redact(value: object, known_secrets: Iterable[str] = (), *, free_text: bool = False,
+           opaque: bool = False) -> object:
     """Remove known credentials and recognizable personal data before persistence."""
     if isinstance(value, BaseModel):
         return redact(value.model_dump(mode="json"), known_secrets, free_text=free_text)
@@ -61,6 +66,8 @@ def redact(value: object, known_secrets: Iterable[str] = (), *, free_text: bool 
             field = re.sub(r"(?<!^)(?=[A-Z])", "_", str(key)).lower()
             if field == "value_text" and display_value is not None:
                 clean[key] = display_value
+            elif REF_FIELD.search(field):
+                clean[key] = redact(item, known_secrets, opaque=True)
             elif (field == "code" and isinstance(item, str)
                     and re.fullmatch(r"[A-Za-z0-9]{4,8}", item)) or SECRET_FIELD.search(field):
                 clean[key] = "[REDACTED]"
@@ -76,7 +83,7 @@ def redact(value: object, known_secrets: Iterable[str] = (), *, free_text: bool 
                 clean[key] = redact(item, known_secrets, free_text=field in {"text", "message", "content"})
         return clean
     if isinstance(value, list):
-        return [redact(item, known_secrets, free_text=free_text) for item in value]
+        return [redact(item, known_secrets, free_text=free_text, opaque=opaque) for item in value]
     if not isinstance(value, str):
         return value
     result = value
@@ -84,6 +91,10 @@ def redact(value: object, known_secrets: Iterable[str] = (), *, free_text: bool 
         if secret:
             result = result.replace(secret, "[REDACTED]")
     result = SECRET_LABEL.sub(r"\1[REDACTED]", result)
+    if opaque:
+        # A reference stays byte-identical apart from known secrets: masking a digit run
+        # inside it would break the audit evidence lookup performed by these strings.
+        return result
     if free_text and re.fullmatch(r"\s*[A-Za-z0-9]{4,8}\s*", result) and re.search(r"\d", result):
         return "[REDACTED]"
     if OPAQUE_UUID.fullmatch(result):
