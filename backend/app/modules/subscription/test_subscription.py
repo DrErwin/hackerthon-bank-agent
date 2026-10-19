@@ -351,6 +351,15 @@ def test_batch_words_still_refuse_when_one_merchant_is_named():
     assert [option.id for option in result.interaction.options] == ["sub_001", "sub_002"]
 
 
+def test_spec_batch_phrasing_reaches_the_disambiguation_step():
+    """SF05's own wording must not fall through to the inventory path."""
+
+    result = entry().start(context(), start_request("把所有自动扣费都关了"))
+    assert result.status == TaskStatus.WAITING_INPUT
+    assert "每次只能退订一项" in result.message
+    assert [option.id for option in result.interaction.options] == ["sub_001", "sub_002"]
+
+
 def test_short_merchant_prefix_still_identifies_the_target():
     result = entry().start(context(), start_request("把优酷的会员退了"))
     assert result.status == TaskStatus.WAITING_APPROVAL

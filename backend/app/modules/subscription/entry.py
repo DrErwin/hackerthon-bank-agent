@@ -24,8 +24,8 @@ from .service import SubscriptionError, SubscriptionService
 LOGGER = logging.getLogger(__name__)
 
 _TERMINAL = {"succeeded", "failed", "cancelled"}
-_CANCEL_WORDS = ("退订", "取消", "关闭", "关掉", "退了", "退掉", "别再扣", "别再", "解约", "解除",
-                 "不续费", "不想续", "停了", "停掉")
+_CANCEL_WORDS = ("退订", "取消", "关闭", "关掉", "关了", "都关", "退了", "退掉", "别再扣", "别再",
+                 "解约", "解除", "不续费", "不想续", "停了", "停掉")
 _BATCH_WORDS = ("全部", "所有", "统统", "都退", "都关", "一键", "全都")
 # Observed phrases from the user's own words; the security policy decides the risk level.
 _HIGH_RISK_PATTERNS = {
