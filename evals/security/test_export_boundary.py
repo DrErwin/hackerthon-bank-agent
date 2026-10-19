@@ -121,11 +121,21 @@ def test_card_html_escapes_report_text(tmp_path):
         assert "&lt;script&gt;eval_marker()&lt;/script&gt;" in download.text
 
 
-@pytest.mark.parametrize("prefix", ["=", "+", "-", "@"])
-def test_details_csv_treats_formula_shaped_text_as_literal(tmp_path, prefix):
+@pytest.mark.parametrize(
+    ("counterparty_name", "summary"),
+    [
+        ("=1+1", "=2+2"),
+        ("+1+1", "+2+2"),
+        ("-1+1", "-2+2"),
+        ("@1+1", "@2+2"),
+        (" =1+1", " =2+2"),
+        ("\t+1", "\t+2"),
+    ],
+)
+def test_details_csv_treats_formula_shaped_text_as_literal(tmp_path, counterparty_name, summary):
     app = make_app(tmp_path)
     # Synthetic arithmetic text, no external links and no spreadsheet execution.
-    _seed_details_row(tmp_path, counterparty_name=prefix + "1+1", summary=prefix + "2+2")
+    _seed_details_row(tmp_path, counterparty_name=counterparty_name, summary=summary)
     with TestClient(app) as client:
         _, report = prepare_export(app, client)
         export = verify_details(client, report)
@@ -133,7 +143,9 @@ def test_details_csv_treats_formula_shaped_text_as_literal(tmp_path, prefix):
         assert download.status_code == 200
         rows = list(csv.DictReader(io.StringIO(download.text)))
         assert len(rows) == 1
-        for key in ("counterparty_name", "summary"):
+        for key, seed in (("counterparty_name", counterparty_name), ("summary", summary)):
             value = rows[0][key]
-            assert value, "cell observation must be nonempty"
+            # Issue #161: leading whitespace/tab must not bypass the guard, and
+            # the bank text itself must survive verbatim behind the quote prefix.
+            assert value == "'" + seed, (key, value)
             assert not value.lstrip().startswith(("=", "+", "-", "@")), key
