@@ -225,6 +225,9 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     # contract-shaped stub steps aside as a whole (v04-platform/05): L01 and L03 are
     # real now, only L02 (`bills.detect_anomalies`) stays out of the public catalog.
     # L03 keeps its own REPORT_MANIFEST/factory because one manifest shares one factory.
+    # L03 is registered but not authorized yet: `security/demo_policy.py` does not list
+    # REPORT_MANIFEST (Issue #177, Ringo), so real report calls are still rejected until
+    # that allowlist lands. It is advertised for the frontend slot (ticket 04) only.
     register_bills(runtime.harness.registry, _bills_reads_factory(runtime),
                    lambda: datetime.now(timezone.utc))
     register_bills_report(runtime.harness.registry, _bills_reads_factory(runtime),
