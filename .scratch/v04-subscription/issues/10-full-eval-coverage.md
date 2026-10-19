@@ -7,7 +7,7 @@ Core scenarios: PRD [`05-订阅代扣管理`](../../../docs/prd/05-订阅代扣�
 Verification: `pytest evals/subscription -q` 全绿并在最终提交归档证据；`pytest backend -q` 不回归（Windows 两条 20ms 计时抖动属 Issue #166，单跑复核）
 Owner: Erwin
 Directory: `evals/subscription/`
-Status: in_progress
+Status: resolved
 Blocked by: [`v04-subscription/09`：退订失败/结果未知如实回执](09-cancel-refusal-and-unknown-recovery.md)（T05/E06、E09 的断言依赖该修复）
 Source issue: 交接单 `handoff-subscription-evals-2026-10-19.md`（PM 原话：自己审查现状、自己判断补哪些）
 
@@ -53,3 +53,12 @@ Source issue: 交接单 `handoff-subscription-evals-2026-10-19.md`（PM 原话�
 ## Comments
 
 - 2026-10-19 交接单要求先自行核对现状再定缺口；实测确认 T05/E09 为真缺陷（票 09），T17/E03/E11 等为能力缺口，已列入 §4。
+
+- 2026-10-19/20 实施完成（评测线，worktree `D:\hb-worktrees\sub-evals10`，分支 `feat/subscription/10-full-eval-coverage`）：
+  - 17 → 48 条（新增 31）：golden 48 条机读期望；三个测试文件 22 + 12 + 14 条；8 字段清单 `cases.md`；README 覆盖表、E01–E12 逐类条数与 Blocked 清单；harness 增加多用户/前置数据/失败与超时注入夹具与证据 `source_verification`。
+  - 运行层次不变：平台真实组装（真实 B29/B30、SecurityGate、Executor、审计/存储、DemoSecurityPolicy；唯一替身=模型入口）。
+  - 同提交证据：被测提交 `d901225`，`pytest evals/subscription -q` 48 passed；两条记录分别覆盖 SUB-CAN-11 的两支安全收尾（默认哈希序 1069/1069 断言；PYTHONHASHSEED=1 1068/1068），`dirty_paths=[]`、7/7 源文件 blob 与提交逐字节一致；证据 `evals/subscription/evidence/2026-10-20/`。
+  - 确定性：`PYTHONHASHSEED=0/1/42` 三次全量均 48 passed。
+  - 独立复核：两轴通过（首轮 3 必修已修复并二次复核）；机读期望 ↔ 测试漂移检查 0 问题。
+  - 交付：PR #175（squash 合入 main `d6cb6a8`）。
+  - 如实未覆盖：README §8（T17/B26-B27、E03/E11 话术、E02 第二分支、E04 processing、reminder_days/status_filter、SOP-3「需要核实」、写前授权快照口径、平台内容变化非确定性 Issue #176）。

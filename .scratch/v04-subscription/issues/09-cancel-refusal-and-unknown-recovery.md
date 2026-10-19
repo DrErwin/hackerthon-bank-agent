@@ -7,7 +7,7 @@ Core scenarios: SF02（SOP-2 ⑥⑦）＋ PRD T05/T13、E06/E09、§2.4「结果
 Verification: `pytest backend/app/modules/subscription -q`；连带 `pytest backend/app/agent_platform/test_subscription_runtime.py backend/app/api/test_subscription_api.py -q`；评测票 `v04-subscription/10` 的 SUB-CAN-12/13/14 在同提交上通过
 Owner: Erwin
 Directory: `backend/app/modules/subscription/`
-Status: in_progress
+Status: resolved
 Blocked by: None
 Source issue: 2026-10-19 完整覆盖核对实测发现（本票记录；如需对外跟踪再开 GitHub Issue）
 
@@ -51,3 +51,11 @@ transfer 模块已有同场景的既有约定可对齐：`workflow._pending` 返
 ## Comments
 
 - 2026-10-19 由完整覆盖核对实测发现并开票；PM 已拍板先修本票再做完整验收集（票 10）。
+
+- 2026-10-19 晚实施完成：仅 `backend/app/modules/subscription/` 7 文件（+377/−31），security/contracts/api/agent_platform/evals 零改动。
+  - `_observe_result` 只把 B30 `CALL_TIMEOUT` 视为未知（executor claim=unknown，resume 才走 B14）；其余 `QueryFailure` 视为银行明确答复（completed 观测 + 保留 `QueryFailure` 本体）→ 模块按 `error.code/source/upstream_code/_MESSAGES` 如实落 failed。
+  - 超时/未知：首次立即返回 `NEEDS_ATTENTION`（OPERATION_UNKNOWN、CALL_TIMEOUT 文案、allowed_actions=["query"]），checkpoint 冻结 plan payload 与 item；resume 先经统一执行器按原 operation_id 走一次 B14：成功→真实回执、失败→如实失败、仍未知→继续待核实；全程不重提，银行操作行数恒 1。
+  - 附带修复 D3（E01/T12）：批量菜单后的文字回答先清 batch 再按普通选中处理；初始批量话术仍拒绝。
+  - 测试：先在模块内写失败清单再实现；`pytest backend/app/modules/subscription -q` 45 passed（新增 11 用例/49 断言）；`test_subscription_runtime.py` + `test_subscription_api.py` 23 passed；`pytest backend -q` 738 passed。
+  - 交付：PR #172（squash 合入 main `c1cdde3`）。Lead 复核 + 平台组装交叉验证（票 10 的 5 条用例在修复上通过）。AI 复核，非 Ringo 本人签署；未触及安全目录。
+- 遗留：NEEDS_ATTENTION 的 `allowed_actions=["query"]` 与平台 `/query-result` 一致（api 层自动追加 cancel）；拒绝路径 claim 记为 completed、failed 为终态，正常流程不可达重复回查。
