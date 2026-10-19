@@ -9,6 +9,7 @@ import type {
   SessionView,
   StreamEvent,
   TaskView,
+  TaskRecordsView,
   ThreadView,
   VerificationResponse,
   VerificationView,
@@ -43,6 +44,7 @@ export interface ShellDataSource {
   listMessages(threadId: string): Promise<MessageView[]>;
   listTasks(threadId: string): Promise<TaskEnvelope[]>;
   getTask(taskId: string): Promise<TaskEnvelope>;
+  listTaskRecords(taskId: string): Promise<TaskRecordsView>;
   sendMessage(threadId: string, body: { request_id: string; text: string }): Promise<MessageAccepted>;
   provideInput(
     taskId: string,

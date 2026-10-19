@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import type { MessageView } from "../../contracts";
 import type { DataOrigin } from "../types";
@@ -56,12 +56,14 @@ export function TypingBubble() {
   );
 }
 
-export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend }: {
+export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend, preparedDraft, onPreparedDraftUsed }: {
   disabled: boolean;
   sending: boolean;
   pendingText: string | null;
   voiceDemoText?: string;
   onSend: (text: string) => Promise<boolean>;
+  preparedDraft?: string | null;
+  onPreparedDraftUsed?: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
@@ -69,6 +71,14 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
   const inputRef = useRef<HTMLInputElement>(null);
   const value = pendingText ?? draft;
   const canSend = !disabled && !sending && value.trim().length > 0;
+
+  useEffect(() => {
+    if (!preparedDraft) return;
+    setDraft(preparedDraft);
+    setVoiceNote("原确认单已取消。请检查修改内容，再点击发送生成新的确认单。");
+    inputRef.current?.focus();
+    onPreparedDraftUsed?.();
+  }, [onPreparedDraftUsed, preparedDraft]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();

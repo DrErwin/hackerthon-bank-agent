@@ -50,12 +50,13 @@ function CodeBoxes({ value, onChange, disabled, inputId }: { value: string; onCh
   );
 }
 
-export function VerificationCard({ view, active, canVerify, busy, adminHref, onSubmitCode, onResend, onStartFace, onShowDemoCode, id }: {
+export function VerificationCard({ view, active, canVerify, busy, adminHref, adminLabel = "演示用：在新窗口打开管理员演示入口", onSubmitCode, onResend, onStartFace, onShowDemoCode, id }: {
   view: VerificationView;
   active: boolean;
   canVerify: boolean;
   busy: boolean;
   adminHref: string | null;
+  adminLabel?: string;
   onSubmitCode: (code: string) => Promise<string | null>;
   onResend: () => void;
   onStartFace: () => void;
@@ -160,7 +161,7 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, onS
                 <p className="sh-lead">正在等待管理员在独立演示端作答。</p>
                 <p className="sh-hint">本页面没有「通过」按钮，结果以后台返回为准。不会开启摄像头，也不采集生物信息。请在 {clockTime(view.face_expires_at)} 前完成。</p>
                 {adminHref && (
-                  <a className="sh-link-btn" href={adminHref} target="_blank" rel="noreferrer">演示用：在新窗口打开管理员演示入口</a>
+                  <a className="sh-link-btn" href={adminHref} target="_blank" rel="noreferrer">{adminLabel}</a>
                 )}
               </div>
             )}

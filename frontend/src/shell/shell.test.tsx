@@ -5,11 +5,11 @@ import { ApiError } from "../api";
 import { AdminDemoPage } from "./AdminDemoPage";
 import { AssistantPage } from "./AssistantPage";
 import { createSlotRegistry, genericSlot } from "./slots";
-import { transferDemoSlot } from "./slots/transferDemoSlot";
+import { transferSlot } from "./slots/transferDemoSlot";
 import { createDemoBackend } from "./stub/demoBackend";
 import type { DemoBackend } from "./stub/demoBackend";
 
-const slots = createSlotRegistry([transferDemoSlot]);
+const slots = createSlotRegistry([transferSlot]);
 
 function makeBackend(): DemoBackend {
   return createDemoBackend({ replyDelayMs: 0, submitMs: 30, bankMs: 30, tickMs: 20 });
@@ -100,6 +100,44 @@ describe("v0.4 shell with stub data", () => {
     expect(answer).toHaveBeenCalledTimes(1);
   });
 
+  it("cancels the old confirmation and prepares an editable modification without auto-submitting", async () => {
+    const backend = makeBackend();
+    const answer = vi.spyOn(backend.user, "answerConfirmation");
+    const send = vi.spyOn(backend.user, "sendMessage");
+    renderPage(backend);
+    await sendText("转给妈妈500块");
+    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "修改" }));
+    fireEvent.change(screen.getByLabelText("要调整的内容"), { target: { value: "金额改为 300 元" } });
+    fireEvent.click(screen.getByRole("button", { name: "取消旧确认并准备修改" }));
+
+    const composer = await screen.findByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
+    await waitFor(() => expect(composer.value).toContain("金额改为 300 元"));
+    expect(await screen.findByText("已取消 · 只读")).toBeTruthy();
+    expect(answer).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ choice: "cancel" }));
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not prepare a replacement draft when cancelling the old confirmation is rejected", async () => {
+    const backend = makeBackend();
+    renderPage(backend);
+    await sendText("转给妈妈500块");
+    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+    vi.spyOn(backend.user, "answerConfirmation").mockRejectedValue(
+      new ApiError(409, "CONFIRMATION_STALE", "这张确认单已经失效，请以最新状态为准。"),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "修改" }));
+    fireEvent.change(screen.getByLabelText("要调整的内容"), { target: { value: "金额改为 300 元" } });
+    fireEvent.click(screen.getByRole("button", { name: "取消旧确认并准备修改" }));
+
+    expect(await screen.findByText("这张确认单已经失效，请以最新状态为准。")).toBeTruthy();
+    const composer = screen.getByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
+    expect(composer.value).toBe("");
+    expect(screen.getByLabelText("要调整的内容")).toBeTruthy();
+  });
+
   it.each([
     ["expired", "已过期 · 只读"],
     ["superseded", "已被新确认单替代 · 只读"],
@@ -164,6 +202,12 @@ describe("v0.4 shell with stub data", () => {
     const first = renderPage(backend);
     await reachVerification();
     first.unmount();
+
+    // F39 is the source of confirmation / verification history. The shell must
+    // recover even when browser-local record ids have been cleared.
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("fe-shell-history:")) localStorage.removeItem(key);
+    }
 
     const reloaded = makeBackend();
     const send = vi.spyOn(reloaded.user, "sendMessage");
@@ -250,7 +294,7 @@ describe("v0.4 shell with stub data", () => {
 
   it("falls back to the generic slot for an unknown module and mounts under /v04 only", async () => {
     expect(slots.resolve("bills")).toBe(genericSlot);
-    expect(slots.resolve("transfer")).toBe(transferDemoSlot);
+    expect(slots.resolve("transfer")).toBe(transferSlot);
     render(<App />);
     expect(await screen.findByRole("heading", { name: "AI 银行助手" })).toBeTruthy();
   });

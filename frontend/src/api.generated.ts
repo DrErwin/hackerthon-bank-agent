@@ -97,6 +97,7 @@ export type UpstreamCode = string | null;
 export type AllowedActions = ("provide_input" | "confirm" | "verify" | "query" | "cancel" | "resume")[];
 export type RecoveryRequired = boolean;
 export type RecoveryReason = string | null;
+export type Module = ("transfer" | "bills" | "cross") | null;
 export type ThreadId3 = string;
 export type DemoRoundId2 = string;
 export type SnapshotAt = string;
@@ -110,13 +111,15 @@ export type Message1 = string;
 export type AllowedActions1 = ("provide_input" | "confirm" | "verify" | "query" | "cancel" | "resume")[];
 export type RecoveryRequired1 = boolean;
 export type RecoveryReason1 = string | null;
+export type Module1 = ("transfer" | "bills" | "cross") | null;
 export type ThreadId4 = string;
 export type DemoRoundId3 = string;
 export type SnapshotAt1 = string;
 export type TaskRevision1 = number;
 export type CancelRequested1 = boolean;
-export type ConfirmationId = string;
 export type TaskId3 = string;
+export type ConfirmationId = string;
+export type TaskId4 = string;
 export type ConfirmationVersion = number;
 /**
  * @minItems 1
@@ -128,8 +131,10 @@ export type ValueText = string;
 export type CreatedAt3 = string;
 export type ExpiresAt1 = string;
 export type Decision = "pending" | "approved" | "cancelled" | "expired" | "superseded";
+export type Confirmations = ConfirmationView[];
 export type ChallengeId = string;
-export type TaskId4 = string;
+export type TaskId5 = string;
+export type CreatedAt4 = string;
 export type OperationId2 = string;
 export type ActionRevision = number;
 export type SourceConfirmationId = string;
@@ -148,6 +153,7 @@ export type CodeResult = "pending" | "passed" | "failed" | "expired" | "cancelle
 export type FaceResult = "pending" | "passed" | "failed" | "expired" | "cancelled" | "not_required";
 export type ChallengeStatus = "pending" | "passed" | "failed" | "expired" | "superseded" | "cancelled";
 export type ConsecutiveCodeFailures = number;
+export type Verifications = VerificationView[];
 export type Kind1 = "verified" | "rejected" | "error";
 export type ChallengeId1 = string;
 export type Code2 = string;
@@ -164,9 +170,9 @@ export type Candidates = PayeeCandidate[] | null;
 export type EventId = string;
 export type ThreadId5 = string;
 export type SessionId1 = string;
-export type TaskId5 = string | null;
+export type TaskId6 = string | null;
 export type RunId2 = string | null;
-export type Module = string;
+export type Module2 = string;
 export type EventType =
   | "message_delta"
   | "message_completed"
@@ -177,17 +183,11 @@ export type EventType =
   | "stream_error";
 export type OccurredAt = string;
 export type Payload =
-  | MessageDelta
-  | MessageView
-  | TaskViewTransferTaskView
-  | InteractionRequired
-  | ReportReady
-  | SessionExpired
-  | ModuleError;
+  MessageDelta | MessageView | TaskView | InteractionRequired | ReportReady | SessionExpired | ModuleError;
 export type MessageId2 = string;
 export type TextDelta = string;
-export type TaskId6 = string;
 export type TaskId7 = string;
+export type TaskId8 = string;
 export type ReportId = string;
 export type SessionId2 = string;
 export type Reason1 = string;
@@ -197,9 +197,9 @@ export type TraceId = string;
 export type ParentSpanId = string | null;
 export type SpanId = string;
 export type ThreadId6 = string | null;
-export type TaskId8 = string | null;
+export type TaskId9 = string | null;
 export type RunId3 = string | null;
-export type Module1 = string;
+export type Module3 = string;
 export type EventType1 = string;
 export type Timestamp = string;
 export type Outcome = "started" | "succeeded" | "failed" | "waiting" | "unknown" | "denied";
@@ -215,9 +215,9 @@ export type TraceId1 = string;
 export type ParentSpanId1 = string | null;
 export type SpanId1 = string;
 export type ThreadId7 = string | null;
-export type TaskId9 = string | null;
+export type TaskId10 = string | null;
 export type RunId4 = string | null;
-export type Module2 = string;
+export type Module4 = string;
 export type EventType2 = string;
 export type Timestamp1 = string;
 export type Outcome1 = "started" | "succeeded" | "failed" | "waiting" | "unknown" | "denied";
@@ -279,7 +279,7 @@ export type DurationMs1 = number;
 export type ReleaseAuthorizationId1 = string | null;
 export type FreezeId1 = string | null;
 export type DecisionId1 = string;
-export type TaskId10 = string;
+export type TaskId11 = string;
 export type RunId5 = string;
 export type ActionName1 = string;
 export type ParametersRef = string;
@@ -399,6 +399,7 @@ export interface ContractSchema {
   MessagePage: MessagePage;
   TaskPage: TaskPage;
   TaskView: TaskView;
+  TaskRecordsView: TaskRecordsView;
   ConfirmationView: ConfirmationView;
   VerificationView: VerificationView;
   VerificationResponse: VerificationResponse;
@@ -505,6 +506,7 @@ export interface TaskViewTransferTaskView {
   allowed_actions: AllowedActions;
   recovery_required: RecoveryRequired;
   recovery_reason: RecoveryReason;
+  module?: Module;
   thread_id: ThreadId3;
   demo_round_id: DemoRoundId2;
   snapshot_at: SnapshotAt;
@@ -621,13 +623,14 @@ export interface TaskView {
   task_id: TaskId2;
   run_id: RunId1;
   status: TaskStatus;
-  data: TransferTaskView | null;
+  data: unknown;
   message: Message1;
   interaction: InteractionRequest | null;
   error: ModuleError | null;
   allowed_actions: AllowedActions1;
   recovery_required: RecoveryRequired1;
   recovery_reason: RecoveryReason1;
+  module?: Module1;
   thread_id: ThreadId4;
   demo_round_id: DemoRoundId3;
   snapshot_at: SnapshotAt1;
@@ -635,12 +638,23 @@ export interface TaskView {
   cancel_requested: CancelRequested1;
 }
 /**
+ * Read-only confirmation and verification history for one task.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "TaskRecordsView".
+ */
+export interface TaskRecordsView {
+  task_id: TaskId3;
+  confirmations: Confirmations;
+  verifications: Verifications;
+}
+/**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
  * via the `definition` "ConfirmationView".
  */
 export interface ConfirmationView {
   confirmation_id: ConfirmationId;
-  task_id: TaskId3;
+  task_id: TaskId4;
   confirmation_version: ConfirmationVersion;
   display_fields: DisplayFields;
   created_at: CreatedAt3;
@@ -662,7 +676,8 @@ export interface DisplayField {
  */
 export interface VerificationView {
   challenge_id: ChallengeId;
-  task_id: TaskId4;
+  task_id: TaskId5;
+  created_at: CreatedAt4;
   summary: VerificationSummary | null;
   required_methods: RequiredMethods;
   code_expires_at: CodeExpiresAt;
@@ -736,9 +751,9 @@ export interface StreamEvent {
   event_id: EventId;
   thread_id: ThreadId5;
   session_id: SessionId1;
-  task_id: TaskId5;
+  task_id: TaskId6;
   run_id: RunId2;
-  module: Module;
+  module: Module2;
   event_type: EventType;
   occurred_at: OccurredAt;
   payload: Payload;
@@ -756,7 +771,7 @@ export interface MessageDelta {
  * via the `definition` "InteractionRequired".
  */
 export interface InteractionRequired {
-  task_id: TaskId6;
+  task_id: TaskId7;
   interaction: InteractionRequest;
 }
 /**
@@ -764,7 +779,7 @@ export interface InteractionRequired {
  * via the `definition` "ReportReady".
  */
 export interface ReportReady {
-  task_id: TaskId7;
+  task_id: TaskId8;
   report_id: ReportId;
 }
 /**
@@ -786,9 +801,9 @@ export interface AuditEventSummary {
   parent_span_id: ParentSpanId;
   span_id: SpanId;
   thread_id: ThreadId6;
-  task_id: TaskId8;
+  task_id: TaskId9;
   run_id: RunId3;
-  module: Module1;
+  module: Module3;
   event_type: EventType1;
   timestamp: Timestamp;
   outcome: Outcome;
@@ -810,9 +825,9 @@ export interface AuditEventDetail {
   parent_span_id: ParentSpanId1;
   span_id: SpanId1;
   thread_id: ThreadId7;
-  task_id: TaskId9;
+  task_id: TaskId10;
   run_id: RunId4;
-  module: Module2;
+  module: Module4;
   event_type: EventType2;
   timestamp: Timestamp1;
   outcome: Outcome1;
@@ -931,7 +946,7 @@ export interface SecurityDecidedPayload {
  */
 export interface SecurityDecision {
   decision_id: DecisionId1;
-  task_id: TaskId10;
+  task_id: TaskId11;
   run_id: RunId5;
   action_name: ActionName1;
   parameters_ref: ParametersRef;
@@ -1138,6 +1153,7 @@ export interface PublicContract {
   MessagePage: MessagePage;
   TaskPage: TaskPage;
   TaskView: TaskView;
+  TaskRecordsView: TaskRecordsView;
   ConfirmationView: ConfirmationView;
   VerificationView: VerificationView;
   VerificationResponse: VerificationResponse;

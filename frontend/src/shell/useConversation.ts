@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../api";
-import type { ConfirmationView, DemoCodeView, MessageView, SessionView, ThreadView, VerificationView } from "../contracts";
+import type { ConfirmationView, DemoCodeView, MessageView, SessionView, TaskRecordsView, ThreadView, VerificationView } from "../contracts";
 import { isTerminal, newRequestId } from "./format";
 import type { HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
 
@@ -24,6 +24,23 @@ function writeHistory(threadId: string, history: Record<string, HistoryEntry[]>)
   } catch {
     // History only keeps record ids and option labels; losing it hides old read-only cards.
   }
+}
+
+export function restoreServerRecordHistory(existing: HistoryEntry[], records: TaskRecordsView): HistoryEntry[] {
+  const inputEntries = existing.filter((entry) => entry.kind === "input");
+  const recordEntries = [
+    ...records.confirmations.map((item) => ({
+      kind: "confirmation" as const,
+      id: item.confirmation_id,
+      createdAt: item.created_at,
+    })),
+    ...records.verifications.map((item) => ({
+      kind: "verification" as const,
+      id: item.challenge_id,
+      createdAt: item.created_at,
+    })),
+  ].sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id));
+  return [...inputEntries, ...recordEntries.map(({ kind, id }): HistoryEntry => ({ kind, id }))];
 }
 
 function mergeMessages(current: MessageView[], incoming: MessageView[]): MessageView[] {
@@ -70,6 +87,8 @@ export function useConversation(source: ShellDataSource) {
   const pendingIds = useRef(new Map<string, string>());
   const fetched = useRef(new Set<string>());
   const didBoot = useRef(false);
+  const loadFlight = useRef<Promise<void> | null>(null);
+  const loadAgain = useRef(false);
 
   const expire = useCallback(() => {
     setExpired(true);
@@ -87,23 +106,78 @@ export function useConversation(source: ShellDataSource) {
   }, []);
 
   const loadThread = useCallback(async (markRecovery: boolean) => {
-    const current = await source.ensureThread();
-    const [messageList, taskList] = await Promise.all([source.listMessages(current.thread_id), source.listTasks(current.thread_id)]);
-    setThread(current);
-    setMessages((previous) => mergeMessages(markRecovery ? [] : previous, messageList));
-    setTasks((previous) => {
-      const next = markRecovery ? new Map<string, TaskEnvelope>() : new Map(previous);
-      for (const envelope of taskList) {
-        const existing = next.get(envelope.task.task_id);
-        if (!existing || existing.task.task_revision <= envelope.task.task_revision) next.set(envelope.task.task_id, envelope);
-      }
-      return next;
-    });
-    if (markRecovery) {
-      setHistory(readHistory(current.thread_id));
-      fetched.current.clear();
-      setBootRecovery(new Set(taskList.filter((envelope) => needsRecovery(envelope.task)).map((envelope) => envelope.task.task_id)));
-      setRecovered(new Map());
+    if (loadFlight.current) {
+      loadAgain.current = true;
+      await loadFlight.current;
+      return;
+    }
+
+    const run = (async () => {
+      let recovery = markRecovery;
+      do {
+        loadAgain.current = false;
+        const current = await source.ensureThread();
+        const [messageList, taskList] = await Promise.all([source.listMessages(current.thread_id), source.listTasks(current.thread_id)]);
+        const recordResults = await Promise.all(taskList.map(async ({ task }) => {
+          try {
+            return await source.listTaskRecords(task.task_id);
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 401) throw error;
+            return null;
+          }
+        }));
+        const recordLists = recordResults.filter((records): records is TaskRecordsView => records !== null);
+        setThread(current);
+        setMessages((previous) => mergeMessages(recovery ? [] : previous, messageList));
+        setTasks((previous) => {
+          const next = recovery ? new Map<string, TaskEnvelope>() : new Map(previous);
+          for (const envelope of taskList) {
+            const existing = next.get(envelope.task.task_id);
+            if (!existing || existing.task.task_revision <= envelope.task.task_revision) next.set(envelope.task.task_id, envelope);
+          }
+          return next;
+        });
+        setConfirmations((previous) => {
+          const next = recovery ? {} : { ...previous };
+          for (const records of recordLists) {
+            for (const confirmation of records.confirmations) next[confirmation.confirmation_id] = confirmation;
+          }
+          return next;
+        });
+        setVerifications((previous) => {
+          const next = recovery ? {} : { ...previous };
+          for (const records of recordLists) {
+            for (const verification of records.verifications) next[verification.challenge_id] = verification;
+          }
+          return next;
+        });
+        if (recovery) {
+          const restored = readHistory(current.thread_id);
+          for (const records of recordLists) {
+            restored[records.task_id] = restoreServerRecordHistory(restored[records.task_id] ?? [], records);
+          }
+          setHistory(restored);
+          fetched.current.clear();
+          setBootRecovery(new Set(taskList.filter((envelope) => needsRecovery(envelope.task)).map((envelope) => envelope.task.task_id)));
+          setRecovered(new Map());
+        } else if (recordLists.length > 0) {
+          setHistory((previous) => {
+            const restored = { ...previous };
+            for (const records of recordLists) {
+              restored[records.task_id] = restoreServerRecordHistory(restored[records.task_id] ?? [], records);
+            }
+            return restored;
+          });
+        }
+        recovery = false;
+      } while (loadAgain.current);
+    })();
+
+    loadFlight.current = run;
+    try {
+      await run;
+    } finally {
+      if (loadFlight.current === run) loadFlight.current = null;
     }
   }, [source]);
 
@@ -280,13 +354,14 @@ export function useConversation(source: ShellDataSource) {
     upsertTask(result);
   }
 
-  async function answerConfirmation(task: ShellTask, view: ConfirmationView, choice: "approve" | "cancel") {
-    if (!task.allowed_actions.includes(choice === "approve" ? "confirm" : "cancel")) return;
+  async function answerConfirmation(task: ShellTask, view: ConfirmationView, choice: "approve" | "cancel"): Promise<boolean> {
+    if (!task.allowed_actions.includes(choice === "approve" ? "confirm" : "cancel")) return false;
     const result = await act(task.task_id, "confirmation:" + view.confirmation_id + ":" + view.confirmation_version + ":" + choice, (request_id) =>
       source.answerConfirmation(view.confirmation_id, { request_id, confirmation_version: view.confirmation_version, choice }));
-    if (!result) return;
+    if (!result) return false;
     setConfirmations((current) => ({ ...current, [view.confirmation_id]: { ...view, decision: choice === "approve" ? "approved" : "cancelled" } }));
     upsertTask(result);
+    return true;
   }
 
   // Codes are never replayed: each submission gets fresh ids, and a lost response is followed by a read.

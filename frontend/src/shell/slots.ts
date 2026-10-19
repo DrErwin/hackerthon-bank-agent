@@ -13,6 +13,7 @@ export interface BusinessSlot<D = unknown> {
   exampleHints?: string[];
   confirmTitle?: string;
   emphasizeField?: string;
+  canModifyConfirmation?: boolean;
   // Facts already returned by the server, shown on waiting / recovery / needs_attention cards.
   summarize?: (task: ShellTask<D>) => DisplayField[];
   result?: (task: ShellTask<D>) => ResultView | null;
