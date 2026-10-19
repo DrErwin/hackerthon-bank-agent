@@ -1,0 +1,14 @@
+{
+  "tool": "stability_sample",
+  "label": "post-fix-f202e5d",
+  "capability": "subscription.list_subscriptions",
+  "intent": "帮我查查有哪些自动扣费",
+  "attempts": 150,
+  "started_at": "2026-10-19T08:05:46.421116+00:00",
+  "finished_at": "2026-10-19T08:06:35.264594+00:00",
+  "statuses": {
+    "succeeded": 150
+  },
+  "failure_count": 0,
+  "failures": []
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "label": "subscription-platform-2026-10-19T081554Z",
+    "layer": "platform-runtime",
+    "generated_at": "2026-10-19T081554Z",
+    "revision": "654a0e845b971487f753e39ff70a9ab4301fef4c",
+    "dirty_paths": [
+      "M  backend/app/audit/journal.py",
+      "M  backend/app/audit/test_journal.py",
+      "?? evals/subscription/evidence/2026-10-19/subscription-platform-2026-10-19T081554Z.json.gz"
+    ],
+    "app_file": "D:\\hb-worktrees\\sub-evals\\backend\\app\\__init__.py",
+    "python": "3.12.3",
+    "commands": [
+      [
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Scripts\\python.exe",
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Lib\\site-packages\\pytest\\__main__.py",
+        "evals/subscription",
+        "-q",
+        "--no-header"
+      ]
+    ],
+    "cases_run": 17,
+    "counts": {
+      "Passed": 17
+    },
+    "assertions_total": 349,
+    "assertions_passed": 349,
+    "failed_cases": [],
+    "evidence_file": "subscription-platform-2026-10-19T081554Z.json.gz",
+    "decompressed_sha256": "1f485509bbec2c9eb61ce7114c44cd07e2f526176643984cd65f3ae0f1f1a8a2",
+    "extra": {}
+  }
+]
