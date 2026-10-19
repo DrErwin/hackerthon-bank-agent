@@ -17,11 +17,13 @@ class BankGateway:
         self, bank: MockBankService, *, transfer_timeout_seconds: float = 4.0,
         authorize_transfer: Callable[..., bool] | None = None,
         authorize_face: Callable[..., bool] | None = None,
+        authorize_cancel: Callable[..., bool] | None = None,
     ):
         self._bank = bank
         self._transfer_timeout_seconds = transfer_timeout_seconds
         self._authorize_transfer = authorize_transfer
         self._authorize_face = authorize_face
+        self._authorize_cancel = authorize_cancel
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mock-bank")
 
     def close(self) -> None:
@@ -70,6 +72,24 @@ class BankGateway:
 
     def get_operation(self, context: TrustedContext, operation_id: UUID):
         return self._bank.get_operation(context, operation_id)
+
+    def list_subscriptions(self, context: TrustedContext, account_id: str | None = None,
+                           status: str | None = None):
+        return self._bank.list_subscriptions(context.user_id, account_id, status)
+
+    def cancel_subscription(self, context: TrustedContext, operation_id: UUID, mandate_id: str):
+        """B30 under the same server authorization and write budget as a transfer."""
+        if self._authorize_cancel is None or not self._authorize_cancel(
+            context, operation_id, mandate_id,
+        ):
+            return QueryFailure(kind="error", error=BankError(code="ACCESS_DENIED", details={}))
+        future = self._executor.submit(
+            self._bank.cancel_subscription, context, operation_id, mandate_id,
+        )
+        try:
+            return future.result(timeout=self._transfer_timeout_seconds)
+        except TimeoutError:
+            return QueryFailure(kind="error", error=BankError(code="CALL_TIMEOUT", details={}))
 
     def create_verification(self, context: TrustedContext, purpose: str,
                             operation_id=None, action_revision=None, summary=None):

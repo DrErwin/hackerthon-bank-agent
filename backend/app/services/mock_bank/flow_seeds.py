@@ -19,26 +19,35 @@ def shift_months(at: datetime, months: int) -> datetime:
     return at.replace(year=year, month=month, day=min(at.day, monthrange(year, month)[1]))
 
 
-def _occurred_at(at: datetime, month_offset: int, day: int, time_text: str) -> datetime | None:
-    """Resolve one seed row onto the bank clock; nothing may lie after that clock."""
+def _occurred_at(at: datetime, month_offset: int, day: int | None,
+                 time_text: str) -> datetime | None:
+    """Resolve one seed row onto the bank clock; nothing may lie after that clock.
+
+    A row without ``day`` keeps the clock's own day of month (clamped to the target
+    month), so a fixed-day-of-month story such as a monthly debit stays true however
+    late in the month the demo actually runs.
+    """
     shifted = shift_months(at, month_offset)
-    if day > monthrange(shifted.year, shifted.month)[1]:
-        return None
+    if day is not None:
+        if day > monthrange(shifted.year, shifted.month)[1]:
+            return None
+        shifted = shifted.replace(day=day)
     hour, minute = (int(part) for part in time_text.split(":"))
-    occurred_at = shifted.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+    occurred_at = shifted.replace(hour=hour, minute=minute, second=0, microsecond=0)
     return occurred_at if occurred_at <= at else None
 
 
-def build_flow_rows(at: datetime, *, seeds_dir: Path = SEEDS_DIR) -> list[dict]:
-    """Turn the relative seed file into fully-formed ledger facts for ``at``.
+def build_flow_rows(at: datetime, *, seeds_dir: Path = SEEDS_DIR,
+                    filename: str = FLOW_SEED_FILE) -> list[dict]:
+    """Turn one relative seed file into fully-formed ledger facts for ``at``.
 
     Seeded transfer *outflows* never land on the bank's current day: the daily limit
     counts them like any transfer and the demo would lose room for its own transfer.
     """
-    seeds = json.loads((seeds_dir / FLOW_SEED_FILE).read_text(encoding="utf-8"))
+    seeds = json.loads((seeds_dir / filename).read_text(encoding="utf-8"))
     resolved: dict[str, tuple[str, datetime]] = {}
     for seed in seeds:
-        occurred_at = _occurred_at(at, seed["month_offset"], seed["day"], seed["time"])
+        occurred_at = _occurred_at(at, seed["month_offset"], seed.get("day"), seed["time"])
         if occurred_at is None:
             continue
         if (seed["nature"] == "transfer" and seed["direction"] == "outflow"
