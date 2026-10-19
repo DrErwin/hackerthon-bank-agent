@@ -1,5 +1,16 @@
 # 周恩宇 v0.4 账单实施台账
 
+## 2026-10-19 22:35 · 明日验收前最新个人实证
+
+- **#93 最新验收证据已补齐**：[源提交 `999c1c0`](https://github.com/DrErwin/hackerthon-bank-agent/commit/999c1c062cc946f89bae6607eafe6234f4f76a40) → [原始报告归档 `6540f89`](https://github.com/DrErwin/hackerthon-bank-agent/commit/6540f8997c5a6ed9c85779c18e5348819c148610)。[GitHub Actions 39266604025](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39266604025) 全检出真实运行 `147 passed/0 failed`，130算术+17工具、14份指定源码 git blob 对齐；新gzip已归档（gzip SHA256 `b00c8b3a961674e54c6b1d658bd54f18bc5579019522e3db66e295db9b766f47`，解压 JSON SHA256 `f18b553f3a7ebdf5b22c3f4946038e9a1603f58ffbfe82a1238ac3e57c572b6d`）。[PR head CI 39267252080](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39267252080) `727 backend +14 Mock Bank passed`。待 Erwin 正式审核合并，不冒充主线完成。
+- **#151 L03 两项审核必修已修**：口语对比、未来月份/9999年输入现在在读银行前追问，新增7个回归；基于主线再次同步后 head `8ffd5ecbe3cc7225fe978c4dbdd56ed4edb28903`，CI [39266305594](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39266305594) `782 backend +14 Mock Bank passed`，仍待 Erwin 审核、平台安全真实装配。
+- **票04 L02**：新主线 F10 `ApiService.input_response(self,task,request)` 改动导致原三项集成用例报错（历史失败 CI [39268776165](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39268776165)），已只在自己的 `bills/test_anomaly_integration.py` 修正 task-shaped 适配。远端 head `530b887550080d31c766f21a9c7aa601b1db21ef`；新独立 CI [39269422584](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39269422584) `253 bills +821 full backend +14 MockBank passed`。分支已提交、尚未提 PR/合并。
+- **票09（Issue #136）模块防重**：head `fcf3ffca1817105cd1cde6914052a05c9a5b7cc0`，独立 CI [39268776165](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39268776165) M2 job 118115250041 `161 bills +729 backend +14 MockBank passed`，代码已推分支，仍未提 PR，Issue 保持 open。
+- **票10（Issue #145）只读审计**：head `8967b8d7aa5ae3742602f24703ab7145a8e338b8`，同批 CI audit job 118115250557 `161 bills +729 backend +14 MockBank passed`，代码已推分支，仍需 PR 与 Ringo 专业审查；历史审计数据清理另交 Erwin 决策。
+- **评测票06/07**：此前公开 L01 有17场景通过，L03/导出 HTTP 有7场景87请求通过；完整每功能≥10、每类异常≥3、真实模型/React/安全与 BF01-BF07 联合验收未满，继续 in_progress，不虚报 accepted。
+- **仓库规则和依赖**：本人已开放 PR #93/#151 占用每人最多两张未合 PR 名额。以上 L02/#136/#145 将在 Erwin 审查合并释放名额后按独立 PR 正式提审；不可由 Ethan 代签或自行将代码合到团队主线。平台/安全/前端各自 Owner 接线与审查事项单独登记。
+
+
 ## 2026-10-19 紧急通知后最新远端状态
 
 - PM 在 [PR #93 的 10-19 紧急评论](https://github.com/DrErwin/hackerthon-bank-agent/pull/93#issuecomment-6260156356) 要求 10-20 收口前评测 PR 入主线。本轮核对最新 main `ecf90d0dd8c3b2acdbb0c52c30bdee90581007bc`；七个新增主线提交与本人 PR #93 的 16 个 `evals/bills/` 文件、#151 的 7 个 `backend/app/modules/bills/` 文件均无修改路径冲突。
