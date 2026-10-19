@@ -54,3 +54,7 @@ GitHub连接可读写，命令行Git缺认证，本轮未发起登录或读取�
 main 399a2fe记录Erwin本人决定A：Demo继续固定等级流程对照，真实检测器仅用于离线评测，不采集设备信息；平台v04-risk-inputs/02生产装配deferred至v0.5。本轮交付按此执行，不把未接演示写成检测失败，也不声称演示具备真实识别。180天历史窗口和金额2倍阈值仍待PM确认，检测器未使用usual生成低风险信号。
 
 四类攻击的其他入口及全集离线适配仍按实际观察证据推进；工具备注、不可信资料、记忆实际模型载入缺口保持。现有137/294/356计划及20P/336B历史报告不因本专项自动改写。真实模型和页面补验遵用户决定另行确认；合入与真人签核由责任人分别完成。以上为已提交及离线证据，整体安全验收保持未完成。
+
+### 最终提交自动检查
+
+PR #169 最终head `14cced650ed5e74d21a2ffaddc824c6bb8be973e` 的 [Repository checks 39266777237](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39266777237) 成功。PR #170 最终head `be4d0cdc8c1f5637344af9c02f8a0efee433c6b0` 的 [Repository checks 39266810208](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39266810208) 成功。两者继续Draft等待前置合入及真人批准，当前无运行中的本轮代码检查；未自动合并。
