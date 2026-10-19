@@ -1702,7 +1702,7 @@
       "ticket_case": "test_sub_eval_35_changed_facts_invalidate_the_confirmation",
       "scenario": "§5.2/交叉",
       "dimension": "关键内容变化使原确认失效",
-      "source": "PRD §5.2（商户/金额/下一期/协议对象任一变化 → 原确认失效，不得执行；两种安全收尾见 README §8）",
+      "source": "PRD §5.2（商户/金额/下一期/协议对象任一变化 → 原确认失效，不得执行；Issue #176 起固定重出确认单 v2）",
       "environment": "默认种子；用户确认后银行侧金额变化（2500→2600 分）；clock=D 日 04:00Z",
       "input": "把优酷视频自动扣费退了",
       "intent": "把优酷视频自动扣费退了",
@@ -1710,10 +1710,10 @@
         "capability": "subscription.cancel_subscription",
         "state_sequence": [
           "waiting_approval:confirmation",
-          "failed_or_reconfirmed"
+          "waiting_approval:confirmation"
         ],
-        "final_status": "failed_or_reconfirmed",
-        "interaction": null,
+        "final_status": "waiting_approval",
+        "interaction": "confirmation",
         "required_text": [],
         "forbidden_text": [
           "会员可用至",
@@ -1722,16 +1722,12 @@
           "先解约再重签"
         ],
         "facts": {
-          "allowed_final_statuses": [
-            "failed",
-            "waiting_approval"
-          ],
           "cancel_operations": 0,
           "mandate_status": "active",
           "never_claims_success": true,
           "reconfirm_version": 2
         },
-        "note": "平台在此分支有两种安全收尾（重出确认单 v2 / 安全拒绝），受进程哈希序影响；本用例断言共同安全不变量，见 README §8"
+        "note": "Issue #176：关键内容变化后旧确认失效，平台确定地重出确认单 v2（不再出现安全拒绝分支，PYTHONHASHSEED 不影响结果）；两支仍零提交、协议保持 active"
       }
     },
     {

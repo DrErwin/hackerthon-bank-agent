@@ -56,7 +56,7 @@ python -m pytest evals/subscription -q
 | 验证强度边界：非 LOW 不降级（spec §5.3/§8.4） | — | SUB-VFY-03 | — | — | — | 策略当前对退订只给 LOW/HIGH；用例守住注入非 LOW 裁决时仍走动作级 step-up、不降级为会话验证码 |
 | 高危阻断（T09；§5） | — | SUB-VFY-02 | — | — | SUB-RED-03 | 真实反诈检测效果属安全评测 |
 | 防重复（T11/E07） | — | SUB-CAN-06 | — | SUB-CAN-06 | SUB-CAN-13 | 第二次点击的「已在处理/已退过」文案属 F06 幂等回执（API 层），本集只钉单次执行 |
-| 关键内容变化/确认失效（§5.2） | — | SUB-CAN-11 | — | SUB-CAN-10 | SUB-CAN-10 | 平台在此分支有两种安全收尾（重出确认单 v2 / 安全拒绝），受进程哈希序影响；本集断言共同安全不变量，确定性另记缺口（§8） |
+| 关键内容变化/确认失效（§5.2） | — | SUB-CAN-11 | — | SUB-CAN-10 | SUB-CAN-10 | Issue #176 修复后固定「旧确认失效 → 重出确认单 v2」单一分支（不再接受安全拒绝那支，`PYTHONHASHSEED` 不影响结果） |
 | 结果未知与 B14 回查（T05/E06） | SUB-CAN-13 | SUB-CAN-14 | — | SUB-CAN-13、SUB-CAN-14、SUB-CAN-19 | — | 多进程并发、跨演示轮次回查不在本集 |
 | 商户名注入（T10；§5.5） | SUB-INV-08 | SUB-INV-08 | — | — | SUB-VFY-02 | 真实模型的注入抵抗属安全评测 |
 | 跨用户（E11/T16；§5.4） | SUB-INV-07 | SUB-INV-07 | — | — | SUB-INV-07 | 拒绝话术属规划层（§8） |
@@ -143,6 +143,6 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | E04 当期 `processing` 分支 | v0.4 契约无该状态（§7A） | 契约/银行后续版本 |
 | `reminder_days` / `status_filter` 参数化 | 平台入口（S01 逻辑入参）未接线，评测无法从用户请求传入 | 平台规划槽位 |
 | SOP-3「下一期异常需核实」标注 | 只实现「不猜日期」，标注文案未实现；`SUB-REM-04` 断言不猜半边 | 订阅模块后续 |
-| 关键内容变化后的平台确定性 | 同一用例（`SUB-CAN-11`）在 `PYTHONHASHSEED` 不同时收尾不同：一支把同一确认单重新冻结为 v2（`waiting_approval:confirmation`），一支 `failed`/`SECURITY_REJECTED`（上游 `OPERATION_CONFLICT`）；两支都零提交、协议 `active`。评测改为断言两支共同的安全不变量，非确定性本身属平台实现问题（待开修复票） | 平台 / 订阅模块后续 |
+| 关键内容变化后的平台确定性 | **已修复（Issue #176）**：此前同一用例（`SUB-CAN-11`）在 `PYTHONHASHSEED` 不同时收尾不同——一支重出确认单 v2（`waiting_approval:confirmation`），一支 `failed`/`SECURITY_REJECTED`（上游 `OPERATION_CONFLICT`）；根因是模块把参数哈希当动作修订号，随机撞上安全状态「新修订号必须更大」的判据。模块修复见 PR #179（单调修订号），本集断言已收紧为只接受 v2，不再作为缺口 | — |
 | 退订的写前 AuthorizationSnapshot | 取消订阅在 spec/契约中声明为 `OperationLevel.MODIFY`（二级），安全门只在 `SENSITIVE` 动作前写授权快照；PRD §5.10 称其为三级敏感操作，两处口径不一致。`SUB-SEC-01` 只断言审计链路与操作编号，不伪造快照断言 | 安全侧 / 契约口径（Ringo 与 Erwin 确认后再定） |
 | 真实 GLM 意图理解、前端渲染/语音播报、两进程并发同一退订 | 属真实模型 / 前端 / 并发评测 | v0.5 端到端 E2E 与安全评测 |

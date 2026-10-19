@@ -134,5 +134,76 @@
       "all_match_head": true
     },
     "extra": {}
+  },
+  {
+    "label": "subscription-platform-2026-10-19T193122Z",
+    "layer": "platform-runtime",
+    "generated_at": "2026-10-19T193122Z",
+    "revision": "62f9680eb4e11fb629ca961067030b555aeaa874",
+    "dirty_paths": [],
+    "app_file": "C:\\Users\\57652\\AppData\\Local\\Temp\\wk-176-evals\\backend\\app\\__init__.py",
+    "python": "3.12.3",
+    "commands": [
+      [
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Scripts\\python.exe",
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Lib\\site-packages\\pytest\\__main__.py",
+        "evals/subscription",
+        "-q",
+        "--no-header",
+        "-p",
+        "no:cacheprovider"
+      ]
+    ],
+    "cases_run": 48,
+    "counts": {
+      "Passed": 48
+    },
+    "assertions_total": 1070,
+    "assertions_passed": 1070,
+    "failed_cases": [],
+    "evidence_file": "subscription-platform-2026-10-19T193122Z.json.gz",
+    "decompressed_sha256": "076efc2eba8cb862276059e5750e5d6a3352aa717320ed9e30936e4c98f5eef7",
+    "source_verification": {
+      "head_revision": "62f9680eb4e11fb629ca961067030b555aeaa874",
+      "files": {
+        "evals/subscription/conftest.py": {
+          "head_blob": "b3c1d33256cbe4d03cb347a75a1d9991e25e4d3f",
+          "worktree_blob": "b3c1d33256cbe4d03cb347a75a1d9991e25e4d3f",
+          "match": true
+        },
+        "evals/subscription/harness.py": {
+          "head_blob": "7c17f84c2321c0e3536c7c866ae92f87e248d320",
+          "worktree_blob": "7c17f84c2321c0e3536c7c866ae92f87e248d320",
+          "match": true
+        },
+        "evals/subscription/stability_sample.py": {
+          "head_blob": "23018df7c38e5766169073d60c781802b87756f3",
+          "worktree_blob": "23018df7c38e5766169073d60c781802b87756f3",
+          "match": true
+        },
+        "evals/subscription/test_subscription_cancel_evals.py": {
+          "head_blob": "59260decb82a546187d69566522e1349dec900cc",
+          "worktree_blob": "59260decb82a546187d69566522e1349dec900cc",
+          "match": true
+        },
+        "evals/subscription/test_subscription_evals.py": {
+          "head_blob": "5f0a36476495145c2c8f7a2f21d43bce7afaaa4d",
+          "worktree_blob": "5f0a36476495145c2c8f7a2f21d43bce7afaaa4d",
+          "match": true
+        },
+        "evals/subscription/test_subscription_read_evals.py": {
+          "head_blob": "d120fed3d55b500956607418fc781e982feca8ed",
+          "worktree_blob": "d120fed3d55b500956607418fc781e982feca8ed",
+          "match": true
+        },
+        "evals/subscription/golden_cases.json": {
+          "head_blob": "bd453794b880dd9e023cd31eed70b251004bf61d",
+          "worktree_blob": "bd453794b880dd9e023cd31eed70b251004bf61d",
+          "match": true
+        }
+      },
+      "all_match_head": true
+    },
+    "extra": {}
   }
 ]
