@@ -467,23 +467,49 @@ class SubscriptionService:
             # A duplicate confirmation or a recovery replay hands back the claimed
             # operation's own result; the bank's receipt stays the truth, never a refusal.
             return self._report_operation(context, item, result)
+        if isinstance(result, QueryFailure):
+            # The bank's own refusal: only its code is reported, and it is final.
+            if result.error.code == "CALL_TIMEOUT":
+                return self.needs_attention(context, item=item, operation_id=outcome.operation_id)
+            return self._bank_failure(context, result)
         if not outcome.executed:
             answer = outcome.decision
             if answer is not None and answer.decision == SecurityDecisionCode.BLOCK:
                 return self.security_stop(context, answer.reason_code)
+            if outcome.state in {"unknown", "processing"}:
+                # A recovery replay that still has no bank answer: keep waiting.
+                return self.needs_attention(context, item=item, operation_id=outcome.operation_id)
             return self.failed(context, "SECURITY_REJECTED", source="security",
                                message=_MESSAGES["SECURITY_REJECTED"])
-        if isinstance(result, QueryFailure):
-            upstream = result.error.code
-            code = upstream if upstream in _SAFE_BANK_CODES else "BANK_REJECTED"
-            return self.failed(context, code, source="bank", upstream=upstream,
-                               message=_MESSAGES.get(code, _MESSAGES["BANK_REJECTED"]))
+        if outcome.state in {"unknown", "processing"}:
+            # The write was submitted but the bank has not confirmed it: say so, and
+            # keep the task open for one B14 lookup instead of reporting a fault.
+            return self.needs_attention(context, item=item, operation_id=outcome.operation_id)
         return self.failed(context, "SUBSCRIPTION_INTERNAL_ERROR", source="bank")
+
+    def _bank_failure(self, context: TrustedContext, result: QueryFailure) -> ModuleResult:
+        upstream = result.error.code
+        code = upstream if upstream in _SAFE_BANK_CODES else "BANK_REJECTED"
+        return self.failed(context, code, source="bank", upstream=upstream,
+                           message=_MESSAGES.get(code, _MESSAGES["BANK_REJECTED"]))
+
+    def needs_attention(self, context: TrustedContext, *, item: SubscriptionItem | None = None,
+                        operation_id: str | None = None,
+                        reason: str = "OPERATION_UNKNOWN") -> ModuleResult:
+        """The cancel outcome is not known yet; never write it as success or failure."""
+
+        data = (self._view(action="cancel", item=item, operation_id=operation_id)
+                if item is not None else None)
+        return ModuleResult(
+            task_id=context.task_id, run_id=context.run_id, status=TaskStatus.NEEDS_ATTENTION,
+            data=data, message=_MESSAGES["CALL_TIMEOUT"], interaction=None, error=None,
+            allowed_actions=["query"], recovery_required=True, recovery_reason=reason)
 
     def _report_operation(self, context: TrustedContext, item: SubscriptionItem,
                           result: OperationResult[SubscriptionCancelReceipt]) -> ModuleResult:
         if result.operation_status == "processing":
-            return self.failed(context, "CALL_TIMEOUT", source="bank", upstream="processing")
+            return self.needs_attention(context, item=item, operation_id=result.operation_id,
+                                        reason="OPERATION_PROCESSING")
         if result.operation_status != "succeeded" or result.receipt is None:
             reason = result.failure.code if result.failure else "BANK_REJECTED"
             return self.failed(context, reason if reason in _MESSAGES else "BANK_REJECTED",

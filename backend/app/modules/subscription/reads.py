@@ -9,6 +9,7 @@ its parameter registry are task scoped.
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from hashlib import sha256
 import json
 from time import monotonic
@@ -55,6 +56,23 @@ class CancelWriteInput(ContractModel):
     effective_stop_at: Timestamp
     risk_observations: list[str] = []
     display_fields: list[dict] = []
+
+
+@dataclass(frozen=True)
+class _CancelReply:
+    """A B30 reply plus the operation number it belongs to.
+
+    ``OperationResult`` carries its own operation id, but a ``QueryFailure`` does not;
+    the executor's observation needs one to stay bound to this task's operation.
+    """
+
+    operation_id: UUID
+    reply: object
+
+
+# The bank's own time budget, not the bank's answer: the gateway stopped waiting and the
+# background call may still settle. Every other synchronous answer is the bank's final word.
+CALL_TIMEOUT = "CALL_TIMEOUT"
 
 
 PRIVATE_TOOLS = (
@@ -169,8 +187,23 @@ class GatewaySubscriptionPorts:
     def _observe_result(result: object):
         from app.contracts.bank import OperationResult, QueryFailure
         from app.security import OperationObservation
+        operation_id = None
+        if isinstance(result, _CancelReply):
+            operation_id, result = result.operation_id, result.reply
         if isinstance(result, QueryFailure):
-            raise ValueError(result.error.code)
+            if result.error.code == CALL_TIMEOUT:
+                # The gateway gave up waiting, but the bank may still have settled it:
+                # keep the claim recoverable so a later resume can look up B14.
+                raise ValueError(result.error.code)
+            if operation_id is None:
+                raise ValueError(result.error.code)
+            # Any other synchronous answer is the bank's final word on this operation.
+            # A completed observation hands the refusal to the module unchanged; the
+            # reference is this module's own marker, never a bank operation record.
+            return OperationObservation(
+                operation_id=operation_id, state="completed", result=result,
+                result_ref=f"refused-{operation_id}",
+            )
         if not isinstance(result, OperationResult):
             raise ValueError("unexpected bank result")
         return OperationObservation(
@@ -259,8 +292,9 @@ class GatewaySubscriptionPorts:
 
     def _cancel_handler(self, context, payload):
         request = CancelWriteInput.model_validate(payload)
-        return self.gateway.cancel_subscription(self._trusted(context), request.operation_id,
-                                                request.mandate_id)
+        reply = self.gateway.cancel_subscription(self._trusted(context), request.operation_id,
+                                                 request.mandate_id)
+        return _CancelReply(operation_id=request.operation_id, reply=reply)
 
     def accounts(self, context: TrustedContext):
         return self._read(context, "subscription.bank.list_accounts", {})
@@ -305,7 +339,7 @@ class GatewaySubscriptionPorts:
 
     def _observed(self, context, outcome, parent_span_id: str | None = None) -> None:
         from app.contracts.audit import BankObservedPayload
-        from app.contracts.bank import OperationResult
+        from app.contracts.bank import OperationResult, QueryFailure
         result = outcome.result
         if isinstance(result, OperationResult):
             ref = str(uuid4())
@@ -313,6 +347,14 @@ class GatewaySubscriptionPorts:
                 operation_id=context.operation_id, lookup="found",
                 operation_status=result.operation_status, transaction_id=None,
                 receipt_ref=ref, error=None), "succeeded",
+                evidence=result.model_dump(mode="json"), evidence_id=ref,
+                module="bank_gateway", parent_span_id=parent_span_id)
+        elif isinstance(result, QueryFailure):
+            # The bank answered with a refusal: that is a fact, not an unknown outcome.
+            ref = str(uuid4())
+            self.trace.record("bank.observed", BankObservedPayload(
+                operation_id=context.operation_id, lookup="error", operation_status=None,
+                transaction_id=None, receipt_ref=None, error=result.error), "failed",
                 evidence=result.model_dump(mode="json"), evidence_id=ref,
                 module="bank_gateway", parent_span_id=parent_span_id)
         elif outcome.reused or outcome.state in {"unknown", "processing"}:
@@ -323,7 +365,7 @@ class GatewaySubscriptionPorts:
 
     def execute_cancel(self, trusted: TrustedContext, plan: CancellationPlan) -> ExecutionOutcome:
         from app.contracts.audit import ToolFinishedPayload, ToolStartedPayload
-        from app.contracts.bank import OperationResult
+        from app.contracts.bank import OperationResult, QueryFailure
         # The shared executor only claims a funds/state-changing handler in the
         # execution phase; the reference stays identical to the approved confirmation.
         context, action = self._write_context(trusted, plan, phase=Phase.EXECUTION)
@@ -339,12 +381,20 @@ class GatewaySubscriptionPorts:
             outcome = self.executor.execute(context, action)
             self._observed(context, outcome, event.span_id)
             denied = outcome.decision is not None and outcome.decision.decision != SecurityDecisionCode.ALLOW
+            refused = isinstance(outcome.result, QueryFailure)
+            error = None
+            if denied:
+                error = ModuleError(code=outcome.decision.reason_codes[0], source="security", field=None,
+                                    reason="安全检查未放行", upstream_code=None)
+            elif refused:
+                error = ModuleError(code=outcome.result.error.code, source="bank", field=None,
+                                    reason="银行明确拒绝", upstream_code=outcome.result.error.code)
             self.trace.record("tool.finished", ToolFinishedPayload(
                 tool_call_id=call_id, operation_id=context.operation_id, result_ref=None,
-                duration_ms=int((monotonic() - started) * 1000),
-                error=ModuleError(code=outcome.decision.reason_codes[0], source="security", field=None,
-                                  reason="安全检查未放行", upstream_code=None) if denied else None),
-                "denied" if denied else ("succeeded" if isinstance(outcome.result, OperationResult) else "unknown"),
+                duration_ms=int((monotonic() - started) * 1000), error=error),
+                "denied" if denied else
+                ("succeeded" if isinstance(outcome.result, OperationResult)
+                 else "failed" if refused else "unknown"),
                 module="subscription", parent_span_id=event.span_id)
             answer = (GateAnswer(decision=outcome.decision.decision, interaction=outcome.decision.interaction,
                                  reason_code=outcome.decision.reason_codes[0]

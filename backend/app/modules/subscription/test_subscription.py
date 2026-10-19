@@ -410,6 +410,23 @@ def test_text_reply_disambiguates_and_an_unknown_merchant_falls_back_to_the_menu
     assert entry().start(context(), start_request("把 sub_999 退了")).status == TaskStatus.SUCCEEDED
 
 
+def test_a_typed_merchant_name_answers_the_batch_refusal_menu():
+    """Typing a merchant after the batch refusal is a selection, not a new batch request."""
+
+    saver = MemorySaver()
+    task = entry(saver=saver)
+    first = task.start(context(), start_request("把所有自动扣费都关了"))
+    assert first.status == TaskStatus.WAITING_INPUT
+    assert "每次只能退订一项" in first.message
+
+    chosen = task.resume(context(), {"text": "云端网盘"})
+
+    assert chosen.status == TaskStatus.WAITING_APPROVAL
+    assert chosen.interaction.kind == "confirmation"
+    state = saver.rows["T1"].checkpoint["channel_values"]["subscription_state"]
+    assert state["batch"] is False and state["selected"] == "sub_002"
+
+
 def test_suspected_clue_never_opens_a_confirmation():
     bank = FakeBank()
     result = entry(bank).start(context(), start_request("帮我把绿洲健身每个月扣的钱退订掉"))

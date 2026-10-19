@@ -15,9 +15,11 @@ import re
 from typing import Callable
 from uuid import uuid4
 
-from app.contracts.common import SecurityDecisionCode
+from app.contracts.common import SecurityDecisionCode, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
+from app.contracts.subscription import SubscriptionItem
 from app.contracts.tasks import ModuleResult
+from .ports import plan_from_payload
 from .service import SubscriptionError, SubscriptionService
 
 
@@ -100,7 +102,7 @@ class SubscriptionEntry:
                 "mandate_id": named_mandate_id(request.intent_text),
                 "risk": risk_observations(request.intent_text),
                 "reminder_days": 30, "waiting": None, "selected": None, "candidates": [],
-                "operation_id": None}
+                "operation_id": None, "pending_cancel": None}
 
     def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None) -> ModuleResult:
         if not isinstance(request, StartTransferInput):
@@ -142,6 +144,9 @@ class SubscriptionEntry:
                 raise ValueError("INVALID_OPTION")
             result = self._advance(trusted, state, selected=choice)
         elif state.get("waiting") == "input" and str(response.get("text") or "").strip():
+            # A typed merchant name answers the menu: the user is picking one item, not
+            # repeating "cancel everything", so the batch refusal no longer applies.
+            state["batch"] = False
             result = self._advance(trusted, state, utterance=str(response["text"]).strip())
         else:
             # A confirmation or verification was answered: re-check the gate and continue.
@@ -168,6 +173,12 @@ class SubscriptionEntry:
 
     def _cancel_step(self, trusted: TrustedContext, state: dict, *,
                      utterance: str | None = None, selected: str | None = None) -> ModuleResult:
+        pending = state.get("pending_cancel")
+        if isinstance(pending, dict):
+            # The cancelling write was submitted but never confirmed: query that same
+            # operation first, never re-resolve the target from possibly changed facts.
+            return self._recover_cancel(trusted, state, pending)
+        state["waiting"] = None
         if selected is not None:
             state["selected"] = selected
             state["batch"] = False
@@ -178,7 +189,6 @@ class SubscriptionEntry:
             utterance=None if state.get("selected") else utterance,
             batch_requested=bool(state.get("batch")) and state.get("selected") is None,
             reminder_days=state["reminder_days"])
-        state["waiting"] = None
         if resolution.kind == "candidates":
             state["candidates"] = [item.subscription_id for item in resolution.candidates]
             state["waiting"] = "input"
@@ -196,17 +206,44 @@ class SubscriptionEntry:
         # Persist the bank-matched target so every later step re-resolves the same row.
         state["selected"] = item.subscription_id
         plan = self.service.plan_for(item, tuple(state.get("risk") or ()))
+        return self._decide_cancel(trusted, state, item, plan)
+
+    def _recover_cancel(self, trusted: TrustedContext, state: dict,
+                        pending: dict) -> ModuleResult:
+        """One B14 lookup for the frozen operation the user already submitted."""
+
+        plan = plan_from_payload(pending["payload"])
+        item = SubscriptionItem.model_validate(pending["item"])
+        return self._decide_cancel(trusted, state, item, plan)
+
+    def _decide_cancel(self, trusted: TrustedContext, state: dict, item: SubscriptionItem,
+                       plan) -> ModuleResult:
+        state["waiting"] = None
         answer = self.service.check_cancel(trusted, plan)
         state["operation_id"] = answer.operation_id
         if answer.decision == SecurityDecisionCode.ALLOW:
             outcome = self.service.execute_cancel(trusted, plan)
-            return self.service.cancel_task(trusted, item, plan, outcome)
-        if answer.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION:
-            state["waiting"] = "confirmation"
-            return self.service.waiting_approval(trusted, answer, self.service.confirmation_message(item))
-        if answer.decision == SecurityDecisionCode.REQUIRE_VERIFICATION:
-            state["waiting"] = "verification"
-            return self.service.waiting_approval(trusted, answer, self.service.verification_message())
+            result = self.service.cancel_task(trusted, item, plan, outcome)
+            if result.status == TaskStatus.NEEDS_ATTENTION:
+                # Freeze exactly what was submitted: a later resume must query this
+                # operation number, not re-read bank facts that may already be cancelled.
+                state["pending_cancel"] = {
+                    "payload": plan.payload(), "item": item.model_dump(mode="json")}
+            else:
+                state["pending_cancel"] = None
+            return result
+        if answer.decision in {SecurityDecisionCode.REQUIRE_CONFIRMATION,
+                               SecurityDecisionCode.REQUIRE_VERIFICATION}:
+            # The frozen attempt stays pending: once the user answers, resuming it must
+            # still look up the submitted operation instead of starting over.
+            if answer.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION:
+                state["waiting"] = "confirmation"
+                message = self.service.confirmation_message(item)
+            else:
+                state["waiting"] = "verification"
+                message = self.service.verification_message()
+            return self.service.waiting_approval(trusted, answer, message)
+        state["pending_cancel"] = None
         if answer.decision == SecurityDecisionCode.BLOCK:
             return self.service.security_stop(trusted, answer.reason_code)
         return self.service.failed(trusted, "SECURITY_REJECTED", source="security",

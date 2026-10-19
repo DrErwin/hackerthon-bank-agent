@@ -64,6 +64,24 @@ class CancellationPlan:
         }
 
 
+def plan_from_payload(payload: dict) -> CancellationPlan:
+    """Rebuild one frozen plan from its checkpointed payload, byte-for-byte.
+
+    The payload decides the parameter reference and the action revision the executor
+    and the answered confirmation are keyed by, so it must round-trip unchanged.
+    """
+
+    return CancellationPlan(
+        mandate_id=payload["mandate_id"], account_id=payload["account_id"],
+        account_masked=payload["account_masked"], merchant_id=payload["merchant_id"],
+        merchant_name=payload["merchant_name"], service_name=payload["service_name"],
+        amount_fen=payload["amount_fen"], cycle=payload["cycle"],
+        effective_stop_at=datetime.fromisoformat(payload["effective_stop_at"]),
+        risk_observations=tuple(payload["risk_observations"]),
+        fields=tuple(DisplayField.model_validate(field) for field in payload["display_fields"]),
+    )
+
+
 @dataclass(frozen=True)
 class GateAnswer:
     """One security-gate answer; ``interaction`` is the gate's own pending step, so the
