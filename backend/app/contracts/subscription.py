@@ -42,8 +42,6 @@ class SubscriptionMandate(ContractModel):
             raise ValueError("only a cancelled mandate carries a cancellation time")
         if self.status == "cancelled" and self.next_billing_at is not None:
             raise ValueError("a cancelled mandate has no next billing time")
-        if (self.cancelled_at is None) != (self.cancel_operation_id is None):
-            raise ValueError("a cancellation carries its operation id")
         return self
 
 
@@ -89,7 +87,7 @@ class SubscriptionItem(ContractModel):
     subscription_id: ID
     source_type: SubscriptionSourceType
     mandate_id: ID | None
-    merchant_id: ID
+    merchant_id: ID | None
     merchant_name: str
     service_name: str
     amount_fen: Money
@@ -100,7 +98,7 @@ class SubscriptionItem(ContractModel):
     next_billing_at: Timestamp | None
     status: SubscriptionStatus
     can_cancel_in_bank: bool
-    days_until_renewal: int | None
+    days_until_renewal: Annotated[int, Field(strict=True)] | None
     is_upcoming_renewal: bool
     external_cancel_guide: str | None
     # Debit evidence gathered from B08 flows (public contract §5.5, 2026-10-19 addition).
@@ -114,6 +112,10 @@ class SubscriptionItem(ContractModel):
             raise ValueError("a mandate row carries its mandate id")
         if self.source_type == "suspected_ledger" and self.mandate_id is not None:
             raise ValueError("a suspected series has no bank mandate")
+        if self.source_type == "suspected_ledger" and self.status != "suspected":
+            raise ValueError("a flow-only series is never a signed agreement state")
+        if self.source_type == "mandate" and self.status == "suspected":
+            raise ValueError("a signed mandate is never a flow-only clue")
         if self.can_cancel_in_bank and (self.source_type != "mandate" or self.status != "active"):
             raise ValueError("only an active bank mandate can be cancelled online")
         if self.is_upcoming_renewal and self.status != "active":
@@ -180,7 +182,7 @@ class SubscriptionListInput(ContractModel):
     request_id: RequestId
     intent_text: str
     account_ids: list[ID] | None = None
-    status_filter: Literal["active", "cancelled", "suspected", "all"] = "all"
+    status_filter: SubscriptionStatus | Literal["all"] = "all"
     reminder_days: ReminderDays = 30
 
     @model_validator(mode="after")
@@ -204,8 +206,6 @@ class SubscriptionCancelInput(ContractModel):
 
     @model_validator(mode="after")
     def require_usable_hint(self) -> "SubscriptionCancelInput":
-        for name in ("subscription_id", "merchant_hint", "account_id"):
-            value = getattr(self, name)
-            if value is not None and (not isinstance(value, str) or not value.strip()):
-                raise ValueError(f"{name} must not be blank")
+        if self.merchant_hint is not None and not self.merchant_hint.strip():
+            raise ValueError("merchant_hint must not be blank")
         return self

@@ -117,11 +117,40 @@ def test_item_source_and_status_rules():
         SubscriptionItem.model_validate(item() | {
             "status": "cancelled", "can_cancel_in_bank": False,
             "next_billing_at": None, "is_upcoming_renewal": True})
+    # A closed agreement is never cancellable online, even though it keeps its mandate id.
+    with pytest.raises(ValidationError):
+        SubscriptionItem.model_validate(item() | {
+            "status": "cancelled", "can_cancel_in_bank": True, "next_billing_at": None,
+            "is_upcoming_renewal": False, "days_until_renewal": None})
+    # Source and status must stay paired; the clue is never a signed-agreement state.
+    with pytest.raises(ValidationError):
+        SubscriptionItem.model_validate(item() | {
+            "source_type": "suspected_ledger", "mandate_id": None, "status": "active",
+            "can_cancel_in_bank": False, "is_upcoming_renewal": False, "next_billing_at": None})
+    with pytest.raises(ValidationError):
+        SubscriptionItem.model_validate(item() | {"status": "suspected", "is_upcoming_renewal": False})
     suspected = SubscriptionItem.model_validate(item() | {
         "subscription_id": "sus_oasis_01", "source_type": "suspected_ledger", "mandate_id": None,
         "status": "suspected", "can_cancel_in_bank": False, "is_upcoming_renewal": False,
         "days_until_renewal": None, "next_billing_at": None, "channel": "快捷支付"})
     assert suspected.mandate_id is None and suspected.channel == "快捷支付"
+    # §5.5 allows a flow row without a settled merchant id (Transaction.counterparty_id is nullable).
+    anonymous = SubscriptionItem.model_validate(item() | {
+        "subscription_id": "sus_unknown_01", "source_type": "suspected_ledger", "mandate_id": None,
+        "merchant_id": None, "status": "suspected", "can_cancel_in_bank": False,
+        "is_upcoming_renewal": False, "days_until_renewal": None, "next_billing_at": None})
+    assert anonymous.merchant_id is None
+
+
+def test_day_counters_and_blank_hints_are_strict():
+    for broken in (True, "6", 6.0):
+        with pytest.raises(ValidationError):
+            SubscriptionItem.model_validate(item() | {"days_until_renewal": broken})
+    assert SubscriptionItem.model_validate(item() | {"days_until_renewal": -2}).days_until_renewal == -2
+    with pytest.raises(ValidationError):
+        SubscriptionCancelInput.model_validate({
+            "request_id": "8f14e45f-ea0e-4a1e-9f2b-1c2d3e4f5a6b",
+            "intent_text": "退订", "merchant_hint": "   "})
 
 
 def test_list_result_stays_consistent_with_its_rows():
@@ -185,6 +214,10 @@ def test_cancelled_mandate_keeps_its_cancellation_facts():
     cancelled = mandate(status="cancelled", next_billing_at=None, cancelled_at=NOW,
                         cancel_operation_id="b3f1c2d4-5e6a-4b7c-8d9e-0f1a2b3c4d5e")
     assert SubscriptionMandate.model_validate(cancelled).cancelled_at is not None
+    # An agreement cancelled outside this app has no local operation id (§7A keeps it nullable).
+    historical = mandate(status="cancelled", next_billing_at=None, cancelled_at=NOW,
+                         cancel_operation_id=None)
+    assert SubscriptionMandate.model_validate(historical).cancel_operation_id is None
     for broken in (
         {"status": "cancelled", "next_billing_at": None, "cancelled_at": None, "cancel_operation_id": None},
         {"status": "cancelled", "next_billing_at": LATER, "cancelled_at": NOW,
