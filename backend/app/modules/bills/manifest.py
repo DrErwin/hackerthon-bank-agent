@@ -23,3 +23,20 @@ MANIFEST = ModuleManifest(
         retry_policy="read_only", handler_ref="bills.summarize",
     )],
 )
+
+
+# L03 uses a separate factory/entry from L01: a ModuleManifest shares its
+# factory across every declared capability, so blindly appending L03 to
+# MANIFEST would route report intent to the summary handler.
+REPORT_MANIFEST = ModuleManifest(
+    module_name="bills", version="0.4.0-l03", owner="zhouey314-cloud",
+    description="月度或年度本人账单报告（L03）：只含总览、分类、对比；分享意图不授予分享权限。",
+    implementation_kind="workflow", dependencies=["bank_gateway", "security"],
+    capabilities=[CapabilityDefinition(
+        name="bills.generate_report", input_schema_ref="GenerateReportInput",
+        output_schema_ref="BillReport", required_permissions=["bills.read"],
+        operation_level=OperationLevel.READ, side_effect=False,
+        confirmation_policy="none", timeout_ms=10_000, retry_policy="read_only",
+        handler_ref="bills.generate_report",
+    )],
+)

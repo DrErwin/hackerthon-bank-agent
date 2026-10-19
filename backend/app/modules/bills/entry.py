@@ -14,7 +14,8 @@ import re
 from typing import Callable
 from uuid import uuid4
 
-from app.contracts.bills import BillSummarizeInput
+from app.contracts.bills import BillReport, BillSummarizeInput
+from pydantic import ValidationError
 from app.contracts.common import Category, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
 from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
@@ -63,6 +64,55 @@ def parse_month(text: str, now: datetime) -> tuple[str, str] | None:
     return month_range(index // 12, index % 12 + 1)
 
 
+def parse_report_period(text: str, now: datetime) -> tuple[str, str] | None:
+    """L03 report time scope: explicit month, this year, last year, or YYYY year.
+
+    Use Beijing calendar boundaries; incomplete current year ends at the trusted
+    clock, not at a model-guessed future date. Any comparison remains unresolved.
+    """
+    if any(word in text for word in ("相比", "对比", "比较", "比上", "比去", "同比", "环比",
+                                     "多了", "少了", "增长", "下降", "到", "至", "之间",
+                                     "季度", "半年", "半月", "半个月", "上旬", "中旬", "下旬",
+                                     "月初", "月中", "月底", "月末")):
+        return None
+    # Colloquial comparisons are not a single-period report request.
+    # Fail closed before asking the bank to read a one-sided time range.
+    if re.search(r"(?:跟|和|与|同)[^，。；;]{0,12}比", text):
+        return None
+    if re.search(r"[\d一二三四五六七八九十两]+\s*(?:日|号|天|周)", text):
+        return None
+    relative = [x for x in ("今年", "去年") if x in text]
+    month = parse_month(text, now)
+    if month is not None:
+        # parse_month handles one year-qualified month. A second bare month or
+        # year must not disappear (e.g. "2026年9月和10月" or "本月和9月").
+        remainder = re.sub(r"(?<!\d)\d{4}(?:年|-)\d{1,2}(?:月)?(?!\d|[-/])|本月|这个月|上月|上个月",
+                           "", text, count=1)
+        more_time = re.search(r"[\d一二三四五六七八九十两]+\s*(?:月|年)|本月|这个月|上月|上个月", remainder)
+        if relative or more_time:
+            return None
+        # Year-qualified months and relative months use the same trusted date
+        # bounds; otherwise future/9999 month requests could succeed empty.
+        local = now.astimezone(BEIJING)
+        start_at = datetime.fromisoformat(month[0])
+        return None if start_at > local or start_at.year >= 9999 else month
+    # A failed or unsupported month expression must never become a whole year.
+    if re.search(r"(?:[\d一二三四五六七八九十两]+\s*月|本月|上月|个月)", text):
+        return None
+    years = re.findall(r"(?<!\d)(\d{4})年(?:度|全年)?", text)
+    if len(relative) + len(years) != 1:
+        return None
+    local = now.astimezone(BEIJING)
+    year = local.year if relative == ["今年"] else local.year - 1 if relative == ["去年"] else int(years[0])
+    if not 1 <= year < 9999 or year > local.year:
+        return None
+    start = datetime(year, 1, 1, tzinfo=BEIJING)
+    end = datetime(year + 1, 1, 1, tzinfo=BEIJING)
+    if start > local:
+        return None
+    return start.isoformat(), (min(end, local) if year == local.year else end).isoformat()
+
+
 def _actor(context: TrustedContext) -> tuple[str, str, str]:
     return context.user_id, context.demo_round_id, context.task_id
 
@@ -73,8 +123,12 @@ class BillsEntry:
     The harness serializes calls per task. The saver is its scoped durable saver,
     not a module-global memory dictionary. Each read still goes through security.
     """
-    def __init__(self, service: BillsService, saver, trace):
+    def __init__(self, service: BillsService, saver, trace, *,
+                 capability_name: str = "bills.summarize"):
+        if capability_name not in {"bills.summarize", "bills.generate_report"}:
+            raise ValueError("UNSUPPORTED_BILLS_CAPABILITY")
         self.service, self.saver, self.trace = service, saver, trace
+        self.capability_name = capability_name
 
     def _config(self, context, thread_id):
         return {"configurable": {"thread_id": thread_id or context.task_id, "checkpoint_ns": ""}}
@@ -98,9 +152,13 @@ class BillsEntry:
         self.saver.put(config, checkpoint, {"source": "update", "step": version, "parents": {}},
                        {"bills_state": version})
 
-    @staticmethod
-    def _result(context, state):
+    def _result(self, context, state):
         result = ModuleResult.model_validate(state["result"])
+        if self.capability_name == "bills.generate_report" and result.status == TaskStatus.SUCCEEDED:
+            try:
+                result = result.model_copy(update={"data": BillReport.model_validate(result.data)})
+            except (ValidationError, ValueError, TypeError):
+                return fail(context, BillsError("BILLS_RESULT_INVALID"))
         return result.model_copy(update={"run_id": context.run_id})
 
     def _wait(self, context, state, prompt, choices, reason):
@@ -126,6 +184,11 @@ class BillsEntry:
             return self._wait(context, state,
                 "请明确查询月份。可选择下列月份；自定义范围和对比请通过结构化 L01 入口提交。",
                 choices, "period")
+        if self.capability_name == "bills.generate_report" and state.get("report_filter_unresolved"):
+            return self._wait(context, state,
+                "当前报告包含全部类别的总览、分类和对比，不提供单类筛选或逐笔明细。是否查看全部类别报告？",
+                [("查看全部类别报告", {"report_filter_unresolved": False,
+                    "negative_category": None, "category": None})], "report_filter")
         if state.get("negative_category") not in (None, Category.TRANSFER.value):
             # Frozen L01 offers inclusion/whole-summary, not arbitrary subtraction.
             # Explicitly clarify unsupported exclusions *before* any bank read.
@@ -152,11 +215,19 @@ class BillsEntry:
                 return self._wait(context, state, "请选择要查询的本人账户，不会替你默认选择。",
                     [(a.display_name + " · " + a.account_masked, {"account_ids": [a.account_id]}) for a in accounts]
                     + [("所有本人账户", {"account_ids": [a.account_id for a in accounts]})], "accounts")
-        request = {"scope": {"account_ids": state["account_ids"], "start_at": state["period"][0],
-                              "end_at": state["period"][1]}, "mode": state["mode"],
-                   "category": state["category"] if state["mode"] == "details" else None}
-        result = self.service.summarize(context, request)
-        if (result.status == TaskStatus.SUCCEEDED and state["mode"] == "summary"
+        scope = {"account_ids": state["account_ids"], "start_at": state["period"][0],
+                 "end_at": state["period"][1]}
+        if self.capability_name == "bills.generate_report":
+            # L03 carries only trusted scope and the restricted purpose value.
+            # The platform persists the typed BillReport before F21/F22 may read it.
+            result = self.service.generate_report(context, {
+                "scope": scope, "purpose": state.get("report_purpose", "self_view")})
+        else:
+            request = {"scope": scope, "mode": state["mode"],
+                       "category": state["category"] if state["mode"] == "details" else None}
+            result = self.service.summarize(context, request)
+        if (self.capability_name == "bills.summarize"
+                and result.status == TaskStatus.SUCCEEDED and state["mode"] == "summary"
                 and state["category"] and not state.get("negative_category")):
             category = next(c for c in result.data.categories if c.category == state["category"])
             label = next(word for word, code in _CATEGORIES.items() if code.value == state["category"])
@@ -186,10 +257,18 @@ class BillsEntry:
             excluded = _negative_category(request.intent_text)
             state = {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
                 "request_id": str(request.request_id), "intent_digest": digest,
-                "period": parse_month(request.intent_text, self.service.clock()),
+                "period": (parse_report_period(request.intent_text, self.service.clock())
+                           if self.capability_name == "bills.generate_report"
+                           else parse_month(request.intent_text, self.service.clock())),
                 "mode": "details" if "明细" in request.intent_text else "summary",
                 "category": categories[0] if len(categories) == 1 and excluded is None else None,
                 "negative_category": excluded,
+                "report_filter_unresolved": (self.capability_name == "bills.generate_report"
+                                              and bool(categories or "明细" in request.intent_text)),
+                "report_purpose": ("print" if any(w in request.intent_text for w in ("打印", "纸质"))
+                                   else "share_request" if any(w in request.intent_text
+                                       for w in ("分享", "给孩子看", "给子女看"))
+                                   else "self_view"),
                 "all_accounts": any(word in request.intent_text for word in ("所有账户", "全部账户", "所有本人账户")),
                 "account_ids": None, "choices": {}, "wait_reason": None}
             self._save(trusted, thread_id, state)
@@ -225,7 +304,8 @@ class BillsEntry:
                 raise ValueError("INVALID_OPTION")
             selected = state["choices"][choice]
             state.update({k: v for k, v in selected.items()
-                          if k in {"period", "account_ids", "negative_category", "category"}})
+                          if k in {"period", "account_ids", "negative_category", "category",
+                                   "report_filter_unresolved"}})
             state["choices"] = {}
             state.pop("result", None)
             self._save(trusted, thread_id, state)
@@ -266,3 +346,19 @@ def bills_factory(reads_factory: Callable, clock: Callable[[], datetime]):
 def register_bills(registry, reads_factory: Callable, clock: Callable[[], datetime]):
     from .manifest import MANIFEST
     registry.register_module(MANIFEST, bills_factory(reads_factory, clock))
+
+
+def bills_report_factory(reads_factory: Callable, clock: Callable[[], datetime]):
+    """A separate entry factory is essential: registry dispatches by capability."""
+    from .report_service import BillsReportService
+
+    def create(trusted, saver, trace):
+        return BillsEntry(BillsReportService(reads_factory(trusted, trace), clock),
+                          saver, trace, capability_name="bills.generate_report")
+    return create
+
+
+def register_bills_report(registry, reads_factory: Callable, clock: Callable[[], datetime]):
+    """Augment the existing real bills registry; never impersonate export grants."""
+    from .manifest import REPORT_MANIFEST
+    registry.register_module(REPORT_MANIFEST, bills_report_factory(reads_factory, clock))
