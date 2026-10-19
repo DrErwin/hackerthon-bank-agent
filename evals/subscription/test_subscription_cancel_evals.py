@@ -315,11 +315,11 @@ def test_sub_eval_35_changed_facts_invalidate_the_confirmation(
     joined = " | ".join(produced)
 
     log.eq("first.step", step_label(started), "waiting_approval:confirmation")
-    # The platform has two safe endings here (a fresh confirmation v2, or a hard
-    # refusal); this case pins the shared safety invariant instead of one branch.
-    # The non-determinism itself is recorded as a platform gap (README §8).
-    log.ok("changed.allowed_status",
-           changed.status.value in facts["allowed_final_statuses"], changed.status.value)
+    # Issue #176: this branch has exactly one visible ending now — the old confirmation
+    # is stale, the platform freezes a fresh version-2 confirmation and the user keeps
+    # going. It never reports the misleading "security check failed". PYTHONHASHSEED no
+    # longer changes the outcome; the platform-side fix is a monotonic action revision.
+    log.eq("changed.status", changed.status.value, case["expected"]["final_status"])
     log.eq("changed.no_bank_write", cancel_operations(comp.bank),
            facts["cancel_operations"])
     log.eq("changed.mandate_untouched", mandate_status(comp.bank, "sub_001"),
@@ -328,18 +328,15 @@ def test_sub_eval_35_changed_facts_invalidate_the_confirmation(
            facts["never_claims_success"])
     for promise in harness.FORBIDDEN_PROMISES:
         log.ok(f"wording.forbidden[{promise}]", promise not in joined, joined)
-    if changed.status.value == "waiting_approval":
-        log.eq("changed.reconfirmation_interaction", changed.interaction.kind,
-               "confirmation")
-        fresh = confirmation_for(comp, owner(comp, "T1", "R2"), changed)
-        log.eq("changed.reconfirmation_version", fresh.confirmation_version,
-               facts["reconfirm_version"])
-        log.eq("changed.reconfirmation_pending", fresh.decision, "pending")
-    else:
-        log.eq("changed.refusal_status", changed.status.value, "failed")
-        log.eq("changed.refusal_error", changed.error.code, "SECURITY_REJECTED")
-    log.note("关键内容变化后平台有两支安全收尾（重出确认单 v2 / 安全拒绝），"
-             "受进程哈希序影响；本轮断言共同的安全不变量，平台确定性另记缺口")
+    log.eq("changed.reconfirmation_interaction", changed.interaction.kind, "confirmation")
+    fresh = confirmation_for(comp, owner(comp, "T1", "R2"), changed)
+    log.eq("changed.reconfirmation_version", fresh.confirmation_version,
+           facts["reconfirm_version"])
+    log.eq("changed.reconfirmation_pending", fresh.decision, "pending")
+    log.eq("changed.reconfirmation_binds_a_new_operation",
+           fresh.operation_id != record.operation_id, True)
+    log.note("关键内容变化 → 旧确认失效 → 重出确认单 v2 为唯一分支（Issue #176 已修，"
+             "模块修复见 PR #179；本断言不再接受安全拒绝那支）")
 
 
 def test_sub_eval_39_terminal_receipt_survives_replays(
