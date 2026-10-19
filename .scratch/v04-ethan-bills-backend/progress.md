@@ -1,5 +1,14 @@
 # 周恩宇 v0.4 账单实施台账
 
+## 2026-10-19 紧急通知后最新远端状态
+
+- PM 在 [PR #93 的 10-19 紧急评论](https://github.com/DrErwin/hackerthon-bank-agent/pull/93#issuecomment-6260156356) 要求 10-20 收口前评测 PR 入主线。本轮核对最新 main `ecf90d0dd8c3b2acdbb0c52c30bdee90581007bc`；七个新增主线提交与本人 PR #93 的 16 个 `evals/bills/` 文件、#151 的 7 个 `backend/app/modules/bills/` 文件均无修改路径冲突。
+- **PR #93**：最新 HEAD `6dc39a13b5beb9905e04e4f889e75f623ad44e6d`，父提交为上述 main；新 [Repository checks #39249352055](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39249352055) success，job 118049030285 的实际日志 **708 backend passed / 14 Mock Bank passed**。147 项专项正式 gzip 对应历史受测 SHA `84b6594e0f989844f62e4c4eaad470e6f1124124`；本轮读取两份完整 Git tree 对照 `run_evidence.py` SOURCE_PATHS：**14/14 Git Blob SHA 完全相同**。这是源码等价补证，**不是对新 HEAD 重跑 147**。新 HEAD 完整检出专项实跑仍须在可执行仓库环境补跑，或 PM 书面认可此补证。已在 [PR #93 评论](https://github.com/DrErwin/hackerthon-bank-agent/pull/93#issuecomment-6266958251) 说明，不能自行合并。
+- **PR #151**：最新 HEAD `1223bad158a87f401a999e80c5d26f1e251dd625`，父提交为上述 main；新 [Repository checks #39249437574](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39249437574) success，job 118049311666 的日志：**756 backend passed / 14 Mock Bank passed**。L03 待 Erwin 审查；生产白名单/注册、真实模型/React 的专业验收单列。
+- **#136/09、#145/10**：代码与历史变异测试已在远端 `test/bills/l01-module-dedup-136-09`、`fix/bills/read-audit-evidence-145`；分别已向 [#136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136#issuecomment-6266913325) 和 [#145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145#issuecomment-6266914743) 回填。当前没有单独新 PR 或主线合并。L02、票 06/07 也仍在独立分支，完整 v0.4 任务下限未完成。
+- 本人现有两张未合并 PR 为 #93 / #151（Ready，最新 CI 绿），遵守最多两张未合 PR；待审核释放名额才继续单目录提交与合并，其他代码分支不因本文自动获得生产批准。
+
+
 以下 2026-10-11 记录按当时事实保留；最新推进见文末“2026-10-19 实证续记”。
 
 交付包：[v04-bills/packages/01-bills-backend：账单业务能力与评测](../v04-bills/packages/01-bills-backend.md)
