@@ -18,7 +18,6 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from app.contracts.api import (
     ConfirmationAnswerRequest, MessageAccepted, PayeeDetailsFields, PayeeSearchFields, ProvideInputRequest, RequestIdOnly,
     SendMessageRequest, SessionExpired, StreamEvent, SubmitDetailsRequest, VerificationCodeRequest,
-    VerificationResponse,
 )
 from app.contracts.bank import ManualPayee, QueryFailure
 from app.contracts.common import DisplayField, TaskStatus
@@ -263,8 +262,8 @@ def create_app(runtime=None, config=None):
     def inputs(request: Request, task_id: str, body: ProvideInputRequest, who=Depends(identity), service=Depends(api)):
         service.link(who, task_id, mutate=True)
         def action():
-            interaction = service.current_interaction(who, task_id, body.interaction_id)
-            return service.continue_task(who, task_id, service.input_response(task_id, interaction, body))
+            task = service.current_input_task(who, task_id, body.interaction_id)
+            return service.continue_task(who, task_id, service.input_response(task, body))
         return mutation(service, who, request, body, action)
 
     @application.post("/api/v1/tasks/{task_id}/resume")
@@ -301,8 +300,8 @@ def create_app(runtime=None, config=None):
     def details(request: Request, task_id: str, body: SubmitDetailsRequest, who=Depends(identity), service=Depends(api)):
         service.link(who, task_id, mutate=True)
         def action():
-            interaction = service.current_interaction(who, task_id, body.interaction_id)
-            if interaction.required_fields != ["payee_hint"] or body.kind == "delivery":
+            pending = service.current_input_task(who, task_id, body.interaction_id)
+            if pending.interaction.required_fields != ["payee_hint"] or body.kind == "delivery":
                 raise ApiProblem(409, "DETAILS_NOT_REQUESTED")
             trusted = service.trusted(who, task_id)
             candidates = None
@@ -399,7 +398,11 @@ def create_app(runtime=None, config=None):
             task = service.continue_task(who, trusted.task_id, {"choice": "resume"}, verification_retry=True)
         error = None if outcome.kind == "verified" else ModuleError(code=outcome.reason_code or "VERIFICATION_REJECTED",
             source="bank", field=None, reason="验证尚未通过。", upstream_code=None)
-        return VerificationResponse[TransferTaskView](kind=outcome.kind, verification=service.verification_view(outcome.challenge), task=task, error=error)
+        # The envelope follows the module that owns the task (§5.6); transfer keeps its
+        # typed view and a subscription task carries its own instead of a transfer one.
+        return service.verification_response(
+            outcome.kind, service.verification_view(outcome.challenge), task, error,
+        )
 
     @application.post("/api/v1/verifications/{challenge_id}/code")
     def code(request: Request, challenge_id: str, body: VerificationCodeRequest, who=Depends(identity), service=Depends(api)):
