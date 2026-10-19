@@ -1,5 +1,21 @@
 # 周恩宇 v0.4 账单实施台账
 
+## 2026-10-19 23:35 · 最后验收交接（优先于下文历史记录）
+
+| Ethan 事项 | 已完成、固定提交与独立证据 | 尚不能宣告完成的流程 |
+|---|---|---|
+| L01/既有返修 | #92、#131、#140 已合入，平台阶段一真实 GLM/MockBank 受控账单统计路径验收记录可查 | BF01—BF07 全链路另验 |
+| L03 报告（票05模块部分） | [#151](https://github.com/DrErwin/hackerthon-bank-agent/pull/151) 已被 Erwin squash 合入 `40a61c32e64c34f4b3872576f05a3d7fc3ee8cc7`，主线 CI [39271097627](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39271097627) 782 backend +14 MockBank passed | 生产 L03 注册、读权限安全声明、F21—F24、React 仍要各 Owner 联调 |
+| 02 / #93 算术及工具评测 | [PR #93](https://github.com/DrErwin/hackerthon-bank-agent/pull/93) head `1669bada8c3ce19ef120c1ec3ad9abab1c6c50e7`，已在**含 #151** 的源码 `49ce93a0353dcac5923e329d240eff7c7963373f` [实跑 147/147](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39274554945)（130算术+17工具），原始 gz+SHA256 已入库；最新 [CI 39275035533](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39275035533) 782+14 passed | **PR open，等 Erwin 审查并合并**；不是 96 个业务设计全部实跑 |
+| 10 / #145 读取审计修复 | [PR #171](https://github.com/DrErwin/hackerthon-bank-agent/pull/171) head `b3a00b004ca5998eb82e651543bd6d9d89a5ab27`，新 [CI 39272661635](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39272661635) 784 backend+14 MockBank passed，已请求 Erwin/Ringo | 安全审核、squash 和 Issue #145 关闭由负责方；历史敏感审计处理不在该 PR 之内 |
+| 04 / L02 异常核对 | 已将 L02 与已合入的 L03 manifest 和 README 无损合并，分支 [`7d9682a`](https://github.com/DrErwin/hackerthon-bank-agent/tree/feat/bills/l02-private-rules)，独立 [CI 39276005890](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39276005890)：308 bills +887 backend +14 MockBank passed | 尚未开单目录 PR、未合并、未生产注册；等本人 2 PR 上限释放 |
+| 09 / #136 模块防重 | 分支 [`6bbd921`](https://github.com/DrErwin/hackerthon-bank-agent/tree/test/bills/l01-module-dedup-136-09) 保留 L03 代码和文档，独立 [CI 39276005890](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39276005890)：216 bills +795 backend +14 MockBank passed | 尚未开 PR/合并，Issue #136 仍开放；等名额释放 |
+| 06 / 公共业务评测 | [分支 4ff832d](https://github.com/DrErwin/hackerthon-bank-agent/tree/test/bills/public-business-evidence-06)，[真实 17/17 L01 场景](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39277287794) 成功，固定源码、原始 gzip、来源验证与 SHA256 已入库 | **phase1 partial**，其他功能/错误数量门槛尚未完成，不算全票验收；依赖 #93 合并后提审 |
+| 07 / HTTP 导出证据 | [独立分支 cf5e23c](https://github.com/DrErwin/hackerthon-bank-agent/tree/test/bills/report-http-evidence-07) 已更新到含 #151 主线、重钉 backend tree 和 7 条 FastAPI/TestClient 场景 | 新 [Actions 39278072579](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39278072579) 尚未得到最终结果；旧 7 场景/87 请求只记历史，直播模型/React/安全验收未做 |
+
+注意：上表不同分支、不同层次的测试数量**不相加**。当前每人最多两张未合并 PR 已由 #93、#171 占用，不未经审核擅自合入或越权创建第三张。最新事实以具体 PR/Issue/GitHub Actions 为准；以下历史段落按发生时事实保留。
+
+
 ## 2026-10-19 22:35 · 明日验收前最新个人实证
 
 - **#93 最新验收证据已补齐**：[源提交 `999c1c0`](https://github.com/DrErwin/hackerthon-bank-agent/commit/999c1c062cc946f89bae6607eafe6234f4f76a40) → [原始报告归档 `6540f89`](https://github.com/DrErwin/hackerthon-bank-agent/commit/6540f8997c5a6ed9c85779c18e5348819c148610)。[GitHub Actions 39266604025](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39266604025) 全检出真实运行 `147 passed/0 failed`，130算术+17工具、14份指定源码 git blob 对齐；新gzip已归档（gzip SHA256 `b00c8b3a961674e54c6b1d658bd54f18bc5579019522e3db66e295db9b766f47`，解压 JSON SHA256 `f18b553f3a7ebdf5b22c3f4946038e9a1603f58ffbfe82a1238ac3e57c572b6d`）。[PR head CI 39267252080](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39267252080) `727 backend +14 Mock Bank passed`。待 Erwin 正式审核合并，不冒充主线完成。
