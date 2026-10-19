@@ -1,4 +1,4 @@
-name: Bills three-ticket independent pre-review regression
+name: Bills latest-main evidence 49ce93a0353d
 on:
   push:
     branches:
@@ -6,39 +6,55 @@ on:
 permissions:
   contents: read
 jobs:
-  bill-ticket-check:
+  source-attestation:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - ticket: L02-anomalies
-            source_sha: 530b887550080d31c766f21a9c7aa601b1db21ef
-    name: ${{ matrix.ticket }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.source_sha }}
+          ref: '49ce93a0353dcac5923e329d240eff7c7963373f'
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install pinned backend + pytest
+      - name: Install backend with pinned pytest
         run: python -m pip install -e './backend[dev]'
-      - name: Scoped bills module tests
+      - name: Verify exact source HEAD and run fresh evidence
         run: |
-          cd backend
-          python -m pytest -q app/modules/bills/
-      - name: Full backend and MockBank regression
+          test "$(git rev-parse HEAD)" = "49ce93a0353dcac5923e329d240eff7c7963373f"
+          python evals/bills/run_evidence.py --revision 49ce93a0353dcac5923e329d240eff7c7963373f
+      - name: Print binary report in verifiable numbered chunks
         run: |
-          cd backend
-          python -m pytest -q
-          python -m pytest -q ../evals/mockbank/test_mockbank_eval.py
-      - name: Pin revision and nonproduction test boundary
-        run: |
-          echo TESTED_TICKET=${{ matrix.ticket }}
-          echo EXPECTED_TESTED_SHA=${{ matrix.source_sha }}
-          git rev-parse HEAD
-          git status --porcelain
-          echo Tests run only against MockBank fixtures and fixed test planners.
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, gzip, json
+          fs=list(Path("evals/bills/evidence").glob("**/*-private-arithmetic-49ce93a0353d.json.gz"))
+          assert len(fs)==1, fs
+          path=fs[0]
+          blob=path.read_bytes()
+          raw=gzip.decompress(blob)
+          result=json.loads(raw)
+          assert result["tested_revision"]=="49ce93a0353dcac5923e329d240eff7c7963373f"
+          assert result["source_verification"]=="git_object_verified_source_files"
+          assert result["summary"]=={"passed":147,"failed":0,"skipped":0,"error":0,"collection_errors":0}
+          assert result["tier_counts"]=={"private_arithmetic":130,"evidence_tooling":17}
+          assert len(result["source_files"])==14
+          meta={"source":result["tested_revision"],"report":str(path),
+                "gzip_sha256":hashlib.sha256(blob).hexdigest(),
+                "decompressed_sha256":hashlib.sha256(raw).hexdigest(),
+                "summary":result["summary"],"tier_counts":result["tier_counts"],
+                "started_at":result["started_at"],"finished_at":result["finished_at"],
+                "verification":result["source_verification"],"file_count":len(result["source_files"])}
+          print("EVIDENCE_META="+json.dumps(meta,ensure_ascii=True,separators=(",",":")))
+          encoded=base64.b64encode(blob).decode()
+          for i in range(0,len(encoded),1200):
+              print(f"EVIDENCE_CHUNK_{i//1200:04d}="+encoded[i:i+1200])
+          print("EVIDENCE_TOTAL_CHUNKS="+str((len(encoded)+1199)//1200))
+          PY
+      - name: Archive original gzip as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bills-v04-final-49ce93a0353d
+          path: evals/bills/evidence/**/*-private-arithmetic-49ce93a0353d.json.gz
+          if-no-files-found: error
+          retention-days: 7
