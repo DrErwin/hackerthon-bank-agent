@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import Counter
 from contextlib import closing
 from datetime import datetime
+import sqlite3
+import threading
 import time
 from uuid import UUID, uuid4
 
@@ -215,5 +217,165 @@ def test_subscription_seeds_are_idempotent_and_keep_runtime_cancellations(tmp_pa
         assert mandates["sub_001"].cancel_operation_id == operation_id
         assert len([row for row in reopened.store.list_ledger("U1", "A1")
                     if row["counterparty_id"] == "M_UYUN"]) == 6
+    finally:
+        gateway.close()
+
+
+def recorded_cancellations(bank) -> int:
+    with closing(connect(bank.store.path)) as connection:
+        return connection.execute(
+            "SELECT COUNT(*) FROM bank_operations WHERE action_name = 'bank.cancel_subscription'",
+        ).fetchone()[0]
+
+
+def mandates_of(bank, user_id="U1"):
+    return {item.mandate_id: item for item in bank.list_subscriptions(user_id).data.mandates}
+
+
+def test_b29_and_b30_reject_non_string_ids(tmp_path):
+    bank, gateway = ready(tmp_path)
+    try:
+        assert bank.list_subscriptions("U1", "").error.code == "INVALID_ARGUMENT"
+        assert bank.list_subscriptions("U1", {"account_id": "A1"}).error.code == "INVALID_ARGUMENT"
+        assert bank.list_subscriptions("U1", None, {"status": "active"}).error.code == "INVALID_ARGUMENT"
+        assert bank.list_subscriptions("U1", None, 1).error.code == "INVALID_ARGUMENT"
+        for mandate_id in (None, "", "   ", {"mandate_id": "sub_001"}, 7):
+            response = bank.cancel_subscription(context(), uuid4(), mandate_id)
+            assert response.error.code == "INVALID_ARGUMENT"
+            assert response.error.details["field"] == "mandate_id"
+        assert recorded_cancellations(bank) == 0
+        assert mandates_of(bank)["sub_001"].status == "active"
+    finally:
+        gateway.close()
+
+
+def test_b30_refuses_an_active_mandate_without_a_next_billing(tmp_path):
+    bank, gateway = ready(tmp_path)
+    try:
+        # A malformed row the seeds never write: §7A has no next debit to stop from.
+        with transaction(bank.store.path) as connection:
+            connection.execute(
+                "UPDATE bank_subscriptions SET next_billing_at = NULL WHERE mandate_id = 'sub_001'")
+        response = bank.cancel_subscription(context(), uuid4(), "sub_001")
+        assert response.error.code == "STATE_CONFLICT"
+        assert response.error.details == {"reason": "mandate_without_next_billing"}
+        assert mandates_of(bank)["sub_001"].status == "active"
+        assert recorded_cancellations(bank) == 0
+    finally:
+        gateway.close()
+
+
+def test_b30_binds_one_number_to_its_first_parameters(tmp_path):
+    bank, gateway = ready(tmp_path)
+    try:
+        user = context()
+        bound = uuid4()
+        assert bank.cancel_subscription(user, bound, "sub_404").error.code == "RECORD_NOT_FOUND"
+        assert bank.cancel_subscription(user, bound, "sub_002").error.code == "OPERATION_CONFLICT"
+        assert bank.cancel_subscription(user, bound, "sub_404").error.code == "RECORD_NOT_FOUND"
+        assert mandates_of(bank)["sub_002"].status == "active"
+        # The same call may be retried after a refusal without becoming another action.
+        retried_id = uuid4()
+        with transaction(bank.store.path) as connection:
+            connection.execute("UPDATE accounts SET account_status = 'frozen' WHERE account_id = 'A1'")
+        assert bank.cancel_subscription(user, retried_id, "sub_001").error.code == "ACCOUNT_UNAVAILABLE"
+        assert bank.cancel_subscription(user, retried_id, "sub_002").error.code == "OPERATION_CONFLICT"
+        with transaction(bank.store.path) as connection:
+            connection.execute("UPDATE accounts SET account_status = 'active' WHERE account_id = 'A1'")
+        retried = bank.cancel_subscription(user, retried_id, "sub_001")
+        assert retried.operation_status == "succeeded"
+        assert mandates_of(bank)["sub_002"].status == "active"
+        assert recorded_cancellations(bank) == 1
+    finally:
+        gateway.close()
+
+
+def test_b30_restores_the_mandate_when_the_operation_record_is_refused(tmp_path):
+    bank, gateway = ready(tmp_path)
+    try:
+        user = context()
+        before = mandates_of(bank)
+        operation_id = uuid4()
+        original = bank.store.commit_operation
+        calls = {"n": 0}
+
+        def flaky_commit(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise sqlite3.OperationalError("simulated outage between the two writes")
+            return original(*args, **kwargs)
+
+        bank.store.commit_operation = flaky_commit
+        assert bank.cancel_subscription(user, operation_id, "sub_001").error.code == "BANK_UNAVAILABLE"
+        # No receipt means nothing changed: no dangling cancellation and no half-written row.
+        assert mandates_of(bank)["sub_001"] == before["sub_001"]
+        assert bank.get_operation(user, operation_id).lookup == "not_found"
+        assert recorded_cancellations(bank) == 0
+        bank.store.commit_operation = original
+        replay = bank.cancel_subscription(user, operation_id, "sub_001")
+        assert replay.operation_status == "succeeded"
+        assert replay.receipt.mandate_id == "sub_001"
+        assert mandates_of(bank)["sub_001"].cancel_operation_id == operation_id
+        assert recorded_cancellations(bank) == 1
+    finally:
+        gateway.close()
+
+
+def test_b30_restores_the_mandate_when_another_action_took_the_number(tmp_path):
+    bank, gateway = ready(tmp_path)
+    try:
+        user = context()
+        before = mandates_of(bank)
+        operation_id = uuid4()
+        original = bank.store.commit_operation
+
+        def commit_after_a_foreign_action(user_id, op_id, action, *args, **kwargs):
+            # Another action claims the number between our two writes; the bank must not
+            # keep a cancellation whose receipt belongs to somebody else's action.
+            original(user_id, op_id, "bank.submit_transfer", {"amount_fen": 1}, "succeeded",
+                     {}, NOW.isoformat(), [], [])
+            return original(user_id, op_id, action, *args, **kwargs)
+
+        bank.store.commit_operation = commit_after_a_foreign_action
+        response = bank.cancel_subscription(user, operation_id, "sub_001")
+        assert response.error.code == "OPERATION_CONFLICT"
+        assert mandates_of(bank)["sub_001"] == before["sub_001"]
+        assert recorded_cancellations(bank) == 0
+    finally:
+        bank.store.commit_operation = original
+        gateway.close()
+
+
+def test_b30_concurrent_reuse_of_one_number_keeps_one_cancellation(tmp_path):
+    bank, gateway = ready(tmp_path)
+    try:
+        user = context()
+        before = mandates_of(bank)
+        operation_id = uuid4()
+        both_started = threading.Barrier(2, timeout=10)
+        answers = {}
+
+        def cancel(mandate_id):
+            both_started.wait()
+            answers[mandate_id] = bank.cancel_subscription(user, operation_id, mandate_id)
+
+        threads = [threading.Thread(target=cancel, args=(mandate_id,))
+                   for mandate_id in ("sub_001", "sub_002")]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=15)
+
+        outcomes = {mandate_id: (answer.error.code if getattr(answer, "kind", None) == "error"
+                                else answer.operation_status)
+                    for mandate_id, answer in answers.items()}
+        assert sorted(outcomes.values()) == ["OPERATION_CONFLICT", "succeeded"]
+        winner = next(item for item, outcome in outcomes.items() if outcome == "succeeded")
+        loser = "sub_002" if winner == "sub_001" else "sub_001"
+        current = mandates_of(bank)
+        assert current[winner].status == "cancelled"
+        assert current[winner].cancel_operation_id == operation_id
+        assert current[loser] == before[loser]
+        assert recorded_cancellations(bank) == 1
     finally:
         gateway.close()

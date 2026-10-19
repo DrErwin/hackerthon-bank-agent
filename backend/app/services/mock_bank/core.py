@@ -21,7 +21,9 @@ from app.contracts.bank import (
     TransferQuote, TransferReceipt,
 )
 from app.contracts.platform import TrustedContext
-from app.contracts.subscription import SubscriptionCancelReceipt, SubscriptionMandateList
+from app.contracts.subscription import (
+    SubscriptionCancelReceipt, SubscriptionMandate, SubscriptionMandateList,
+)
 from app.storage.database import connect, parameter_digest, transaction
 from app.storage.mock_bank.repository import BankAccount, MockBankStore
 
@@ -547,8 +549,14 @@ class MockBankService:
         """B29: one user's signed auto-debit agreements, never another person's."""
         if not isinstance(user_id, str) or not user_id.strip():
             return _error("INVALID_ARGUMENT", field="user_id", reason="must not be blank")
-        if status is not None and status not in {"active", "cancelled"}:
+        if status is not None and (
+            not isinstance(status, str) or status not in {"active", "cancelled"}
+        ):
             return _error("INVALID_ARGUMENT", field="status", reason="active or cancelled")
+        if account_id is not None and (
+            not isinstance(account_id, str) or not account_id.strip()
+        ):
+            return _error("INVALID_ARGUMENT", field="account_id", reason="must not be blank")
         if account_id is not None and self.store.get_account(user_id, account_id) is None:
             return _error("ACCESS_DENIED")
         with closing(connect(self.store.path)) as connection:
@@ -576,9 +584,16 @@ class MockBankService:
         user_id = context.user_id
         if not isinstance(operation_id, UUID) or operation_id.version != 4:
             return _error("INVALID_ARGUMENT", field="operation_id", reason="UUID v4 required")
+        if not isinstance(mandate_id, str) or not mandate_id.strip():
+            return _error("INVALID_ARGUMENT", field="mandate_id", reason="must not be blank")
         if not self._reserve_scope(context, operation_id):
             return _error("OPERATION_CONFLICT")
         parameters = {"mandate_id": mandate_id}
+        with transaction(self.store.path) as connection:
+            bound = subscriptions.bind_request(
+                connection, user_id, str(operation_id), mandate_id)
+        if not bound:
+            return _error("OPERATION_CONFLICT")
         prior = self._stored_cancel_result(user_id, operation_id, parameters)
         if prior is not None:
             return prior
@@ -591,6 +606,8 @@ class MockBankService:
             return _error("ACCESS_DENIED")
         if mandate.status != "active":
             return _error("STATE_CONFLICT", reason="mandate_already_cancelled")
+        if mandate.next_billing_at is None:
+            return _error("STATE_CONFLICT", reason="mandate_without_next_billing")
         account = self.store.get_account(user_id, mandate.account_id)
         if account is None or account.account_status != "active":
             return _error(
@@ -620,10 +637,27 @@ class MockBankService:
                 "succeeded", result.model_dump(mode="json"), at.isoformat(), [], [],
             )
         except ValueError:
-            return _error("OPERATION_CONFLICT")
+            return self._undo_cancellation(user_id, mandate, operation_id, "OPERATION_CONFLICT")
+        except sqlite3.Error:
+            return self._undo_cancellation(user_id, mandate, operation_id, "BANK_UNAVAILABLE")
+        return OperationResult[SubscriptionCancelReceipt].model_validate(saved.result)
+
+    def _undo_cancellation(self, user_id: str, previous: SubscriptionMandate,
+                           operation_id: UUID, code: str):
+        """Undo this call's own change before reporting that its operation record was refused.
+
+        A receipt and the state change it describes are one fact: if the second write is
+        refused (another action already owns the number, or the bank database failed), the
+        agreement goes back exactly as it was, so "no receipt" always means "nothing
+        changed". Without this, B30 would leave a cancelled agreement nobody can look up.
+        """
+        try:
+            with transaction(self.store.path) as connection:
+                subscriptions.restore_mandate(
+                    connection, user_id, previous.mandate_id, str(operation_id), previous)
         except sqlite3.Error:
             return _error("BANK_UNAVAILABLE")
-        return OperationResult[SubscriptionCancelReceipt].model_validate(saved.result)
+        return _error(code)
 
     def get_operation(self, context: TrustedContext, operation_id: UUID):
         user_id = context.user_id

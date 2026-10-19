@@ -41,9 +41,18 @@ SCHEMA = """CREATE TABLE IF NOT EXISTS bank_subscriptions (
     cancel_operation_id TEXT
 )"""
 
+# B30 binds a number to its first parameters here, before anything changes: a number a
+# refused request already used must not silently turn into a different action later.
+REQUEST_SCHEMA = """CREATE TABLE IF NOT EXISTS bank_subscription_requests (
+    operation_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    mandate_id TEXT NOT NULL
+)"""
+
 
 def ensure_schema(connection: sqlite3.Connection) -> None:
     connection.execute(SCHEMA)
+    connection.execute(REQUEST_SCHEMA)
 
 
 def _billing_at(value: datetime) -> datetime:
@@ -131,6 +140,42 @@ def get_mandate(connection: sqlite3.Connection,
         "SELECT * FROM bank_subscriptions WHERE mandate_id = ?", (mandate_id,),
     ).fetchone()
     return None if row is None else (row["user_id"], _mandate(row))
+
+
+def bind_request(connection: sqlite3.Connection, user_id: str, operation_id: str,
+                 mandate_id: str) -> bool:
+    """Remember the first parameters this operation number carried and allow only those.
+
+    The binding is written before the bank looks at the mandate, so a number rejected for
+    one target stays bound to it: retrying the same call is fine, aiming the same number
+    at another agreement is an OPERATION_CONFLICT rather than a second action.
+    """
+    connection.execute(
+        "INSERT OR IGNORE INTO bank_subscription_requests VALUES (?, ?, ?)",
+        (operation_id, user_id, mandate_id),
+    )
+    row = connection.execute(
+        "SELECT user_id, mandate_id FROM bank_subscription_requests WHERE operation_id = ?",
+        (operation_id,),
+    ).fetchone()
+    return (row["user_id"], row["mandate_id"]) == (user_id, mandate_id)
+
+
+def restore_mandate(connection: sqlite3.Connection, user_id: str, mandate_id: str,
+                    operation_id: str, previous: SubscriptionMandate) -> None:
+    """Put back the one mandate this call changed when its operation record was refused.
+
+    The update only touches the row this operation number just cancelled, so a later
+    cancellation under another number is never overwritten.
+    """
+    connection.execute(
+        """UPDATE bank_subscriptions
+           SET status = :status, next_billing_at = :next_billing_at,
+               cancelled_at = :cancelled_at, cancel_operation_id = :cancel_operation_id
+           WHERE mandate_id = :mandate_id AND user_id = :user_id AND status = 'cancelled'
+             AND cancel_operation_id = :operation_id""",
+        {**previous.model_dump(mode="json"), "user_id": user_id, "operation_id": operation_id},
+    )
 
 
 def cancel_mandate(connection: sqlite3.Connection, user_id: str, mandate_id: str,

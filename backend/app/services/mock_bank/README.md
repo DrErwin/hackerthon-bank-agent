@@ -28,11 +28,14 @@
 
 ## 签约代扣 B29/B30 与订阅种子（v04-subscription/02）
 
-`list_subscriptions(user_id, account_id=None, status=None)`（B29）返回本人签约代扣协议：空 `user_id`、非法 `status` 返回 `INVALID_ARGUMENT`，非本人或不存在的账户一律 `ACCESS_DENIED`（不区分「不存在」与「不属于本人」），按 `mandate_id` 排序，`as_of` 取银行时钟。`cancel_subscription(context, operation_id, mandate_id)`（B30）只允许解约本人名下 `status="active"` 且绑定账户 `status="active"` 的协议：缺失或非 UUID4 的 `operation_id`、跨用户、不存在、已解约、账户冻结分别返回 `INVALID_ARGUMENT` / `ACCESS_DENIED` / `RECORD_NOT_FOUND` / `STATE_CONFLICT` / `ACCOUNT_UNAVAILABLE`；同编号同参数重放返回首次 `OperationResult<SubscriptionCancelReceipt>`，同编号异参数为 `OPERATION_CONFLICT`，并把作用域记进既有的 `bank_operation_scopes`。成功时先落协议行（`status="cancelled"`、`next_billing_at=NULL`、`cancelled_at`、`cancel_operation_id`），再按 `action_name="bank.cancel_subscription"` 写 `bank_operations`，B14 按编号还原同一回执。解约只停下一期及以后的自动扣款，历史已扣款不退。
+`list_subscriptions(user_id, account_id=None, status=None)`（B29）返回本人签约代扣协议：空 `user_id`、空/非字符串的 `account_id`、非法 `status` 返回 `INVALID_ARGUMENT`，非本人或不存在的账户一律 `ACCESS_DENIED`（不区分「不存在」与「不属于本人」），按 `mandate_id` 排序，`as_of` 取银行时钟。`cancel_subscription(context, operation_id, mandate_id)`（B30）只允许解约本人名下 `status="active"`、`next_billing_at` 非空且绑定账户 `status="active"` 的协议：缺失或非 UUID4 的 `operation_id`、空或非字符串的 `mandate_id`、跨用户、不存在、已解约、无下一期、账户冻结分别返回 `INVALID_ARGUMENT` / `ACCESS_DENIED` / `RECORD_NOT_FOUND` / `STATE_CONFLICT`（`reason` 为 `mandate_already_cancelled` 或 `mandate_without_next_billing`）/ `ACCOUNT_UNAVAILABLE`；作用域记进既有的 `bank_operation_scopes`。
+
+**B30 的编号与生效条件（按 2026-10-19 审查意见收紧）**：编号在**动账之前**先绑定首次参数（`bank_subscription_requests`，与作用域同一次判断），此后同编号同参数可安全重试、同编号换 `mandate_id`（包括被拒请求用过的编号）一律 `OPERATION_CONFLICT`；已落库的操作记录按编号幂等重放，返回首次 `OperationResult<SubscriptionCancelReceipt>`。成功时先落协议行（`status="cancelled"`、`next_billing_at=NULL`、`cancelled_at`、`cancel_operation_id`），再写 `bank_operations`（`action_name="bank.cancel_subscription"`），B14 按编号还原同一回执；**若第二段写被拒（编号被别的动作占用、或银行库故障），本次调用按解约前快照回滚自己刚改的那一行**（`WHERE mandate_id=? AND cancel_operation_id=?`，不覆盖别人的解约），因此「没有回执就没有状态变化」，重放同一编号会重新走一次正常流程而不是 `STATE_CONFLICT`。并发同编号同参数只落一条操作记录、两边拿到同一回执。**已知根因未修**：协议行与操作记录仍是两次相邻事务，真正合一需要 `storage/` 暴露共享事务入口（不在本票写权限内），登记为后续票。
+
 
 协议表 `bank_subscriptions` 由 `mock_bank/subscriptions.py` 自包含建表，落在同一个银行库里，`storage/` 不需要知道它的存在。签约种子 `seeds/subscriptions.json` 用相对偏移（`next_billing_day_offset` / `last_billed_month_offset` / `signed_month_offset` / `cancelled_month_offset`）在银行 `clock()` 上解析，扣款时刻固定为 09:00；`sub_001` 优酷 2500/月 active、`sub_002` 云端网盘 3900/月 active、`sub_003` 喜马拉雅 1500/月 cancelled（已解约对照项；票据只要求三家商户的订阅流水，故不新增该商户流水）。签约事实与演示账户一样默认播种，重复调用幂等（`INSERT OR IGNORE`，不覆盖运行期已解约的行，重启后解约状态保留）。
 
-订阅扣款流水单独放在 `seeds/subscription_flows.json`（优酷近 6 个月、云端网盘近 3 个月、绿洲健身近 5 个月无签约 → 供疑似周期扣款识别），由既有的显式入口 `seed_flow_history()` 与共享流水一起幂等写入：流水默认不播种的既有约定不变，隔离的单测银行库不会多出账本行，本机演示（`agent_platform/local_demo.py` 已调用该入口）自动获得订阅流水。该文件同一 `ref` 不带 `day` 时按「银行时钟当月同日」解析，因此「连续 N 个自然月」的故事在任何演示日期都成立。
+订阅扣款流水单独放在 `seeds/subscription_flows.json`（优酷近 6 个月、云端网盘近 3 个月、绿洲健身近 5 个月无签约 → 供疑似周期扣款识别）。**默认构造的银行只有签约、没有扣款流水**：订阅流水与共享流水一样，随显式入口 `seed_flow_history()` 一起幂等落库（同一时刻重复调用不增量；不带 `day` 的行按「银行时钟当月同日」解析，因此「连续 N 个自然月」的故事在任何演示日期都成立）。流水默认不播种的既有约定不变，隔离的单测银行库不会多出账本行；本机演示（`agent_platform/local_demo.py` 已调用该入口）自动获得订阅流水。
 
 从 `backend/` 验证订阅能力：`python -m pytest -q app/services/test_subscriptions.py app/services/`。
 
