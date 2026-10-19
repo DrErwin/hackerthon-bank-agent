@@ -1,5 +1,11 @@
 # bills 评测集
 
+## 票07：L03 实际 HTTP 报告/导出七场景（独立阶段，依赖 #93）
+
+- 新增 [7 个 HTTP 场景定义](report-http-cases.md)、[机器清单](report-http-cases.json)、[真实 FastAPI/TestClient 评测](test_report_http_eval.py) 与 [来源校验报告工具](run_http_evidence.py)。L03 模块代码来自已合并 #151；此阶段没有真实模型和 React。
+- 本评测通过独立测试的 ApiService 及银行验证服务，**不代表生产已经注册 L03，也不代表 Ringo 专业安全审批已完成**。之前历史报告保留真实版本；当前组合源码须重新执行，不能沿用旧的 7 项结果冒充新版本。
+
+
 ## 2026-10-19 23:04：L03 合入后最新主线独立实跑与原始报告
 
 - 受测提交（对应最新含 PR #151 主线）：`49ce93a0353dcac5923e329d240eff7c7963373f`，父提交 `40a61c32e64c34f4b3872576f05a3d7fc3ee8cc7`。
