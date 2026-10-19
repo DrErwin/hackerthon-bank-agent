@@ -22,3 +22,5 @@
 | run-results-template.csv | D0A6D11BD2485C4E78E4712FEF4984627DE6AE68A6EEFBB8DFB230DF70185B4B |
 
 此前122/274/330报告及本次20/0/325分别保留。运行器缺观察即Blocked；两轴AI审查的遗留问题归零与整体验收通过分别记录。真人专业签核仍按项目门槛进行。
+
+2026-10-20 返修说明：本批为固定数据快照；其后 `cases.jsonl` 仅修订 SEC-M-009、SEC-D-010 两条用例的步骤与预期文本（当前 sha256 `4e039afefe2750979f64d14537fcd5d56d2ef1931c6c635be0adf5005c21c44a`），二者执行状态仍为 NOT_RUN，本批 20 Passed / 0 Failed / 325 Blocked 及原始报告保持未重跑。
