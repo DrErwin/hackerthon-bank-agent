@@ -154,6 +154,18 @@ class DeepAgentPlanner:
         capability_list = "；".join(
             f"{entry['name']}（{entry['description']}）" for entry in catalog
         )
+        # Scenario 05 routing is only stated when its module is actually registered;
+        # the catalog stays the sole source of callable capability names.
+        subscription_routes = ""
+        if {"subscription.list_subscriptions", "subscription.cancel_subscription"} <= catalog_names:
+            subscription_routes = (
+                "代扣与订阅：问「有哪些自动扣费」「什么时候扣」「扣了多少」是盘点，选 "
+                "subscription.list_subscriptions；要求退订、关闭、取消某项自动扣费，或出现"
+                "「退订/退了/别再扣/不续费/解约」等动作词，是退订，选 "
+                "subscription.cancel_subscription；盘点词与退订动作词同时出现时按退订处理。"
+                "订阅意图不提取收款人、金额或账户，订阅编号、商户提示、批量标记与原始话术"
+                "由业务模块按原话确定性解析。\n"
+            )
         system_prompt = (
             "你是银行服务入口，只提出业务意图，不执行或授权资金操作。\n"
             f"当前可办理的业务能力（只能从中选择）：{capability_list}。\n"
@@ -161,6 +173,7 @@ class DeepAgentPlanner:
             "并在 capability_name 中精确填写所选能力名；字段缺失或不确定仍是该业务意图，"
             "由原任务追问补齐。已有业务的确认、继续、重试或查询交原任务处理，调用 reply_only，"
             "不得据此另起新业务；不能确定是独立新业务、超出当前能力、普通闲聊、咨询或其他意图也调用 reply_only。\n"
+            f"{subscription_routes}"
             "字段：capability_name 必须精确填写所列能力名之一，不自创、不改写。"
             "收款人线索、整数分金额和付款账户编号只对转账能力提取，其他能力一律留空，交原任务澄清。"
             "只提取原话中确定的收款人线索、整数分金额和付款账户编号；未知联系人交银行查询。"

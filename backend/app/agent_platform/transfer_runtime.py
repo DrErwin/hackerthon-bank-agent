@@ -374,8 +374,14 @@ class TransferRuntime:
         self.snapshots = TransferSnapshots(application.path)
         self.confirmations = ConfirmationService(application.path)
         self._active: ContextVar[tuple | None] = ContextVar("active_transfer", default=None)
+        # A second module attaches its scenario wiring here (see subscription_runtime):
+        # both stay fail-closed, so an unwired runtime can neither answer as another
+        # module nor authorize that module's bank write.
+        self.subscription = None
+        self.authorize_cancel: Callable[..., bool] | None = None
         self.gateway = BankGateway(
             bank, authorize_transfer=self._authorize_bank, authorize_face=authorize_face,
+            authorize_cancel=self._authorize_bank_cancel,
         )
         self.payee_references = ControlledPayeeReferences(
             self.snapshots, self._verify_controlled_payee, self._task,
@@ -503,6 +509,16 @@ class TransferRuntime:
     def _authorize_bank(self, *args) -> bool:
         try:
             return self._bank_authorized(*args) is True
+        except Exception:
+            return False
+
+    def _authorize_bank_cancel(self, *args) -> bool:
+        """Second modules register their B30 authority hook; None stays fail-closed."""
+        authorize = self.authorize_cancel
+        if authorize is None:
+            return False
+        try:
+            return authorize(*args) is True
         except Exception:
             return False
 
@@ -731,8 +747,25 @@ class TransferRuntime:
         flow_ref[0] = flow
         return flow
 
+    def _task_module(self, trusted: TrustedContext) -> str:
+        """Contract §6.5: the capability prefix names the module that owns the task."""
+
+        capability = str(self._task(trusted).snapshot.get(
+            "capability_name", "transfer.start_transfer",
+        ))
+        return capability.split(".", 1)[0]
+
     def answer_confirmation(self, trusted: TrustedContext,
                             answer: ConfirmationAnswer) -> ConfirmationRecord:
+        # The API resumes whichever module owns the task; only the audited module
+        # label and the owning implementation differ, the durable facts are shared.
+        if self._task_module(trusted) == "subscription":
+            from .subscription_runtime import answer_confirmation
+            return answer_confirmation(self, trusted, answer)
+        return self.answer_confirmation_for_module(trusted, answer, module="security")
+
+    def answer_confirmation_for_module(self, trusted: TrustedContext, answer: ConfirmationAnswer,
+                                       *, module: str) -> ConfirmationRecord:
         self._task(trusted)
         # Resolve by the existing record; only the current action may be answered.
         connection = connect(self.application.path)
@@ -759,11 +792,19 @@ class TransferRuntime:
             display_ref=ref, operation_id=record.operation_id,
         ), "succeeded", evidence=[item.model_dump(mode="json")
                                   for item in record.display_fields],
-            evidence_id=ref, module="security")
+            evidence_id=ref, module=module)
         return record
 
     def bind_verification(self, trusted: TrustedContext,
                           verification_id: str) -> VerificationRecord:
+        if self._task_module(trusted) == "subscription":
+            from .subscription_runtime import bind_verification
+            return bind_verification(self, trusted, verification_id)
+        return self.bind_verification_for_module(
+            trusted, verification_id, module="bank_gateway")
+
+    def bind_verification_for_module(self, trusted: TrustedContext, verification_id: str,
+                                     *, module: str) -> VerificationRecord:
         self._task(trusted)
         record = self.gateway.get_verification_record(trusted, verification_id)
         challenge = self.gateway.get_verification(trusted, record.source_challenge_id)
@@ -781,5 +822,5 @@ class TransferRuntime:
             consecutive_code_failures=challenge.consecutive_code_failures,
             expires_at=challenge.code_expires_at,
             reason_code="VERIFICATION_PASSED",
-        ), "succeeded", module="bank_gateway")
+        ), "succeeded", module=module)
         return record

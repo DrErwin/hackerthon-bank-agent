@@ -30,6 +30,7 @@ from app.storage.application import ApplicationStore
 from app.storage.database import StoragePaths
 from app.storage.mock_bank.repository import MockBankStore
 
+from . import subscription_runtime
 from .model import DeepAgentPlanner, ModelSettings
 from .transfer_runtime import TransferRuntime
 
@@ -176,10 +177,20 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
 
     def risk_facts(context, action, declaration):
         if not declaration.side_effect:
-            # Read tools (transfer reads and the bills L01 module) share the read
-            # fixture; bills parameters live in their own per-task store, so they
-            # must never be resolved through transfer snapshots.
+            # Read tools (transfer reads, the bills L01 module and the subscription
+            # reads) share the read fixture; their parameters live in their own
+            # per-task stores, so they must never be resolved through transfer snapshots.
             return config.read_fixture.evidence(config.facts_version)
+        if declaration.name == subscription_runtime.CANCEL_TOOL:
+            # The cancellation facts travel with the bound action reference (the
+            # module's own parameter store is in memory and cleared per call).
+            wiring = runtime.subscription
+            payload = (wiring.binding(context.task_id, action.parameters_ref)
+                       if wiring is not None else None)
+            return subscription_runtime.subscription_risk_evidence(
+                payload, source_version=config.facts_version,
+                checked_signals=frozenset(config.read_fixture.checked_signals),
+            )
         parameters = snapshots.resolve(context, action)
         # These are operator-defined fictional scenarios, bound to the same
         # immutable parameters used for confirmation and eventual execution.
@@ -215,6 +226,9 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     # nothing": with only L01 registered, L02/L03 leave the public catalog).
     register_bills(runtime.harness.registry, _bills_reads_factory(runtime),
                    lambda: datetime.now(timezone.utc))
+    # Scenario 05 rides the same confirmation service, audit journal and bank gateway;
+    # its one write is authorized by a live claim from the shared executor.
+    subscription_runtime.register_subscription(runtime, bank.clock)
     return runtime
 
 
