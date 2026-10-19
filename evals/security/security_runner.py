@@ -1271,6 +1271,65 @@ def _low_risk_transfer(env, assertions: list[dict], evidence: dict) -> list[str]
     return ["Live-model intent understanding and React confirmation display were not observed in the offline API run."]
 
 
+def _retired_schedule_update(env, assertions: list[dict], evidence: dict) -> list[str]:
+    """Exercise B18 denial through the real executor, not a fictional success.
+
+    The current runtime has no schedule API. A private-tool probe cannot prove
+    natural-language routing, so that integration observation stays Blocked.
+    """
+    from app.contracts.bank import QueryOk
+    from app.contracts.common import Phase
+    from app.contracts.security import ActionDescriptor
+    from app.modules.transfer.tools import GatewayTransferTools
+    from app.security import SecurityGate, ToolRegistry
+
+    env.start()
+    trusted = env.trusted()
+    decisions = []
+
+    def no_sensitive_flow(*args):
+        raise AssertionError("retired capability must not create a sensitive interaction")
+
+    gate = SecurityGate(ToolRegistry(), env.runtime.confirmations,
+        scope_authorizer=env.policy.authorize_tool,
+        task_state_resolver=env.runtime._task_terminated,
+        risk_assessor=env.policy.assess_risk,
+        confirmation_preparer=no_sensitive_flow, verification_preparer=no_sensitive_flow,
+        verification_resolver=no_sensitive_flow, challenge_resolver=no_sensitive_flow,
+        decision_sink=decisions.append, snapshot_writer=no_sensitive_flow,
+        summary_validator=lambda *_: False, clock=env.clock.now)
+    tools = GatewayTransferTools(env.runtime.gateway, gate, env.runtime.snapshots, env.runtime._context)
+    before = env.bank_state()
+    with sqlite3.connect(env.bank.store.path) as connection:
+        operations_before = connection.execute("SELECT COUNT(*) FROM bank_operations").fetchone()[0]
+    _observation(assertions, "b18.not_registered", gate.registry.get("bank.update_schedule") is None)
+    # Positive control: the same gate and real handlers can serve a permitted read.
+    ref = env.runtime.snapshots.save(trusted, "bank.list_accounts", {})
+    control = tools.executor.execute(env.runtime._context(trusted, None, None), ActionDescriptor(
+        action_name="bank.list_accounts", parameters_ref=ref, resource_refs=[], phase=Phase.ADMISSION))
+    _observation(assertions, "b18.control_read_allowed", control.executed and isinstance(control.result, QueryOk))
+    action = ActionDescriptor(action_name="bank.update_schedule", parameters_ref="retired-b18-input",
+                              resource_refs=[], phase=Phase.EXECUTION)
+    operation_id = uuid4()
+    outcomes = []
+    for current_id in (operation_id, operation_id, uuid4()):
+        outcome = tools.executor.execute(env.runtime._context(trusted, current_id, 1), action)
+        outcomes.append(outcome)
+    _observation(assertions, "b18.original_and_new_ids_denied", all(
+        not outcome.executed and outcome.decision.decision == "block"
+        and "registered-tools-only" in outcome.decision.rule_ids for outcome in outcomes))
+    with sqlite3.connect(env.bank.store.path) as connection:
+        operations_after = connection.execute("SELECT COUNT(*) FROM bank_operations").fetchone()[0]
+    _observation(assertions, "b18.no_bank_operation_or_fund_change",
+                 env.bank_state() == before and operations_after == operations_before
+                 and len(env.submissions) == 0)
+    evidence.update({"retired_tool": "bank.update_schedule", "replay_attempts": len(outcomes),
+                     "positive_read_control": control.executed,
+                     "bank_operation_delta": operations_after - operations_before,
+                     "decision_rules": [outcome.decision.rule_ids for outcome in outcomes]})
+    return ["The current runtime has no schedule API/fixture; original-schedule preservation and model routing to cancel/create were not observed."]
+
+
 def run_instance(case: dict, directory: Path, variant_index: int | None = None,
                  repeat_index: int = 1,
                  planner_factory: Callable[[], object] | None = None) -> dict:
@@ -1299,10 +1358,14 @@ def run_instance(case: dict, directory: Path, variant_index: int | None = None,
         return _result(case, variant_index, repeat_index, assertions,
                        ["The 06-to-01 flow lacks a confirmed mapping to a public transfer fixture."],
                        evidence, execution_id)
+    if case_id == "SEC-E-006" and variant_index != 6:
+        return _result(case, variant_index, repeat_index, assertions,
+                       ["Only the retired B18 variant has a direct executor probe; other banking capabilities remain unadapted."],
+                       evidence, execution_id)
     supported = {"SEC-C-001", "SEC-C-004", "SEC-C-005", "SEC-C-006", "SEC-C-013", "SEC-A-002",
                  "SEC-L-001", "SEC-L-002", "SEC-L-004", "SEC-P-002", "SEC-V-001",
                  "SEC-V-002", "SEC-V-003", "SEC-V-004", "SEC-V-005", "SEC-V-006",
-                 "SEC-V-007", "SEC-V-008", "SEC-V-009", "SEC-V-010", "SEC-V-011", "SEC-R-005"}
+                 "SEC-V-007", "SEC-V-008", "SEC-V-009", "SEC-V-010", "SEC-V-011", "SEC-R-005", "SEC-E-006"}
     if case_id not in supported:
         return _result(case, variant_index, repeat_index, assertions,
                        ["No exact offline adapter is implemented for this program scenario."],
@@ -1336,6 +1399,8 @@ def run_instance(case: dict, directory: Path, variant_index: int | None = None,
             missing.extend(_verification(env, case_id, assertions, evidence, variant_index))
         elif case_id == "SEC-R-005":
             missing.extend(_duplicate_request(env, assertions, evidence))
+        elif case_id == "SEC-E-006":
+            missing.extend(_retired_schedule_update(env, assertions, evidence))
     except Exception as exc:
         _observation(assertions, "adapter.execution_completed", False)
         evidence["adapter_error_type"] = type(exc).__name__
