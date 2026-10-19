@@ -2,6 +2,8 @@
 
 本增量对应 [v04-ethan-bills-backend/03](../../../../.scratch/v04-ethan-bills-backend/issues/03-public-summary.md)、BF01/BF05/BF06 的 L01 首条可运行模块路径。只改本目录，只引用公共契约，不修改平台、安全、银行或前端，不提前做 v0.5 跨场景。
 
+L02 的后续实现、注册和验收限制见 [L02 交易定位与异常核对](README-L02.md)，对应 [v04-ethan-bills-backend/04](../../../../.scratch/v04-ethan-bills-backend/issues/04-anomalies.md)。L01、L02、L03 使用独立 manifest/factory，分别完成正式平台/安全审核后才能注册；本分支不自动部署 L02。
+
 ## 已实现
 
 - `BillsService.summarize(trusted, BillSummarizeInput)`：通过受控 B01/B08 获取本人完整账户流水，返回公共 `ModuleResult`，data 是 `SpendingSummary` 或 `BillDetails`。
@@ -26,7 +28,7 @@ register_bills(registry, reads_factory, clock)
 
 `reads_factory` 必须提供现有平台的可信身份/轮次/任务校验和真实安全门；不能使用测试中的 LOW 风险/身份回调替身替代生产策略。gate 注册两种本模块私有 READ 工具（`bills.bank.list_accounts` / `bills.bank.list_transactions`），其参数形状定义在 `reads.py`，分别映射公开 B01/B08，不是新公共 HTTP 契约。
 
-按 Erwin 2026-10-14 的优先级说明，这次只宣告实际实现的 `bills.summarize`。真实清单注册后，三能力演示桩整体让位：**L02/L03 不再出现在可执行目录中**，不能保留返回成功的假能力冒充实现。该最小切片需由平台票05明确接受后部署；后续 L02/L03 各按自身实施票追加。`bills.export_details` 仍是平台 F22 的任务标签/短路恢复路径，本模块不虚假登记敏感导出 handler；能力名对账留 #123。
+Erwin 2026-10-14 先用 `bills.summarize` 完成首条真实接线：真实模块登记后，原三能力演示桩整体让位。L03 实现已经通过 PR #151 合入，但生产注册/白名单尚未完成；L02 的独立入口在本分支，必须在合并及安全审查后另行注册，均不可显示假成功。`bills.export_details` 仍是平台 F22 的任务标签/短路恢复路径，本模块不虚假登记敏感导出 handler；能力名对账留 #123。
 
 ## 输入、错误与当前限制
 
@@ -36,7 +38,7 @@ register_bills(registry, reads_factory, clock)
 
 B01 账户列表与 B08 流水发生临时取数失败时可在原任务选择重试；权限拒绝仍为终态，不返回账单。否定类别请求（如“不含转账”）不会反写成该类别的肯定支出；非转账类别排除未在冻结 L01 定义，先追问并提供查看全部分类的选择，不静默减项。末态原任务不重新执行；范围改变应建立有明确修订语义的新选择，不能复用旧 interaction。当前 entry 的范围修改和任意文本 F10 接入需要后续扩充，BF05/BF06 不因此整体关闭。
 
-L02、L03、报告与敏感导出、真实模型/HTTP/页面、专业安全审查及 BF01—BF07 联合验收仍未完成。平台实际装配归 Erwin，不在本目录越界修改。
+L02 模块在本分支实现、L03 模块已在 main；两者的生产注册、安全白名单、真实模型/HTTP/前端联调和 BF01—BF07 联合验收仍未完成。平台实际装配归 Erwin，不在本目录越界修改。
 
 ## #136 / v04-ethan-bills-backend/08 返修说明
 

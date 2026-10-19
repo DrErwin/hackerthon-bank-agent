@@ -1,4 +1,4 @@
-"""Runnable L01 surface; absent L02/L03 are not advertised as completed.
+"""Runnable L01 surface; L02 and L03 use independent manifests and factories.
 
 Per Erwin's 2026-10-14 priority note, the platform may start integration from
 bills.summarize. Register before ApiService construction: the old three-method
@@ -11,7 +11,7 @@ from .reads import PRIVATE_TOOLS
 
 MANIFEST = ModuleManifest(
     module_name="bills", version="0.4.0-l01", owner="zhouey314-cloud",
-    description="L01按mode返回：summary=SpendingSummary、details=BillDetails；L02/L03尚未实现。",
+    description="L01按mode返回：summary=SpendingSummary、details=BillDetails。",
     implementation_kind="workflow", dependencies=["bank_gateway", "security"],
     capabilities=[CapabilityDefinition(
         # A schema_ref must name an existing model, not an invented union alias.
