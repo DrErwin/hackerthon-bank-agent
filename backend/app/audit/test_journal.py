@@ -100,6 +100,33 @@ def test_uuid_operation_survives_redaction_without_exposing_accounts(tmp_path):
     assert "6222000000000002" not in masked
 
 
+def test_opaque_references_survive_redaction_so_evidence_still_links(tmp_path):
+    """A digit run inside a reference is not a card number (subscription ticket 08)."""
+
+    reference = "sub-ref-2b5a4d19634889502aae10d4"
+    started = AuditEvent.model_validate({
+        **event("tool.started", evidence_ref=None, evidence_status="missing").model_dump(mode="json"),
+        "payload": ToolStartedPayload(
+            tool_call_id="C1", tool_name="subscription.bank.cancel_subscription", tool_version="0.4.0",
+            arguments_ref=reference, decision_id="DEC1", operation_id=None,
+        ).model_dump(mode="json"),
+    })
+    journal = AuditJournal(StoragePaths(tmp_path).application)
+    journal.append(started, snapshots={reference: {"mandate_id": "sub_001", "amount_fen": 2500}})
+    stored = journal._events("D1", "T1")[0]
+    assert stored.payload.arguments_ref == reference
+    assert journal._stored_evidence(connect(journal.path), stored, reference) is not None
+
+    clean = redact({"parameters_ref": reference, "source_refs": [reference],
+                    "card_number": "6222000000000002"})
+    assert clean["parameters_ref"] == reference
+    assert clean["source_refs"] == [reference]
+    assert "6222000000000002" not in clean["card_number"]
+    assert "****0002" in clean["card_number"]
+    # A known secret inside a reference is still removed (secret protection wins).
+    assert redact({"evidence_ref": "E1-secret-77"}, ("secret",))["evidence_ref"] == "E1-[REDACTED]-77"
+
+
 def test_export_marks_missing_results_without_running_tools(tmp_path):
     journal = AuditJournal(StoragePaths(tmp_path).application)
     journal.append(event("tool.started", evidence_ref="E1", evidence_status="missing"))
