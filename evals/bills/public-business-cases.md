@@ -51,8 +51,8 @@ Planner 固定选择 L01，scope_authorizer 与 LOW 风险判定是明确的测�
 | 路径 | BF | 状态 | 提供方/依赖 | 当前受测版本的阻塞依据 |
 |---|---|---|---|---|
 | L02 locate/single/scan | BF02,BF05,BF06 | Blocked | Ethan / Erwin integration；ticket 04 | L02 is not registered in this tested main-based source revision; its independent development branch is outside this run. |
-| L03 generate_report | BF03 | Blocked | Ethan / Erwin integration；ticket 05 | L03 report implementation and registration are not in this tested source revision. |
-| F21 report resource and F22-F24 ordinary card export | BF04 | Blocked | Erwin / Ethan integration；ticket 05 / Issue 123 | Needs the integrated public report resource and ordinary export path; no report resource exists in this L01 evaluation. |
+| L03 generate_report | BF03 | Blocked | Ethan / Erwin integration；ticket 05 | L03 BillReport business code is merged in this tested source; production capability registration and safety approval are not part of this L01-only evaluation. |
+| F21 report resource and F22-F24 ordinary card export | BF04 | Blocked | Erwin / Ethan integration；ticket 05 / Issue 123 | F21/F22-F24 platform endpoints exist, but the present L01-only test does not invoke or verify report-resource and export HTTP paths; these have separate ticket 07 tests. |
 | F22-F24 sensitive detail export and verification | BF04 | Blocked | Erwin / Ringo / Ethan integration；ticket 05 / shared verification-export wiring | Needs trusted public verification/resource integration; this scope-authorizer test policy cannot sign off sensitive export. |
 | live planner/provider over HTTP | BF01,BF05,BF06 | Blocked | Erwin / Ethan integration；ticket 07 / real provider and HTTP runtime | This runner supplies a scripted planner and no live provider configuration or running HTTP service; no real-model/HTTP evidence is available. |
 | React bills UI and browser workflow | BF07 | Blocked | frontend owner / Ethan integration；ticket 07 / integrated frontend and backend | Requires the actual UI/runtime joint environment; no browser or page execution occurs here. |
