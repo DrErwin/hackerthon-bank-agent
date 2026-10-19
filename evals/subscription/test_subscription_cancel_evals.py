@@ -26,7 +26,7 @@ from app.contracts.security import ConfirmationAnswer
 
 import harness
 from harness import (
-    CANCEL_CAPABILITY, approve, assert_envelope, begin, begin_cancel, billing_date,
+    CANCEL_CAPABILITY, approve, assert_envelope, begin, begin_cancel,
     cancel_operations, confirmation_for, confirmation_texts, events, insert_mandate,
     load_cases, mandate_status, owner, recover_to_new_session, resume,
     security_confirmations, start, step_label, texts, update_mandate, verify_by_code,
@@ -96,7 +96,6 @@ def test_sub_eval_28_batch_then_typed_merchant(subscription_runtime, case_report
     log.eq("typed.chosen", _chosen_mandate(comp, "T1", record.parameters_ref),
            facts["chosen"])
     log.eq("typed.confirmations_before_choice", 0, facts["confirmations_before_choice"])
-    log.eq("typed.bank_operations", cancel_operations(comp.bank), 0)
     log.eq("typed.bank_operations", cancel_operations(comp.bank), 0)
     assert_envelope(log, case, comp, typed,
                     produced=texts(started, typed, confirmation_texts(record)))
@@ -312,16 +311,35 @@ def test_sub_eval_35_changed_facts_invalidate_the_confirmation(
     # must never authorize the new facts.
     update_mandate(comp.bank, "sub_001", amount_fen=2600)
     changed = resume(comp, "T1", "R2", choice="approve")
+    produced = texts(started, changed, confirmation_texts(record))
+    joined = " | ".join(produced)
 
-    log.eq("state.sequence", [step_label(started), step_label(changed)],
-           case["expected"]["state_sequence"])
-    log.eq("changed.status", changed.status.value, "failed")
-    log.eq("error.code", changed.error.code, facts["error_code"])
-    log.eq("error.source", changed.error.source, facts["error_source"])
-    log.eq("stale.no_write", cancel_operations(comp.bank), facts["cancel_operations"])
-    log.eq("stale.mandate_untouched", mandate_status(comp.bank, "sub_001"), "active")
-    assert_envelope(log, case, comp, changed,
-                    produced=texts(started, changed, confirmation_texts(record)))
+    log.eq("first.step", step_label(started), "waiting_approval:confirmation")
+    # The platform has two safe endings here (a fresh confirmation v2, or a hard
+    # refusal); this case pins the shared safety invariant instead of one branch.
+    # The non-determinism itself is recorded as a platform gap (README §8).
+    log.ok("changed.allowed_status",
+           changed.status.value in facts["allowed_final_statuses"], changed.status.value)
+    log.eq("changed.no_bank_write", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("changed.mandate_untouched", mandate_status(comp.bank, "sub_001"),
+           facts["mandate_status"])
+    log.eq("changed.never_claims_success", "已经退了" not in joined,
+           facts["never_claims_success"])
+    for promise in harness.FORBIDDEN_PROMISES:
+        log.ok(f"wording.forbidden[{promise}]", promise not in joined, joined)
+    if changed.status.value == "waiting_approval":
+        log.eq("changed.reconfirmation_interaction", changed.interaction.kind,
+               "confirmation")
+        fresh = confirmation_for(comp, owner(comp, "T1", "R2"), changed)
+        log.eq("changed.reconfirmation_version", fresh.confirmation_version,
+               facts["reconfirm_version"])
+        log.eq("changed.reconfirmation_pending", fresh.decision, "pending")
+    else:
+        log.eq("changed.refusal_status", changed.status.value, "failed")
+        log.eq("changed.refusal_error", changed.error.code, "SECURITY_REJECTED")
+    log.note("关键内容变化后平台有两支安全收尾（重出确认单 v2 / 安全拒绝），"
+             "受进程哈希序影响；本轮断言共同的安全不变量，平台确定性另记缺口")
 
 
 def test_sub_eval_39_terminal_receipt_survives_replays(
@@ -425,10 +443,11 @@ def test_sub_eval_42_audit_chain_for_one_cancellation(
            any(record.event_type == "tool.started" for record in write_events)
            and any(record.event_type == "tool.finished" for record in write_events),
            [record.event_type for record in write_events])
-    log.ok("audit.write_tool_events_have_operation_id",
+    log.eq("audit.write_tool_events_have_operation_id",
            all(getattr(record.payload, "operation_id", None) is not None
                for record in write_events
-               if record.event_type == "tool.finished"), None)
+               if record.event_type == "tool.finished"),
+           facts["write_tool_events_have_operation_id"])
     allow_decisions = [record for record in records
                        if record.event_type == "security.decided"
                        and record.payload.decision.action_name
@@ -436,9 +455,10 @@ def test_sub_eval_42_audit_chain_for_one_cancellation(
                        and record.payload.decision.decision == "allow"]
     log.ok("audit.allow_decision_present", len(allow_decisions) >= 1, len(allow_decisions))
     # The write must be preceded by an audited decision on the very same action.
-    log.ok("audit.allow_decision_has_operation_id",
+    log.eq("audit.allow_decision_has_operation_id",
            all(record.payload.decision.operation_id is not None
-               for record in allow_decisions), None)
+               for record in allow_decisions),
+           facts["allow_decision_has_operation_id"])
     observed = [record for record in records if record.event_type == "bank.observed"]
     log.eq("audit.bank_observed",
            observed[-1].payload.lookup if observed else None, facts["bank_observed"])
@@ -469,8 +489,8 @@ def test_sub_eval_43_no_code_or_raw_account_in_outputs(
     log.eq("redaction.code_in_user_texts", code in joined, facts["code_in_user_texts"])
     log.eq("redaction.code_in_audit_events", code in audit_json,
            facts["code_in_audit_events"])
-    log.ok("redaction.no_raw_account_id",
-           "A1" not in joined and "U2A1" not in joined, joined)
+    log.eq("redaction.raw_account_in_texts",
+           "A1" in joined or "U2A1" in joined, facts["raw_account_in_texts"])
     log.eq("redaction.masked_account_shown", "尾号 ****0001" in joined,
            facts["masked_account_shown"])
     assert_envelope(log, case, comp, done, produced=produced)

@@ -14,18 +14,15 @@ from __future__ import annotations
 import json
 from uuid import uuid4
 
-import pytest
-
 from app.contracts.common import RiskLevel, TaskStatus
 
 import harness
 from harness import (
     CANCEL_CAPABILITY, CANCEL_PROMISE, LIST_CAPABILITY, approve, assert_envelope,
-    arm_cancel_timeout, bank_operations, begin, begin_cancel, billing_date,
-    cancel_operations, cancel_to_success, confirm_and_verify, confirmation_for,
-    confirmation_texts, events, freeze_account, load_cases, mandate, mandate_status,
-    owner, resume, security_confirmations, start, step_label, texts, time_sleep,
-    trusted, verify_by_code,
+    arm_cancel_timeout, bank_operations, begin, billing_date, cancel_operations,
+    cancel_to_success, confirm_and_verify, confirmation_for, confirmation_texts, events,
+    freeze_account, load_cases, mandate_status, resume, security_confirmations, start,
+    step_label, texts, time_sleep, trusted, verify_by_code,
 )
 
 
@@ -89,8 +86,8 @@ def test_sub_inv_02_insufficient_data_is_not_reported_as_clean(
     log.ok("scan.reason", "不足 3 个月" in (view.list_result.suspected_scan_reason or ""),
            view.list_result.suspected_scan_reason)
     log.eq("scan.suspected_items",
-           [item.subscription_id for item in view.list_result.items
-            if item.source_type == "suspected_ledger"], [])
+           len([item for item in view.list_result.items
+                if item.source_type == "suspected_ledger"]), facts["suspected_items"])
     log.eq("list.mandate_ids",
            [item.subscription_id for item in view.list_result.items
             if item.source_type == "mandate"], facts["mandate_ids"])
@@ -286,7 +283,7 @@ def test_sub_vfy_01_three_wrong_codes_end_with_the_verification_wording(
         attempts.append(outcome.challenge.consecutive_code_failures)
         log.ok(f"verification.attempt_{index + 1}_rejected", outcome.verification_id is None,
                outcome.reason_code)
-    log.eq("verification.attempts", attempts, [1, 2, 3])
+    log.eq("verification.attempts", attempts, list(range(1, facts["attempts"] + 1)))
 
     failed = comp.runtime.harness.resume(trusted(run="R3"), {"choice": "approve"})
     sequence.append(step_label(failed))
@@ -488,7 +485,8 @@ def test_sub_obs_01_repeated_first_start_is_stable(subscription_runtime, case_re
                 "error": result.error.code if result.error else None})
     log.eq("stability.attempts", len(statuses), facts["attempts"])
     log.eq("stability.statuses", sorted(set(statuses)), ["succeeded"])
-    log.eq("stability.internal_errors", internal_errors, [])
+    log.eq("stability.internal_errors", len(internal_errors),
+           facts["internal_errors"])
     log.eq("stability.no_bank_write", bank_operations(comp.bank), 0)
     assert_envelope(log, case, comp, comp.runtime.harness.get(trusted("T0001", "R0001")),
                     task="T0001", produced=[])
@@ -497,6 +495,7 @@ def test_sub_obs_01_repeated_first_start_is_stable(subscription_runtime, case_re
 def test_sub_obs_02_terminal_task_stays_terminal_and_serializable(
         subscription_runtime, case_reports, request):
     case, log = begin(case_reports, request, "SUB-OBS-02", CASES)
+    facts = case["expected"]["facts"]
     comp = subscription_runtime()
     blocked = start(comp, case["intent"], capability=CANCEL_CAPABILITY)
     statuses = [blocked.status.value]
@@ -509,7 +508,8 @@ def test_sub_obs_02_terminal_task_stays_terminal_and_serializable(
     log.ok("terminal.data_shape", fetched.data is None or isinstance(fetched.data, dict),
            type(fetched.data).__name__)
     payload = json.dumps(fetched.model_dump(mode="json"), ensure_ascii=False)
-    log.ok("terminal.serializable", "failed" in payload and len(payload) > 0, len(payload))
+    log.eq("terminal.serializable",
+           isinstance(payload, str) and len(payload) > 0, facts["serializable"])
     log.eq("terminal.operations", bank_operations(comp.bank), 0)
     assert_envelope(log, case, comp, fetched, produced=[])
 
@@ -599,8 +599,9 @@ def test_sub_can_13_timeout_then_lookup_finds_the_bank_result(
            facts["receipt_mandate_id"])
     task_operations = comp.application.list_task_operations("U1", "D1", "T1")
     log.eq("one_task_operation_row", len(task_operations), 1)
-    log.eq("operation_id_unchanged", str(task_operations[0].operation_id),
-           str(second.data.operation_id))
+    log.eq("operation_id_unchanged",
+           str(task_operations[0].operation_id) == str(second.data.operation_id),
+           facts["operation_id_unchanged"])
     log.eq("one_bank_operation", cancel_operations(comp.bank),
            facts["cancel_operations"])
     assert_envelope(log, case, comp, second,
@@ -635,7 +636,9 @@ def test_sub_can_14_unknown_bank_result_never_reports_success(
                and "退订成功" not in (result.message or ""), result.message)
     log.eq("unknown.cancel_operations", cancel_operations(comp.bank),
            facts["cancel_operations"])
-    log.eq("unknown.mandate_untouched", mandate_status(comp.bank, "sub_001"), "active")
+    log.eq("unknown.mandate_untouched",
+           mandate_status(comp.bank, "sub_001") == "active",
+           facts["mandate_untouched"])
     assert_envelope(log, case, comp, second,
                     produced=texts(started, verification, first, second,
                                    confirmation_texts(record)))

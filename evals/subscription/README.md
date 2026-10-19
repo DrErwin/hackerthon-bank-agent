@@ -53,9 +53,10 @@ python -m pytest evals/subscription -q
 | 已退幂等（E04/T13） | SUB-IDM-01 | — | — | SUB-CAN-16 | SUB-RED-02 | 当期 `processing` 分支 v0.4 无该状态 |
 | 反悔/取消（E05/T06） | — | SUB-IDM-02 | — | SUB-CAN-07 | SUB-CAN-10、SUB-CAN-11 | — |
 | 验证失败终止与重试边界（E10） | — | SUB-VFY-01 | SUB-CAN-08（第 3/4 次） | SUB-CAN-09 | — | — |
+| 验证强度边界：非 LOW 不降级（spec §5.3/§8.4） | — | SUB-VFY-03 | — | — | — | 策略当前对退订只给 LOW/HIGH；用例守住注入非 LOW 裁决时仍走动作级 step-up、不降级为会话验证码 |
 | 高危阻断（T09；§5） | — | SUB-VFY-02 | — | — | SUB-RED-03 | 真实反诈检测效果属安全评测 |
-| 防重复（T11/E07） | — | SUB-CAN-06 | — | SUB-CAN-06 | SUB-CAN-13 | — |
-| 关键内容变化/确认失效（§5.2） | — | SUB-CAN-11 | — | SUB-CAN-10 | SUB-CAN-10 | 重新出确认单的路径未实现（§8） |
+| 防重复（T11/E07） | — | SUB-CAN-06 | — | SUB-CAN-06 | SUB-CAN-13 | 第二次点击的「已在处理/已退过」文案属 F06 幂等回执（API 层），本集只钉单次执行 |
+| 关键内容变化/确认失效（§5.2） | — | SUB-CAN-11 | — | SUB-CAN-10 | SUB-CAN-10 | 平台在此分支有两种安全收尾（重出确认单 v2 / 安全拒绝），受进程哈希序影响；本集断言共同安全不变量，确定性另记缺口（§8） |
 | 结果未知与 B14 回查（T05/E06） | SUB-CAN-13 | SUB-CAN-14 | — | SUB-CAN-13、SUB-CAN-14、SUB-CAN-19 | — | 多进程并发、跨演示轮次回查不在本集 |
 | 商户名注入（T10；§5.5） | SUB-INV-08 | SUB-INV-08 | — | — | SUB-VFY-02 | 真实模型的注入抵抗属安全评测 |
 | 跨用户（E11/T16；§5.4） | SUB-INV-07 | SUB-INV-07 | — | — | SUB-INV-07 | 拒绝话术属规划层（§8） |
@@ -74,7 +75,7 @@ python -m pytest evals/subscription -q
 | E01 说不清/多候选 | 4 | SUB-CAN-03、SUB-CAN-04、SUB-CAN-05、SUB-DIS-01 | 含用文字而非选项 id 回答候选 |
 | E02 只有流水、无签约 | 3 | SUB-GUD-01、SUB-GUD-02、SUB-RED-02 | 「不是我订的」多轮分支 **Blocked**（需真实模型） |
 | E03 追问退已扣款 | 0 | — | **Blocked**：退款追问话术属规划/问答槽位，脚本替身入口无法断言 |
-| E04 处理中/已退 | 3 | SUB-IDM-01、SUB-CAN-16、SUB-REM-03 | `processing` 分支 v0.4 无该状态（契约 §7A） |
+| E04 处理中/已退 | 2 | SUB-IDM-01、SUB-CAN-16 | `processing` 分支 v0.4 无该状态（契约 §7A）；「无 active 提醒」见 E12 行，「无下一期日期不硬退」见覆盖表 SOP-3 例外行（SUB-CAN-17） |
 | E05 反悔/取消/会话失效 | 4 | SUB-IDM-02、SUB-CAN-07、SUB-CAN-10、SUB-CAN-11 | 覆盖确认前、验证阶段、换会话、内容变化四个时点 |
 | E06 结果未知 | 3 | SUB-CAN-13、SUB-CAN-14、SUB-CAN-19 | 回查成功/未受理/银行判失败三种收尾 |
 | E07 重复点击 | 2 | SUB-CAN-06、SUB-CAN-13 | 同一确认记录只执行一次 |
@@ -129,6 +130,7 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | 业务模块 | 真实 `SubscriptionEntry` 状态机与 checkpointer；单测里的 `FakeGate`/`FakeBank` 均未使用 |
 | 审计与存储 | 真实 `AuditJournal`、`ApplicationStore`、`tool_operations`/`security_executions` |
 | 时间 | 固定银行时钟 `2026-10-19 04:00Z`（北京 12:00），种子偏移与提醒窗口因此确定 |
+| 故障注入 | `harness` 用例注入属**前置状态**，不改银行规则与安全策略：`arm_cancel_timeout` 基于共享 `BankGateway` 的私有写超时预算（`_transfer_timeout_seconds`）+ 对 `MockBankService.cancel_subscription` 的延时包装，模拟「网关等待超时、银行后台仍在处理」；`fail_cancel_with` / `fail_mandates_query` 让银行返回指定错误码；`fake_failed_operation` 让 B14 回查返回银行判失败。均为同步替身，不 sleep 真实业务时长（仅短延时以越过注入的超时预算） |
 
 ## 8. 未覆盖与 Blocked（如实）
 
@@ -141,6 +143,6 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | E04 当期 `processing` 分支 | v0.4 契约无该状态（§7A） | 契约/银行后续版本 |
 | `reminder_days` / `status_filter` 参数化 | 平台入口（S01 逻辑入参）未接线，评测无法从用户请求传入 | 平台规划槽位 |
 | SOP-3「下一期异常需核实」标注 | 只实现「不猜日期」，标注文案未实现；`SUB-REM-04` 断言不猜半边 | 订阅模块后续 |
-| 关键内容变化后的「重新确认」路径 | 现状是安全拒绝并终态失败（零提交、旧确认不复用）；`SUB-CAN-11` 钉住安全半边 | 订阅模块后续 |
+| 关键内容变化后的平台确定性 | 同一用例（`SUB-CAN-11`）在 `PYTHONHASHSEED` 不同时收尾不同：一支把同一确认单重新冻结为 v2（`waiting_approval:confirmation`），一支 `failed`/`SECURITY_REJECTED`（上游 `OPERATION_CONFLICT`）；两支都零提交、协议 `active`。评测改为断言两支共同的安全不变量，非确定性本身属平台实现问题（待开修复票） | 平台 / 订阅模块后续 |
 | 退订的写前 AuthorizationSnapshot | 取消订阅在 spec/契约中声明为 `OperationLevel.MODIFY`（二级），安全门只在 `SENSITIVE` 动作前写授权快照；PRD §5.10 称其为三级敏感操作，两处口径不一致。`SUB-SEC-01` 只断言审计链路与操作编号，不伪造快照断言 | 安全侧 / 契约口径（Ringo 与 Erwin 确认后再定） |
 | 真实 GLM 意图理解、前端渲染/语音播报、两进程并发同一退订 | 属真实模型 / 前端 / 并发评测 | v0.5 端到端 E2E 与安全评测 |

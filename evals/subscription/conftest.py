@@ -19,7 +19,7 @@ for entry in (str(ROOT / "backend"), str(HERE)):
 
 import pytest  # noqa: E402
 
-from harness import CheckLog, composition, evidence_directory, write_evidence  # noqa: E402
+from harness import composition, evidence_directory, write_evidence  # noqa: E402
 
 
 @pytest.fixture
