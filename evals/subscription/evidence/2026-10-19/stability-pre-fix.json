@@ -1,0 +1,513 @@
+{
+  "tool": "stability_sample",
+  "label": "pre-fix-9741053",
+  "capability": "subscription.list_subscriptions",
+  "intent": "帮我查查有哪些自动扣费",
+  "attempts": 150,
+  "started_at": "2026-10-19T08:03:35.551378+00:00",
+  "finished_at": "2026-10-19T08:04:19.880045+00:00",
+  "statuses": {
+    "succeeded": 134,
+    "failed": 16
+  },
+  "failure_count": 16,
+  "failures": [
+    {
+      "attempt": 7,
+      "task_id": "T0007",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-99dc617897955a85b6db8cc2#None"
+        },
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-99dc617897955a85b6db8cc2#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-9622dfee52d77788ff05ec35#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-9622dfee52d77788ff05ec35#None"
+        }
+      ]
+    },
+    {
+      "attempt": 11,
+      "task_id": "T0011",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": []
+    },
+    {
+      "attempt": 20,
+      "task_id": "T0020",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-682b91b8341ce43c16934e15#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-682b91b8341ce43c16934e15#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-d9821f19a1d5c8937a5cfa7a#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-d9821f19a1d5c8937a5cfa7a#None"
+        }
+      ]
+    },
+    {
+      "attempt": 22,
+      "task_id": "T0022",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-086268a5584c32d695eb9973#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-086268a5584c32d695eb9973#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-df044fdf2d20800b24033585#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-df044fdf2d20800b24033585#None"
+        }
+      ]
+    },
+    {
+      "attempt": 26,
+      "task_id": "T0026",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-f38f4b2923257af5d072e3f0#None"
+        },
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-f38f4b2923257af5d072e3f0#None"
+        }
+      ]
+    },
+    {
+      "attempt": 53,
+      "task_id": "T0053",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-afc518f5ef746e28ddf5ac0e#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-afc518f5ef746e28ddf5ac0e#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-a807df02191ddfc86770893e#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-a807df02191ddfc86770893e#None"
+        }
+      ]
+    },
+    {
+      "attempt": 60,
+      "task_id": "T0060",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-acf571e53a1bbc1fb718abd3#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-acf571e53a1bbc1fb718abd3#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-76ac8ccb6559020ffdfd4719#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-76ac8ccb6559020ffdfd4719#None"
+        }
+      ]
+    },
+    {
+      "attempt": 72,
+      "task_id": "T0072",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-891cb7f068c8d3c8e14aff22#None"
+        },
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-891cb7f068c8d3c8e14aff22#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-9e93b94b8df0c20ec51e7989#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-9e93b94b8df0c20ec51e7989#None"
+        }
+      ]
+    },
+    {
+      "attempt": 90,
+      "task_id": "T0090",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": []
+    },
+    {
+      "attempt": 92,
+      "task_id": "T0092",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": []
+    },
+    {
+      "attempt": 103,
+      "task_id": "T0103",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": []
+    },
+    {
+      "attempt": 115,
+      "task_id": "T0115",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": []
+    },
+    {
+      "attempt": 116,
+      "task_id": "T0116",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-4277b1be4a5533a3683a9715#None"
+        },
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-4277b1be4a5533a3683a9715#None"
+        }
+      ]
+    },
+    {
+      "attempt": 118,
+      "task_id": "T0118",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-eb232f4c09ba26ca3069aaa7#None"
+        },
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-eb232f4c09ba26ca3069aaa7#None"
+        }
+      ]
+    },
+    {
+      "attempt": 139,
+      "task_id": "T0139",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-7667f2249a3988a225a2da8b#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-7667f2249a3988a225a2da8b#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-baec1d72ad93c99a0314dfc0#None"
+        },
+        {
+          "action_name": "subscription.bank.list_transactions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-baec1d72ad93c99a0314dfc0#None"
+        }
+      ]
+    },
+    {
+      "attempt": 142,
+      "task_id": "T0142",
+      "status": "failed",
+      "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+      "message": "订阅服务暂时不可用，请稍后再试。",
+      "upstream_code": null,
+      "decisions": [
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-a523848d89dafb01bf186ae6#None"
+        },
+        {
+          "action_name": "subscription.bank.list_accounts",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-a523848d89dafb01bf186ae6#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-cc55600739babef6187e637a#None"
+        },
+        {
+          "action_name": "subscription.bank.list_subscriptions",
+          "phase": "admission",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "join": "sub-ref-cc55600739babef6187e637a#None"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,794 @@
+{
+  "module": "subscription",
+  "version": "v0.4.0",
+  "run_layer": "platform-runtime",
+  "layer_note": "真实 MockBank B29/B30、真实 SecurityGate/DeterministicExecutor/审计/存储、真实 DemoSecurityPolicy、模块状态机；仅模型入口为脚本替身（本票不评模型理解力）。HTTP 层（F05/F06/F07/F10）由票 06 的 API 测试覆盖。",
+  "sources": [
+    ".scratch/v04-subscription/spec.md §4 SF01–SF07、§5.5、§6",
+    ".scratch/v04-subscription/issues/07-subscription-evals.md",
+    "docs/prd/05-订阅代扣管理-PRD-2026-10-19.md T01–T17、§五 红线",
+    "docs/contracts/公共契约-2026-09-23.md §5.5/§5.9、docs/contracts/确认验证字段-2026-09-24.md"
+  ],
+  "red_lines": {
+    "confirmation_gate": "未确认/未通过验证不得提交银行；逐笔退订，禁止批量一键全退",
+    "scope_boundary": "疑似周期扣费不等于已证实签约，不进确认门、不调 B30；已解约项不进确认门",
+    "wording": "只承诺「从下一期（…）起不再自动扣费，之前已经扣掉的钱不退」；严禁「会员可用至/还能用到/先退订再重新订阅/先解约再重签」"
+  },
+  "cases": [
+    {
+      "case_id": "SUB-INV-01",
+      "ticket_case": "sub_eval_01_inventory_and_reminder",
+      "scenario": "SF01 / T01 / T14",
+      "dimension": "盘点与提醒",
+      "source": "spec §4 SF01；PRD T01/T14；契约 §5.5",
+      "environment": "银行种子：sub_001 优酷 2500 月（active，D+5）、sub_002 云端网盘 3900 月（active，D+12）、sub_003 喜马拉雅 1500 月（cancelled）；共享流水含绿洲健身 3900 连续 5 月；clock=D 日 04:00Z",
+      "input": "帮我查查有哪些自动扣费",
+      "intent": "帮我查查有哪些自动扣费",
+      "expected": {
+        "capability": "subscription.list_subscriptions",
+        "state_sequence": [
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [
+          "7 天内会扣款",
+          "往后 30 天里还有 2 笔会自动扣",
+          "一共 64.00 元",
+          "优酷视频"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "mandate_ids": [
+            "sub_001",
+            "sub_002",
+            "sub_003"
+          ],
+          "active_count": 2,
+          "upcoming_ids": [
+            "sub_001",
+            "sub_002"
+          ],
+          "upcoming_total_fen": 6400,
+          "youku_billed_count": 6,
+          "youku_billed_total_fen": 15000,
+          "oasis_clue_present": true,
+          "oasis_can_cancel_in_bank": false,
+          "suspected_count_locked": false
+        }
+      }
+    },
+    {
+      "case_id": "SUB-INV-02",
+      "ticket_case": "sub_eval_07_insufficient_data",
+      "scenario": "SF07 / T15 / E12",
+      "dimension": "证据不足",
+      "source": "spec §4 SF07；PRD T15/E12；契约 §5.9 第 4/5 条",
+      "environment": "同一银行只有签约种子、无任何流水（覆盖月数=0）；clock=D 日 04:00Z",
+      "input": "帮我查查有哪些自动扣费",
+      "intent": "帮我查查有哪些自动扣费",
+      "expected": {
+        "capability": "subscription.list_subscriptions",
+        "state_sequence": [
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [
+          "账单记录不足 3 个月",
+          "本行签约的项目照常显示"
+        ],
+        "forbidden_text": [
+          "没有查到自动扣费",
+          "未发现异常",
+          "没有异常"
+        ],
+        "facts": {
+          "suspected_scan_status": "insufficient_data",
+          "suspected_items": 0,
+          "mandate_ids": [
+            "sub_001",
+            "sub_002",
+            "sub_003"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "SUB-CAN-01",
+      "ticket_case": "sub_eval_02_cancel_single_success",
+      "scenario": "SF02 / T04",
+      "dimension": "单笔退订全链路",
+      "source": "spec §4 SF02；PRD T04；契约 §5.5/§7A；确认验证字段（basic_identity + scope=session）",
+      "environment": "sub_001 优酷 2500 月，下一期 D+5；clock=D 日 04:00Z",
+      "input": "把优酷视频自动扣费退了",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 1,
+        "mandates": {
+          "sub_001": "cancelled",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "basic_identity",
+          "scope": "session",
+          "required_methods": [
+            "code"
+          ],
+          "summary": "none",
+          "mock_face": false
+        },
+        "required_text": [
+          "请核对退订信息",
+          "点「确认退订」后还要填一次短信验证码",
+          "从下一期（2026-10-24）起不再自动扣费，之前已经扣掉的钱不退",
+          "请填写银行发给您的短信验证码",
+          "已经退了",
+          "从下一期（2026-10-24）起不会再自动扣费"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "display_field_names": [
+            "merchant",
+            "account",
+            "amount",
+            "billed",
+            "next_billing",
+            "notice"
+          ],
+          "receipt_mandate_id": "sub_001",
+          "receipt_status": "cancelled",
+          "effective_stop_at_equals_previous_next_billing_at": true,
+          "effective_stop_date": "2026-10-24",
+          "replay_keeps_one_operation": true
+        }
+      }
+    },
+    {
+      "case_id": "SUB-CAN-02",
+      "ticket_case": "sub_eval_03_session_verification_reuse",
+      "scenario": "SF03",
+      "dimension": "同会话复用验证",
+      "source": "spec §4 SF03；PRD §5.1 per_action + 会话级验证",
+      "environment": "同一会话 S1 下第二笔任务（T2）退订 sub_002；第一笔（T1）已通过会话级 basic_identity",
+      "input": "再把云端网盘自动续费退了",
+      "intent": "再把云端网盘自动续费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 2,
+        "mandates": {
+          "sub_001": "cancelled",
+          "sub_002": "cancelled",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": null,
+        "required_text": [
+          "请核对退订信息",
+          "已经退了"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "second_task_challenges": 0,
+          "second_task_selected": "sub_002",
+          "session_verification_reused": true
+        }
+      }
+    },
+    {
+      "case_id": "SUB-GUD-01",
+      "ticket_case": "sub_eval_04_suspected_ledger_guide",
+      "scenario": "SF04 / T08",
+      "dimension": "疑似项外部引导",
+      "source": "spec §4 SF04；PRD T08；契约 §5.9 第 4/5 条",
+      "environment": "绿洲健身 3900 连续 5 月快捷支付、无签约记录（source_type=suspected_ledger）",
+      "input": "帮我把绿洲健身的每月扣款退订",
+      "intent": "帮我把绿洲健身的每月扣款退订",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [
+          "银行那边没有「绿洲健身」的签约代扣记录",
+          "微信支付/支付宝",
+          "退不了"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "selected_source_type": "suspected_ledger",
+          "selected_can_cancel_in_bank": false,
+          "security_confirmations": 0
+        }
+      }
+    },
+    {
+      "case_id": "SUB-DIS-01",
+      "ticket_case": "sub_eval_05_disambiguation_and_no_batch",
+      "scenario": "SF05 / T12",
+      "dimension": "消歧与拒绝批量",
+      "source": "spec §4 SF05；PRD T12；spec §2.3「仅单笔」",
+      "environment": "两个可在线退订的 active 签约（sub_001/sub_002）；输入为 spec 原话",
+      "input": "把所有自动扣费都关了",
+      "intent": "把所有自动扣费都关了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_input:input",
+          "waiting_approval:confirmation"
+        ],
+        "final_status": "waiting_approval",
+        "interaction": "confirmation",
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": null,
+        "required_text": [
+          "每次只能退订一项",
+          "请核对退订信息"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "option_ids": [
+            "sub_001",
+            "sub_002"
+          ],
+          "confirmations_before_choice": 0,
+          "chosen_option": "sub_001"
+        }
+      }
+    },
+    {
+      "case_id": "SUB-IDM-01",
+      "ticket_case": "sub_eval_06a_already_cancelled_is_idempotent",
+      "scenario": "SF06a / T13",
+      "dimension": "已退幂等",
+      "source": "spec §4 SF06；PRD T13",
+      "environment": "sub_003 喜马拉雅已为 cancelled",
+      "input": "把喜马拉雅自动续费退了",
+      "intent": "把喜马拉雅自动续费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [
+          "此前已经退订",
+          "无需重复操作"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "selected": "sub_003",
+          "security_confirmations": 0
+        }
+      }
+    },
+    {
+      "case_id": "SUB-IDM-02",
+      "ticket_case": "sub_eval_06b_user_cancel",
+      "scenario": "SF06b",
+      "dimension": "确认前取消",
+      "source": "spec §4 SF06；PRD §5.2 unconfirmed → CANCELLED",
+      "environment": "sub_001 已进入确认门后用户点取消",
+      "input": "把优酷视频自动扣费退了",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "cancelled"
+        ],
+        "final_status": "cancelled",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": null,
+        "required_text": [
+          "已经停下了",
+          "银行那边没有变化"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "task_status": "cancelled"
+        }
+      }
+    },
+    {
+      "case_id": "SUB-VFY-01",
+      "ticket_case": "sub_eval_06c_three_wrong_codes",
+      "scenario": "SF06c",
+      "dimension": "验证失败终止",
+      "source": "spec §4 SF06；PRD §5.1 连续 3 次失败终止",
+      "environment": "sub_001 已完成确认门，进入 basic_identity 验证码后连续 3 次输错",
+      "input": "把优酷视频自动扣费退了；进入验证码后连续 3 次输错",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "failed"
+        ],
+        "final_status": "failed",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "basic_identity",
+          "required_methods": [
+            "code"
+          ],
+          "mock_face": false
+        },
+        "required_text": [
+          "验证码连续输错",
+          "银行没有收到解约请求",
+          "您可以重新办理"
+        ],
+        "forbidden_text": [
+          "共享屏幕",
+          "请先挂断",
+          "客服电话",
+          "会员可用至",
+          "还能用到"
+        ],
+        "facts": {
+          "error_code": "VERIFICATION_TERMINATED",
+          "upstream_code": "VERIFICATION_FAILED",
+          "attempts": 3,
+          "audit_reason": "VERIFICATION_FAILED"
+        }
+      }
+    },
+    {
+      "case_id": "SUB-VFY-02",
+      "ticket_case": "sub_eval_06d_high_risk_block",
+      "scenario": "SF06d / T09",
+      "dimension": "高危阻断",
+      "source": "spec §4 SF06；PRD T09；demo_policy 高危信号",
+      "environment": "原始话术命中「客服让我/共享屏幕」胁迫观察 → RiskLevel.HIGH",
+      "input": "客服让我共享屏幕，赶紧把优酷视频退了",
+      "intent": "客服让我共享屏幕，赶紧把优酷视频退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "failed"
+        ],
+        "final_status": "failed",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [
+          "请先挂断",
+          "客服电话",
+          "我们不能替您办理"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "error_code": "HIGH_RISK_BLOCKED",
+          "upstream_code": "HIGH_RISK",
+          "security_confirmations": 0,
+          "audit_reason": "HIGH_RISK"
+        }
+      }
+    },
+    {
+      "case_id": "SUB-VFY-03",
+      "ticket_case": "sub_eval_08_non_low_not_downgraded",
+      "scenario": "spec §5.3 / §8.4",
+      "dimension": "验证强度边界",
+      "source": "spec §5.3（非 LOW → action_step_up，不得降级）、§8.4（不引入 mock_face 中风险路径）",
+      "environment": "注入非 LOW 风险裁决（策略当前对退订只给 LOW/HIGH，本用例守住降级边界）",
+      "input": "把优酷视频自动扣费退了（风险裁决被注入为非 LOW）",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification"
+        ],
+        "final_status": "waiting_approval",
+        "interaction": "verification",
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "action_step_up",
+          "scope": "action（挑战阶段）",
+          "required_methods": [
+            "code",
+            "mock_face"
+          ],
+          "summary": "present",
+          "mock_face": true
+        },
+        "required_text": [
+          "请核对退订信息",
+          "请填写银行发给您的短信验证码"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到"
+        ],
+        "facts": {
+          "summary_display_field_names": [
+            "merchant",
+            "account",
+            "amount",
+            "billed",
+            "next_billing",
+            "notice"
+          ],
+          "summary_amount_fen": 2500,
+          "summary_payee": null
+        }
+      }
+    },
+    {
+      "case_id": "SUB-RED-01",
+      "ticket_case": "sub_eval_09_confirmation_gate_redline",
+      "scenario": "红线一：确认门",
+      "dimension": "确认门红线",
+      "source": "spec §4 SF02 注；PRD §五 红线；契约 §5.5 confirmation_policy=per_action",
+      "environment": "sub_001 完整退订链路，逐步核对银行提交次数",
+      "input": "把优酷视频自动扣费退了",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "waiting_approval:verification",
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 1,
+        "mandates": {
+          "sub_001": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "basic_identity",
+          "scope": "session",
+          "required_methods": [
+            "code"
+          ]
+        },
+        "required_text": [
+          "请核对退订信息",
+          "请填写银行发给您的短信验证码"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "bank_operations_after_each_step": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "unconfirmed_zero_writes": true,
+          "unverified_zero_writes": true
+        }
+      }
+    },
+    {
+      "case_id": "SUB-RED-02",
+      "ticket_case": "sub_eval_10_scope_boundary_redline",
+      "scenario": "红线二：口径边界",
+      "dimension": "口径边界红线",
+      "source": "spec §4 SF04/SF06；契约 §5.9；PRD §五 红线",
+      "environment": "同一组装内：疑似项（绿洲健身）与已解约项（喜马拉雅）各退一次",
+      "input": "帮我把绿洲健身的每月扣款退订；随后把喜马拉雅自动续费退了",
+      "intent": "帮我把绿洲健身的每月扣款退订",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "succeeded",
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [
+          "退不了",
+          "此前已经退订"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "confirmations_suspected": 0,
+          "confirmations_cancelled": 0,
+          "writes_suspected": 0,
+          "writes_cancelled": 0
+        }
+      }
+    },
+    {
+      "case_id": "SUB-RED-03",
+      "ticket_case": "sub_eval_11_wording_redline",
+      "scenario": "红线三：话术",
+      "dimension": "话术红线",
+      "source": "spec §2.3/§5.3 话术红线；PRD §五",
+      "environment": "一轮内依次产生：盘点回复、确认单字段、验证提示、成功回执、疑似引导、已退告知、高危阻断说明",
+      "input": "盘点 → 退订 sub_001 → 绿洲健身引导 → 喜马拉雅幂等 → 云端网盘高危阻断",
+      "intent": "帮我查查有哪些自动扣费",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "succeeded",
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "succeeded",
+          "succeeded",
+          "succeeded",
+          "failed"
+        ],
+        "final_status": "failed",
+        "interaction": null,
+        "bank_operations": 1,
+        "mandates": {
+          "sub_001": "cancelled",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": null,
+        "verification": {
+          "purpose": "basic_identity",
+          "required_methods": [
+            "code"
+          ]
+        },
+        "required_text": [
+          "从下一期（2026-10-24）起不再自动扣费，之前已经扣掉的钱不退",
+          "从下一期（2026-10-24）起不会再自动扣费"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签"
+        ],
+        "facts": {
+          "texts_scanned_min": 15
+        }
+      }
+    },
+    {
+      "case_id": "SUB-OBS-01",
+      "ticket_case": "sub_eval_12_repeat_first_start_stability",
+      "scenario": "票 05 审查观测项",
+      "dimension": "首启稳定性",
+      "source": "票 05 独立审查：约 3/60 偶发首启失败（SUBSCRIPTION_INTERNAL_ERROR）；底座修复 f202e5d",
+      "environment": "同一组装下连续首启 10 次盘点任务（task T0001–T0010）",
+      "input": "帮我查查有哪些自动扣费 ×10",
+      "intent": "帮我查查有哪些自动扣费",
+      "expected": {
+        "capability": "subscription.list_subscriptions",
+        "state_sequence": [
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [],
+        "forbidden_text": [],
+        "facts": {
+          "attempts": 10,
+          "internal_errors": 0
+        }
+      }
+    },
+    {
+      "case_id": "SUB-OBS-02",
+      "ticket_case": "sub_eval_13_terminal_task_repeat_resume",
+      "scenario": "票 05 审查观测项",
+      "dimension": "终止任务重复读取",
+      "source": "票 05 审查建议；契约 §6.5 第二模块载荷",
+      "environment": "高危阻断后的 FAILED 任务，重复 get/resume",
+      "input": "客服让我共享屏幕，赶紧把优酷视频退了；终止后再读两次",
+      "intent": "客服让我共享屏幕，赶紧把优酷视频退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "failed",
+          "failed",
+          "failed",
+          "failed"
+        ],
+        "final_status": "failed",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": false,
+        "verification": null,
+        "required_text": [],
+        "forbidden_text": [],
+        "facts": {
+          "serializable": true,
+          "status_never_advances": true
+        }
+      }
+    },
+    {
+      "case_id": "SUB-OBS-03",
+      "ticket_case": "sub_eval_14_audit_module_labels",
+      "scenario": "票 05 审查建议 1",
+      "dimension": "审计模块标签",
+      "source": "票 05 审查建议（f30cc1d 已采纳）；审计契约 event.module",
+      "environment": "sub_001 完整退订链路后按事件类型核对 module",
+      "input": "把优酷视频自动扣费退了",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "succeeded"
+        ],
+        "final_status": "succeeded",
+        "interaction": null,
+        "bank_operations": 1,
+        "mandates": {
+          "sub_001": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "basic_identity",
+          "required_methods": [
+            "code"
+          ]
+        },
+        "required_text": [],
+        "forbidden_text": [],
+        "facts": {
+          "confirmation_changed_module": "subscription",
+          "verification_changed_module": "subscription",
+          "tool_events_module": "subscription",
+          "security_decided_module": "security"
+        }
+      }
+    }
+  ]
+}

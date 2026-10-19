@@ -1,0 +1,18 @@
+{
+  "probe": "audit *_ref value mangling by the card-number mask",
+  "method": "redact({'evidence_ref': 'sub-ref-<sha256[:24]>', 'parameters_ref': <same>})['evidence_ref'] != ref",
+  "sample_size": 20000,
+  "pre_fix": {
+    "tree": "9741053",
+    "mangled": 407,
+    "rate": 0.0204
+  },
+  "post_fix": {
+    "tree": "f202e5d",
+    "mangled": 0,
+    "rate": 0.0
+  },
+  "example_pre_fix": "sub-ref-86e50149658661312a9e0b35 -> sub-ref-86e****1312a9e0b35",
+  "note": "the pre-fix mask rewrote those references, so a stored audit evidence key no longer matched the reference carried by the event -> ValueError -> the gate downgraded a legal ALLOW to PAUSE/AUDIT_UNAVAILABLE",
+  "worktree_head_at_probe": "9741053c304a194a4c3d5ab3048f4dbb8be3b0f9"
+}
