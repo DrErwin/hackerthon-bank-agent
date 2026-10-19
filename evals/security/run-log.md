@@ -63,3 +63,5 @@
 独立审查返修后新增ready明细跨用户下载并保留setup skip，最终18项为14 Passed / 4 Failed，报告器5项单元测试通过。CSV四项Failed仍待Issue #161修复。最终报告解压后sha256前16位为F07AC22730C35AAF，文件及完整指纹见同批说明。
 
 2026-10-19 PR #168合入后独立复验：18 Passed / 0 Failed，包含四条CSV失败复现全部转通过。retest_of为原final报告F07AC22730C35AAF，新报告036109E268DB504E，旧Failed保持。API来源main e43765a，本地后端组合be771bb的边界详见[导出证据说明](evidence/2026-10-19/export-README.md)。模型调用0次。
+
+2026-10-20 按独立审查要求补前置空白/制表符公式变体（' =1+1'、'\t+1'），公式型文本参数由4组扩为6组，runner共20项；20 Passed / 0 Failed，报告解压后sha256 7432C090946D2408C3，见[2026-10-20 证据说明](evidence/2026-10-20/README.md)。原18项retest（036109E2…）保持历史，未重写；平台夹具与真实账单L01至L03边界不变。
