@@ -64,6 +64,20 @@ def safe_text(text: str, *, numeric_field: bool = False) -> str:
     return cast(str, redact(text, free_text=not numeric_field))
 
 
+# Contract §6.7: the exporter owns CSV cell safety. Quoting only protects the syntax —
+# a cell opening with a formula character would still be evaluated by a spreadsheet, so
+# text cells get the literal apostrophe prefix. Non-strings (amounts) keep their type.
+CSV_FORMULA_OPENERS = ("=", "+", "-", "@")
+
+
+def safe_csv_cell(value):
+    """One spreadsheet-literal cell honouring the value's own semantics."""
+
+    if not isinstance(value, str):
+        return value
+    return f"'{value}" if value.lstrip().startswith(CSV_FORMULA_OPENERS) else value
+
+
 class ApiService:
     def __init__(self, runtime, config):
         self.runtime, self.config = runtime, config
@@ -750,10 +764,13 @@ class ApiService:
                          "amount_fen", "counterparty_name", "counterparty_account_masked",
                          "channel", "summary", "transaction_id"])
         for item in rows:
-            writer.writerow([item.occurred_at.isoformat(), item.account_id, item.direction,
-                             item.nature, item.category, item.amount_fen,
-                             item.counterparty_name, item.counterparty_account_masked or "",
-                             item.channel or "", item.summary, item.transaction_id])
+            writer.writerow([safe_csv_cell(item.occurred_at.isoformat()),
+                             safe_csv_cell(item.account_id), safe_csv_cell(item.direction),
+                             safe_csv_cell(item.nature), safe_csv_cell(item.category),
+                             item.amount_fen, safe_csv_cell(item.counterparty_name),
+                             safe_csv_cell(item.counterparty_account_masked or ""),
+                             safe_csv_cell(item.channel or ""), safe_csv_cell(item.summary),
+                             safe_csv_cell(item.transaction_id)])
         return buffer.getvalue()
 
     def _card_html(self, report):
