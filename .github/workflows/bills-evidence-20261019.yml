@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'ef3f720e9e14aba1f97900a3063b8b4374ae760e'
+          ref: 'b5ae210c40c24df9c85a461d50d9ed21e941eb3e'
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -21,21 +21,21 @@ jobs:
         run: python -m pip install -e './backend[dev]'
       - name: L01 independent business and arithmetic test suite
         run: |
-          test "$(git rev-parse HEAD)" = "ef3f720e9e14aba1f97900a3063b8b4374ae760e"
+          test "$(git rev-parse HEAD)" = "b5ae210c40c24df9c85a461d50d9ed21e941eb3e"
           python -m pytest -q evals/bills/
       - name: Run full-source public L01 business runner
-        run: python evals/bills/run_business_evidence.py --revision ef3f720e9e14aba1f97900a3063b8b4374ae760e
+        run: python evals/bills/run_business_evidence.py --revision b5ae210c40c24df9c85a461d50d9ed21e941eb3e
       - name: Emit immutable raw report metadata and numbered ZIP bytes
         run: |
           python - <<'PY'
           from pathlib import Path
           import base64, gzip, hashlib, json
-          matches=list(Path("evals/bills/evidence").glob("**/*-public-l01-phase1-ef3f720e9e14.json.gz"))
+          matches=list(Path("evals/bills/evidence").glob("**/*-public-l01-phase1-b5ae210c40c2.json.gz"))
           assert len(matches)==1,matches
           file=matches[0]
           compressed=file.read_bytes()
           data=json.loads(gzip.decompress(compressed))
-          assert data["tested_revision"]=="ef3f720e9e14aba1f97900a3063b8b4374ae760e"
+          assert data["tested_revision"]=="b5ae210c40c24df9c85a461d50d9ed21e941eb3e"
           assert data["phase_result"]=="Passed"
           assert data["overall_status"]=="partial"
           assert data["summary"]=={"passed":17,"failed":0,"skipped":0,"error":0,"collection_errors":0}
@@ -56,7 +56,7 @@ jobs:
       - name: Archive original business report
         uses: actions/upload-artifact@v4
         with:
-          name: bills-l01-business-ef3f720e9e14
-          path: evals/bills/evidence/**/*-public-l01-phase1-ef3f720e9e14.json.gz
+          name: bills-l01-business-b5ae210c40c2
+          path: evals/bills/evidence/**/*-public-l01-phase1-b5ae210c40c2.json.gz
           if-no-files-found: error
           retention-days: 7
