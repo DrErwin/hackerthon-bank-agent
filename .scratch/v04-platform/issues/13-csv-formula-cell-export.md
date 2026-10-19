@@ -4,7 +4,7 @@ Ticket ID: v04-platform/13
 Type: 开发（缺陷修复）
 Owner: Erwin
 Directory: backend/app/api/
-Status: in_progress（2026-10-19 接 [Issue #161](https://github.com/DrErwin/hackerthon-bank-agent/issues/161)）
+Status: resolved（[PR #168](https://github.com/DrErwin/hackerthon-bank-agent/pull/168) squash `1b1a786` 合入 main，2026-10-19；CI 绿；独立子代理审查〔AI，非真人〕判**通过、无必修项**，变异 M1/M2/M3 全部被杀；合并后在 main 实跑 Ringo 票 04 runner **18 Passed / 0 Failed**；[Issue #161](https://github.com/DrErwin/hackerthon-bank-agent/issues/161) 已关闭）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: P04（F22 / F24 明细导出）；公共契约 §6.7「HTML 转义和 CSV 单元格安全处理由导出器负责」
@@ -27,3 +27,7 @@ Source issue: [Issue #161](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## Comments
 
 - 2026-10-19：按 [Issue #161](https://github.com/DrErwin/hackerthon-bank-agent/issues/161) 建立。复现依据：[PR #162](https://github.com/DrErwin/hackerthon-bank-agent/pull/162)（Draft）的 `evals/security/test_export_boundary.py` 4 条失败实例；Ringo 已记录 18 项 14P/4F 首轮结果，失败均为 CSV 公式型文本原样下载。
+- 2026-10-19 实施与合并（[PR #168](https://github.com/DrErwin/hackerthon-bank-agent/pull/168)，`9301f5c` → squash `1b1a786`）：`service.py` 新增 `safe_csv_cell`（`CSV_FORMULA_OPENERS` + `lstrip()` 判定，文本列统一过，`amount_fen` 保持 int），`test_app.py` 新增 2 个真实 HTTP 端到端用例（6 个公式型样本 + 1 个普通行对照）。实施侧实数：TDD 修复前 6F/1P → 修复后 7P；`pytest app/api -q` 91 passed；`pytest -q` 715 passed；Ringo runner 修复前 14P/4F → 修复后 18P/0F。
+- 2026-10-19 独立审查（子代理，AI、非 Ringo 真人）：**通过、无必修项**；隔离 worktree 固定 `9301f5c`，`app.__file__` 自证；`-k details_csv` 7 passed、`app/api` 91 passed；Ringo runner 先在 base 复现 14P/4F，再在修复后 18P/0F；变异 M1（删除前缀分支）6F/1P、M2（只处理 counterparty_name）6F/1P、M3（对 int 也加前缀）1F/6P，全部被杀并已还原（blob 与 HEAD 一致）。非阻塞建议：`safe_csv_cell` 可补返回标注；前置空白变体只配了 `=`/`+`。
+- 2026-10-19 合并后复验（Lead，main `1b1a786`）：Ringo `export_regression.py` 18 Passed / 0 Failed（报告 `status_counts={"Passed": 18}`，源文件 sha256 记于报告）；#161 已回帖并关闭，PR #162 待 Ringo 另批复验并转 Ready（历史 Failed 保留）。
+- 备注：返修后全量后端一次运行 **716 passed / 2 failed**，两项失败均为 `app/services` 的超时预算用例（`test_bank.py::test_timeout_returns_unknown_then_original_result_becomes_visible`、`test_subscriptions.py::test_gateway_cancel_timeout_is_unknown_and_b14_finds_the_bank_result`），单跑 2 passed、与本票改动无关，属 [Issue #166](https://github.com/DrErwin/hackerthon-bank-agent/issues/166) 已登记的 Windows 计时抖动；PR CI（Linux）绿。

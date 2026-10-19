@@ -27,4 +27,5 @@ Source issue: [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issu
 
 ## Comments
 
-- 2026-10-19：按 [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160) 第 3 项建立。等待 Ringo 在 security 目录交付识别入口；接缝与读取路径见 [01](01-risk-input-read-path.md)。
+- 2026-10-19：按 [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160) 第 3 项建立。等待 Ringo 在 security 目录交付识别入口；接缝与读取路径见 [01](01-risk-input-read-path.md)（[PR #167](https://github.com/DrErwin/hackerthon-bank-agent/pull/167) squash `52d5637` 已合入）。
+- 2026-10-19 追加阻塞项：票 01 审查发现 **P0**——`DemoSecurityPolicy.assess_risk` 要求 `checked_signals` 覆盖全部 14 维（先于信号分类），而接缝要求未检查维度不得写成 checked；如实检测器会让每笔写入暂停（低风险与高风险都到不了）。四个候选决定见接缝文档 §4.1 与 [spec §3.1](../spec.md)，已交 [Issue #160 回帖](https://github.com/DrErwin/hackerthon-bank-agent/issues/160#issuecomment-6268456610) 请 Ringo/PM 决定。**在该决定与 Ringo 检测器交付前，本票保持 blocked；`transfer_fixtures` 只作流程对照。**

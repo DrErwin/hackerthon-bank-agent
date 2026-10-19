@@ -4,11 +4,11 @@ Ticket ID: v04-risk-inputs/01
 Type: 开发
 Owner: Erwin
 Directory: backend/app/agent_platform/
-Status: in_progress（2026-10-19）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../../v04-platform/packages/01-foundation-agent-mockbank.md)
 Spec: [v04-risk-inputs 规格](../spec.md)
 Core scenarios: 转账风险链路（RS01 / RS02 / RS06 输入侧）；对应 [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160) 第 1、2、4 项
-Verification: 单元级绑定校验 + 真实 HTTP 链路集成测试（真实安全门/执行器/审计/模拟银行，仅检测器为注入的测试实现）：真实原文高风险终止且零资金副作用、合法对照完成确认与验证、未知事实暂停、跨任务/跨会话引用拒绝；审计证据无原文与认证秘密。命令与输出记入本票 Comments。
+Status: resolved（[PR #167](https://github.com/DrErwin/hackerthon-bank-agent/pull/167) squash `52d5637` 合入 main，2026-10-19；CI 绿；独立子代理审查〔AI，非真人〕首轮判**不通过**〔1 项 P0：unknown 与 `DemoSecurityPolicy` 全覆盖互斥、验收证据自相矛盾〕→ 按结论返修 → 复审**有条件通过**、唯一必修〔合并前把 P0 登记给 Ringo〕已通过 [Issue #160 回帖](https://github.com/DrErwin/hackerthon-bank-agent/issues/160#issuecomment-6268456610) 满足；变异复验 M2/M4/M5 全部被杀）
+Verification: 绑定校验 + 真实 HTTP/harness/安全门/执行器/审计/模拟银行集成测试（仅检测器为注入替身）：真实原文高风险终止且零资金副作用、合法对照完成确认与验证（**流程对照口径**）、未知事实暂停、跨用户/会话/轮次/任务/终态/过期引用拒绝；审计证据无原文与认证秘密。**P0 待决**：`checked_signals` 与 unknown 的映射须由安全侧决定（接缝文档 §4.1、spec §3.1），决定前生产装配（票 02）保持 blocked。
 Blocked by: None
 Source issue: [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)（Ringo 代码核查，转给 Erwin）
 
@@ -37,3 +37,9 @@ Source issue: [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## Comments
 
 - 2026-10-19：按 [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160) 建立。Issue 第 3 项（生产装配调用检测器、移除 `transfer_fixtures` 依赖）拆到 [02](02-detector-assembly-and-fixture-removal.md)，依赖 Ringo 的 [v04-ringo-security/02](../../v04-ringo-security/issues/02-real-risk-detector.md)。
+- 2026-10-19 实施与合并（[PR #167](https://github.com/DrErwin/hackerthon-bank-agent/pull/167)：`683e314` → 返修 `a12caab` → 复审返修 `454f6cc` → squash `52d5637`）：新增 `risk_inputs.py`（`TrustedRiskInputs.resolve`、`RiskInputs`/`RiskFact`、`RiskDetector` 接缝、十类绑定拒绝、不透明 `evidence_ref`）、`risk-inputs-seam.md`、`test_risk_inputs.py` 12 例。实数（worktree，`app.__file__` 自证）：`pytest app/agent_platform -q` → **158 passed**；返修后全量后端一次运行 **716 passed / 2 failed**，两项为 `app/services` 超时预算用例（单跑 2 passed，[Issue #166](https://github.com/DrErwin/hackerthon-bank-agent/issues/166) 已登记的 Windows 计时抖动），PR CI（Linux）绿；合并后 main 上 `test_risk_inputs.py` 12 passed。
+- 2026-10-19 独立审查两轮（子代理，AI、非 Ringo 真人）：
+  - 首轮（`683e314`）**不通过**，1 致命 + 2 必修 + 若干建议：P0 = `DemoSecurityPolicy` 要求 `checked_signals` 覆盖全部 14 维（先于信号分类），而接缝要求未检查维度不得写成 checked；如实检测器会让每笔写入暂停，「合法对照完成/高风险 BLOCK」证据只成立于自称已检查设备维度的替身，自相矛盾；P1 = `familiar` 恒真不可表达「不熟悉」、缺无样本/手工收款人/终态任务等回归（变异 M2 未杀，另 M1/M3 杀）。
+  - 返修（`a12caab`）：事实改为描述性 `payee_history`（`saved` + `prior_outflows`），补 8 类绑定/unknown 回归与 `fact_backed_detector` 暂停用例，`repr` 隐藏原文与账号、`from None`、provenance 与常量清理；文档把 P0 登记为安全侧待决（接缝 §4.1、spec §3.1）。
+  - 复审（`a12caab`）**有条件通过**，M2/M4/M5 全部被杀；唯一必修 = 合并前把 P0 正式交给 Ringo（§4.1 未合入即等于没登记）→ 已发 [Issue #160 回帖](https://github.com/DrErwin/hackerthon-bank-agent/issues/160#issuecomment-6268456610)，并补「仅设备维度未检查即暂停」隔离用例、`saved + prior_outflows=0` 回归、接缝文档摘要口径修正（`454f6cc`）。
+- 2026-10-19 结论：本票交付完成（接缝 + 输入路径 + 证据）；**P0（unknown 与 `checked_signals` 映射、设备事实来源）归安全侧/PM 决定**，决定前 [02](02-detector-assembly-and-fixture-removal.md) 保持 blocked，`transfer_fixtures` 只作流程对照。
