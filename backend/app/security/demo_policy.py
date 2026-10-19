@@ -202,7 +202,7 @@ class DemoSecurityPolicy:
             raise RiskFactsUnavailable("risk evidence does not cover every signal dimension", rule_id="risk-signal-coverage-required", policy_version=self.policy_version)
         evidence_ref = f"{evidence.source}:{evidence.source_version}:{evidence.evidence_ref}"
         if declaration.name == "subscription.bank.cancel_subscription":
-            # Scenario 05 keeps two outcomes only (PRD §5.1): coercion blocks, and every
+            # Scenario 05 keeps two outcomes only (PRD §五): coercion blocks, and every
             # ordinary own-account cancellation stays low risk so it goes through the
             # confirmation button plus a session-scoped basic-identity code — never the
             # medium action-step-up face path, whatever transfer-style signals arrive.

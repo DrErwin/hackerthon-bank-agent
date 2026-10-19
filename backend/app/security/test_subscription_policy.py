@@ -153,16 +153,30 @@ def test_scenario_05_permissions_capabilities_and_declarations_are_registered():
 
 def test_missing_subscription_permission_denies_the_cancel(monkeypatch):
     current = policy_for(LOW_SIGNALS)
+    assert DemoSecurityPolicy._permissions == frozenset({
+        "transfer.start", "transfer.read", "transfer.submit", "bills.read",
+        "subscription.read", "subscription.cancel"})
     monkeypatch.setattr(
         DemoSecurityPolicy, "_permissions",
         frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read"}),
     )
     assert current.authorize_tool(security_context(), descriptor(), CANCEL) is False
+    # The capability admission is the only gate left when a module widens its own
+    # manifest, so it must deny a capability whose permission is missing.
+    assert current.authorize_capability(trusted(), SUBSCRIPTION_MANIFEST.capabilities[1]) is False
+    assert current.authorize_capability(trusted(), SUBSCRIPTION_MANIFEST.capabilities[0]) is False
     read_only = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read",
                            "subscription.read"})
     monkeypatch.setattr(DemoSecurityPolicy, "_permissions", read_only)
     assert current.authorize_tool(security_context(), descriptor(), CANCEL) is False
     assert current.authorize_tool(security_context(), descriptor(READ.name), READ) is True
+    assert current.authorize_capability(trusted(), SUBSCRIPTION_MANIFEST.capabilities[0]) is True
+    assert current.authorize_capability(trusted(), SUBSCRIPTION_MANIFEST.capabilities[1]) is False
+    monkeypatch.setattr(
+        DemoSecurityPolicy, "_permissions",
+        frozenset({*read_only, "subscription.cancel", "admin.all"}),
+    )
+    assert current.authorize_capability(trusted(), SUBSCRIPTION_MANIFEST.capabilities[1]) is True
 
 
 def test_ordinary_cancel_is_low_risk_and_never_asks_for_a_face(tmp_path):
@@ -216,21 +230,49 @@ def test_coercion_signals_block_the_cancel_even_after_confirmation(tmp_path):
     current = policy_for([DemoRiskSignal.SCREEN_SHARING])
     assessment = current.assess_risk(security_context(), descriptor(), CANCEL)
     assert assessment.risk_level == RiskLevel.HIGH and assessment.rule_id == "demo-risk-high"
+    # The user's own answered confirmation is prepared first: a coercion block must
+    # outrank it, not merely ride on an already-terminated task.
     gate, confirmations, _, _ = build_gate(tmp_path, current, CANCEL)
     context = security_context()
-    blocked = gate.check_action(context, descriptor())
-    assert blocked.decision == SecurityDecisionCode.BLOCK
-    assert "HIGH_RISK" in blocked.reason_codes
     record = confirmations.create(context, descriptor(),
                                   [DisplayField(name="notice", label="退订后果", value_text="不退已扣的钱")])
     approved = confirmations.answer(context, ConfirmationAnswer(
         confirmation_id=record.confirmation_id, confirmation_version=record.confirmation_version,
         choice="approve"))
-    still_blocked = gate.check_action(
-        context.model_copy(update={"confirmation_id": approved.confirmation_id,
-                                   "confirmation_version": approved.confirmation_version}),
-        descriptor())
-    assert still_blocked.decision == SecurityDecisionCode.BLOCK
+    answered = context.model_copy(update={"confirmation_id": approved.confirmation_id,
+                                          "confirmation_version": approved.confirmation_version})
+    blocked = gate.check_action(answered, descriptor())
+    assert blocked.decision == SecurityDecisionCode.BLOCK
+    assert blocked.reason_codes == ["HIGH_RISK"]
+    assert blocked.risk_level == RiskLevel.HIGH
+
+
+def test_the_same_session_can_reuse_its_basic_identity_verification(tmp_path):
+    """A second cancellation in one session reuses the record; only the confirmation is new."""
+
+    current = policy_for(LOW_SIGNALS)
+    gate, confirmations, records, challenges = build_gate(tmp_path, current, CANCEL)
+    first_context = security_context()
+    first = gate.check_action(first_context, descriptor())
+    first_confirmed, _ = approve_created_confirmation(
+        confirmations, first_context, descriptor(), first.interaction.record_ref)
+    basic = session_verification(first_confirmed)
+    records[basic.verification_id] = basic
+    assert gate.check_action(
+        first_confirmed.model_copy(update={"verification_ids": [basic.verification_id]}),
+        descriptor()).decision == SecurityDecisionCode.ALLOW
+
+    second_context = security_context(operation_id=uuid4(), action_revision=2)
+    second_descriptor = ActionDescriptor(action_name=CANCEL.name, parameters_ref="P2",
+                                         resource_refs=[], phase=Phase.EXECUTION)
+    second = gate.check_action(second_context, second_descriptor)
+    assert second.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION
+    second_confirmed, _ = approve_created_confirmation(
+        confirmations, second_context, second_descriptor, second.interaction.record_ref)
+    assert len(challenges) == 0  # no new challenge was needed for the second cancellation
+    assert gate.check_action(
+        second_confirmed.model_copy(update={"verification_ids": [basic.verification_id]}),
+        second_descriptor).decision == SecurityDecisionCode.ALLOW
 
 
 def test_incomplete_risk_evidence_fails_closed():
