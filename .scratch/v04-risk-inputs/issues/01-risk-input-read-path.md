@@ -15,14 +15,14 @@ Source issue: [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## 交付
 
 1. 新增 `backend/app/agent_platform/risk_inputs.py`：
-   - `RiskInputs`：不可变记录。绑定 `user_id / session_id / demo_round_id / task_id / run_id / action_name / parameters_ref / operation_id / action_revision`，携带原始请求 `request_id` + `request_text`（仅内存，不落证据）、动作不可变事实 `action_facts`、四维事实 `facts`、脱敏引用 `evidence_ref`。
+   - `RiskInputs`：不可变记录。绑定 `user_id / session_id / demo_round_id / task_id / run_id / action_name / parameters_ref / operation_id / action_revision`，携带原始请求 `request_id` + `request_text`（仅内存，不落证据、`repr` 隐藏）、动作不可变事实 `action_facts`（同上）、三维事实 `facts`、脱敏引用 `evidence_ref`。
    - `RiskFact`：`name / status(known|unknown) / source / scope / value`；known 必须有来源与检查范围；unknown 不得伪造值。
    - `TrustedRiskInputs.resolve(context, action, declaration) -> RiskInputs`：服务端受控读取，绑定校验失败抛 `RiskFactsUnavailable`（`risk-input-task-binding-required` / `risk-input-request-binding-required` / `risk-input-action-binding-required` / `risk-input-action-unsupported`）。
    - `RiskDetector = Callable[[RiskInputs], DemoRiskEvidence]` 接缝；本票只定义与测试，不改生产装配。
 2. 事实来源：
    - 原始请求：`ApplicationStore` 任务快照 `intent_text` + `request_id`；任务必须存在、归属当前 user/round、`session_id` 与上下文一致、非终态。
    - 动作事实：`TransferSnapshots.resolve`（user/round/task/action/operation/action_revision 全等才会返回）。
-   - 收款人熟悉度：`BankGateway.verify_payee`（B04）+ `list_transactions`（B08，本人账户、180 天窗口、只读出账）。
+   - 收款人历史：`BankGateway.verify_payee`（B04）+ `list_transactions`（B08，本人账户、180 天窗口、只读出账），输出 `saved` + `prior_outflows`；判定归检测器。
    - 金额历史：同一 B08 窗口内该转出账户「direction=outflow 且 nature=transfer」的金额样本。
    - 环境：无设备指纹可信来源时保持 unknown，不冒充已检查。
 3. 接缝说明 `backend/app/agent_platform/risk-inputs-seam.md`：给 Ringo 的接口、约束、事实字段、导入顺序注意事项与后续装配方式。
