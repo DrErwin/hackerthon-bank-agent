@@ -52,20 +52,22 @@ evidence = detector(inputs)                                      # 检测器实�
 
 事实只描述数据，不给风险结论：`payee_history` 不再自带 `familiar` 布尔值，检测器用 `saved` + `prior_outflows` 自行区分「常用收款人」与「新收款人」（当前银行路径下能进入写动作的收款人都已通过 B04 解析，因此 `known` 事实恒 `saved=true`；手工首次收款人无法解析，只能 `unknown`）。
 
-### 4.1 必须先由安全侧决定的接口冲突（P0，阻塞 02）
+### 4.1 必须先由安全侧决定的接口冲突（P0）与 PM 处置
 
 `DemoSecurityPolicy.assess_risk`（`security/demo_policy.py`）要求证据覆盖**全部 14 个信号维度**才给等级，否则 `RiskFactsUnavailable` → 安全门暂停。而本接缝要求未检查维度不得写成 checked。两者同时成立时：**如实报告事实的检测器会让每一笔写动作暂停**（合法对照也到不了低风险，高风险也到不了 BLOCK——覆盖检查先于信号分类）。当前平台还缺 `rapid_account_changes`、设备等来源，无法靠补事实绕过。
 
-Issue #160 的既定语义就是「取不到的事实保持 unknown，由安全门暂停」，所以暂停本身是正确行为；但**生产可用性取决于安全侧先把以下之一写成决定**：
+Issue #160 的既定语义就是「取不到的事实保持 unknown，由安全门暂停」，所以暂停本身是正确行为；生产可用性取决于安全侧把以下之一写成决定：
 
 1. `checked_signals` 是否允许「已评估但事实 unknown」的维度，以及此时 unknown 如何不产出安全信号、低风险如何可达；
 2. 或调整 `DemoSecurityPolicy` 的覆盖规则（允许部分覆盖 + unknown 处置）；
 3. 或先补可信设备/环境事实来源（涉 API/契约/前端，属 PM 决定）；
 4. 或明确接受「检测器接入后所有转账暂停」。
 
-在此之前，`local_demo` 的固定等级夹具只能作为**流程对照**（PRD 与 Issue #160 均已如此定性），不构成真实检测结论。本接缝的测试也按此分开标注：`flow_control_detector`（声明全维度覆盖，仅流程证据）与 `fact_backed_detector`（只声明事实支持的维度，如实暂停）。
+**2026-10-19 PM 决定（Erwin 本人，方案 A）**：本项目是黑客松 Demo，**不接真检测器到生产装配**——演示的风险等级继续由 `local_demo` 的固定等级夹具给出（流程对照），Ringo 的真实检测器只在离线评测层使用，**不采集设备信息**；生产装配与夹具移除（[v04-risk-inputs/02](../../../.scratch/v04-risk-inputs/issues/02-detector-assembly-and-fixture-removal.md)）转为 deferred（v0.5），上述 1/2 的映射决定随之留到 v0.5。因此本接缝在 v0.4 的定位是「已交付、可复用、未接入演示」。
 
-PM 待确认口径（180 天窗口、2 倍金额阈值、设备来源）在 [v04-risk-inputs spec](../../../.scratch/v04-risk-inputs/spec.md) §3，调整只改常量，不改接缝。
+测试按用途分开标注：`flow_control_detector`（声明全维度覆盖，仅流程证据）与 `fact_backed_detector`（只声明事实支持的维度，如实暂停）。
+
+演示口径（180 天窗口、2 倍金额阈值）在 [v04-risk-inputs spec](../../../.scratch/v04-risk-inputs/spec.md) §3；设备来源已按 PM 决定 A 不采集。调整只改常量，不改接缝。
 
 ## 5. 检测器实现注意事项
 
