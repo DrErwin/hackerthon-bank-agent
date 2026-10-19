@@ -1,5 +1,7 @@
 """Exercise HTTP boundaries with the real bank, security gate and transfer graph."""
 
+import csv
+import io
 import json
 from uuid import uuid4
 
@@ -1660,6 +1662,64 @@ def test_f22_details_export_requires_fresh_verification(tmp_path):
         assert session_changed.status_code == 200, session_changed.text
         assert session_changed.json()["data"]["module"] == "bills"
         assert session_changed.json()["data"]["status"] == "succeeded"
+
+
+def _verified_details_csv(client, service, owner, task_id):
+    """F22 details export through F24 download, parsed as a spreadsheet would read it."""
+
+    report = service.capture_report(owner, task_id, _bill_report())
+    created = post(client, f"/reports/{report.report_id}/exports", kind="details")
+    assert created.status_code == 200, created.text
+    export = created.json()["data"]
+    waiting = client.get(f"/api/v1/tasks/{export['task_id']}").json()["data"]
+    challenge = waiting["interaction"]["record_ref"]
+    code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+    done = post(client, f"/verifications/{challenge}/code",
+                submission_id=str(uuid4()), code=code)
+    assert done.json()["data"]["kind"] == "verified"
+    download = client.get(f"/api/v1/exports/{export['export_id']}/download")
+    assert download.status_code == 200, download.text
+    return download.text, list(csv.DictReader(io.StringIO(download.text)))
+
+
+@pytest.mark.parametrize("shaped", ["=1+1", "+1+1", "-1+1", "@SUM(1)", "  =1+1", "\t+1"])
+def test_details_csv_neutralizes_formula_shaped_text(tmp_path, shaped):
+    """Issue #161: bank text must reach the spreadsheet as literal text, not a formula."""
+
+    app = make_app(tmp_path)
+    _seed_details_row(tmp_path, counterparty_name=shaped, summary=shaped)
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        _, rows = _verified_details_csv(client, service, owner, task["task_id"])
+
+    assert len(rows) == 1
+    for column in ("counterparty_name", "summary"):
+        value = rows[0][column]
+        assert value, f"{column} must stay non-empty"
+        assert value == f"'{shaped}", (column, value)
+        assert not value.lstrip().startswith(("=", "+", "-", "@")), (column, value)
+
+
+def test_details_csv_keeps_ordinary_cells_verbatim(tmp_path):
+    """The guard is additive: ints, timestamps and ordinary text keep their meaning."""
+
+    app = make_app(tmp_path)
+    _seed_details_row(tmp_path, summary="午餐 - 加蛋")
+    with TestClient(app) as client:
+        _, task = start(client)
+        service = app.state.api
+        owner = service.identity(client.cookies.get("bank_session"))
+        _, rows = _verified_details_csv(client, service, owner, task["task_id"])
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["counterparty_name"] == "楼下面馆"
+    assert row["summary"] == "午餐 - 加蛋"
+    assert row["counterparty_account_masked"] == "6222****1234"
+    assert row["amount_fen"] == "3200"
+    assert row["occurred_at"] == "2026-09-05T12:30:00+08:00"
 
 
 def test_details_export_expires_with_its_challenge(tmp_path):
