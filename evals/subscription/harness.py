@@ -49,7 +49,12 @@ READ_SIGNALS = frozenset({
 })
 ALL_SIGNALS = frozenset(DemoRiskSignal)
 # Promises the bank cannot keep; they must never appear in any subscription output.
-FORBIDDEN_PROMISES = ("会员可用至", "还能用到", "先退订再重新订阅", "先解约再重签")
+# The list is semantic, not a blacklist: a merchant-side entitlement the bank cannot
+# guarantee is forbidden even when worded differently from the frozen phrase.
+FORBIDDEN_PROMISES = (
+    "会员可用至", "还能用到", "先退订再重新订阅", "先解约再重签",
+    "继续享受", "会员有效", "到期日", "可以用到", "会员可以继续", "权益可用",
+)
 # The one promise the confirmation card and the receipt are allowed to make.
 CANCEL_PROMISE = "从下一期（{date}）起不再自动扣费，之前已经扣掉的钱不退"
 
@@ -359,7 +364,10 @@ def write_evidence(directory: Path, reports: list[CheckLog], outcomes: dict[str,
         "layer": "platform-runtime",
         "generated_at": stamp,
         "revision": _git(["rev-parse", "HEAD"]),
-        "dirty_paths": [line for line in _git(["status", "--porcelain"]).splitlines() if line],
+        # Only source dirt matters: the evidence archive itself is written after this
+        # snapshot, so listing its own files would make every clean run look dirty.
+        "dirty_paths": [line for line in _git(["status", "--porcelain"]).splitlines()
+                        if line and "evals/subscription/evidence/" not in line],
         "app_file": _app_file(),
         "python": payload["python"],
         "commands": commands,
@@ -420,6 +428,12 @@ def _counts(entries: list[dict]) -> dict:
 def _app_file() -> str:
     import app
     return str(app.__file__)
+
+
+def app_file() -> str:
+    """Public alias: tools quote this so a sample always names the tree it measured."""
+
+    return _app_file()
 
 
 def _git(args: list[str]) -> str:

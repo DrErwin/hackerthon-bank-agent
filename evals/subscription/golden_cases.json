@@ -65,9 +65,7 @@
           "upcoming_total_fen": 6400,
           "youku_billed_count": 6,
           "youku_billed_total_fen": 15000,
-          "oasis_clue_present": true,
-          "oasis_can_cancel_in_bank": false,
-          "suspected_count_locked": false
+          "oasis_can_cancel_in_bank": false
         }
       }
     },
@@ -174,9 +172,7 @@
           ],
           "receipt_mandate_id": "sub_001",
           "receipt_status": "cancelled",
-          "effective_stop_at_equals_previous_next_billing_at": true,
-          "effective_stop_date": "2026-10-24",
-          "replay_keeps_one_operation": true
+          "effective_stop_date": "2026-10-24"
         }
       }
     },
@@ -216,9 +212,7 @@
           "先解约再重签"
         ],
         "facts": {
-          "second_task_challenges": 0,
-          "second_task_selected": "sub_002",
-          "session_verification_reused": true
+          "second_task_selected": "sub_002"
         }
       }
     },
@@ -585,9 +579,7 @@
             0,
             0,
             1
-          ],
-          "unconfirmed_zero_writes": true,
-          "unverified_zero_writes": true
+          ]
         }
       }
     },
@@ -746,8 +738,7 @@
         "required_text": [],
         "forbidden_text": [],
         "facts": {
-          "serializable": true,
-          "status_never_advances": true
+          "serializable": true
         }
       }
     },

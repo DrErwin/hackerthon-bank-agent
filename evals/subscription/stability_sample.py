@@ -8,6 +8,10 @@ platform fix instead of being retold from memory.
 
     python evals/subscription/stability_sample.py --attempts 100 --label pre-fix \
         --out evals/subscription/evidence/2026-10-19/stability-pre-fix.json
+
+Like ``conftest.py`` this puts *this checkout's* ``backend`` first on ``sys.path``: the
+shared venv has the main checkout installed editable, so running without it would
+silently sample whichever code the interpreter happens to resolve, not this tree.
 """
 
 from __future__ import annotations
@@ -19,9 +23,11 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+for entry in (str(ROOT / "backend"), str(HERE)):
+    if entry not in sys.path:
+        sys.path.insert(0, entry)
 
 import harness  # noqa: E402  (path bootstrap above)
 
@@ -68,6 +74,9 @@ def sample(attempts: int, *, capability: str, intent: str, tmp_root: Path) -> di
         "statuses": statuses,
         "failure_count": len(failures),
         "failures": failures,
+        # Which checkout was sampled: a sample that quietly measured another tree is
+        # worthless, so the resolved package path travels with the numbers.
+        "app_file": harness.app_file(),
     }
 
 
