@@ -94,8 +94,7 @@ python -m pytest evals/subscription -q
 复跑观测：
 
 ```powershell
-python evals/subscription/stability_sample.py --attempts 150 --label <标签> \
-    --out evals/subscription/evidence/<日期>/stability-<标签>.json
+python evals/subscription/stability_sample.py --attempts 150 --label <标签> --out evals/subscription/evidence/<日期>/stability-<标签>.json
 ```
 
 `SUB-OBS-01` 把同一性质钉进回归（每次评测跑 10 次首启，要求 0 次 `SUBSCRIPTION_INTERNAL_ERROR`）。底座修复属票 08 的 PR，本票不修改 `backend/`。
