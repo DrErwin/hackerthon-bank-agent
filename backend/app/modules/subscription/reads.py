@@ -202,7 +202,9 @@ class GatewaySubscriptionPorts:
         if context.operation_id is not None or context.action_revision is not None:
             raise ValueError("SECURITY_REJECTED")
         ref, action = self._bind(context, action_name, parameters)
-        call_id, started, event = str(uuid4()), monotonic(), None
+        # The audit evidence key must be unique per event: the parameter reference is
+        # deterministic now, so repeating the same read would collide on it.
+        call_id, call_ref, started, event = str(uuid4()), str(uuid4()), monotonic(), None
         try:
             decision = self.gate.check_action(context, action)
             if decision.decision != SecurityDecisionCode.ALLOW:
@@ -210,7 +212,8 @@ class GatewaySubscriptionPorts:
             event = self.trace.record("tool.started", ToolStartedPayload(
                 tool_call_id=call_id, tool_name=action_name, tool_version="0.4.0",
                 arguments_ref=ref, decision_id=decision.decision_id, operation_id=None),
-                "started", evidence={"parameters": parameters}, evidence_id=ref, module="subscription")
+                "started", evidence={"parameters": parameters}, evidence_id=call_ref,
+                module="subscription")
             outcome = self.executor.execute(context, action)
             if (not outcome.executed or outcome.state != "completed" or outcome.decision is None
                     or outcome.decision.decision != SecurityDecisionCode.ALLOW):
@@ -325,14 +328,14 @@ class GatewaySubscriptionPorts:
         # execution phase; the reference stays identical to the approved confirmation.
         context, action = self._write_context(trusted, plan, phase=Phase.EXECUTION)
         decision = self.gate.check_action(context, action)
-        call_id, started, event = str(uuid4()), monotonic(), None
+        call_id, call_ref, started, event = str(uuid4()), str(uuid4()), monotonic(), None
         try:
             event = self.trace.record("tool.started", ToolStartedPayload(
                 tool_call_id=call_id, tool_name="subscription.bank.cancel_subscription",
                 tool_version="0.4.0", arguments_ref=action.parameters_ref,
                 decision_id=decision.decision_id, operation_id=context.operation_id),
                 "started", evidence={"mandate_id": plan.mandate_id, "amount_fen": plan.amount_fen},
-                evidence_id=action.parameters_ref, module="subscription")
+                evidence_id=call_ref, module="subscription")
             outcome = self.executor.execute(context, action)
             self._observed(context, outcome, event.span_id)
             denied = outcome.decision is not None and outcome.decision.decision != SecurityDecisionCode.ALLOW

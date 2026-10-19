@@ -62,9 +62,14 @@ class FakeGateway:
 class Trace:
     def __init__(self):
         self.events = []
+        self.evidence_ids = []
 
     def record(self, event_type, payload, outcome, **kwargs):
         self.events.append((event_type, outcome))
+        if kwargs.get("evidence_id"):
+            # ``audit_evidence.evidence_id`` is unique: a deterministic parameter
+            # reference must never be reused as an evidence key.
+            self.evidence_ids.append(kwargs["evidence_id"])
         return SimpleNamespace(span_id=f"S{len(self.events)}")
 
 
@@ -232,6 +237,17 @@ def test_read_path_records_paired_events_and_never_bypasses_the_gate(tmp_path):
     with pytest.raises(ValueError, match="SECURITY_REJECTED"):
         denied.ports.mandates(context())
     assert denied.trace.events == []
+
+
+def test_repeating_the_same_read_keeps_the_audit_evidence_keys_unique(tmp_path):
+    """The parameter reference is deterministic, so it cannot double as an evidence key."""
+
+    harness = Harness(tmp_path)
+    for _ in range(3):
+        assert isinstance(harness.ports.mandates(context()), QueryOk)
+    assert isinstance(harness.ports.accounts(context()), QueryOk)
+    assert len(harness.trace.evidence_ids) == 8
+    assert len(set(harness.trace.evidence_ids)) == 8
 
 
 def test_write_refuses_a_context_factory_that_loses_the_task_binding(tmp_path):
