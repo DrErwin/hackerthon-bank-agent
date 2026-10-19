@@ -12,18 +12,23 @@ from __future__ import annotations
 
 from datetime import timedelta
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
-from app.contracts.bank import OperationFound, OperationNotFound, OperationResult, QueryOk
+from app.contracts.bank import (
+    BankError, OperationFound, OperationNotFound, OperationResult, QueryFailure, QueryOk,
+)
 from app.contracts.common import DisplayField, RiskLevel, TaskStatus
 from app.contracts.security import ConfirmationAnswer, ExecutionSecurityContext, VerificationChallenge, VerificationRecord
 from app.contracts.subscription import SubscriptionCancelReceipt
+from app.modules.subscription.entry import SubscriptionEntry
 from app.modules.subscription.ports import RISK_OBSERVATIONS  # noqa: F401  (documents the payload field)
 from app.modules.subscription.reads import PRIVATE_TOOLS, GatewaySubscriptionPorts
-from app.modules.subscription.service import SubscriptionService
-from app.modules.subscription.test_subscription import NOW, FakeBank, Ports, at, context
+from app.modules.subscription.service import _MESSAGES, SubscriptionService
+from app.modules.subscription.test_subscription import (
+    NOW, FakeBank, MemorySaver, Ports, at, context, start_request,
+)
 from app.security import ConfirmationService, SecurityGate, ToolRegistry
 
 
@@ -77,9 +82,10 @@ class Trace:
 class Harness:
     """A task-scoped gate, its ports and the mutable security state they share."""
 
-    def __init__(self, tmp_path, *, allow_scope=True, db="subscription.sqlite3"):
+    def __init__(self, tmp_path, *, allow_scope=True, db="subscription.sqlite3",
+                 gateway_factory=None):
         self.bank = FakeBank()
-        self.gateway = FakeGateway(self.bank)
+        self.gateway = (gateway_factory or FakeGateway)(self.bank)
         self.trace = Trace()
         self.state = {"answered": None, "challenges": [], "records": {}, "verification_ids": [],
                       "operation_id": None, "refs": [], "payloads": []}
@@ -263,6 +269,191 @@ def test_write_refuses_a_context_factory_that_loses_the_task_binding(tmp_path):
     with pytest.raises(ValueError, match="ACCESS_DENIED"):
         harness.ports.execute_cancel(context(), plan)
     assert harness.gateway.cancels == 0
+
+
+# -------------------------------------- explicit refusals and unknown write outcomes
+
+
+class RefusingGateway(FakeGateway):
+    """B30 answers with a business refusal; the bank records no operation at all."""
+
+    def __init__(self, bank, code):
+        super().__init__(bank)
+        self.code = code
+        self.lookups = []
+
+    def cancel_subscription(self, trusted, operation_id, mandate_id):
+        self.cancels += 1
+        return QueryFailure(kind="error", error=BankError(code=self.code, details={}))
+
+    def get_operation(self, trusted, operation_id):
+        self.lookups.append(operation_id)
+        return super().get_operation(trusted, operation_id)
+
+
+class TimingOutGateway(FakeGateway):
+    """B30 times out; the bank's own thread may still settle the agreement later."""
+
+    def __init__(self, bank, *, settles):
+        super().__init__(bank)
+        self.settles = settles
+        self.timeouts = 0
+        self.lookups = []
+
+    def cancel_subscription(self, trusted, operation_id, mandate_id):
+        self.cancels += 1
+        if self.timeouts == 0:
+            self.timeouts += 1
+            if self.settles:
+                result = self.bank.cancel(trusted, operation_id, mandate_id)
+                if isinstance(result, OperationResult):
+                    self.operations[str(operation_id)] = result
+            return QueryFailure(kind="error", error=BankError(code="CALL_TIMEOUT", details={}))
+        # A second submission would reach the bank again: the red line is never to resubmit.
+        return super().cancel_subscription(trusted, operation_id, mandate_id)
+
+    def get_operation(self, trusted, operation_id):
+        self.lookups.append(operation_id)
+        return super().get_operation(trusted, operation_id)
+
+
+def real_entry(harness, saver=None):
+    """The module's own entry on top of the *real* gate + shared executor ports."""
+
+    return SubscriptionEntry(SubscriptionService(harness.ports, lambda: NOW),
+                             saver or MemorySaver(), None)
+
+
+def drive_to_bank_execution(harness, entry_task):
+    """Start one cancel and answer the confirmation plus the session verification."""
+
+    started = entry_task.start(context(), start_request("把优酷视频的自动扣费退了"))
+    assert started.status == TaskStatus.WAITING_APPROVAL, started.error
+    assert started.interaction.kind == "confirmation"
+    harness.answer_confirmation(started)
+    verifying = entry_task.resume(context(), {"choice": "approve"})
+    assert verifying.status == TaskStatus.WAITING_APPROVAL, verifying.error
+    assert verifying.interaction.kind == "verification"
+    harness.pass_session_verification()
+
+
+@pytest.mark.parametrize("code", [
+    "ACCOUNT_UNAVAILABLE", "STATE_CONFLICT", "RECORD_NOT_FOUND",
+    "OPERATION_CONFLICT", "ACCESS_DENIED", "BANK_REJECTED",
+])
+def test_a_definitive_bank_refusal_keeps_the_bank_code_and_wording(tmp_path, code):
+    harness = Harness(tmp_path, db=f"refusal-{code}.sqlite3",
+                      gateway_factory=lambda bank: RefusingGateway(bank, code))
+    task = real_entry(harness)
+    drive_to_bank_execution(harness, task)
+
+    result = task.resume(context(), {"choice": "resume"})
+
+    assert result.status == TaskStatus.FAILED, result.message
+    assert result.error.code == code and result.error.source == "bank"
+    assert result.error.upstream_code == code
+    assert result.message == _MESSAGES[code]
+    assert result.message != _MESSAGES["SUBSCRIPTION_INTERNAL_ERROR"]
+    assert harness.gateway.cancels == 1
+    # A confirmed refusal is final: it must not be kept in the unknown bucket for B14.
+    assert harness.gateway.lookups == []
+    assert [mandate.status for mandate in harness.bank.mandates
+            if mandate.mandate_id == "sub_001"] == ["active"]
+    # A refusal is this operation's final answer: no retry on a later resume either.
+    replay = task.resume(context(), {})
+    assert replay.status == TaskStatus.FAILED and replay.error.code == code
+    assert harness.gateway.cancels == 1
+
+
+def test_an_unrecognized_bank_refusal_still_reads_as_a_bank_refusal(tmp_path):
+    harness = Harness(tmp_path, db="refusal-unknown.sqlite3",
+                      gateway_factory=lambda bank: RefusingGateway(bank, "INTERNAL_MELTDOWN"))
+    task = real_entry(harness)
+    drive_to_bank_execution(harness, task)
+
+    result = task.resume(context(), {"choice": "resume"})
+    assert result.status == TaskStatus.FAILED
+    assert (result.error.code, result.error.source, result.error.upstream_code) == (
+        "BANK_REJECTED", "bank", "INTERNAL_MELTDOWN")
+    assert result.message == _MESSAGES["BANK_REJECTED"]
+
+
+def test_a_b30_timeout_is_needs_attention_not_failed(tmp_path):
+    harness = Harness(tmp_path, db="timeout-unknown.sqlite3",
+                      gateway_factory=lambda bank: TimingOutGateway(bank, settles=False))
+    task = real_entry(harness)
+    drive_to_bank_execution(harness, task)
+
+    pending = task.resume(context(), {"choice": "resume"})
+
+    assert pending.status == TaskStatus.NEEDS_ATTENTION, pending.message
+    assert pending.recovery_required is True and pending.recovery_reason == "OPERATION_UNKNOWN"
+    assert pending.error is None
+    assert pending.message == _MESSAGES["CALL_TIMEOUT"]
+    assert pending.data.action == "cancel"
+    assert pending.data.selected_item.subscription_id == "sub_001"
+    assert "query" in pending.allowed_actions
+    assert harness.gateway.cancels == 1
+
+    still = task.resume(context(), {"query": True})
+    assert still.status == TaskStatus.NEEDS_ATTENTION
+    assert still.recovery_reason == "OPERATION_UNKNOWN"
+    assert still.message == _MESSAGES["CALL_TIMEOUT"]
+    assert harness.gateway.cancels == 1
+    # The resume went through the shared executor's B14 lookup, on the original id.
+    assert [str(item) for item in harness.gateway.lookups] == [str(harness.state["operation_id"])]
+
+
+def test_b14_finds_the_settled_cancel_and_reports_the_real_receipt(tmp_path):
+    harness = Harness(tmp_path, db="timeout-settled.sqlite3",
+                      gateway_factory=lambda bank: TimingOutGateway(bank, settles=True))
+    task = real_entry(harness)
+    drive_to_bank_execution(harness, task)
+
+    assert task.resume(context(), {"choice": "resume"}).status == TaskStatus.NEEDS_ATTENTION
+
+    done = task.resume(context(), {"query": True})
+
+    assert done.status == TaskStatus.SUCCEEDED, done.error
+    receipt = done.data.operation.receipt
+    assert receipt.mandate_id == "sub_001" and receipt.status == "cancelled"
+    assert receipt.effective_stop_at == at(2026, 10, 25)
+    assert "已经退了" in done.message
+    assert done.data.selected_item.status == "cancelled"
+    assert harness.gateway.cancels == 1  # never resubmitted, same operation number
+    assert [str(item) for item in harness.gateway.lookups] == [str(harness.state["operation_id"])]
+    assert [mandate.status for mandate in harness.bank.mandates
+            if mandate.mandate_id == "sub_001"] == ["cancelled"]
+
+
+def test_b14_finds_a_failed_operation_and_reports_it_honestly(tmp_path):
+    gateways: list[TimingOutGateway] = []
+
+    def factory(bank):
+        gateway = TimingOutGateway(bank, settles=False)
+        gateways.append(gateway)
+        return gateway
+
+    harness = Harness(tmp_path, db="timeout-failed.sqlite3", gateway_factory=factory)
+    task = real_entry(harness)
+    drive_to_bank_execution(harness, task)
+
+    assert task.resume(context(), {"choice": "resume"}).status == TaskStatus.NEEDS_ATTENTION
+    gateway = gateways[0]
+    gateway.operations[str(harness.state["operation_id"])] = OperationResult[
+        SubscriptionCancelReceipt](
+        operation_id=UUID(str(harness.state["operation_id"])),
+        operation_type="bank.cancel_subscription",
+        operation_status="failed", recorded_at=NOW, updated_at=NOW,
+        receipt=None, failure=BankError(code="ACCOUNT_UNAVAILABLE", details={}),
+    )
+
+    result = task.resume(context(), {"query": True})
+    assert result.status == TaskStatus.FAILED
+    assert (result.error.code, result.error.source, result.error.upstream_code) == (
+        "ACCOUNT_UNAVAILABLE", "bank", "ACCOUNT_UNAVAILABLE")
+    assert result.message == _MESSAGES["ACCOUNT_UNAVAILABLE"]
+    assert harness.gateway.cancels == 1
 
 
 def test_a_replayed_execution_reports_the_bank_receipt_not_a_refusal(tmp_path):

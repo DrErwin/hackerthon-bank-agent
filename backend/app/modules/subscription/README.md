@@ -37,6 +37,13 @@
 执行 B30 → `succeeded`；取消 → `cancelled`；验证连续 3 次失败或安全门 `BLOCK` → `failed`（终止，不改银行状态）。
 确认单与回执只承诺「从下一期（YYYY-MM-DD）起不再自动扣费，之前已经扣掉的钱不退」。
 
+B30 收尾只有银行事实能决定：**明确拒绝**（`ACCOUNT_UNAVAILABLE` / `STATE_CONFLICT` / `RECORD_NOT_FOUND` /
+`OPERATION_CONFLICT` / `BANK_REJECTED` / `ACCESS_DENIED` 等同步答复）→ `failed`，`error.code` 为该码、
+`source="bank"`、`upstream_code` 保留原码，文案取 `_MESSAGES`；**超时/结果未知**（仅 `CALL_TIMEOUT`）→
+`needs_attention`（`recovery_required=true`、`recovery_reason="OPERATION_UNKNOWN"`，不报成功也不报失败），
+并把已提交的冻结参数（含风险观察）存进 checkpoint；resume 时经统一执行器对**原 `operation_id`** 做一次
+B14 回查（查到成功按真实回执、查到失败如实报失败、仍未知继续待核实），全程**绝不重复提交**。
+
 ## 与平台（票 05）的接口
 
 `ports.py` 是模块与平台的唯一接缝，平台实现/提供：
