@@ -46,8 +46,10 @@ INSUFFICIENT_SCAN = (
     "本行签约的项目照常显示。"
 )
 CYCLE_TEXT = {"monthly": "每月", "yearly": "每年"}
-# The gate's only coercion stop reason; every other BLOCK keeps its own honest wording.
+# The gate's own stop reasons: only HIGH_RISK is a coercion block, and a terminated
+# verification has its own honest wording instead of the generic refusal.
 HIGH_RISK_REASON = "HIGH_RISK"
+VERIFICATION_FAILED_REASON = "VERIFICATION_FAILED"
 
 _MESSAGES = {
     "ACCESS_DENIED": "只能查看和退订您本人的自动扣费。",
@@ -440,26 +442,35 @@ class SubscriptionService:
 
         if reason_code == HIGH_RISK_REASON:
             return self.failed(context, "HIGH_RISK_BLOCKED", source="security", upstream=reason_code)
+        if reason_code == VERIFICATION_FAILED_REASON:
+            return self.failed(context, "VERIFICATION_TERMINATED", source="security",
+                               upstream=reason_code)
         return self.failed(context, "SECURITY_REJECTED", source="security", upstream=reason_code)
 
     def cancel_task(self, context: TrustedContext, item: SubscriptionItem, plan: CancellationPlan,
                     outcome: ExecutionOutcome) -> ModuleResult:
         """Report exactly what the bank returned; unknown is never written as success."""
 
+        result = outcome.result
+        if isinstance(result, OperationResult):
+            # A duplicate confirmation or a recovery replay hands back the claimed
+            # operation's own result; the bank's receipt stays the truth, never a refusal.
+            return self._report_operation(context, item, result)
         if not outcome.executed:
             answer = outcome.decision
             if answer is not None and answer.decision == SecurityDecisionCode.BLOCK:
                 return self.security_stop(context, answer.reason_code)
             return self.failed(context, "SECURITY_REJECTED", source="security",
                                message=_MESSAGES["SECURITY_REJECTED"])
-        result = outcome.result
         if isinstance(result, QueryFailure):
             upstream = result.error.code
             code = upstream if upstream in _SAFE_BANK_CODES else "BANK_REJECTED"
             return self.failed(context, code, source="bank", upstream=upstream,
                                message=_MESSAGES.get(code, _MESSAGES["BANK_REJECTED"]))
-        if not isinstance(result, OperationResult):
-            return self.failed(context, "SUBSCRIPTION_INTERNAL_ERROR", source="bank")
+        return self.failed(context, "SUBSCRIPTION_INTERNAL_ERROR", source="bank")
+
+    def _report_operation(self, context: TrustedContext, item: SubscriptionItem,
+                          result: OperationResult[SubscriptionCancelReceipt]) -> ModuleResult:
         if result.operation_status == "processing":
             return self.failed(context, "CALL_TIMEOUT", source="bank", upstream="processing")
         if result.operation_status != "succeeded" or result.receipt is None:
@@ -473,7 +484,7 @@ class SubscriptionService:
                    f"之前已经扣掉的钱不退。")
         return ModuleResult(
             task_id=context.task_id, run_id=context.run_id, status=TaskStatus.SUCCEEDED,
-            data=self._view(action="cancel", item=stopped, operation_id=outcome.operation_id,
+            data=self._view(action="cancel", item=stopped, operation_id=result.operation_id,
                             operation=result),
             message=message, interaction=None, error=None, allowed_actions=[],
             recovery_required=False, recovery_reason=None)

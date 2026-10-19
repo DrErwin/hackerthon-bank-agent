@@ -119,8 +119,10 @@ class FakeBank:
 class FakeGate:
     """Deterministic stand-in for the security gate: confirmation, then verification."""
 
-    def __init__(self, *, blocked=False, verify_required=False, confirmation_answered=False):
+    def __init__(self, *, blocked=False, verify_required=False, confirmation_answered=False,
+                 block_reason="HIGH_RISK"):
         self.blocked, self.verify_required = blocked, verify_required
+        self.block_reason = block_reason
         self.confirmed, self.verified = confirmation_answered, False
         self.plans: list[CancellationPlan] = []
         self.operation_id = str(uuid4())
@@ -136,7 +138,7 @@ class FakeGate:
     def check(self, context, plan):
         self.plans.append(plan)
         if self.blocked:
-            return GateAnswer(decision=SecurityDecisionCode.BLOCK, reason_code="HIGH_RISK",
+            return GateAnswer(decision=SecurityDecisionCode.BLOCK, reason_code=self.block_reason,
                               operation_id=self.operation_id)
         if not self.confirmed:
             return GateAnswer(decision=SecurityDecisionCode.REQUIRE_CONFIRMATION,
@@ -366,6 +368,18 @@ def test_short_merchant_prefix_still_identifies_the_target():
     assert result.interaction.kind == "confirmation"
 
 
+def test_one_cancellable_and_one_uncancellable_mention_keeps_only_the_cancellable_target():
+    """The menu never offers a clue or a closed agreement as if it could be cancelled."""
+
+    result = entry().start(context(), start_request("优酷视频和绿洲健身的自动扣费我想退订"))
+    assert result.status == TaskStatus.WAITING_APPROVAL
+    assert result.interaction.kind == "confirmation"
+
+    only_uncancellable = entry().start(context(), start_request("绿洲健身和喜马拉雅的自动扣费我想退订"))
+    assert only_uncancellable.status == TaskStatus.SUCCEEDED
+    assert only_uncancellable.data.action == "list"
+
+
 def test_text_reply_disambiguates_and_an_unknown_merchant_falls_back_to_the_menu():
     task = entry()
     assert task.start(context(), start_request("把那个会员退了")).status == TaskStatus.WAITING_INPUT
@@ -410,6 +424,20 @@ def test_high_risk_coercion_is_blocked_and_the_observation_reaches_the_gate():
     assert result.error.code == "HIGH_RISK_BLOCKED" and result.error.source == "security"
     assert "共享屏幕" in result.message
     assert gate.plans[-1].risk_observations == ("screen_sharing", "third_party_instruction")
+
+
+def test_other_security_stops_never_borrow_the_coercion_wording():
+    stale = FakeGate(blocked=True, block_reason="CONFIRMATION_STALE")
+    result = entry(FakeBank(), stale).start(context(), start_request("把优酷视频的自动扣费退了"))
+    assert result.status == TaskStatus.FAILED
+    assert result.error.code == "SECURITY_REJECTED"
+    assert result.error.upstream_code == "CONFIRMATION_STALE"
+    assert "共享屏幕" not in result.message and "客服" not in result.message
+
+    failed_codes = FakeGate(blocked=True, block_reason="VERIFICATION_FAILED")
+    second = entry(FakeBank(), failed_codes).start(context(), start_request("把优酷视频的自动扣费退了"))
+    assert second.error.code == "VERIFICATION_TERMINATED"
+    assert "验证码连续输错" in second.message and "共享屏幕" not in second.message
 
 
 def test_bank_refusal_is_reported_as_failure_not_success():

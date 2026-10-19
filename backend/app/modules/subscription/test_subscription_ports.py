@@ -1,10 +1,11 @@
 """The write path against the real security gate and the shared executor.
 
 The module's own unit tests inject a gate double; these tests keep ``reads.py`` honest
-with the production pieces: a real ``SecurityGate`` + ``DeterministicExecutor``, the
-demo policy, a confirmation the user answers, a session-scoped verification, and a bank
-gateway double. They are the regression that fails if the action phase, the frozen
-parameter reference or the context hand-off regress.
+with the production pieces: a real ``SecurityGate`` + ``DeterministicExecutor``, a
+confirmation the user answers, a session-scoped verification, and a bank gateway double.
+Scope and risk stay minimal doubles here — the demo policy that owns them is covered by
+its own ticket. These tests are the regression that fails if the action phase, the frozen
+parameter reference, the context hand-off or the replay result mapping regress.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from uuid import uuid4
 import pytest
 
 from app.contracts.bank import OperationFound, OperationNotFound, OperationResult, QueryOk
-from app.contracts.common import DisplayField, RiskLevel
+from app.contracts.common import DisplayField, RiskLevel, TaskStatus
 from app.contracts.security import ConfirmationAnswer, ExecutionSecurityContext, VerificationChallenge, VerificationRecord
 from app.contracts.subscription import SubscriptionCancelReceipt
 from app.modules.subscription.ports import RISK_OBSERVATIONS  # noqa: F401  (documents the payload field)
@@ -262,3 +263,26 @@ def test_write_refuses_a_context_factory_that_loses_the_task_binding(tmp_path):
     with pytest.raises(ValueError, match="ACCESS_DENIED"):
         harness.ports.execute_cancel(context(), plan)
     assert harness.gateway.cancels == 0
+
+
+def test_a_replayed_execution_reports_the_bank_receipt_not_a_refusal(tmp_path):
+    """A crash after the bank call must replay as the bank's own outcome."""
+
+    harness = Harness(tmp_path)
+    plan = harness.plan()
+    harness.answer_confirmation(harness.ports.check_cancel(context(), plan))
+    harness.ports.check_cancel(context(), plan)
+    harness.pass_session_verification()
+    assert harness.ports.execute_cancel(context(), plan).executed is True
+    assert harness.gateway.cancels == 1
+
+    replay = harness.ports.execute_cancel(context(), plan)
+    assert replay.executed is False and replay.state == "completed"
+    assert harness.gateway.cancels == 1
+
+    service = SubscriptionService(Ports(harness.bank, None), lambda: NOW)
+    item = service.resolve_cancel(context(), subscription_id="sub_001").item
+    result = service.cancel_task(context(), item, plan, replay)
+    assert result.status == TaskStatus.SUCCEEDED
+    assert result.data.operation.receipt.mandate_id == "sub_001"
+    assert "已经退了" in result.message and "没有通过安全检查" not in result.message
