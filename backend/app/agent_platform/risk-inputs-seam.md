@@ -1,0 +1,67 @@
+# 可信风险输入接缝（Issue #160 / v04-risk-inputs/01）
+
+给安全目录的检测器作者（Ringo）看的接缝说明。本文件与 `risk_inputs.py` 是接口事实源；检测器的识别规则、风险等级映射与评测仍在 `backend/app/security/`、`evals/security/`，不在本接缝内。
+
+## 1. 接缝是什么
+
+```python
+from app.agent_platform.risk_inputs import RiskDetector, RiskInputs, TrustedRiskInputs
+
+resolver = TrustedRiskInputs(application, snapshots, gateway)   # 装配时构造一次
+inputs = resolver.resolve(context, action, declaration)          # 每次风险裁决前调用
+evidence = detector(inputs)                                      # 检测器实现；返回 DemoRiskEvidence
+```
+
+- `context: ExecutionSecurityContext`、`action: ActionDescriptor`、`declaration: CapabilityDefinition` 都来自统一安全门，不由模型或前端提供。
+- 检测器只接收 `RiskInputs`；它不读 SQL、不读任务快照、不调用银行。服务端读取全在 `TrustedRiskInputs` 内完成。
+- 返回值仍是既有 `DemoRiskEvidence`，`DemoSecurityPolicy.assess_risk` 的分类与三档处置不变。
+
+## 2. 绑定与拒绝（fail-closed）
+
+`resolve` 先把原始请求和动作事实绑到同一个可信范围，任何一项不符都抛 `RiskFactsUnavailable`（安全门按既有暂停语义处理，不会降级成低风险）：
+
+| 规则 id | 触发 |
+|---|---|
+| `risk-input-task-binding-required` | 任务不存在、不属于当前 user/demo_round、任务 `session_id` 与上下文不一致、任务已终态 |
+| `risk-input-request-binding-required` | 任务快照缺少 `request_id` 或 `intent_text` |
+| `risk-input-action-binding-required` | 参数引用过期/越权：`transfer_snapshots` 中 user、demo_round、task、action、operation、action_revision 任一项与上下文不符；参数形状不合法 |
+| `risk-input-action-unsupported` | 非 `bank.submit_transfer` 写动作（本接缝暂只覆盖转账写入；订阅退订沿用其专用事实） |
+
+`evidence_ref = risk-inputs:<sha256(...)[:24]>`：由 user/session/demo_round/task/action/parameters_ref、请求文本哈希、动作事实与四维事实确定性计算，**不含原文**。同一任务的同一动作在各阶段（确认前 / 执行前）得到同一个引用；`run_id` 不参与摘要（恢复会换 run，但输入没变）。
+
+## 3. `RiskInputs` 字段
+
+| 字段 | 含义 |
+|---|---|
+| `user_id / session_id / demo_round_id / task_id / run_id` | 本次裁决的可信范围（`run_id` 仅信息用途，不进摘要） |
+| `request_id / request_text` | 原始请求：任务快照里的 `request_id` 与 `intent_text`；**仅内存可用，不得写入日志、审计、报告或模型上下文** |
+| `action_name / parameters_ref / operation_id / action_revision` | 当前动作身份 |
+| `action_facts` | `transfer_snapshots` 解析出的不可变参数（`payer_account_id / payee / amount_fen` 等）；同上，仅内存 |
+| `facts` | 三维事实（见下），`fact(name)` 取用 |
+| `evidence_ref` | 脱敏不透明引用；放进检测器返回的 `DemoRiskEvidence.evidence_ref`，即可在 `security.decided` 的 `evidence_refs` 里追踪 |
+
+## 4. 事实与 unknown
+
+每个 `RiskFact` 都有 `name / status(known|unknown) / source / scope / value`。**unknown 表示该维度没有检查，检测器不得把它当作安全信号，也不得把未检查维度写进 `checked_signals`**——安全门会以 `risk-signal-coverage-required` 暂停。
+
+| 事实 | 本轮来源 | 判定 |
+|---|---|---|
+| `payee_familiarity` | `mock-bank:b04+b08`（B04 收款人核验 + B08 本人账户流水） | `known`：`familiar = saved or prior_outflows > 0`；收款人无法解析为银行已存收款人、或流水读取失败 → `unknown` |
+| `amount_history` | `mock-bank:b08`（本人转出账户近 180 天 `outflow + transfer` 金额） | `known`：`value.usual = amount_fen <= 2 × baseline_max_fen`；无样本/读取失败 → `unknown` |
+| `environment` | `platform:no-trusted-device-source` | **固定 unknown**：当前 API 与任务快照没有设备指纹来源，不假造「常用设备」；设备基线属 PM 待定项（见 spec） |
+
+PM 待确认口径（180 天窗口、2 倍金额阈值、设备来源）在 [v04-risk-inputs spec](../../../.scratch/v04-risk-inputs/spec.md) §3，调整只改常量，不改接缝。
+
+## 5. 检测器实现注意事项
+
+1. 导入 `app.agent_platform.risk_inputs` 时不要同时 import 全平台：`app.agent_platform/__init__` 会装载 `transfer_runtime`。把 import 放在检测器模块的**函数内**，或先 `import app.security` 再导入（安全包已完成初始化，不会循环）。
+2. 检测器输出的证据：`source` / `source_version` 填检测器版本；`evidence_ref` 用 `inputs.evidence_ref`；`signals` / `checked_signals` 按实际检查结果填。原文、账号原文、验证码不得进入任何证据字段。
+3. 离线注入用法见 `app/agent_platform/test_risk_inputs.py` 的 `detector()` / `wired()`：真实 HTTP / harness / 安全门 / 执行器 / 审计 / 模拟银行，仅检测器是替身。
+4. 生产装配（`local_demo.build_runtime`）的接入属于 `v04-risk-inputs/02`：装配层只做「`resolve` → `detector`」，不写识别规则，也不回退 `transfer_fixtures`。
+
+## 6. 已知边界
+
+- 手工收款人不在银行已存收款人内时无法稳定匹配历史对手方，故熟悉度 `unknown`（fail-closed）。
+- 受控收款人引用（`kind=reference`）当前不能在风险读取中二次解析，按 `unknown` 处理。
+- 订阅退订的风险事实仍走 `subscription_risk_evidence`，不在本接缝内。
+- 本接缝不产生风险等级；等级仍由 `DemoSecurityPolicy` 按既有信号集合判定。
