@@ -14,11 +14,7 @@ jobs:
       matrix:
         include:
           - ticket: L02-anomalies
-            source_sha: cfeff025e4f9628aed624ab856569c90af603606
-          - ticket: M2-module-dedup
-            source_sha: fcf3ffca1817105cd1cde6914052a05c9a5b7cc0
-          - ticket: audit-minimal-evidence
-            source_sha: 8967b8d7aa5ae3742602f24703ab7145a8e338b8
+            source_sha: 530b887550080d31c766f21a9c7aa601b1db21ef
     name: ${{ matrix.ticket }}
     steps:
       - uses: actions/checkout@v4
