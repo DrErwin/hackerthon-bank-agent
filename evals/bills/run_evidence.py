@@ -164,7 +164,10 @@ class EvidencePlugin:
     def pytest_runtest_protocol(self, item, nextitem):
         sample = item.callspec.id if hasattr(item, "callspec") else None
         fixture = sample if sample in self.mapping else None
-        tier = "evidence_tooling" if Path(str(item.path)).name == "test_evidence_integrity.py" else "private_arithmetic"
+        item_path = getattr(item, "path", None)
+        is_tooling = (Path(str(item_path)).name == "test_evidence_integrity.py"
+                      if item_path is not None else "test_evidence_integrity.py" in item.nodeid)
+        tier = "evidence_tooling" if is_tooling else "private_arithmetic"
         self.samples[item.nodeid] = {"nodeid": item.nodeid, "fixture_id": fixture,
             "business_case_ids": self.mapping[fixture] if fixture else [],
             "tier": tier, "started_at": utc_now(), "phases": []}
