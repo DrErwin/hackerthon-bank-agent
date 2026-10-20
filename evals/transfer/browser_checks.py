@@ -59,50 +59,78 @@ def run_browser(e, n, dist, evidence_directory):
                     else: route.fulfill(response=response)
                 page.route("**/api/v1/tasks?**", snapshots)
             page.goto(url, wait_until="domcontentloaded")
+            # v0.4 ticket 05: the complete shell is the root entry. For the
+            # snapshot-holding cases the first /tasks? response is held, so the
+            # composer legitimately stays disabled until that snapshot is released.
+            if n in (3, 6):
+                page.wait_for_function(
+                    "() => document.querySelector('#sh-input') && !document.querySelector('#sh-input').disabled",
+                    timeout=30_000)
             if n in (4, 5, 7):
                 deadline = time.monotonic() + 10
                 while not held and time.monotonic() < deadline: page.wait_for_timeout(50)
                 e.check("browser.old_snapshot_captured", bool(held))
                 if not held: return
             if n == 3:
-                expect(page.get_by_role("button", name="确认办理", exact=True)).to_be_visible(timeout=15_000)
-                expect(page.locator(".connection-label")).to_contain_text("连接", timeout=15_000)
+                confirm = page.get_by_role("button", name="确认办理", exact=True)
+                try:
+                    expect(confirm).to_be_visible(timeout=8_000)
+                except AssertionError:
+                    page.get_by_role("button", name="查看原任务", exact=True).click()
+                    expect(confirm).to_be_visible(timeout=20_000)
+                expect(page.locator(".sh-conn")).to_contain_text("已连接", timeout=15_000)
                 page.wait_for_timeout(3500)
                 e.check("browser.SSE_reconnected", len(connections) >= 2, len(connections))
-                page.get_by_role("button", name="刷新任务状态", exact=True).click()
+                expect(page.locator(".sh-conn")).to_contain_text("已连接", timeout=15_000)
                 e.get_task()
                 e.check("browser.same_task", e.task["task_id"] == original_task)
                 e.check("browser.no_message_replay", not any(r["method"] == "POST" and r["path"].endswith("/messages") for r in requests))
                 e.zero()
             elif n == 4:
+                # Backend moves on while the first task-list snapshot is held; the
+                # stale snapshot must not revive the old confirmation once released.
                 page.wait_for_timeout(200)
                 e.complete(); e.success()
-                expect(page.locator(".task-card")).to_contain_text("成功", timeout=15_000)
                 held[0][0].fulfill(response=held[0][1])
-                page.wait_for_timeout(200)
-                expect(page.locator(".task-card")).to_contain_text("成功")
+                page.wait_for_timeout(1_500)
+                if page.get_by_role("button", name="查看原任务", exact=True).count():
+                    page.get_by_role("button", name="查看原任务", exact=True).click()
+                expect(page.locator(".sh-task")).to_contain_text("成功", timeout=20_000)
                 e.check("browser.old_confirmation_not_revived", page.get_by_role("button", name="确认办理", exact=True).count() == 0)
             elif n == 5:
-                page.get_by_role("button", name="＋ 新对话", exact=True).click()
-                page.wait_for_timeout(200)
-                held[0][0].fulfill(response=held[0][1])
-                page.wait_for_timeout(200)
-                e.check("browser.foreign_thread_card_absent", page.locator(".task-card").count() == 0)
-                e.zero()
+                # v0.4 complete shell is a single-conversation entry: it has no
+                # "switch thread" action, so a stale response for another thread
+                # cannot be delivered through the new UI. The equivalent guard is
+                # covered by frontend/src/ui-recovery.test.tsx (delayed history
+                # from a previous thread stays out of the selected conversation).
+                raise RuntimeError("OBS-05_NOT_APPLICABLE_ON_SINGLE_THREAD_SHELL")
             elif n == 6:
-                expect(page.get_by_role("button", name="确认办理", exact=True)).to_be_visible(timeout=15_000)
+                confirm = page.get_by_role("button", name="确认办理", exact=True)
+                try:
+                    expect(confirm).to_be_visible(timeout=8_000)
+                except AssertionError:
+                    page.get_by_role("button", name="查看原任务", exact=True).click()
+                    expect(confirm).to_be_visible(timeout=20_000)
                 expire_session(e)
-                page.get_by_role("button", name="确认办理", exact=True).click()
-                expect(page.get_by_role("button", name="重新进入", exact=True)).to_be_visible(timeout=15_000)
+                confirm.click()
+                expect(page.get_by_role("button", name="点这里重新进入", exact=True)).to_be_visible(timeout=15_000)
                 e.check("browser.401_disables_old_controls", page.get_by_role("button", name="确认办理", exact=True).count() == 0)
                 e.zero()
             elif n == 7:
-                e.input(selected_option_id="A9")
-                expect(page.get_by_role("button", name="确认办理", exact=True)).to_be_visible(timeout=15_000)
-                held[0][0].fulfill(response=held[0][1])
+                # The candidate answer is accepted while the stale list snapshot is
+                # held; releasing it must not revive the old candidate card.
                 page.wait_for_timeout(200)
-                e.check("browser.current_target_retained", "2222" in page.locator(".task-card").inner_text())
-                e.check("browser.old_candidates_not_revived", page.locator(".candidate-button").count() == 0)
+                e.input(selected_option_id="A9")
+                held[0][0].fulfill(response=held[0][1])
+                page.wait_for_function(
+                    "() => document.querySelector('#sh-input') && !document.querySelector('#sh-input').disabled",
+                    timeout=30_000)
+                page.wait_for_timeout(1_500)
+                if page.get_by_role("button", name="查看原任务", exact=True).count():
+                    page.get_by_role("button", name="查看原任务", exact=True).click()
+                expect(page.get_by_role("button", name="确认办理", exact=True)).to_be_visible(timeout=20_000)
+                e.check("browser.current_target_retained", "2222" in page.locator(".sh-task").inner_text())
+                e.check("browser.old_candidates_not_revived", page.locator(".sh-choice").count() == 0)
                 r = e.post(f"/tasks/{original_task}/inputs", interaction_id=original_interaction, selected_option_id="A8")
                 e.check("browser.stale_selection_rejected", r.status_code == 409)
                 e.get_task(); e.check("browser.payee_still_A9", e.task["data"]["payee"]["payee_id"] == "A9"); e.zero()

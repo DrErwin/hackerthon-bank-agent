@@ -30,7 +30,17 @@ def run_case(case, directory, delegate=None, live_blocker=None, react_dist=None,
     if not delegate: result["substitutes"].append("fixed proposal")
     if plan.variant == "INP-17": result["substitutes"].append("injected provider timeout; no live request for this sample")
     browser_case = plan.variant in ("OBS-03", "OBS-04", "OBS-05", "OBS-06", "OBS-07")
-    if browser_case and react_dist: plan.blocked = None
+    if browser_case and react_dist:
+        if plan.variant == "OBS-05":
+            # The v0.4 complete shell is a single-conversation entry; it has no
+            # thread switch action, so a delayed response for another thread cannot
+            # be exercised through the new UI. The equivalent guard is covered by
+            # frontend/src/ui-recovery.test.tsx.
+            plan.blocked = ("v0.4完整前端为单会话入口，无对话切换动作，本场景在新入口不适用；"
+                            "等价保护由 frontend/src/ui-recovery.test.tsx（迟到历史不进入当前对话）覆盖；"
+                            "旧前端证据见 evals/transfer/evidence/2026-10-11")
+        else:
+            plan.blocked = None
     if live_blocker or plan.blocked:
         result.update(status="Blocked", provider="GLM配置/供应商" if live_blocker else "Ringo" if "Ringo" in plan.blocked else "frontend/",
                       reason=live_blocker or plan.blocked)
