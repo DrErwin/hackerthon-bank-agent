@@ -1,5 +1,14 @@
 # 周恩宇 v0.4 账单实施台账
 
+## 2026-10-20 最新正式收口记录
+
+- **已合入 main**：PR #92（统计内核）、#131（L01）、#140（L01返修）、#151（L03报告）、#93（147项算术/工具评测）、#171（读取审计修复）；Issue #145 已关闭。GitHub PR/Issue 是唯一正式状态来源。
+- **正式已提审但未合入**：[PR #182](https://github.com/DrErwin/hackerthon-bank-agent/pull/182)（票09/#136模块防重；[CI #39348638637](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39348638637) success：850 后端+14 MockBank）和 [PR #183](https://github.com/DrErwin/hackerthon-bank-agent/pull/183)（票04/L02异常识别；[CI #39348872148](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39348872148) success：942 后端+14 MockBank）。两 PR 均已请求 Erwin review。Issue #136 仍开放，需 #182 审查合并后关闭。
+- **票06/07评测证据**：票06分支 `test/bills/public-business-evidence-06` 已保存 17/17 L01 业务路径证据；票07分支 `test/bills/report-http-evidence-07` 及独立 [Actions #39278072579](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39278072579) 已 success，验证 7 个 HTTP 场景，但这两票仍是**阶段性**，不能等同每功能≥10/每异常≥3、BF01–BF07全部通过。仍因最多同时 2 张 PR 限制待顺序提审/补完整覆盖。
+- **平台/安全/前端联合验收**：L02/L03 生产工厂、正式安全声明、真实模型+React 插槽、F21–F24 真实纵向链路仍由 Erwin、Ringo、前端线按各自实施票审批/联调；Ethan 提供接口/测例，不代签专业结论。
+- **本人的当前交付状态**：主要账单模块与修复开发已推送并有测试记录；不代表个人全部任务 `resolved`，也不代表团队 v0.4 整包 `accepted`。
+
+
 ## 2026-10-19 23:35 · 最后验收交接（优先于下文历史记录）
 
 | Ethan 事项 | 已完成、固定提交与独立证据 | 尚不能宣告完成的流程 |
