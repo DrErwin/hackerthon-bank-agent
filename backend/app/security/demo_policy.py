@@ -195,7 +195,7 @@ _SUBSCRIPTION_PRIVATE_TOOLS = (
 class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
-    policy_version = "v04-local-demo-read-4"
+    policy_version = "v04-local-demo-read-5"
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.
@@ -302,6 +302,18 @@ class DemoSecurityPolicy:
         evidence = self.risk_facts(context, action, declaration)
         if not isinstance(evidence, DemoRiskEvidence):
             raise RiskFactsUnavailable("trusted risk evidence is unavailable", rule_id="trusted-risk-evidence-required", policy_version=self.policy_version)
+        # A positively observed transfer threat is sufficient to stop the task.
+        # Unavailable independent dimensions cannot turn a terminal threat into a
+        # resumable dependency pause. This adds no permission or low-risk path.
+        if (declaration.name == "bank.submit_transfer"
+                and not _ALL_RISK_SIGNALS <= evidence.checked_signals
+                and evidence.signals & _HIGH_RISK_SIGNALS):
+            return RiskAssessment(
+                RiskLevel.HIGH, self.policy_version,
+                "transfer-positive-high-risk:" + ",".join(sorted(
+                    signal.value for signal in evidence.signals & _HIGH_RISK_SIGNALS)),
+                f"{evidence.source}:{evidence.source_version}:{evidence.evidence_ref}",
+            )
         if not _ALL_RISK_SIGNALS <= evidence.checked_signals:
             raise RiskFactsUnavailable("risk evidence does not cover every signal dimension", rule_id="risk-signal-coverage-required", policy_version=self.policy_version)
         evidence_ref = f"{evidence.source}:{evidence.source_version}:{evidence.evidence_ref}"
