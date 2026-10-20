@@ -1,5 +1,23 @@
 # 周恩宇 v0.4 账单实施台账
 
+## 2026-10-20 21:00 · Ethan 最新可验收状态
+
+**按10张实施票**：01/02/03/04/05/08/09/10 属于已合并、模块/黄金子范围 resolved；06/07 属于在 GitHub 真实新主线实跑但整体业务/联调数量未达标的 `in_progress`。另外 [Issue #188](https://github.com/DrErwin/hackerthon-bank-agent/issues/188) 是 10-20 临时新增的 L02 安全准入业务联动票，不应被遗漏。**项目 v0.4 仍在联合验收 `planned/in_progress`，绝非 accepted。**
+
+| 项目/个人事项 | 最新可核实证据 | 还差什么 |
+|---|---|---|
+| 01/03/08 L01 统计/公开读账/返修 | PR #92/#131/#140 合并；Erwin L01 真实 GLM/银行阶段一已有独立验收 | BF 整包票06/07另验 |
+| 02 旧算术评测 | PR #93 合并，147=130算术+17工具，原始gzip与动作链验收 | 不能把96设计当成96业务通过 |
+| 04 L02 模块 | PR #183 合并；模块与原任务/异常四规则均有回归 | 平台 #190 [PR #192](https://github.com/DrErwin/hackerthon-bank-agent/pull/192)和安全 #187 [PR #196](https://github.com/DrErwin/hackerthon-bank-agent/pull/196) 未合，真实L02未完 |
+| 05 L03 报告 | PR #151 合并、Erwin 平台阶段二 [PR #193](https://github.com/DrErwin/hackerthon-bank-agent/pull/193) 合并；真实glm-5.3两次+ F21/F22/F24 | 前端浏览器/联合验收与真人安全签核不在模块票内 |
+| 09/10 返修 | PR #182/#171 合并，Issue #136/#145 CLOSED，账单防重及审计持久化修复有实测 | 历史审计数据清理属 Erwin/Ringo |
+| 新 Issue #188 安全准入切换 | [PR #197](https://github.com/DrErwin/hackerthon-bank-agent/pull/197) 最新版本 `8a8de42` 仅修改业务测试，支持v2拒绝/v3合法放行、漂移/越权拒绝；[CI #39427486208](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39427486208) **996 backend+14 MockBank** 成功 | **等待Erwin合PR#197、Ringo重基并合安全PR#196、平台PR#192审合**，Issue仍OPEN |
+| 06 完整业务评测（阶段一） | [PR #198](https://github.com/DrErwin/hackerthon-bank-agent/pull/198) 源 `c2e8f3e` 17/17公共L01通过，[专项 #39425788637](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39425788637)，新gz+SHA256归档；[PR CI #39426994398](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426994398) **967 backend+14 MockBank** | 仍缺 L02/L03等每功能≥10、每类异常≥3的完整公共业务样本，尚不能结票 |
+| 07 HTTP/前端协同（阶段一） | 最新 [分支 `test/bills/07-http-l03-20261020`](https://github.com/DrErwin/hackerthon-bank-agent/tree/test/bills/07-http-l03-20261020) 源 `e111183` 7/7HTTP场景、87请求，[专项 #39426333629](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426333629)，新gzip/哈希已归档 | 未开PR（本人当前两张未合PR #197/#198已满），剩余完整L01/L02 HTTP、React与安全签核另验 |
+
+**个人交付真实进度**：所有既有核心模块 PR 均已合并；#188新回归和#06一期已提审、CI全绿，#07本期最新源码与gzip在远端分支待PR名额；不能声称01—10以及#188全部“验收完成”，也不能由Ethan代签平台/安全/前端工作线。以下旧状态为历史发生时快照，请以上表为准。
+
+
 ## 2026-10-20 最新正式收口记录
 
 - **已合入 main**：PR #92（统计内核）、#131（L01）、#140（L01返修）、#151（L03报告）、#93（147项算术/工具评测）、#171（读取审计修复）；Issue #145 已关闭。GitHub PR/Issue 是唯一正式状态来源。
