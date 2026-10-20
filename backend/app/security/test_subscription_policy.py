@@ -360,6 +360,37 @@ def test_read_capability_is_allowed_without_any_extra_step(tmp_path):
     assert allowed.authorization_snapshot_ref is None
 
 
+def test_modify_write_never_writes_an_authorization_snapshot(tmp_path, monkeypatch):
+    """Issue #191: snapshots stay limited to SENSITIVE; MODIFY must not diffuse it."""
+    writes = []
+
+    def unexpected_snapshot(*args):
+        writes.append(True)
+        return "AUTH-MODIFY"
+
+    modify = CANCEL.model_copy(update={"operation_level": OperationLevel.MODIFY})
+    monkeypatch.setattr(
+        DemoSecurityPolicy, "_private_tools",
+        {**DemoSecurityPolicy._private_tools, modify.name: modify},
+    )
+    current = policy_for(LOW_SIGNALS)
+    assert current.authorize_tool(security_context(), descriptor(), modify) is True
+    gate, confirmations, records, _ = build_gate(
+        tmp_path, current, modify, snapshot_writer=unexpected_snapshot)
+    context = security_context()
+    first = gate.check_action(context, descriptor())
+    assert first.decision == SecurityDecisionCode.REQUIRE_CONFIRMATION
+    confirmed, _ = approve_created_confirmation(
+        confirmations, context, descriptor(), first.interaction.record_ref)
+    basic = session_verification(confirmed)
+    records[basic.verification_id] = basic
+    allowed = gate.check_action(
+        confirmed.model_copy(update={"verification_ids": [basic.verification_id]}), descriptor())
+    assert allowed.decision == SecurityDecisionCode.ALLOW
+    assert allowed.authorization_snapshot_ref is None
+    assert writes == []
+
+
 def test_unregistered_write_declaration_is_out_of_the_policy_scope():
     current = policy_for(LOW_SIGNALS)
     stranger = CANCEL.model_copy(update={"name": "subscription.bank.forge_mandate",
