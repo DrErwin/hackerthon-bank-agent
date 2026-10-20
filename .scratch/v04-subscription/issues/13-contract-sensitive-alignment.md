@@ -43,7 +43,7 @@ PM 2026-10-20 13:47 裁定 **1A**（Issue #189）：退订是对齐 PRD 的**三
 
 - 按[公共契约 §8.1](../../../docs/contracts/公共契约-2026-09-23.md#8-变更管理防拉通机制④)：本变更改变安全分级与审计/暂停语义，属**协同修改**；且「涉及权限、确认、身份验证、审计规则必须由 Ringo 审查」——需安全侧审查意见，PM 代行/豁免须留痕。
 - 契约负责人（Erwin）与受影响模块（`subscription` = Erwin；安全冻结 = Ringo）确认影响与切换时点；公共文档先合，模块 / 安全 / 评测按依赖窗口同步。
-- 与 [Issue #164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 联动：安全目录将持有订阅声明的独立冻结副本，冻结值需与票 11 的 SENSITIVE 一致；**不得**在 main 上留下「模块 SENSITIVE / 安全预期 MODIFY」的拒绝窗口。
+- 与 [Issue #164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 联动：安全目录将持有订阅声明的独立冻结副本，冻结值需与票 11 的 SENSITIVE 一致（安全侧改值见 [Issue #191](https://github.com/DrErwin/hackerthon-bank-agent/issues/191)）；**不得**在 main 上留下「模块 SENSITIVE / 安全预期 MODIFY」的拒绝窗口。
 
 ## 5. 验收
 

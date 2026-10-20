@@ -40,7 +40,7 @@ Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issu
 - 只改 `evals/subscription/`；不修改 `backend/`、`docs/` 与安全目录。
 - 如 E2E 暴露**平台装配缺口**（`backend/app/agent_platform/`，例如快照未写入/未在银行提交前持久化），停止本票扩范围，回 [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issues/189) 说明并另开平台票（Erwin 目录）。
 - 不把「快照存在」写成「所有敏感动作都已覆盖」；只断言退订这一条真实链路，其余能力由安全侧回归负责。
-- 与 [Issue #164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 的合并窗口联动：若 #164 接替 PR 先于票 11 合入，订阅退订会被安全门拒绝、评测无法通过；本票以「票 11 已合 + 安全冻结副本已改 SENSITIVE」为运行前提，证据中记录实际基线 SHA。
+- 与 [Issue #164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 的合并窗口联动：若 #164 接替 PR 先于票 11 合入，订阅退订会被安全门拒绝、评测无法通过；本票以「票 11 已合 + 安全侧 [Issue #191](https://github.com/DrErwin/hackerthon-bank-agent/issues/191) 的冻结副本已改 SENSITIVE」为运行前提，证据中记录实际基线 SHA。
 
 ## 4. 待确认口径（不阻塞本票拆立）
 

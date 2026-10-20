@@ -49,7 +49,7 @@ Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issu
 
 - **main 现状**：`backend/app/security/demo_policy.py` 直接 `import` 订阅的两组声明，改模块声明会自动跟随，不存在拒绝窗口。
 - **在途风险**：[Issue #164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 的接替分支（`fix/security/issue-164-main-20261020`，head `0b8b2ba`）已把订阅 + 转账共 12 条声明在安全目录**独立冻结**。若它在模块改为 SENSITIVE 之后仍以旧的 `MODIFY` 冻结值合入，退订会被安全门拒绝。
-- **约定**：本票的模块声明先合入（或与安全侧改值同窗口）；安全冻结副本随之为 `SENSITIVE` 后再合 #164 接替 PR。任何单边先合都必须确认 main 上**不存在**「模块 SENSITIVE / 安全预期 MODIFY」的拒绝窗口。安全侧动作见新建 GitHub Issue（转给 Ringo）。
+- **约定**：本票的模块声明先合入（或与安全侧改值同窗口）；安全冻结副本随之为 `SENSITIVE` 后再合 #164 接替 PR。任何单边先合都必须确认 main 上**不存在**「模块 SENSITIVE / 安全预期 MODIFY」的拒绝窗口。安全侧动作见 [Issue #191](https://github.com/DrErwin/hackerthon-bank-agent/issues/191)（转给 Ringo）。
 
 ## Comments
 
