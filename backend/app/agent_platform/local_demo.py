@@ -227,12 +227,10 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     # contract-shaped stub steps aside as a whole (v04-platform/05): L01, L02 and
     # L03 are all real now. Each capability keeps its own manifest/factory because
     # one manifest shares one factory.
-    # L03 is authorized by `security/demo_policy.py` since Issue #177
-    # (policy_version `v04-local-demo-read-2`), so a report task can reach its real
-    # handler and serve the frontend bills slot (ticket 04).
-    # L02 is registered but not authorized yet: `security/demo_policy.py` does not
-    # list ANOMALY_MANIFEST (Issue #187, Ringo), so real anomaly calls are still
-    # rejected until that allowlist lands.
+    # L01/L02/L03 are all authorized by `security/demo_policy.py`
+    # (policy_version `v04-local-demo-read-3`: L03 since Issue #177, L02 since
+    # Issue #187), so report and anomaly tasks reach their real handlers; L03 also
+    # serves the frontend bills slot (ticket 04).
     register_bills(runtime.harness.registry, _bills_reads_factory(runtime),
                    lambda: datetime.now(timezone.utc))
     register_bills_anomalies(runtime.harness.registry, _bills_reads_factory(runtime),
