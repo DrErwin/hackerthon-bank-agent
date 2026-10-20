@@ -21,7 +21,7 @@
 - 只解析原始 `intent_text` / `request_id`。当前 Harness 的 `StartTransferInput.amount_fen`、收款人、账户字段均不成为账单事实或选择结果。
 - 缺少模式、月份或本人账户时逐项询问；单个本人账户也不替用户默认选择。明确“所有账户”才枚举全部本人账户。
 - 明确单月支持 `YYYY年M月`、`YYYY-MM`、本月/上月；周期扫描可明确选择“最近三个完整月份”。半月、单日、第二月份、模糊区间、年度等尚未支持的聊天约束先询问完整月份，不在询问前读取银行；任意结构化范围可通过 typed 服务使用。
-- 数值线索按整数分精确解析；多个金额、排除/大小关系、千位分隔或非两位小数等不擅自取其中一部分。商户和渠道只接受带字段名的明确引号内容，字面值不当作金额或类别指令。无法精确解释时先由用户选择是否列出原范围流水。
+- 数值线索按整数分精确解析；多个金额、排除/大小关系、千位分隔或超过两位小数等不擅自取其中一部分。商户和渠道只接受带字段名的明确引号内容，字面值不当作金额或类别指令。无法精确解释时先由用户选择是否列出原范围流水。
 - 没有可用线索时，内部 `candidates(scope, clues=None)` 直接列出完整范围的银行流水，不伪造违反冻结模型的空 `TransactionClues`。
 - 一个候选可在原任务继续 single；多个候选返回 `waiting_input` 和真实 `TransactionCandidates`。随机 F10 option ID 仅映射至检查点中的 `(account_id, transaction_id)`，不能用前端金额、编号或“已验证”字段覆盖。选中后重新读取原范围，再读取该笔前三个月基线；保存过的展示数据不作为新事实。
 - 空候选仍等待用户选择调整月份、账户、去除线索或重试原范围，不结束成“没有异常”。临时银行失败在原任务重试，权限拒绝直接停止。取消及终态不复活，同请求号异内容拒绝；旧 interaction / 旧 option / 跨用户或轮次状态均拒绝。重放恢复原来的公共 data 类型及候选按钮，不重复银行读取或 checkpoint 写入，只更新当前 `run_id`。
@@ -50,7 +50,7 @@ register_bills_anomalies(registry, reads_factory, clock)
 
 **单独 ID 调用的现有接缝限制**：冻结 single 只有账户和交易编号，B08 只有按范围列表，缺少按编号查询接口。内部同任务定位后可保留已选择的范围，因此能稳定重读。独立 single 则先请求完整时间轴，由 B08 的结构化 `RANGE_UNSUPPORTED.earliest_supported_at` 提供实际支持起点，只按该起点重试一次，不在本模块复制 24 个月银行规则。银行边界继续前进或不给合法起点、导致无法完成查询时，返回 `BILLS_LOCATE_REQUIRED`，要求先按月份定位；不加时间裕量后伪报 `RECORD_NOT_FOUND`。已成功完整读取银行支持范围但没有该 ID，则按契约返回 `RECORD_NOT_FOUND`，并明确其查询范围。按 ID 的稳定性缺口需要银行/平台负责人决定是否补公开接缝；本模块不修改冻结输入或绕过银行范围。
 
-本实现继续复用读取适配器，审计证据整改由独立 [Issue #145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145) 交付，公共摘要哈希的保存行为归审计底座。L02 测试通过不代表这些独立依赖已经合入。
+本实现继续复用读取适配器；读取审计证据的收窄已由 [Issue #145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145) 经 [PR #171](https://github.com/DrErwin/hackerthon-bank-agent/pull/171) 合入 main——`tool.started` 只保存参数摘要，`tool.finished` 只保存 `result_ref`、执行状态和账户/流水条数，不持久化逐笔流水、商户名或余额。公共摘要哈希的长期保存行为仍归审计底座。L02 的三个月基线与按编号读取复用同一适配器，因此同样只落收窄后的证据（`test_anomaly_integration.py` 的 L02 审计断言）。
 
 ## 验证与证据边界
 
@@ -59,6 +59,6 @@ cd backend
 python -m pytest -q app/modules/bills/test_anomalies.py app/modules/bills/test_anomaly_service.py app/modules/bills/test_anomaly_entry.py app/modules/bills/test_anomaly_integration.py
 ```
 
-当前 L02 定向 **94 passed**。06:00 用例在修复前实际复现为红，修复后夜间全部六个边界为绿。独立 Spec 复核指出的“既有转入误判陌生”“缺商户仍判周期规则清楚”“完整查询无 ID 错误码”三项，各有实际红用例，修复后原三项全绿。覆盖 locate 零/一/多候选、F10 forged/stale、候选选后事实重读、同任务重试/取消/跨会话、所有权与权限拒绝、四规则边界及基线不足、未知渠道、银行失败和移动保留边界。商户/渠道字面值不能替用户选择查询月份、全部账户或扫描模式。
+当前 L02 定向 **98 passed**（含 single 模式规则 4 命中、`DemoSecurityPolicy` 拒绝未登记声明、三个月基线读取的审计证据、旧检查点结果兜底四项）。06:00 用例在修复前实际复现为红，修复后夜间全部六个边界为绿。独立 Spec 复核指出的“既有转入误判陌生”“缺商户仍判周期规则清楚”“完整查询无 ID 错误码”三项，各有实际红用例，修复后原三项全绿。覆盖 locate 零/一/多候选、F10 forged/stale、候选选后事实重读、同任务重试/取消/跨会话、所有权与权限拒绝、四规则边界及基线不足、未知渠道、银行失败和移动保留边界。商户/渠道字面值不能替用户选择查询月份、全部账户或扫描模式。
 
-`test_anomaly_integration.py` 的四项接缝测试使用仓库真实 Harness、scoped SQLite、SecurityGate、DeterministicExecutor、BankGateway 和种子 Mock Bank，银行和模块共用持续前进的时钟；F10 选项通过真实 `ApiService.input_response` 转换。规划器和 LOW 风险策略为明确测试替身，F10 helper 测试没有走 HTTP。结果不代表付费模型、前端页面或真人专业安全验收；完整套件及 CI 以本分支实际运行记录为准。
+`test_anomaly_integration.py` 的六项接缝测试使用仓库真实 Harness、scoped SQLite、SecurityGate、DeterministicExecutor、BankGateway 和种子 Mock Bank，银行和模块共用持续前进的时钟；F10 选项通过真实 `ApiService.input_response` 转换。规划器和 LOW 风险策略为明确测试替身，F10 helper 测试没有走 HTTP。结果不代表付费模型、前端页面或真人专业安全验收；完整套件及 CI 以本分支实际运行记录为准。
