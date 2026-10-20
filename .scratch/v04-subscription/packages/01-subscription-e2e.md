@@ -65,7 +65,7 @@ PRD: `docs/prd/05-订阅代扣管理-PRD-2026-10-19.md`
 
 - **票 09（[#172](https://github.com/DrErwin/hackerthon-bank-agent/pull/172) `c1cdde3`）**：退订「明确拒绝」与「结果未知」如实回执；提交后超时 / 未知转 `needs_attention`，按原 `operation_id` 回查 B14，不重复提交；批量意图被拒后的文字消歧补齐。
 - **票 10（[#175](https://github.com/DrErwin/hackerthon-bank-agent/pull/175) `d6cb6a8`）**：完整验收集 17→48 条；同提交证据 `evals/subscription/evidence/2026-10-20/`（48 passed、7 源文件 blob 对 HEAD、`dirty_paths=[]`、`PYTHONHASHSEED=0/1/42` 三次全量一致、独立复核两轴通过）。
-- **遗留（不阻塞收口，如实登记）**：[Issue #176](https://github.com/DrErwin/hackerthon-bank-agent/issues/176) 关键内容变化后确认失效路径随进程哈希序非确定（两支均零提交、安全）；退订声明 `OperationLevel.MODIFY` 与 PRD §5.10 三级敏感口径不一致（写前 `AuthorizationSnapshot` 不产生）。
+- **遗留（不阻塞收口，如实登记）**：[Issue #176](https://github.com/DrErwin/hackerthon-bank-agent/issues/176) 关键内容变化后确认失效路径随进程哈希序非确定（两支均零提交、安全）；**退订声明已于 2026-10-20 按 Issue #189 / PM 1A 裁定升为 `OperationLevel.SENSITIVE` 并补写前 `AuthorizationSnapshot`（票 11），评测断言与证据见票 12**，不再与 PRD §五/§5.10 三级敏感口径冲突；安全侧独立冻结副本改值见 [Issue #191](https://github.com/DrErwin/hackerthon-bank-agent/issues/191)。
 - **本期收口口径**：后端闭环 + 完整验收集；真实模型 E2E 与前端订阅插槽留 v0.5。
 
 ## 验收标准（Definition of Done）

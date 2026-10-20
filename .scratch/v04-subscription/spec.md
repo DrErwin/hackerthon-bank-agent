@@ -49,7 +49,7 @@ PM 指示：**「把契约全部统一一下。之前冻结的契约是可以再
 3. **确定性单笔退订与确认/验证门（SOP-2）**：
    - **仅单笔**：拒绝「全部退订/一键全关」，多候选或未指明进入 `WAITING_INPUT` 返回单选候选；
    - **来源与状态前置拦截**：`suspected_ledger` 不进确认门、不调 B30，返回外部渠道关闭引导；已 `cancelled` 幂等告知；
-   - **安全与验证**：`subscription.bank.cancel_subscription` 声明 `OperationLevel.MODIFY`、`side_effect=True`、`confirmation_policy="per_action"`、权限 `subscription.cancel`。正常本人退订判 `RiskLevel.LOW`（**不拉起 `mock_face`**），走前端确认按钮 + `purpose="basic_identity"`、`scope="session"` 验证码（同一有效会话内可复用，连续 3 次失败终止任务）；命中 `_HIGH_RISK_SIGNALS` 判 `RiskLevel.HIGH` 直接 `BLOCK` 终止。
+   - **安全与验证**：`subscription.bank.cancel_subscription` 声明 `OperationLevel.SENSITIVE`（三级敏感）、`side_effect=True`、`confirmation_policy="per_action"`、权限 `subscription.cancel`；提交银行前由安全门持久化脱敏 `AuthorizationSnapshot`，快照或开始日志写入失败暂停、不提交银行（PRD §五第 10 项；契约 §4.5）。正常本人退订判 `RiskLevel.LOW`（**不拉起 `mock_face`**），走前端确认按钮 + `purpose="basic_identity"`、`scope="session"` 验证码（同一有效会话内可复用，连续 3 次失败终止任务）；命中 `_HIGH_RISK_SIGNALS` 判 `RiskLevel.HIGH` 直接 `BLOCK` 终止。
    - **话术红线**：确认单与回执只承诺**「从下一期（YYYY-MM-DD）起不再自动扣费，之前已经扣掉的钱不退」**；严禁「会员还能用到哪天」与「先退订再重新订阅」。
 4. **结果只认银行**：成功与否按 B30 返回；未知/超时按 B14 原操作回查，**不换 `operation_id` 重提**。
 
@@ -203,12 +203,12 @@ def cancel_subscription(self, context: TrustedContext, operation_id: UUID, manda
 
 - `manifest.py`：`SUBSCRIPTION_MANIFEST`（`module_name="subscription"`, `version="0.4.0"`, `owner="Erwin"`, `implementation_kind="workflow"`, `dependencies=["bank_gateway", "security_gate"]`）
   - `S01 subscription.list_subscriptions`：`input_schema_ref="SubscriptionListInput"`、`output_schema_ref="ModuleResult[SubscriptionTaskView]"`、`required_permissions=["subscription.read"]`、`OperationLevel.READ`、`side_effect=False`、`confirmation_policy="none"`、`retry_policy="read_only"`
-  - `S02 subscription.cancel_subscription`：`input_schema_ref="SubscriptionCancelInput"`、`output_schema_ref="ModuleResult[SubscriptionTaskView]"`、`required_permissions=["subscription.cancel"]`、`OperationLevel.MODIFY`、`side_effect=True`、`confirmation_policy="per_action"`、`retry_policy="none"`
+  - `S02 subscription.cancel_subscription`：`input_schema_ref="SubscriptionCancelInput"`、`output_schema_ref="ModuleResult[SubscriptionTaskView]"`、`required_permissions=["subscription.cancel"]`、`OperationLevel.SENSITIVE`、`side_effect=True`、`confirmation_policy="per_action"`、`retry_policy="none"`；提交银行前先持久化脱敏 `AuthorizationSnapshot`（写失败暂停、不提交）。
 - `reads.py`：`SUBSCRIPTION_PRIVATE_TOOLS`（命名按 bills 的模块前缀惯例，避免与 transfer 的 `bank.*` 私有工具在同一个策略字典里冲突）：
   - `subscription.bank.list_accounts`（READ / `subscription.read` / none / read_only；用于枚举本人账户后按账户取流水）
   - `subscription.bank.list_subscriptions`（READ / `subscription.read` / none / read_only）
   - `subscription.bank.list_transactions`（READ / `subscription.read` / none / read_only）
-  - `subscription.bank.cancel_subscription`（MODIFY / `subscription.cancel` / per_action / side_effect=True / retry none）
+  - `subscription.bank.cancel_subscription`（SENSITIVE / `subscription.cancel` / per_action / side_effect=True / retry none；写前快照）
   写动作的 `ActionDescriptor` 必须用 `Phase.EXECUTION`（读与确认预检用 `ADMISSION`）：统一执行器对 `side_effect=True` 的声明要求执行相位，否则按策略拦截、银行调用永不发生。
   **参数引用 `parameters_ref` 按 `(task_id + 冻结事实)` 确定性派生**，check/confirm/verify/execute 全过程复用同一个引用（已批准确认单据此匹配），但**审计证据键每次调用新生成**（`audit_evidence.evidence_id` 唯一）。
   平台需提供三样东西（`ports.py` 是唯一接缝，详见模块 `README.md`）：
