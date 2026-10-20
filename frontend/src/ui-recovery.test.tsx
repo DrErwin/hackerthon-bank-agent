@@ -85,7 +85,7 @@ beforeEach(() => {
   });
   let requestSequence = 0;
   vi.stubGlobal("crypto", { randomUUID: () => "request-id-" + ++requestSequence });
-  window.history.replaceState({}, "", "/");
+  window.history.replaceState({}, "", "/legacy");
 });
 
 afterEach(() => {

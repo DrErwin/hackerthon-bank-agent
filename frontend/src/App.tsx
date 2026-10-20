@@ -81,9 +81,13 @@ function UserGate(props: {
 }
 
 export default function App() {
-  if (window.location.pathname === "/v04" || window.location.pathname.startsWith("/v04/")) return <ShellApp />;
-  if (window.location.pathname === "/admin") return <AdminPage />;
-  return <UserPage />;
+  const path = window.location.pathname;
+  // v0.4 替换主入口：正式前端（完整 App）承接 "/"；简易前端保留在 /legacy 作回滚依据；
+  // 管理页 /admin 与旧路径 /v04（含 /v04/admin、/v04/gallery）保持不变。
+  if (path === "/legacy" || path.startsWith("/legacy/")) return <UserPage />;
+  if (path === "/v04" || path.startsWith("/v04/")) return <ShellApp />;
+  if (path === "/admin") return <AdminPage />;
+  return <ShellApp />;
 }
 
 function UserPage() {
