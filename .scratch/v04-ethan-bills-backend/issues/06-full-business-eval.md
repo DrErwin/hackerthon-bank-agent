@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/06
 Type: 评测
 Owner: 周恩宇
 Directory: evals/bills/
-Status: in_progress
+Status: in_progress（17 条 L01 公共真实链路当前主线重跑已通过，PR #198 阶段一待合；全功能/异常下限尚未达标）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF06](../../v04-bills/spec.md)
-Blocked by: [02覆盖与数据](02-coverage-and-fixtures.md)、[03](03-public-summary.md)/[04](04-anomalies.md)/[05](05-report-export.md)各对应路径；逐路径就绪即验证，不等全写完
+Blocked by: 核心 L01/L02/L03 模块均已合并；后续本票仍需为 L02、L03 和其余错误类型补场景满足每子功能≥10/每类异常≥3；真实 L02 准入依赖 #188/#187/#190 联调；真人专业验收不由本票代签。
 Verification: 冻结规则逐项映射；每功能>=10、每类异常>=3并消除缺口；Passed/Failed/Blocked分别报告，原始JSON.gz/sha256归档。
 
 ## 验收
@@ -46,3 +46,7 @@ Verification: 冻结规则逐项映射；每功能>=10、每类异常>=3并消�
 - 最终归档远端 [0c06511e9470102216e78df5b83f3dc79c2a5c82](https://github.com/DrErwin/hackerthon-bank-agent/commit/0c06511e9470102216e78df5b83f3dc79c2a5c82) 已推送到 `test/bills/public-business-evidence-06`，与本地归档同树、同实际受测源码父提交。根执行者再次逐一独立对照 115 份 Git 源码，归档保持可追溯。
 - 115 份源码、44 个实际 app 模块、33 条公共响应与 17 份银行不变证明齐全；原 6 份证据字节未变。17 项断言全部 passed，最终业务状态为 **13 succeeded / 2 正确拒绝 failed / 1 waiting_input / 1 cancelled**。这是包含首批 14 的完整新版复跑，不能累计为 31 场景；67 项目录回归为既有 50 加本轮 17，也不与 147 项算术/工具合跑相加。
 - 票 06 仍为 `in_progress` / `overall_status=partial`。每子功能 ≥10、每类异常 ≥3 的整体门槛、更多 L01 复杂范围/比较/边界及错误变体仍需补覆盖；这些是自有用例缺口。受测 L01 版本的 7 条路径依赖保留在原始报告，票 07 的另层 HTTP 结果单独认定。
+
+### 2026-10-20 晚新主线实跑与 PR 提审
+
+[PR #198](https://github.com/DrErwin/hackerthon-bank-agent/pull/198) 正式提交了只在 `evals/bills/` 的 17 条公共 L01 自动化。固定源码 `c2e8f3ea2949c32bf4526b426f647e6c03f69f5c` 在 [GitHub Actions #39425788637](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39425788637) **17/17 passed、0 failed**，133份真实源文件核验、44个真实模块导入、17例资金不变检查；[原始 gzip 和 SHA256](https://github.com/DrErwin/hackerthon-bank-agent/blob/a13234205b79f54ab630da8ce66f35076e5a4ec1/evals/bills/run-log-public-06.md) 已上传。最新 PR head [CI #39426994398](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426994398) **967 backend +14 MockBank passed**。这是对当前合并基线的新实跑，不是复用历史证据。**仍为 phase1 partial**；BF01—BF07 与数量下限不能由 17 条直接推定全通过。
