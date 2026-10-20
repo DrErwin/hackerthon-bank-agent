@@ -4,6 +4,9 @@ python evals/bills/run_business_evidence.py --revision <published 40-character S
 Requires the complete source checkout, including real package initializers,
 bank seeds, contracts, Harness, security and the declared test-wiring helper.
 There is no file-slice or dependency-stub fallback for this business tier.
+Text sources are UTF-8; CRLF is normalized to LF before Git blob and SHA256
+comparison, so a Windows core.autocrlf=true checkout reproduces the same digests
+as an LF checkout.
 """
 from __future__ import annotations
 
@@ -70,6 +73,12 @@ def is_source(path):
                  or path.startswith("evals/bills/") and "/evidence/" not in path))
 
 
+def canonical_bytes(raw):
+    # Decode to fail on corruption; do NOT strip whitespace or normalize Unicode.
+    raw.decode("utf-8")
+    return raw.replace(b"\r\n", b"\n")
+
+
 def verify_sources(revision, *, root=ROOT):
     if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
         raise ValueError("use an exact published 40-character source commit")
@@ -99,11 +108,33 @@ def verify_sources(revision, *, root=ROOT):
         if file.is_symlink():
             raise ValueError(f"source cannot be replaced with a symlink: {path}")
         raw = file.read_bytes()
-        actual_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+        data = canonical_bytes(raw)
+        actual_blob = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
         if actual_blob != blob:
             raise ValueError(f"working source differs from tested Git blob: {path}")
-        sources[path] = {"git_blob_sha": blob, "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+        sources[path] = {"git_blob_sha": blob, "sha256": hashlib.sha256(data).hexdigest(),
+                         "bytes": len(data), "worktree_sha256": hashlib.sha256(raw).hexdigest(),
+                         "worktree_bytes": len(raw), "crlf_normalized": b"\r\n" in raw}
     return git("rev-parse", f"{revision}^{{tree}}", root=root).decode().strip(), sources
+
+
+def validate_case_table(cases):
+    header, rows = None, []
+    for line in (DIRECTORY / "public-business-cases.md").read_text(encoding="utf-8").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if cells[0] == "编号":
+            header = cells
+        elif re.fullmatch(r"BILL-PUBLIC-\d{2}", cells[0]):
+            if len(cells) != 8:
+                raise ValueError(f"expected eight columns: {cells[0]}")
+            rows.append(cells[0])
+    if header is None or len(header) != 8:
+        raise ValueError("public case table must declare eight columns")
+    ids = [case["id"] for case in cases]
+    if rows != ids:
+        raise ValueError("public case table must list every manifest ID once in order")
 
 
 def validate_manifest():
@@ -112,6 +143,7 @@ def validate_manifest():
     expected_ids = {f"BILL-PUBLIC-{number:02}" for number in range(1, 18)}
     if len(cases) != 17 or {case["id"] for case in cases} != expected_ids:
         raise ValueError("phase 1 requires all 17 independent runtime scenarios exactly once")
+    validate_case_table(cases)
     definitions = {}
     for name in ("representative-cases.md", "expanded-cases.md"):
         definitions.update(case_definitions((DIRECTORY / name).read_text(encoding="utf-8")))
@@ -193,7 +225,7 @@ def main():
     started = utc_now()
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT / "backend"))
-    command = ["-q", "--rootdir", str(ROOT), TEST_PATH]
+    command = ["-q", "--rootdir", ".", TEST_PATH]
     exit_code = int(pytest.main(command, plugins=[plugin]))
     summary, samples = plugin.results()
     expected = {case["id"] for case in manifest["cases"]}
@@ -221,7 +253,10 @@ def main():
         "run_id": str(uuid4()), "tested_revision": args.revision, "tested_tree": tree,
         "source_commit_url": f"https://github.com/{REPOSITORY}/commit/{args.revision}",
         "source_verification": "git_object_verified_complete_business_sources",
-        "source_policy": "all tracked backend and evals/bills Python/JSON/SQL/TOML; byte-exact Git blobs; evidence files excluded",
+        "source_policy": "all tracked backend and evals/bills Python/JSON/SQL/TOML; UTF-8; CRLF normalized to LF before byte comparison; evidence files excluded",
+        "canonicalization": "UTF-8; CRLF to LF only",
+        "crlf_normalized": any(item["crlf_normalized"] for item in sources.values()),
+        "crlf_normalized_files": sum(item["crlf_normalized"] for item in sources.values()),
         "source_files": sources, "runtime_imports": imports,
         "runtime_sources_verified": not evidence_errors, "evidence_errors": evidence_errors,
         "package_initializers_verified": {path: sources[path] for path in (
