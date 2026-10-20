@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/05
 Type: 开发
 Owner: 周恩宇
 Directory: backend/app/modules/bills/
-Status: in_progress
+Status: resolved（L03 业务模块 #151 已合入；Erwin 平台票05阶段二 L03 默认运行时验收已通过，前端联合/专业安全另验）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF03/BF04/BF06](../../v04-bills/spec.md)
-Blocked by: [03公开统计](03-public-summary.md) 已有批准合入切片；报告自动落库、F21 及两层导出已在 [07](07-integration-evidence.md) 的显式评测 runtime 实跑。当前待 PR #151 审查/合入、默认运行时的生产 L03 登记与准入及对应联合验收。
+Blocked by: None（业务模块/真实 L03 API 报告主路径已通过阶段二）；前端账单插槽、BF01—BF07 全量及安全签核仍按票 07 / 联合验收包收口。
 Verification: 三块卡片、月均/范围完整性、分享不增权；卡片普通导出、明细验证成功/失败/过期/越权；资源生成和恢复有真实证据。
 
 ## 验收
@@ -32,3 +32,7 @@ Verification: 三块卡片、月均/范围完整性、分享不增权；卡片�
 - 最新远端 [f4e672e0d177f87b46239aea1e2ca5668f2e347f](https://github.com/DrErwin/hackerthon-bank-agent/commit/f4e672e0d177f87b46239aea1e2ca5668f2e347f) 基于新 main `cd7c91ad80652852bb10fef139c2442d756ef359`，Git 树为 `0e8122a0ec557fd146b5b3aeba161522acaf1b5e`。前序 97441e / CI 39221814575 的 746/14 作为当时版本证据保留。
 - 新 [CI 39223073629 / job 117962732134](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39223073629/job/117962732134) 已 success；根执行者核对日志为后端 **747 passed in 109.86s**，Mock Bank **14 passed in 0.43s**，没有沿用前序 746。
 - 后续 [07](07-integration-evidence.md) 在已发布组合及明确注入的评测 runtime 上完成 **7 个报告/导出 HTTP 场景通过**，实际贯通 L03 → 自动报告资源落库 → F21/F22/F23/F24 与银行验证。该 HTTP 层证据归票 07，不更改本票生产模块范围、不代表默认工厂/生产策略已准入，也不将其 87 个请求累加为模块测试数量。
+
+### 2026-10-20 晚 L03 实证结论
+
+Ethan 的 [PR #151](https://github.com/DrErwin/hackerthon-bank-agent/pull/151) 已合入 L03 报告模块。Erwin 的 [平台阶段二 PR #193](https://github.com/DrErwin/hackerthon-bank-agent/pull/193) 已合入，真实 `glm-5.3` 两次独立运行走通报告任务/恢复、`BillReport` 自动落库、F21 查询、F22/F24 普通卡片、验证后敏感 CSV 共18行，且金额与真实种子银行 B08 对账。**本票报告模块完成**，但不代替 L02 安全准入、React 账单页面和整包联合验收。
