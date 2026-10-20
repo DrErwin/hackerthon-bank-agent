@@ -74,7 +74,7 @@ python -m pytest -q app/modules/bills/
 - 新增 `BillsReportService.generate_report(trusted, GenerateReportInput)`：只在本人的 B01/B08 全量读取通过且生成 `SpendingSummary` 后返回冻结公共 `BillReport`；月均按 gross×30÷实际北京时间天数，最终舍入到整数分；本期不足、银行失败不生成假报告。
 - 新增独立 `REPORT_MANIFEST`（`bills.generate_report`，`GenerateReportInput` → `BillReport`）与 `register_bills_report(registry, reads_factory, clock)`：不能把 L03 简单追加到既有 `MANIFEST`，因为每次 `register_module` 会复用同一个 factory。该 L03 factory 使用 `BillsReportService` 和原有 scoped checkpoint 及账户/月度澄清；支持今年、去年和明确年度的账单范围，当前年度只统计至受信时钟。
 - 仅表达 `purpose=self_view|print|share_request`，**分享请求不授予第三方权限**；不在模块中保存验证码、生成敏感导出链接或代替 F22—F24 的审批/验证。
-- **尚需平台/安全工作线实际调用 `register_bills_report` 并将 L03 公共只读能力纳入正式审批清单**；生产聊天规划路由、真实报告落库、F21—F24 与前端联调均需另做真实验收。PR #151 模块级测试通过不等于 BF03/BF04 最终完成。
+- **平台注册与安全白名单已于 2026-10-20 完成**（平台 [PR #178](https://github.com/DrErwin/hackerthon-bank-agent/pull/178) squash `2791e40` 实际调用 `register_bills_report`；安全 [PR #184](https://github.com/DrErwin/hackerthon-bank-agent/pull/184) squash `3f9996c` 收录冻结声明、`policy_version=v04-local-demo-read-2`；**PM 代行、非 Ringo 本人审查**）：真实 L03 任务已可通过安全门并产出 `report_id`。**剩余**：真实报告落库 → F21 → F22/F24 验收、生产聊天规划路由与前端联调；PR #151 模块级测试通过不等于 BF03/BF04 最终完成。
 
 ## #136 票09：模块防重独立回归
 
