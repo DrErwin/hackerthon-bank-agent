@@ -13,6 +13,8 @@ from app.contracts.common import TaskStatus
 from app.contracts.platform import ModuleManifest, TrustedContext
 from app.contracts.tasks import InteractionRequest, ModuleResult
 from app.memory.adapter import MemoryAdapter
+from app.modules.bills.anomaly_entry import register_bills_anomalies
+from app.modules.bills.anomaly_manifest import ANOMALY_MANIFEST
 from app.modules.transfer.manifest import MANIFEST
 from app.storage.application import ApplicationStore
 
@@ -66,6 +68,35 @@ def test_bills_capabilities_register_alongside_transfer(tmp_path):
     transfer_entry = next(item for item in catalog
                           if item["name"] == "transfer.start_transfer")
     assert transfer_entry["input_schema_ref"] == "StartTransferInput"
+
+
+def test_anomaly_intent_routes_to_the_real_l02_registration(tmp_path):
+    """Issue #190: L02 uses the same public entry as L01/L03, so a message the
+    planner maps to bills.detect_anomalies creates one task under the real
+    ANOMALY_MANIFEST instead of the contract-shaped bills stub."""
+    application = ApplicationStore(tmp_path / "app.sqlite")
+    memory = MemoryAdapter(application, active_round=lambda: "D1")
+    registry = CapabilityRegistry()
+    registry.register_transfer(MANIFEST, lambda _trusted, _saver, _trace: None)
+    # The first turn only asks for the anomaly mode; no bank read is needed to
+    # prove that routing reaches the real L02 entry and creates its task.
+    register_bills_anomalies(registry, lambda _trusted, _trace: None,
+                             lambda: datetime.now(timezone.utc))
+    planner = BillsPlanner(TransferProposal(capability_name="bills.detect_anomalies"))
+    harness = AgentHarness(application, memory, AuditJournal(application.path), registry,
+                           planner, lambda *_: True)
+    at = datetime.now(timezone.utc)
+    application.create_session("S1", "U1", "D1", at.isoformat(),
+                               (at + timedelta(days=1)).isoformat())
+
+    result = harness.start(trusted(), uuid4(), "帮我看看账单有没有异常")
+
+    assert result.status == TaskStatus.WAITING_INPUT, result
+    assert planner.calls == 1
+    assert "bills.detect_anomalies" in {item["name"] for item in planner.catalogs[0]}
+    task = application.get_task("U1", "D1", "T1")
+    assert task.snapshot["capability_name"] == "bills.detect_anomalies"
+    assert harness.registry.get("bills.detect_anomalies").manifest is ANOMALY_MANIFEST
 
 
 def test_bill_intent_routes_to_the_registered_bills_stub(tmp_path):
