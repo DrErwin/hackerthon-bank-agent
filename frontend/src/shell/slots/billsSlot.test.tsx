@@ -180,7 +180,7 @@ describe("bills slot", () => {
       }],
       checks: [
         { rule_id: 2, status: "evaluated", reason: null },
-        { rule_id: 4, status: "insufficient_data", reason: "缺少渠道字段" },
+        { rule_id: 4, status: "insufficient_data", reason: "merchant_identity_missing" },
       ],
       as_of: "2026-10-19T08:00:00+08:00",
     };
@@ -188,7 +188,7 @@ describe("bills slot", () => {
     expect(anomalyView?.title).toBe("有需要留意的账单");
     expect(anomalyView?.fields.some((field) => field.value_text === "同一商户当天出现两笔相同金额")).toBe(true);
     expect(anomalyView?.fields.some((field) => field.value_text === "请对照银行卡账单再看一眼")).toBe(true);
-    expect(anomalyView?.fields.some((field) => field.value_text === "缺少渠道字段")).toBe(true);
+    expect(anomalyView?.fields.some((field) => field.value_text === "缺少商户信息")).toBe(true);
 
     const clear: AnomalyResult = { ...anomaly, findings: [], checks: [{ rule_id: 1, status: "evaluated", reason: null }] };
     expect(billsSlot.result?.(task("succeeded", clear))?.title).toBe("没有发现需要留意的交易");

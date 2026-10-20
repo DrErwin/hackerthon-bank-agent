@@ -25,15 +25,38 @@ const CATEGORY_LABEL: Record<Category, string> = {
   other: "其他",
 };
 
-const DIRECTION_LABEL: Record<Transaction["direction"], string> = {
-  inflow: "收入",
-  outflow: "支出",
+const NATURE_LABEL: Record<Transaction["nature"], string> = {
+  consumption: "消费",
+  transfer: "转账",
+  refund: "退款",
+  interest: "利息",
 };
 
 const ATTENTION_LABEL: Record<AnomalyResult["findings"][number]["attention"], string> = {
   notice: "提示",
   high_attention: "重点提示",
 };
+
+// The contract exposes machine codes for insufficient checks; the card maps the
+// known codes and never attributes the gap to the bank.
+const REASON_LABEL: Record<string, string> = {
+  insufficient_facts: "缺少判断依据",
+  lookback_incomplete: "缺少三个月历史流水",
+  trusted_family_status_required: "本人转账关系未确认",
+  counterparty_or_lookback_missing: "缺少对手方或历史流水",
+  amount_baseline_missing: "缺少金额参照",
+  timezone_missing: "缺少交易时间",
+  periodic_history_incomplete: "缺少连续扣款历史",
+  merchant_identity_missing: "缺少商户信息",
+};
+
+function reasonLabel(reason: string | null): string {
+  return reason && REASON_LABEL[reason] ? REASON_LABEL[reason] : "这次没能核对";
+}
+
+function signedYuan(fen: number): string {
+  return fen < 0 ? "-¥" + (-fen / 100).toFixed(2) : "¥" + (fen / 100).toFixed(2);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -127,8 +150,8 @@ function comparisonFields(summary: SpendingSummary): DisplayField[] {
   if (!comparison) return [];
   const fields: DisplayField[] = [
     { name: "comparison-scope", label: "对比范围", value_text: rangeLabel(comparison.scope) },
-    { name: "comparison-net", label: "对比净额", value_text: yuan(comparison.consumption_net_fen) },
-    { name: "comparison-delta", label: "净额变化", value_text: yuan(comparison.delta_fen) },
+    { name: "comparison-net", label: "对比净额", value_text: signedYuan(comparison.consumption_net_fen) },
+    { name: "comparison-delta", label: "净额变化", value_text: signedYuan(comparison.delta_fen) },
   ];
   if (typeof comparison.change_bps === "number") {
     fields.push({ name: "comparison-change", label: "变化幅度", value_text: shareText(comparison.change_bps) });
@@ -158,12 +181,13 @@ function overviewFields(summary: SpendingSummary): DisplayField[] {
 }
 
 function transactionField(item: Transaction): DisplayField {
-  const parts = [
-    yuan(item.amount_fen),
-    DIRECTION_LABEL[item.direction] ?? item.direction,
-    categoryLabel(item.category),
-    timeLabel(item.occurred_at),
-  ];
+  const nature = NATURE_LABEL[item.nature] ?? item.nature;
+  const category = categoryLabel(item.category);
+  // Transfer rows carry category "transfer" too; keep the row readable without
+  // repeating the same word twice.
+  const parts = [yuan(item.amount_fen), nature];
+  if (nature !== category) parts.push(category);
+  parts.push(timeLabel(item.occurred_at));
   if (item.counterparty_account_masked) parts.push(item.counterparty_account_masked);
   if (item.summary) parts.push(item.summary);
   return { name: item.transaction_id, label: item.counterparty_name, value_text: parts.join(" · ") };
@@ -173,7 +197,7 @@ function summaryView(data: SpendingSummary): ResultView {
   return {
     tone: "success",
     title: "消费汇总",
-    headline: yuan(data.consumption_net_fen),
+    headline: signedYuan(data.consumption_net_fen),
     fields: overviewFields(data),
   };
 }
@@ -219,7 +243,7 @@ function anomalyView(data: AnomalyResult): ResultView {
     fields.push({
       name: "check-" + check.rule_id,
       label: "规则 " + check.rule_id + " 数据不足",
-      value_text: check.reason ?? "银行没有返回原因",
+      value_text: reasonLabel(check.reason),
     });
   }
   return {
@@ -271,7 +295,7 @@ function report(task: ShellTask): ReportView | null {
   return {
     title: "账单报告",
     periodLabel: rangeLabel(data.scope),
-    headline: { label: "消费净额", value: yuan(data.summary.consumption_net_fen) },
+    headline: { label: "消费净额", value: signedYuan(data.summary.consumption_net_fen) },
     fields,
     note: data.spoken_summary,
   };
