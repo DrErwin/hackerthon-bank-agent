@@ -1,12 +1,14 @@
 # security —— 安全底座
 
-## 2026-10-20 L02 准入增量（Issue #187）
+## 2026-10-20：L02 与订阅敏感边界补充
 
-依据 main d133f376 的 PM 决定，新增安全目录持有的 bills.detect_anomalies 固定声明，取值来自已合入 PR #183 的 ANOMALY_MANIFEST，代码逐字段抄录并与业务对象分离。当前演示用户在服务端当前轮次可使用既有 bills.read 读取，策略版本升为 v04-local-demo-read-3。权限集合、私有工具白名单及风险分类保持原值，声明漂移和未知能力继续拒绝；L01/L03 保留原行为。
+`bills.detect_anomalies` 按 Issue #187 以安全侧独立快照收录，继续使用 `bills.read`、只读重试和本人当前轮次作用域。未知账单能力、声明漂移及越权作用域仍默认拒绝。
 
-本增量只完成安全准入，平台 local_demo 注册由 Erwin 按 Issue #123 交付，两项合入并联调后才可记 L02 真实可用。测试使用显式注册及脚本规划器，真实模型调用为零。Ringo 侧 Codex 辅助实施与 AI 审查单独留痕，真人签核仍待记录。验证与首次断言修订见 [L02 安全记录](l02-security-review-2026-10-20.md)。
+Issue #191 将公开退订能力及私有银行退订工具统一按 `SENSITIVE` 复核。普通退订仍沿用已定的按钮确认和会话级基础验证；放行时必须生成脱敏授权快照，快照写入失败返回 `PAUSE/AUDIT_UNAVAILABLE`。订阅读取能力保持 `READ`，不生成授权快照。策略版本按主线 `v04-local-demo-read-N` 序列升为 `v04-local-demo-read-4`（本次变更：转账 6 条、订阅 6 条共 12 条声明改为安全侧独立冻结副本，与业务模块声明全字段全等比较）。
 
-下文 L03 的 L02 拒绝及 v04-local-demo-read-2 是该次历史切片。审计最小化缺口 #145 已由 PR #171 修复，安全侧当前严格专项通过；历史原文泄露报告保留用于对照。
+本轮合并前复跑：`app/security` 288 passed、`evals/subscription` 51 passed、后端全量 1145 passed。真实执行器回归证明授权快照先于银行处理器，快照失败时处理器零调用；真人签核、真实模型复跑及 CI 结果分别记录。
+
+2026-10-20补充：#164声明冻结重新整理为独立主线分支，保留#184已合的L03快照，转账与订阅预期从业务可变对象分离；未知能力仍默认拒绝。合并前复跑 `app/security` 288 passed、`evals/subscription` 51 passed、后端全量 1145 passed，范围及初始版本断言修订见[module-declaration-review-2026-10-19.md](module-declaration-review-2026-10-19.md)。原#165关闭但未合入；本独立分支由 PR #204 合入 main（合并记录：PM 代行、非 Ringo 本人审查；真人批准另记）。
 
 归属：安全（Ringo）。
 

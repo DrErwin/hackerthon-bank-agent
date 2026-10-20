@@ -15,9 +15,6 @@ from uuid import UUID
 from app.contracts.common import OperationLevel, RiskLevel
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
-from app.modules.subscription.manifest import MANIFEST as SUBSCRIPTION_MANIFEST
-from app.modules.subscription.reads import PRIVATE_TOOLS as SUBSCRIPTION_PRIVATE_TOOLS
-from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.services.mock_bank.verification import AdminContext
 from app.security.gate import RiskAssessment, RiskFactsUnavailable
 
@@ -98,6 +95,34 @@ RiskFactsResolver = Callable[
 CurrentDemoRound = Callable[[], str]
 
 
+_TRANSFER_CAPABILITIES = (
+    CapabilityDefinition(
+        name="transfer.start_transfer", input_schema_ref="StartTransferInput",
+        output_schema_ref="ModuleResult[TransferTaskView]", required_permissions=["transfer.start"],
+        operation_level=OperationLevel.MODIFY, side_effect=False, confirmation_policy="none",
+        timeout_ms=30_000, retry_policy="none", handler_ref="transfer.workflow.start",
+    ),
+)
+_TRANSFER_PRIVATE_TOOLS = (
+    *(CapabilityDefinition(
+        name=name, input_schema_ref=input_ref, output_schema_ref=output_ref,
+        required_permissions=["transfer.read"], operation_level=OperationLevel.READ,
+        side_effect=False, confirmation_policy="none", timeout_ms=4_000,
+        retry_policy="read_only", handler_ref="bank_gateway." + name.removeprefix("bank."),
+    ) for name, input_ref, output_ref in (
+        ("bank.list_accounts", "TrustedContext", "AccountList"),
+        ("bank.list_payees", "PayeeSearch", "PayeeList"),
+        ("bank.verify_payee", "PayeeInput", "PayeeVerification"),
+        ("bank.precheck_transfer", "TransferDraft", "TransferPrecheck"),
+    )),
+    CapabilityDefinition(
+        name="bank.submit_transfer", input_schema_ref="TransferDraft",
+        output_schema_ref="OperationResult[TransferReceipt]", required_permissions=["transfer.submit"],
+        operation_level=OperationLevel.SENSITIVE, side_effect=True, confirmation_policy="per_action",
+        timeout_ms=4_000, retry_policy="none", handler_ref="bank_gateway.submit_transfer",
+    ),
+)
+
 # Security-owned snapshots, deliberately independent of module declarations.
 # A new module release must not silently change the set of authorized tools.
 _BILLS_READ_TOOLS = tuple(CapabilityDefinition(
@@ -121,34 +146,70 @@ _BILLS_REPORT_CAPABILITY = CapabilityDefinition(
     operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
     timeout_ms=10_000, retry_policy="read_only", handler_ref="bills.generate_report",
 )
-_BILLS_READ_NAMES = frozenset(item.name for item in _BILLS_READ_TOOLS)
-
 _BILLS_ANOMALY_CAPABILITY = CapabilityDefinition(
     name="bills.detect_anomalies", input_schema_ref="DetectAnomaliesInput",
     output_schema_ref="AnomalyResult", required_permissions=["bills.read"],
     operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
     timeout_ms=10_000, retry_policy="read_only", handler_ref="bills.detect_anomalies",
 )
+_BILLS_READ_NAMES = frozenset(item.name for item in _BILLS_READ_TOOLS)
+
+
+_SUBSCRIPTION_CAPABILITIES = (
+    CapabilityDefinition(
+        name="subscription.list_subscriptions", input_schema_ref="SubscriptionListInput",
+        output_schema_ref="ModuleResult[SubscriptionTaskView]",
+        required_permissions=["subscription.read"], operation_level=OperationLevel.READ,
+        side_effect=False, confirmation_policy="none", timeout_ms=30_000,
+        retry_policy="read_only", handler_ref="subscription.list_subscriptions",
+    ),
+    CapabilityDefinition(
+        name="subscription.cancel_subscription", input_schema_ref="SubscriptionCancelInput",
+        output_schema_ref="ModuleResult[SubscriptionTaskView]",
+        required_permissions=["subscription.cancel"], operation_level=OperationLevel.SENSITIVE,
+        side_effect=True, confirmation_policy="per_action", timeout_ms=60_000,
+        retry_policy="none", handler_ref="subscription.cancel_subscription",
+    ),
+)
+_SUBSCRIPTION_PRIVATE_TOOLS = (
+    *(CapabilityDefinition(
+        name="subscription.bank." + name, input_schema_ref="subscription.reads." + input_ref,
+        output_schema_ref=output_ref, required_permissions=["subscription.read"],
+        operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
+        timeout_ms=10_000, retry_policy="read_only", handler_ref="subscription.bank." + name,
+    ) for name, input_ref, output_ref in (
+        ("list_accounts", "AccountsReadInput", "AccountList"),
+        ("list_subscriptions", "MandatesReadInput", "SubscriptionMandateList"),
+        ("list_transactions", "TransactionsReadInput", "TransactionList"),
+    )),
+    CapabilityDefinition(
+        name="subscription.bank.cancel_subscription", input_schema_ref="subscription.reads.CancelWriteInput",
+        output_schema_ref="OperationResult[SubscriptionCancelReceipt]",
+        required_permissions=["subscription.cancel"], operation_level=OperationLevel.SENSITIVE,
+        side_effect=True, confirmation_policy="per_action", timeout_ms=8_000,
+        retry_policy="none", handler_ref="subscription.bank.cancel_subscription",
+    ),
+)
 
 
 class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
-    policy_version = "v04-local-demo-read-3"
+    policy_version = "v04-local-demo-read-4"
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.
-    # Issue #177 adds the separate L03 report capability as a second frozen copy
-    # of its module release. Issue #187 adds the independent L02 snapshot.
-    # Scenario 05 adds its own read permission plus the single cancellation write.
+    # Issues #177 and #187 add separate frozen L03 and L02 declarations.
+    # Issue #191 classifies both subscription cancellation boundaries as
+    # sensitive so every allow decision must carry an authorization snapshot.
     _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read",
                               "subscription.read", "subscription.cancel"})
     _capabilities = {item.name: item for item in (
-        *MANIFEST.capabilities, _BILLS_READ_CAPABILITY, _BILLS_REPORT_CAPABILITY,
+        *_TRANSFER_CAPABILITIES, _BILLS_READ_CAPABILITY, _BILLS_REPORT_CAPABILITY,
         _BILLS_ANOMALY_CAPABILITY,
-        *SUBSCRIPTION_MANIFEST.capabilities)}
+        *_SUBSCRIPTION_CAPABILITIES)}
     _private_tools = {item.name: item for item in (
-        *PRIVATE_TOOLS, *_BILLS_READ_TOOLS, *SUBSCRIPTION_PRIVATE_TOOLS)}
+        *_TRANSFER_PRIVATE_TOOLS, *_BILLS_READ_TOOLS, *_SUBSCRIPTION_PRIVATE_TOOLS)}
 
     def __init__(
         self,
