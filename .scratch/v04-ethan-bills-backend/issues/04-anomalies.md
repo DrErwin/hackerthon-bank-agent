@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/04
 Type: 开发
 Owner: 周恩宇
 Directory: backend/app/modules/bills/
-Status: in_progress
+Status: resolved（L02 业务模块 #183 已合入；生产注册 #190、安全准入 #187/业务测试联动 #188 单列其它工作线）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF02/BF05/BF06](../../v04-bills/spec.md)
-Blocked by: 本轮模块修复及本分支全后端回归已完成；正式平台装配、生产安全准入和公共能力声明登记仍由对应工作线完成，等待队列与审查/合入。
+Blocked by: None（仅业务模块范围）；L02 默认真实运行时尚依赖平台 Issue #190/PR #192、安全 #187/PR #196、本人联动回归 #188/PR #197，未完成前不称已部署。
 Verification: locate候选不代选；single核对银行事实；scan仅规则4；OR条件分开、基线不足、亲属例外、夜间端点、月末/锚点/日期容差；不代冻结/取消。
 
 ## 验收
@@ -40,3 +40,7 @@ Verification: locate候选不代选；single核对银行事实；scan仅规则4�
 
 - 独立审查（AI、非真人，钉 head `7d9682a`）为「有条件可合」：P0=0、P1=2（`ZoneInfo` 未声明 `tzdata` 导致 Windows 无法收集、分支落后 main 20 个提交）、P2=14；`single` 规则 4 命中为唯一存活变异（真实测试缺口）。合入前两项 P1 与 P2-1/2/10/14 一并处理后，[PR #183](https://github.com/DrErwin/hackerthon-bank-agent/pull/183) squash **`7a8dd1e`** 合入 main；合并后在 main 上 `app/modules/bills` **316 passed**、后端全量 948 passed、mockbank 14 passed、CI 绿。审查与修复为 AI 代行（PM 授权），非作者真人复核。
 - **PM 2026-10-20 13:00 决定：L02 也接真实链路**。模块本身已完成；剩余两步在别的目录，不归本票：① 平台装配注册（`backend/app/agent_platform/local_demo.py` 调 `register_bills_anomalies`）；② 安全白名单（`backend/app/security/demo_policy.py` 按 #149/#164 口径写独立冻结快照，`policy_version` 再升位）。**两步未做前 L02 不进 `public_catalog()`、安全门仍拒绝，不得记作已可用。** 平台/安全侧实施与验收另记。
+
+### 2026-10-20 晚 最新合入结论
+
+[PR #183](https://github.com/DrErwin/hackerthon-bank-agent/pull/183) 已于 2026-10-20 squash 合入 main，Erwin 审查记录 L02 模块测试 316 passed / 后端 948 passed / MockBank 14 passed。**本票 L02 代码与模块级可复核测试交付完成**。默认运行时 `public_catalog` 仍依赖 Erwin 的 #190/PR #192，安全 `read-3` 白名单依赖 Ringo #187/PR #196，业务预期联动 #188 由 [PR #197](https://github.com/DrErwin/hackerthon-bank-agent/pull/197) 跟进；这些是跨线验收，不由本票越权修改。
