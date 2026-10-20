@@ -147,16 +147,20 @@ def test_production_policy_l02_admission_follows_frozen_policy_version():
 
     The v4 frozen implementation from #164/#191 keeps the reviewed L02 admission
     while moving every transfer and subscription declaration to frozen copies.
-    Unknown/unreviewed policy versions fail closed; L01/L03 stay admitted.
+    The v5 increment (#169) adds the trusted risk detector without changing the
+    declarations. Unknown/unreviewed policy versions fail closed; L01/L03 stay
+    admitted.
     """
     policy = _real_l02_policy()
     assert policy.authorize_capability(trusted(), MANIFEST.capabilities[0]) is True
     assert policy.authorize_capability(trusted(), REPORT_MANIFEST.capabilities[0]) is True
-    # Coordinated changeover: the v2 frozen policy denies L02; v3 (PR #196) and
-    # v4 (frozen declarations) admit only the reviewed, identical declaration.
+    # Coordinated changeover: the v2 frozen policy denies L02; v3 (PR #196),
+    # v4 (frozen declarations) and v5 (trusted risk detector, #169) admit only
+    # the reviewed, identical declaration.
     if policy.policy_version == "v04-local-demo-read-2":
         assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is False
-    elif policy.policy_version in {"v04-local-demo-read-3", "v04-local-demo-read-4"}:
+    elif policy.policy_version in {
+            "v04-local-demo-read-3", "v04-local-demo-read-4", "v04-local-demo-read-5"}:
         assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is True
     else:
         pytest.fail("unreviewed demo policy version: " + policy.policy_version)
