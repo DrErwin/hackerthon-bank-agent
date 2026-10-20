@@ -4,7 +4,7 @@ Ticket ID: v04-ethan-bills-backend/10
 Type: 返修
 Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Directory: backend/app/modules/bills/
-Status: in_progress
+Status: resolved（PR #171 审计最小证据已合入，Issue #145 已关闭；历史数据清理/专业签核属于其它负责人）
 Package: [v04-bills/packages/01-bills-backend：账单业务能力与评测](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人实施规格](../spec.md)
 Core scenarios: BF01/BF06 只读取数与可审计证据；不代替联合业务或专业安全验收
@@ -58,3 +58,7 @@ Source issue: [Issue #145](https://github.com/DrErwin/hackerthon-bank-agent/issu
 - 根执行者基于新 main 在本票真实分支受测源码 `1d572f4cf2d9fb02dbb26cfee4b35026dc0d98ac` 全后端实际得到 **701 passed in 126.08s**。先前 **699 passed / 1 failed** 留作历史，不再是现行外部阻断；历史 212 项合成验证不替代这一轮真实分支结果。
 - 最新远端 [e6caabe43b981257e58bb5b2905ecff4602daf70](https://github.com/DrErwin/hackerthon-bank-agent/commit/e6caabe43b981257e58bb5b2905ecff4602daf70) 已推送；与受测源码 Git 树均为 `8b96c29cff3a783b333533e9d1e1678d45952f32`，已逐一核对。等待 PR 队列与后续审查，未记录为已合入或关闭。
 - PR #153 只保护不透明引用，`parameters_sha256` 仍可能受数字掩码影响；这项边界保留，不因上游合入而改写成摘要保存完全正常。
+
+### 2026-10-20 晚最终完成记录
+
+[PR #171](https://github.com/DrErwin/hackerthon-bank-agent/pull/171) 已合入，Issue #145 已关闭；读取 started/finished 的新增 `audit_evidence` 不再落完整银行流水或余额。独立复查 SQLite 33个商户/摘要、39个银行引用等敏感内容命中0；后端 784+MockBank 14 passed。共享 AuditJournal 可能遮盖无盐哈希中的长数字，README 已按实际行为修正；历史已落盘审计记录如何迁移/清理及真人安全签核另归 Erwin/Ringo，不是本票未交付的模块修复。
