@@ -330,4 +330,3 @@ class DemoSecurityPolicy:
             rule_id="low-risk-evidence-required",
             policy_version=self.policy_version,
         )
-

@@ -107,4 +107,3 @@ def test_in_place_write_downgrade_stops_before_handler(tmp_path, monkeypatch, de
         assert not outcome.executed
         assert outcome.decision.decision == SecurityDecisionCode.BLOCK
         assert calls == []
-

@@ -97,4 +97,3 @@ def test_l03_whitelist_requires_the_server_current_round():
     current_round[0] = "next-round"
 
     assert not policy.authorize_capability(trusted(), DECLARATION)
-

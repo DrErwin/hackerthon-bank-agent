@@ -162,4 +162,3 @@ def test_real_admission_and_private_read_recheck_round_before_bank(tmp_path, iso
         assert env.bank_facts() == before and env.gateway.bank_writes == 0
     finally:
         env.close()
-
