@@ -52,3 +52,13 @@ def test_failed_check_causes_nonzero_exit(tmp_path, monkeypatch):
     assert adapter.run(output) == 1
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["whole_case_status_counts"] == {"Failed": 12}
+
+
+def test_observed_presentation_violation_is_not_hidden_by_partial_status(tmp_path, monkeypatch):
+    monkeypatch.setattr(adapter, "probe", lambda *args, **kwargs: {
+        "status": "Passed", "checks": {}, "presentation_checks": {"termination_explained": False}})
+    output = tmp_path / "wording.json"
+    assert adapter.run(output) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["status_counts"] == {"Passed": 12}
+    assert report["whole_case_status_counts"] == {"Failed": 12}

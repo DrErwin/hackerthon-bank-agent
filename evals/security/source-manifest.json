@@ -63,14 +63,14 @@
     }
   ],
   "counts": {
-    "main_cases": 137,
-    "baseline_main_cases": 137,
+    "main_cases": 138,
+    "baseline_main_cases": 138,
     "pending_rule": 0,
     "pending_spec": 0,
-    "parameter_instances": 294,
-    "baseline_parameter_instances": 294,
-    "planned_result_rows": 356,
-    "baseline_planned_rows": 356
+    "parameter_instances": 295,
+    "baseline_parameter_instances": 295,
+    "planned_result_rows": 357,
+    "baseline_planned_rows": 357
   },
   "group_counts": {
     "D": 10,
@@ -84,7 +84,7 @@
     "X": 10,
     "N": 10,
     "T": 15,
-    "P": 10
+    "P": 11
   },
   "smoke_case_ids": [
     "SEC-D-003",
@@ -123,19 +123,21 @@
     "v0.3优先普通转账公共安全；账单、联动及预约按对应版本排期接入",
     "历史基线攻击刺激为项目规则派生的合成样本；2026-10-19已追加五项公开来源的原创MAT参数，实际识别及间接入口补验仍待交付",
     "2026-10-19：v0.4新增15个规则分支，八组均达到10条数量下限，R06关联10个主用例；完整规则及运行状态仍须逐项验收，旧报告保持原分母。",
-    "2026-10-19 MAT参数由sidecar加载后追加v02；cases.jsonl原137个主用例及v01刺激保持，五参数新增11行。原137/289/345与更早批次均为历史，当前137/294/356，实际识别及缺失入口保持Blocked。"
+    "2026-10-19 MAT参数由sidecar加载后追加v02；cases.jsonl原137个主用例及v01刺激保持，五参数新增11行。原137/289/345与更早批次均为历史；2026-10-20补独立P011后当前为138/295/357，实际识别及缺失入口保持Blocked，整例结论以新报告为准。"
   ],
   "artifact_validation": {
-    "date": "2026-10-19",
+    "date": "2026-10-20",
     "case_ids_unique": true,
-    "markdown_jsonl_case_mapping": "137/137",
-    "planned_result_rows": 356,
+    "markdown_jsonl_case_mapping": "138/138",
+    "planned_result_rows": 357,
     "all_initial_results_unexecuted": true,
     "required_requirement_ids_covered": true,
     "csv_formula_payloads_encoded_as_text": true,
     "application_security_tests": "NOT_RUN_BY_THIS_DATASET_TICKET",
-    "source_git_blob_refs_verified": true,
-    "automation_implemented": false,
+    "source_git_blob_refs_verified": false,
+    "source_verification_note": "运行报告分别记录历史Git对象溯源及本地文件blob匹配；QA组合仓库不伪造来源提交对象",
+    "automation_implemented": true,
+    "automation_scope": "PARTIAL_OFFLINE_OBSERVATIONS",
     "complete_rule_branch_coverage": false,
     "material_parameters": 5,
     "material_execution": "PARTIAL_OFFLINE_PROBES_WITH_BLOCKED_DETECTION"
@@ -456,5 +458,15 @@
     "source_material": "attack-source-materials-2026-10-10.md",
     "source_issue": "#88 / #133",
     "status": "ADAPTED_WITH_PARTIAL_OFFLINE_PROBES_NOT_FULLY_VERIFIED"
+  },
+  "function_review_extension": {
+    "date": "2026-10-20",
+    "added_case_ids": [
+      "SEC-P-011"
+    ],
+    "reason": "逐功能复核补独立银行读失败及原任务恢复，区别于裁决追加和合法空账单",
+    "prior_counts": "137/294/356",
+    "current_counts": "138/295/357",
+    "historical_reports_unchanged": true
   }
 }

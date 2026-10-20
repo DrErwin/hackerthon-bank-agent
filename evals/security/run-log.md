@@ -77,6 +77,34 @@ SEC-T-003/004/005原话术及MAT-FRAUD-01各3轮，实际检测/终止专项12 P
 2026-10-19 PR #168合入后独立复验：18 Passed / 0 Failed，包含四条CSV失败复现全部转通过。retest_of为原final报告F07AC22730C35AAF，新报告036109E268DB504E，旧Failed保持。API来源main e43765a，本地后端组合be771bb的边界详见[导出证据说明](evidence/2026-10-19/export-README.md)。模型调用0次。
 
 2026-10-20 按独立审查要求补前置空白/制表符公式变体（' =1+1'、'\t+1'），公式型文本参数由4组扩为6组，runner共20项；20 Passed / 0 Failed，报告解压后sha256 7432C090946D2408C3，见[2026-10-20 证据说明](evidence/2026-10-20/README.md)。原18项retest（036109E2…）保持历史，未重写；平台夹具与真实账单L01至L03边界不变。
+
+## 2026-10-20 Ringo 离线收尾批次
+
+138主用例 / 295参数 / 357行。实际提供方基线8329dbec，待合安全组合及各执行提交见原始JSON；当前目录20 Passed / 12 Failed / 325 Blocked，12失败均指向#173提示语义。后端1041 Passed / 1 Failed另记#186，隔离通过不覆盖全量失败。107个主用例、166行有部分观察，组件通过仍保留整例缺口，模型调用0。
+
+| 正本 | 实际摘要 | 解压后JSON SHA256 |
+|---|---|---|
+| [2026-10-20-ringo-historical-main40-audit.json.gz](evidence/2026-10-20/2026-10-20-ringo-historical-main40-audit.json.gz) | Failed | `71A7B7F8093E9D680AF6F6892DAC76CFE1457D755A2B3B9A9C61EA75598111F2` |
+| [2026-10-20-ringo-candidate-b3a00b0-audit.json.gz](evidence/2026-10-20/2026-10-20-ringo-candidate-b3a00b0-audit.json.gz) | Passed | `056762F1525592141587FD8625AD0336228E4F683538C6F7CAF43250DC5022D1` |
+| [2026-10-20-ringo-historical-main40-detector.json.gz](evidence/2026-10-20/2026-10-20-ringo-historical-main40-detector.json.gz) | Passed 12; 整例{"Failed":12} | `51AED298EADFCB5F03E83BC3751FFE70D51C52DB9AB039AE1BA8B77EB0F7BF28` |
+| [2026-10-20-ringo-historical-composite-backend.json.gz](evidence/2026-10-20/2026-10-20-ringo-historical-composite-backend.json.gz) | Passed 1017 | `58C06B21855FC03795CA2997F42D747E0D9FBAC2FEAF7E0EC7C2C38DB59001FF` |
+| [2026-10-20-ringo-historical-composite-security.json.gz](evidence/2026-10-20/2026-10-20-ringo-historical-composite-security.json.gz) | Passed 122 | `0D0CC5D51BA9C6576927E8F01457470814FA4CF381250A967EF088E42567FEEB` |
+| [2026-10-20-ringo-historical-composite-catalog.json.gz](evidence/2026-10-20/2026-10-20-ringo-historical-composite-catalog.json.gz) | Passed 20 / Failed 16 / Blocked 321 | `195C7F5B5C91C0ECF492A52478EFC50BFB50D583AFD35678D76BBE08086D51C5` |
+| [2026-10-20-ringo-current-composite-backend.json.gz](evidence/2026-10-20/2026-10-20-ringo-current-composite-backend.json.gz) | Passed 1041 / Failed 1 | `656B827F3D5239F1789301430881F2B5FBF6E312C4DCCA05386F9A117A76D5C2` |
+| [2026-10-20-ringo-current-composite-security.json.gz](evidence/2026-10-20/2026-10-20-ringo-current-composite-security.json.gz) | Passed 136 | `CB2D84E0B1651FEDC77DDED77BAEEB1E4B9669B3E354B31D2A194157EF024778` |
+| [2026-10-20-ringo-current-composite-catalog.json.gz](evidence/2026-10-20/2026-10-20-ringo-current-composite-catalog.json.gz) | Passed 20 / Failed 12 / Blocked 325 | `8BC453C719D56641A6C5A1F4F0DC8B4B3D27D9924675EA7C0C66F55027651F05` |
+| [2026-10-20-ringo-backend-isolated-retests.json.gz](evidence/2026-10-20/2026-10-20-ringo-backend-isolated-retests.json.gz) | 两轮各1 Passed，原全量失败保留 | `084259C1DC744B9915FA6BA0306326E579E54ECC5D03807E54AB33A9D237030E` |
+| [2026-10-20-ringo-current-detector-terminal.json.gz](evidence/2026-10-20/2026-10-20-ringo-current-detector-terminal.json.gz) | Passed 12; 整例{"Failed":12} | `2EFE77B4D25C9A8245CB79E7DE804D88A44901E029B1B4141E73DD29A2D6B988` |
+| [2026-10-20-ringo-provider-fixes-retest.json.gz](evidence/2026-10-20/2026-10-20-ringo-provider-fixes-retest.json.gz) | Blocked 3 / NotRun 354 | `A41E480325C081C4016B0B7352B950E6F2385E76996E854BCEEF54EA4B975887` |
+| [2026-10-20-ringo-merged-audit-minimum.json.gz](evidence/2026-10-20/2026-10-20-ringo-merged-audit-minimum.json.gz) | Passed | `ADA83844EFA65D4EA9843FCAB7E9462FF9A58DDCD87CCEB05D372D1EB8E3DCB7` |
+| [2026-10-20-ringo-export20-merged.json.gz](evidence/2026-10-20/2026-10-20-ringo-export20-merged.json.gz) | Passed 20 | `4653846AD0729BD2FA0F1DF242033FE0DCB05378BA51D515E3FCCF2CBE9921A1` |
+| [2026-10-20-ringo-independent-l03-76.json.gz](evidence/2026-10-20/2026-10-20-ringo-independent-l03-76.json.gz) | Passed 76 | `A6B82F477C8158A3F21D7EF7762A7FC14716A6A210ACD45D568B64A276380FBF` |
+| [2026-10-20-ringo-audit-authorisation-retest.json.gz](evidence/2026-10-20/2026-10-20-ringo-audit-authorisation-retest.json.gz) | Blocked 5 / NotRun 352 | `E490A62BAA2A8660E13A463BA829AEDF20BCAE6D1B17DE49AEE2F9175CA89FE3` |
+| [2026-10-20-ringo-function-readiness.json.gz](evidence/2026-10-20/2026-10-20-ringo-function-readiness.json.gz) | 12功能族已登记；29验收条目数量未满足 | `D197B7AC8D2C615BDA002A4E7ADE1F015F47888E4042D58C2445627D5D6D1BB0` |
+| [2026-10-20-ringo-source-snapshot.json.gz](evidence/2026-10-20/2026-10-20-ringo-source-snapshot.json.gz) | 15提供方blob匹配，147源文件SHA256 | `A6DB2A442628F18A21AC2F750AB6EAAC30B866D46906DB09A649BDB420678323` |
+
+压缩文件哈希及完整索引见[evidence目录索引](evidence/2026-10-20/2026-10-20-ringo-offline-index.json)。历史40a61c3失败、b3a00b0候选与已合修复复验分开。首次目录组件超时及GBK告警保留，后续修复/复跑另列，未改写原结果。两轴AI复核至0c48d60均0遗留，非真人签核。新主线#184已完成#177，独立L03分支作为交叉证据；声明冻结#164的当前主线整理与#169重基专项报告作为本批补充，不混进上述357行分母。
+
 ## 2026-10-21 票 05 主入口替换后的 React 证据复跑（AI 代执行）
 
 | 日期 | 入口 | 范围 | 状态分布 | 限制 | 报告文件（解压后sha256前16位） |

@@ -15,7 +15,7 @@ def test_five_mandatory_parameters_keep_original_and_recompute_denominators():
     materials = [case["material_parameters"][2] for case in cases]
     assert {item["material_id"] for item in materials} == {
         "MAT-VFY16-01", "MAT-VFY16-02", "MAT-VFY16-03", "MAT-VFY16-04", "MAT-FRAUD-01"}
-    assert (len(catalog.cases), catalog.parameter_instances, catalog.planned_rows) == (137, 294, 356)
+    assert (len(catalog.cases), catalog.parameter_instances, catalog.planned_rows) == (138, 295, 357)
     plan = expand_plan_rows(catalog.cases, catalog.template_rows)
     assert sum(row["variant_id"].endswith("/v02") and row["case_id"] in {case["id"] for case in cases}
                for row in plan) == 11
