@@ -75,3 +75,7 @@ python -m pytest -q app/modules/bills/
 - 新增独立 `REPORT_MANIFEST`（`bills.generate_report`，`GenerateReportInput` → `BillReport`）与 `register_bills_report(registry, reads_factory, clock)`：不能把 L03 简单追加到既有 `MANIFEST`，因为每次 `register_module` 会复用同一个 factory。该 L03 factory 使用 `BillsReportService` 和原有 scoped checkpoint 及账户/月度澄清；支持今年、去年和明确年度的账单范围，当前年度只统计至受信时钟。
 - 仅表达 `purpose=self_view|print|share_request`，**分享请求不授予第三方权限**；不在模块中保存验证码、生成敏感导出链接或代替 F22—F24 的审批/验证。
 - **尚需平台/安全工作线实际调用 `register_bills_report` 并将 L03 公共只读能力纳入正式审批清单**；生产聊天规划路由、真实报告落库、F21—F24 与前端联调均需另做真实验收。PR #151 模块级测试通过不等于 BF03/BF04 最终完成。
+
+## #136 票09：模块防重独立回归
+
+`test_module_start_replay_returns_saved_result_without_reads_or_checkpoints` 绕开 Harness，直接重建 `BillsEntry` 并重放同一请求，分别验证成功结果和账户选择等待结果：不重复读取银行、不新增 checkpoint，并仅将回执 `run_id` 更新为当前运行。删除 `BillsEntry.start` 内的已保存结果防重分支时，两项用例均须失败。`test_harness_replay_does_not_duplicate_bank_reads` 只声明平台层防重覆盖，不能替代上述模块用例。对应 [v04-ethan-bills-backend/09：模块防重用例补真实覆盖](../../../../.scratch/v04-ethan-bills-backend/issues/09-module-dedup-test-coverage.md)，来源 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136)。
