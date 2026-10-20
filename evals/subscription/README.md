@@ -1,8 +1,8 @@
 # 场景 05 订阅代扣评测集（v0.4 · 完整验收集）
 
-票 [`v04-subscription/10`](../../.scratch/v04-subscription/issues/10-full-eval-coverage.md) 的**完整验收集**：在票 [`07`](../../.scratch/v04-subscription/issues/07-subscription-evals.md) 的 17 条主路径黄金用例上补齐到 **48 条**，逐条覆盖 PRD [`05-订阅代扣管理`](../../docs/prd/05-订阅代扣管理-PRD-2026-10-19.md) 的 T01–T17 与 E01–E12 的全部适用分支。逐条 8 字段见 [`cases.md`](cases.md)；机器可读期望的正本是 [`golden_cases.json`](golden_cases.json)，测试逐条断言，二者不得脱节。
+票 [`v04-subscription/10`](../../.scratch/v04-subscription/issues/10-full-eval-coverage.md) 的**完整验收集**：在票 [`07`](../../.scratch/v04-subscription/issues/07-subscription-evals.md) 的 17 条主路径黄金用例上补齐到 48 条，逐条覆盖 PRD [`05-订阅代扣管理`](../../docs/prd/05-订阅代扣管理-PRD-2026-10-19.md) 的 T01–T17 与 E01–E12 的全部适用分支；票 [`12`](../../.scratch/v04-subscription/issues/12-cancel-snapshot-evals.md)（Issue #189）再补写前快照断言与三条失败注入用例（快照构造失败、开始日志失败、敏感裁决持久化失败），现 **51 条**。逐条 8 字段见 [`cases.md`](cases.md)；机器可读期望的正本是 [`golden_cases.json`](golden_cases.json)，测试逐条断言，二者不得脱节。
 
-> **运行前提**：基座须包含票 [`09`](../../.scratch/v04-subscription/issues/09-cancel-refusal-and-unknown-recovery.md)（PRD T05/E06/E09 的如实回执与待核实回查）与票 08 审计脱敏修复（`f202e5d`）。不含票 09 的提交上 `SUB-CAN-12/13/14/18/19` 会按预期变红。
+> **运行前提**：基座须包含票 [`09`](../../.scratch/v04-subscription/issues/09-cancel-refusal-and-unknown-recovery.md)（PRD T05/E06/E09 的如实回执与待核实回查）、票 08 审计脱敏修复（`f202e5d`）与票 [`11`](../../.scratch/v04-subscription/issues/11-cancel-sensitive-declaration.md)（退订声明 `OperationLevel.SENSITIVE`，写前快照才产生）。不含票 09 的提交上 `SUB-CAN-12/13/14/18/19` 会按预期变红；不含票 11 的提交上 `SUB-SEC-01/03/04` 的快照断言会变红（`SUB-SEC-05` 验证的是裁决落盘失败零提交，与操作等级无关）。安全目录的订阅冻结副本需同步为 `SENSITIVE`（[Issue #191](https://github.com/DrErwin/hackerthon-bank-agent/issues/191)，与 #164 同窗口），否则 `#164` 合入后真实链路会被安全门拒绝。
 
 - 运行层次：**平台运行时** —— 真实 `MockBankService`（B29/B30 与签约、流水种子）、真实 `SecurityGate` + `DeterministicExecutor`、真实 `AuditJournal`/存储、真实 `DemoSecurityPolicy`、模块自身 checkpoint 状态机。
 - 唯一替身：**模型入口**（`harness.RoutedPlanner` 直接给出目标 capability）。本集不评模型理解力，真实 GLM 的意图路由另计。
@@ -10,7 +10,7 @@
 - 用例按主题分三个文件，共用 `golden_cases.json` 与 `harness.py`，断言口径一致：
   - [`test_subscription_evals.py`](test_subscription_evals.py)：主路径、失败与恢复、三条红线、观测项（22 条）；
   - [`test_subscription_read_evals.py`](test_subscription_read_evals.py)：清单、提醒、数据不足、隔离与注入（12 条）；
-  - [`test_subscription_cancel_evals.py`](test_subscription_cancel_evals.py)：消歧、验证边界、幂等、审计与脱敏（14 条）。
+  - [`test_subscription_cancel_evals.py`](test_subscription_cancel_evals.py)：消歧、验证边界、幂等、审计与脱敏、写前快照失败分支（17 条）。
 
 ## 1. 怎样跑
 
@@ -19,7 +19,7 @@ $env:PYTHONPATH = "<仓库副本>\backend"   # 可选：conftest.py 已把本检
 $env:PYTHONIOENCODING = "utf-8"
 cd <仓库副本>
 
-# 全量评测（48 条）
+# 全量评测（51 条）
 python -m pytest evals/subscription -q
 
 # 单条用例
@@ -62,7 +62,7 @@ python -m pytest evals/subscription -q
 | 跨用户（E11/T16；§5.4） | SUB-INV-07 | SUB-INV-07 | — | — | SUB-INV-07 | 拒绝话术属规划层（§8） |
 | 话术红线（§2.3/§5.3；PRD §五） | SUB-RED-03 | SUB-RED-03 | — | SUB-RED-03 | SUB-RED-03 | 只覆盖后端可见文本，前端渲染与语音播报另计 |
 | 确认门红线 | SUB-RED-01 | SUB-RED-01 | SUB-RED-01 | SUB-CAN-07 | SUB-CAN-13 | — |
-| 审计链路（§5.10） | SUB-SEC-01、SUB-OBS-03 | — | — | — | — | 写前 AuthorizationSnapshot 只在 SENSITIVE 动作产生，而退订在 spec/契约声明为 MODIFY（见 §8）；审计规则验收归安全侧 |
+| 审计链路与写前快照（§5.10；PRD §五第 10 项） | SUB-SEC-01、SUB-OBS-03 | — | — | SUB-SEC-03（快照失败零提交）、SUB-SEC-04（开始日志失败零提交）、SUB-SEC-05（敏感裁决持久化失败零提交） | — | 写前快照已由 SUB-SEC-01 断言（落盘、确认/验证/操作绑定、先于 tool.started，快照证据脱敏）；失败分支只保证零银行提交，暂停语义见 §8；审计规则验收归安全侧 |
 | 脱敏与数据最小化（§5.6） | SUB-SEC-02、SUB-INV-09 | — | — | — | SUB-SEC-02 | — |
 | 首启稳定性与终止任务重复读取（票 05/08 观测项） | SUB-OBS-01、SUB-OBS-02、SUB-OBS-03 | — | — | SUB-OBS-02 | — | 底座修复属票 08 PR |
 
@@ -130,7 +130,7 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | 业务模块 | 真实 `SubscriptionEntry` 状态机与 checkpointer；单测里的 `FakeGate`/`FakeBank` 均未使用 |
 | 审计与存储 | 真实 `AuditJournal`、`ApplicationStore`、`tool_operations`/`security_executions` |
 | 时间 | 固定银行时钟 `2026-10-19 04:00Z`（北京 12:00），种子偏移与提醒窗口因此确定 |
-| 故障注入 | `harness` 用例注入属**前置状态**，不改银行规则与安全策略：`arm_cancel_timeout` 基于共享 `BankGateway` 的私有写超时预算（`_transfer_timeout_seconds`）+ 对 `MockBankService.cancel_subscription` 的延时包装，模拟「网关等待超时、银行后台仍在处理」；`fail_cancel_with` / `fail_mandates_query` 让银行返回指定错误码；`fake_failed_operation` 让 B14 回查返回银行判失败。均为同步替身，不 sleep 真实业务时长（仅短延时以越过注入的超时预算） |
+| 故障注入 | `harness` 用例注入属**前置状态**，不改银行规则与安全策略：`arm_cancel_timeout` 基于共享 `BankGateway` 的私有写超时预算（`_transfer_timeout_seconds`）+ 对 `MockBankService.cancel_subscription` 的延时包装，模拟「网关等待超时、银行后台仍在处理」；`fail_cancel_with` / `fail_mandates_query` 让银行返回指定错误码；`fake_failed_operation` 让 B14 回查返回银行判失败；`fail_authorization_snapshot` 让平台写前快照构造失败（gate 应 `PAUSE` 且不提交银行）；`fail_cancel_start_log` 让写动作 `tool.started` 落盘失败；`fail_cancel_security_decision` 让敏感 `allow` 裁决本身落盘失败（decision sink）。均为同步替身，不 sleep 真实业务时长（仅短延时以越过注入的超时预算） |
 
 ## 8. 未覆盖与 Blocked（如实）
 
@@ -144,5 +144,5 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | `reminder_days` / `status_filter` 参数化 | 平台入口（S01 逻辑入参）未接线，评测无法从用户请求传入 | 平台规划槽位 |
 | SOP-3「下一期异常需核实」标注 | 只实现「不猜日期」，标注文案未实现；`SUB-REM-04` 断言不猜半边 | 订阅模块后续 |
 | 关键内容变化后的平台确定性 | **已修复（Issue #176）**：此前同一用例（`SUB-CAN-11`）在 `PYTHONHASHSEED` 不同时收尾不同——一支重出确认单 v2（`waiting_approval:confirmation`），一支 `failed`/`SECURITY_REJECTED`（上游 `OPERATION_CONFLICT`）；根因是模块把参数哈希当动作修订号，随机撞上安全状态「新修订号必须更大」的判据。模块修复见 PR #179（单调修订号），本集断言已收紧为只接受 v2，不再作为缺口 | — |
-| 退订的写前 AuthorizationSnapshot | 取消订阅在 spec/契约中声明为 `OperationLevel.MODIFY`（二级），安全门只在 `SENSITIVE` 动作前写授权快照；PRD §5.10 称其为三级敏感操作，两处口径不一致。`SUB-SEC-01` 只断言审计链路与操作编号，不伪造快照断言 | 安全侧 / 契约口径（Ringo 与 Erwin 确认后再定） |
+| 快照/开始日志写入失败后的任务终态 | PRD §五第 10 项写「立即暂停」；当前订阅模块把快照失败（gate `PAUSE`/`AUDIT_UNAVAILABLE`）与开始日志失败落为 `failed`（`SECURITY_REJECTED` / `SUBSCRIPTION_INTERNAL_ERROR`），转账对 `PAUSE` 落可恢复 `NEEDS_ATTENTION`。本集已断言**零银行提交、协议不变**；是否要求可恢复暂停待 PM/安全侧裁定，不在评测里伪造状态 | 订阅模块 / 平台（另定） |
 | 真实 GLM 意图理解、前端渲染/语音播报、两进程并发同一退订 | 属真实模型 / 前端 / 并发评测 | v0.5 端到端 E2E 与安全评测 |

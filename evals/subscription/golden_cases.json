@@ -1914,7 +1914,27 @@
           ],
           "write_tool_events_have_operation_id": true,
           "allow_decision_has_operation_id": true,
-          "bank_observed": "found"
+          "bank_observed": "found",
+          "snapshot_every_execution_allow_has_ref": true,
+          "snapshot_confirmation_decision": "approved",
+          "snapshot_verification_scopes": [
+            "session"
+          ],
+          "snapshot_verification_methods": [
+            [
+              "code"
+            ]
+          ],
+          "snapshot_identity": [
+            "T1",
+            "U1"
+          ],
+          "snapshot_session_id": "S1",
+          "snapshot_demo_round_id": "D1",
+          "snapshot_has_parameter_evidence": true,
+          "snapshot_raw_account_probe": "A1",
+          "snapshot_masked_account": "****0001",
+          "snapshot_raw_account_present": false
         }
       }
     },
@@ -2235,6 +2255,173 @@
           "first_status": "needs_attention",
           "error_code": "BANK_REJECTED",
           "upstream_code": "BANK_UNAVAILABLE",
+          "cancel_operations": 0,
+          "mandate_status": "active"
+        }
+      }
+    },
+    {
+      "case_id": "SUB-SEC-03",
+      "ticket_case": "test_sub_eval_44_snapshot_write_failure_submits_nothing",
+      "scenario": "§5.10/审计",
+      "dimension": "写前快照失败零银行提交",
+      "source": "PRD §五第 10 项（写前 AuthorizationSnapshot 铁律：快照写入失败立即暂停、不得提交银行）；公共契约 §4.5；票 12",
+      "environment": "默认种子；确认与验证通过后，在提交银行前注入授权快照构造失败；clock=D 日 04:00Z",
+      "input": "把优酷视频自动扣费退了",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "failed"
+        ],
+        "final_status": "failed",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "basic_identity",
+          "scope": "session",
+          "required_methods": [
+            "code"
+          ],
+          "summary": "none",
+          "mock_face": false
+        },
+        "required_text": [
+          "没有通过安全检查",
+          "银行未收到解约请求"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签",
+          "已经退了",
+          "退订成功"
+        ],
+        "facts": {
+          "error_code": "SECURITY_REJECTED",
+          "error_source": "security",
+          "upstream_code": "AUDIT_UNAVAILABLE",
+          "gate_reason": "AUDIT_UNAVAILABLE",
+          "cancel_operations": 0,
+          "mandate_status": "active"
+        }
+      }
+    },
+    {
+      "case_id": "SUB-SEC-04",
+      "ticket_case": "test_sub_eval_45_start_log_failure_submits_nothing",
+      "scenario": "§5.10/审计",
+      "dimension": "开始日志失败零银行提交",
+      "source": "PRD §五第 10 项（开始日志或授权快照写入失败立即暂停、不得提交银行）；公共契约 §4.5；票 12",
+      "environment": "默认种子；确认与验证通过后，在写动作 tool.started 落盘时注入审计写入失败；clock=D 日 04:00Z",
+      "input": "把优酷视频自动扣费退了",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "failed"
+        ],
+        "final_status": "failed",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "basic_identity",
+          "scope": "session",
+          "required_methods": [
+            "code"
+          ],
+          "summary": "none",
+          "mock_face": false
+        },
+        "required_text": [
+          "订阅服务暂时不可用"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签",
+          "已经退了",
+          "退订成功"
+        ],
+        "facts": {
+          "final_status": "failed",
+          "error_code": "SUBSCRIPTION_INTERNAL_ERROR",
+          "error_source": "subscription",
+          "recovery_reason": null,
+          "cancel_operations": 0,
+          "mandate_status": "active"
+        }
+      }
+    },
+    {
+      "case_id": "SUB-SEC-05",
+      "ticket_case": "test_sub_eval_46_decision_persist_failure_submits_nothing",
+      "scenario": "§5.10/审计",
+      "dimension": "敏感裁决持久化失败零银行提交",
+      "source": "PRD §五第 10 项（必要授权与执行开始记录持久化失败就暂停、不得提交银行）；公共契约 §4.5 / §5.5；票 12",
+      "environment": "默认种子；确认与验证通过后，在持久化三级敏感 allow 裁决时注入审计写入失败；clock=D 日 04:00Z",
+      "input": "把优酷视频自动扣费退了",
+      "intent": "把优酷视频自动扣费退了",
+      "expected": {
+        "capability": "subscription.cancel_subscription",
+        "state_sequence": [
+          "waiting_approval:confirmation",
+          "waiting_approval:verification",
+          "failed"
+        ],
+        "final_status": "failed",
+        "interaction": null,
+        "bank_operations": 0,
+        "mandates": {
+          "sub_001": "active",
+          "sub_002": "active",
+          "sub_003": "cancelled"
+        },
+        "requires_confirmation": true,
+        "verification": {
+          "purpose": "basic_identity",
+          "scope": "session",
+          "required_methods": [
+            "code"
+          ],
+          "summary": "none",
+          "mock_face": false
+        },
+        "required_text": [
+          "没有通过安全检查",
+          "银行未收到解约请求"
+        ],
+        "forbidden_text": [
+          "会员可用至",
+          "还能用到",
+          "先退订再重新订阅",
+          "先解约再重签",
+          "已经退了",
+          "退订成功"
+        ],
+        "facts": {
+          "error_code": "SECURITY_REJECTED",
+          "error_source": "security",
+          "upstream_code": "AUDIT_UNAVAILABLE",
+          "persisted_allow_count": 0,
           "cancel_operations": 0,
           "mandate_status": "active"
         }
