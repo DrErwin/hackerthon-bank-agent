@@ -20,7 +20,7 @@ from app.contracts.bills import AnomalyResult, TransactionCandidates
 from app.modules.bills.anomaly_entry import register_bills_anomalies
 from app.modules.bills.anomaly_manifest import ANOMALY_MANIFEST
 from app.modules.bills.anomaly_service import minus_months
-from app.modules.bills.manifest import MANIFEST
+from app.modules.bills.manifest import MANIFEST, REPORT_MANIFEST
 from app.modules.bills.test_public_integration import BANK_NOW, END, START, Environment, trusted
 from app.security.demo_policy import DemoSecurityPolicy
 from app.services.bank_gateway.gateway import BankGateway
@@ -142,15 +142,16 @@ def _real_l02_policy():
                               risk_facts=lambda *_: None)
 
 
-def test_production_policy_admits_reviewed_l02_with_existing_l01_l03():
-    """#188: legitimate current-round L02 can be read after security #187."""
-    from app.modules.bills.manifest import REPORT_MANIFEST
+def test_production_policy_l02_admission_follows_frozen_policy_version():
+    """#188: v2 denies L02; after security #187's v3 it admits only reviewed L02.
 
+    Unknown/unreviewed policy versions fail closed; L01/L03 stay admitted.
+    """
     policy = _real_l02_policy()
     assert policy.authorize_capability(trusted(), MANIFEST.capabilities[0]) is True
     assert policy.authorize_capability(trusted(), REPORT_MANIFEST.capabilities[0]) is True
-    # Coordinated changeover: before #187, the v2 frozen policy must deny L02;
-    # once #187 is merged, the v3 frozen policy must admit only reviewed L02.
+    # Coordinated changeover: the v2 frozen policy denies L02; the v3 frozen
+    # policy from security PR #196 admits only the reviewed, identical declaration.
     if policy.policy_version == "v04-local-demo-read-2":
         assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is False
     elif policy.policy_version == "v04-local-demo-read-3":
@@ -162,6 +163,7 @@ def test_production_policy_admits_reviewed_l02_with_existing_l01_l03():
 @pytest.mark.parametrize("change", [
     {"handler_ref": "bills.unknown"},
     {"required_permissions": []},
+    {"required_permissions": ["bills.read", "transfer.submit"]},
     {"input_schema_ref": "UnknownInput"},
     {"name": "bills.unknown"},
 ])
