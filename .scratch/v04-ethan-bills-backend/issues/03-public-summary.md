@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/03
 Type: 开发
 Owner: 周恩宇
 Directory: backend/app/modules/bills/
-Status: in_progress（PR #131 批准的 L01 模块切片已合入；其余范围与联合验收逐路径记录）
+Status: resolved（L01 公共模块切片 #131 +返修 #140 已合入；阶段一真 GLM/银行路径已有票05证据；其余 BF 联合验收按票 06/07）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01/BF05/BF06](../../v04-bills/spec.md)
-Blocked by: B08 / 公共 L01 模型及 PR #131 合入依赖已解除；正式端到端和其余范围按平台 Issue #123、本人 06/07 及专业安全的实际证据分别验收，不再把 #131 未合入列为阻断。
+Blocked by: None（B08、公共 L01 模型与模块注册前置已解除；完整场景与浏览器/安全验收另由票 06/07、联合验收包判定）
 Verification: 注册L01；本人登录读取、跨用户拒绝、全部账户完整取数、自然语言澄清/修改/原任务恢复；HTTP/模型证据与纯算术分开。
 
 ## 验收
@@ -32,3 +32,7 @@ Verification: 注册L01；本人登录读取、跨用户拒绝、全部账户完
 - 已合入范围是批准的 `bills.summarize`、受控 B01/B08、原任务澄清/恢复及相应模块/接缝测试切片。本轮 [06](06-full-business-eval.md) 先在新主线真实注册 L01 路径执行 14 个公共场景，随后补三项就绪缺口并完整复跑新版 17 场景，证据另行归档，不累计成 31，也不以既有 591 项 CI 代替新运行。
 - 自定义/复杂范围、更多自然语言修改、各细分功能和错误覆盖仍按现行代码与对应评测逐项推进；本票保持 in_progress，不将批准切片合入扩写为全部高级范围、真实模型/页面或专业安全验收通过。
 - [08](08-l01-rework-consistency.md) 的 PR #140 历史返修已 resolved；其中合前 P2 为 PM 授权代行修复，原归属与代行记录保留，不算作本轮 Ethan 新做的修改。
+
+### 2026-10-20 L01 状态更新
+
+本人的 [PR #131](https://github.com/DrErwin/hackerthon-bank-agent/pull/131) 和 [#140](https://github.com/DrErwin/hackerthon-bank-agent/pull/140) 已合入；Erwin 在 [Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) 的平台票 05 阶段一核实真实 GLM→本人账单统计成功。本实施票按**L01 模块已完成**收口，不能推导 BF01—BF07 联合验收已接受。
