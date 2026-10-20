@@ -135,18 +135,51 @@ def test_real_scan_is_rule4_only_and_has_no_banking_side_effects(env):
     assert env.gateway.bank_writes == 0 and env.balances() == balances
 
 
-def test_production_policy_keeps_rejecting_the_unregistered_l02_capability():
-    """L02 must stay denied until security adds its own snapshot.
+def _real_l02_policy():
+    """Use the real frozen demo policy rather than a test allow-all callback."""
+    return DemoSecurityPolicy(demo_user_id="U1", admin_actor_id="ADMIN1",
+                              current_demo_round=lambda: "D1",
+                              risk_facts=lambda *_: None)
 
-    The behaviour is already correct; this locks it. A future registration must
-    follow Issue #164: store an independent security-owned declaration, never
-    the mutable ANOMALY_MANIFEST.capabilities object.
-    """
-    policy = DemoSecurityPolicy(demo_user_id="U1", admin_actor_id="ADMIN1",
-                                current_demo_round=lambda: "D1",
-                                risk_facts=lambda *_: None)
+
+def test_production_policy_admits_reviewed_l02_with_existing_l01_l03():
+    """#188: legitimate current-round L02 can be read after security #187."""
+    from app.modules.bills.manifest import REPORT_MANIFEST
+
+    policy = _real_l02_policy()
     assert policy.authorize_capability(trusted(), MANIFEST.capabilities[0]) is True
-    assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is False
+    assert policy.authorize_capability(trusted(), REPORT_MANIFEST.capabilities[0]) is True
+    # Coordinated changeover: before #187, the v2 frozen policy must deny L02;
+    # once #187 is merged, the v3 frozen policy must admit only reviewed L02.
+    if policy.policy_version == "v04-local-demo-read-2":
+        assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is False
+    elif policy.policy_version == "v04-local-demo-read-3":
+        assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is True
+    else:
+        pytest.fail("unreviewed demo policy version: " + policy.policy_version)
+
+
+@pytest.mark.parametrize("change", [
+    {"handler_ref": "bills.unknown"},
+    {"required_permissions": []},
+    {"input_schema_ref": "UnknownInput"},
+    {"name": "bills.unknown"},
+])
+def test_production_policy_rejects_l02_declaration_drift(change):
+    """Registered L02 is not a permissive wildcard or mutable business alias."""
+    policy = _real_l02_policy()
+    declaration = ANOMALY_MANIFEST.capabilities[0].model_copy(update=change)
+    assert policy.authorize_capability(trusted(), declaration) is False
+
+
+@pytest.mark.parametrize("change", [
+    {"user_id": "OTHER"},
+    {"demo_round_id": "OLD"},
+])
+def test_production_policy_rejects_l02_outside_trusted_scope(change):
+    policy = _real_l02_policy()
+    context = trusted().model_copy(update=change)
+    assert policy.authorize_capability(context, ANOMALY_MANIFEST.capabilities[0]) is False
 
 
 def test_three_month_baseline_read_audits_only_digest_reference_status_and_counts(env):
