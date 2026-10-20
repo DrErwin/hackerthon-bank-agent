@@ -4,7 +4,7 @@ Ticket ID: v04-platform/05
 Type: 开发
 Owner: Erwin
 Directory: backend/app/api/
-Status: in_progress（阶段一〔L01〕2026-10-18 经独立检查会话验收通过；**阶段二 L03 部分 2026-10-20 验收通过**：默认运行时真实 `glm-5.3` 两次独立运行 + 可执行用例，报告落库→F21→F22/F24 与 #122 三处接缝真数据复验全部通过〔见 Evidence 与 Comments〕；**未完成**：L02 真实链路〔[#187](https://github.com/DrErwin/hackerthon-bank-agent/issues/187)/[#190](https://github.com/DrErwin/hackerthon-bank-agent/pull/190)，其它会话〕、前端账单插槽与 BF01—BF07 纵向联调）
+Status: in_progress（阶段一〔L01〕2026-10-18 经独立检查会话验收通过；**阶段二 L03 部分 2026-10-20 验收通过**：默认运行时真实 `glm-5.3` 两次独立运行 + 可执行用例，报告落库→F21→F22/F24 与 #122 三处接缝真数据复验全部通过〔见 Evidence 与 Comments〕；**未完成**：前端账单插槽与 BF01—BF07 纵向联调）
 Package: [v04-platform/packages/01-foundation-agent-mockbank：v0.4 底座、Agent 与模拟银行](../packages/01-foundation-agent-mockbank.md)
 Spec: [v04-platform 场景规格](../spec.md)
 Core scenarios: [P01、P02、P03、P04](../spec.md)（真实数据链路下的端到端验收）
@@ -52,3 +52,4 @@ Source issue: [Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issu
   - **#122 三处接缝（真数据复验）**：① 第二模块 `task_updated` 带真实 `BillReport` 载荷；② 等待类账单任务 F10 恢复可推进、载荷按账单解析（无 `operation_id`）；③ 导出任务视图与事件均 `module=bills`、不进 harness 能力解析。均 A/B 两层覆盖。
   - **安全边界抽查**：管理身份跨用户 F21/F23/F24 全 **404**（随机报告 ID 亦 404）；审计 `tool.started/finished` 5 对成对、`security.decided`×10 全 allow；A1/A5 余额与种子外流水零变化（零资金动作）；`share_request` 不增权（明细仍需本人本次验证，无第三方/外发通道）。
   - **未完成 / 不声称**：L02 真实链路（[#187](https://github.com/DrErwin/hackerthon-bank-agent/issues/187)/[#190](https://github.com/DrErwin/hackerthon-bank-agent/pull/190)，其它会话）；前端账单插槽与 BF01—BF07 纵向联调（前端票 04 / v04-bills/02）；部署 TCP/TLS 与浏览器形态；Ringo 真人安全签核仍缺（本单非安全结论）；账单统计口径正确性归账单线。**Issue #123 保持 OPEN**，本票保持 in_progress 直至 L02 与纵向联调收口。
+- 2026-10-20 深夜：**L02 真实链路完成**——业务测试同步 [PR #197](https://github.com/DrErwin/hackerthon-bank-agent/pull/197) `dc16ce1`、安全白名单 [PR #196](https://github.com/DrErwin/hackerthon-bank-agent/pull/196) `8303c46`（`policy_version=v04-local-demo-read-3`）、平台装配注册 [PR #192](https://github.com/DrErwin/hackerthon-bank-agent/pull/192) `8a52d58` 依次合入 main；`bills.detect_anomalies` 进 `public_catalog()` 且安全门放行，Issue #187/#188/#190 关闭。合并后本地复跑：后端全量 **998 passed**、mockbank **14 passed**、L02 定向 **51 passed**。**阶段二剩余**：前端账单插槽与 BF01—BF07 纵向联调（前端票 04/05 / v04-bills/02）。独立审查：#196/#197 APPROVE；安全侧为 PM 代行合并、真人专业签核仍缺。
