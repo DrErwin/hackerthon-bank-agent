@@ -11,7 +11,9 @@
 | 能力 | 入参模型 | 权限 | 等级 | 副作用 | 确认策略 |
 |---|---|---|---|---|---|
 | `subscription.list_subscriptions` | `SubscriptionListInput` | `subscription.read` | read | 否 | none |
-| `subscription.cancel_subscription` | `SubscriptionCancelInput` | `subscription.cancel` | modify | 是 | `per_action` |
+| `subscription.cancel_subscription` | `SubscriptionCancelInput` | `subscription.cancel` | **sensitive** | 是 | `per_action` |
+
+退订为**三级敏感**：提交银行前由安全门持久化脱敏 `AuthorizationSnapshot`（写前快照），快照或开始日志写入失败则暂停、不提交银行（PRD §五第 10 项；契约 §4.5 / §5.5）。确认按钮 + `basic_identity`/`scope=session` 验证码、同会话复用与不刷脸均不变。
 
 ## 私有工具（不进模型目录，只经任务级安全门与统一执行器）
 
