@@ -9,7 +9,7 @@ Verification:
 - 整条路径：由 [`v04-subscription/12`：退订写前授权快照的端到端断言与失败分支](12-cancel-snapshot-evals.md) 用真实 `SecurityGate`/`DeterministicExecutor`/`AuditJournal` 断言写前快照、失败零银行提交与重复不重复解约
 Owner: Erwin
 Directory: `backend/app/modules/subscription/`
-Status: pending
+Status: resolved
 Blocked by: None（跨线合并窗口见 §5，不计为本票前置）
 Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issues/189)
 
@@ -54,3 +54,7 @@ Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## Comments
 
 - 2026-10-20 只读核对（交接材料 `handoff-2026-10-20-04-subscription-cancel-snapshot.md`，main `d133f37`）：确认本票只需改两处声明值；`gate.py` / `contracts` 模型 / 审计日志 / 平台装配均已具备 SENSITIVE 写前快照语义，银行侧无授权映射改动。契约、确认验证字段与 PRD §3.1 表行的旧「二级修改」措辞同步列入票 13；口径同步另见 §2 第 5 项。
+- 2026-10-20 实施（方案 A）：`manifest.py` 公开能力与 `reads.py` 私有工具 `operation_level` `MODIFY→SENSITIVE`，其余字段逐项不变；模块 `README.md` 公开能力表同步为 `sensitive` 并补写前快照说明（第一轮审查 P1-1）。spec §2/§5.3 三处 + `packages/01` 遗留行纯文档同步（`215edcf`，P1-2）。
+- 验证：定向 `app/modules/subscription + app/security + agent_platform/test_subscription_runtime.py + app/api/test_subscription_api.py` 188 passed；全量 backend 965 passed；`evals/subscription` 51 passed（与票 12 合跑）。
+- 交付：PR #194（squash `709d844`）；审查为 PM 指派独立子代理两轮双轴（**AI 代行、非 Ringo 本人，不构成安全签核**）。
+- 安全侧：订阅声明独立冻结副本改 SENSITIVE 与门回归见 [Issue #191](https://github.com/DrErwin/hackerthon-bank-agent/issues/191)（Ringo）；本票目录未改安全目录。

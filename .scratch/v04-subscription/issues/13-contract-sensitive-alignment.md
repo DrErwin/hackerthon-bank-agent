@@ -7,7 +7,7 @@ Core scenarios: SF02、SF06；契约验收 M20、公共契约 §5.5 / §8、确�
 Verification: 文档链接 / 锚点 / 编号 / 表格列数 / 差异空白检查；S02 行不再出现 `MODIFY`；按公共契约 §8.2 记录「为什么改 / 原来→现在 / 影响方 / 旧代码是否可用」；安全侧审查意见（Ringo）或 PM 豁免留痕
 Owner: Erwin（契约负责人）
 Directory: `docs/contracts/`
-Status: pending
+Status: resolved
 Blocked by: None（合并窗口与票 11 / 12 / 安全侧冻结副本联动，见 §4）
 Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issues/189)
 
@@ -54,4 +54,6 @@ PM 2026-10-20 13:47 裁定 **1A**（Issue #189）：退订是对齐 PRD 的**三
 
 ## Comments
 
+- 2026-10-20 完成：公共契约 §5.5 S02 行、2026-10-20 修订记录（含 §8.2 四问）、§9 M20、确认验证字段场景 05 段同步为三级敏感 + 写前快照（`bc3100c`）；另将 spec / 包 01 遗留行、PRD §3.1 S02 表行同步（`215edcf`，仅措辞，未改需求、验收、字段与枚举）。
+- 流程留痕：属契约 §8.1「协同修改」+ 安全审查叠加；PM 2026-10-20 指派独立子代理代行审查（**AI 代行、非 Ringo 本人；安全签核仍缺，见 [Issue #191](https://github.com/DrErwin/hackerthon-bank-agent/issues/191)**）；变更四问已写入提交信息并回帖 #189。
 - 2026-10-20 只读核对（main `d133f37`）：需要同步的位置共 4 处——`公共契约` §5.5 S02 行、同文档 2026-10-19 变更记录 ④、§9 M20、`确认验证字段` 场景 05 解约段；另 PRD §3.1 S02 行残留旧措辞（建议单列，不改需求）。本次交接只登记建议变更点，未直接修改任何 docs 文件。

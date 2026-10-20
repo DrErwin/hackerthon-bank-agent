@@ -7,7 +7,7 @@ Core scenarios: SF02、SF06；PRD §五第 10 项「写前快照铁律」；用�
 Verification: `pytest evals/subscription -q` 全绿并在最终提交归档证据；`pytest backend -q` 不回归（Windows 两条 20ms 计时抖动属 Issue #166，单跑复核）
 Owner: Erwin
 Directory: `evals/subscription/`
-Status: pending
+Status: resolved
 Blocked by: [`v04-subscription/11`：退订声明升级为三级敏感](11-cancel-sensitive-declaration.md)（未改 SENSITIVE 前不会产生写前快照）
 Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issues/189)
 
@@ -24,9 +24,10 @@ Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issu
    - 从真实 `AuditJournal` 读出该证据，校验为脱敏 `AuthorizationSnapshot`：`user_id / session_id / demo_round_id / task_id / operation_id / action_revision` 与执行裁决一致，`confirmation.decision == "approved"`，`verifications` 含同会话（`scope="session"`、`methods=["code"]`）记录，`captured_at` 有值；
    - 同一执行的前置参数证据存在（审计日志对敏感执行 ALLOW 的既有强制规则）；
    - 沿用「不把确认/验证已有说成快照已有」的口径：断言必须落在快照对象本身，不能只数事件类型。
-2. **新增失败分支用例（两条，编号按 `cases.md` 规则续）**：
-   - **快照写入失败**：在评测可注入缝上让 `snapshot_writer` 失败（如 patch 平台侧 `AuthorizationSnapshot` 构造或等价注入），断言：任务**不得 succeeded**、B30 银行操作行数 = 0、协议保持 `active`、审计中可见暂停/不可用语义的裁决；快照失败不能先调银行。
+2. **新增失败分支用例（三条，编号按 `cases.md` 规则续）**：
+   - **快照构造失败**：patch 平台 `AuthorizationSnapshot` 构造，让 `snapshot_writer` 失败，断言：任务**不得 succeeded**、B30 银行操作行数 = 0、协议保持 `active`、审计中可见暂停/不可用语义的裁决；快照失败不能先调银行。
    - **开始日志写入失败**：让 `tool.started`（写动作）持久化失败，断言：B30 银行操作行数 = 0、协议不变、任务不 succeeded。
+   - **敏感裁决持久化失败**（第二轮审查补充红例）：让敏感 `allow` 裁决本身落盘失败，断言：零已持久化 execution allow、B30 = 0、协议不变、无写动作开始日志。
    - 先写「可注入性探针」：若现有公开缝无法在真实组装里注入，如实标 Blocked 并写提供方（平台/安全侧），**不伪造断言、不改生产代码绕过**；注入实现不改银行规则与安全策略。
 3. **重复请求不重复解约**：沿用并保持现有幂等断言（同一 `operation_id` 银行操作行数 = 1、重复确认/恢复不二次提交），不新增语义重复用例凑数。
 4. **README 与机读期望同步**：
@@ -51,3 +52,10 @@ Source issue: [Issue #189](https://github.com/DrErwin/hackerthon-bank-agent/issu
 - `pytest evals/subscription -q` 在最终提交全绿；`pytest backend -q` 无新增失败。
 - 新增断言逐条能定位到 `golden_cases.json` 字段与 `cases.md` 行；README / 票据 / 报告三处数字自洽。
 - 证据绑定最终提交（`dirty_paths=[]`），不写超出 runner 能力的断言。
+
+## Comments
+
+- 2026-10-20 实施：SUB-SEC-01 增写前快照断言（执行 allow 带 ref、真实 `AuditJournal` 证据、确认/验证/操作绑定/session/参数证据、脱敏、按 `row_id` 先于 `tool.started`）；新增 SUB-SEC-03（快照构造失败）、04（开始日志失败）、05（敏感裁决持久化失败）三条零银行提交用例；README §8 清缺口并如实登记「终止态语义待 PM/安全侧裁定」；51 条在 cases/golden/测试三处一致。
+- 2026-10-20 审查修复：第一轮 P1 闭环；第二轮结论 APPROVE（P0=0/P1=0）。随后处理 P2：README 运行前提改为「SUB-SEC-01/03/04 会红、05 与操作等级无关」、补参数证据与快照脱敏断言、静态期望回填 golden、新增 05 持久化失败红例。
+- 验证/证据：`pytest evals/subscription -q` 51 passed（`PYTHONHASHSEED=0/1/42` 一致）；backend 定向 188 passed、全量 965 passed；证据 `evidence/2026-10-20/`，被测提交 `e2d799e`，51 用例 1161/1161 断言、`dirty_paths=[]`、7 个评测源文件 blob 全匹配、报告 gz sha256 校验通过。
+- 交付：PR #195（squash `09911e4`）。审查为 PM 指派独立子代理（AI 代行、非 Ringo 本人）。

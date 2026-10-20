@@ -52,6 +52,8 @@ PRD: `docs/prd/05-订阅代扣管理-PRD-2026-10-19.md`
 | 08 底座修复：审计脱敏不改写不透明引用 | [#153](https://github.com/DrErwin/hackerthon-bank-agent/pull/153) | 已合入（审查通过、5/5 变异被杀） |
 | 09 退订明确拒绝 / 结果未知如实回执 | [#172](https://github.com/DrErwin/hackerthon-bank-agent/pull/172) | 已合入（`c1cdde3`；拒绝如实、超时/未知→`needs_attention`→按原 `operation_id` 回查 B14 不重提；后端 738 passed） |
 | 10 完整验收集 | [#175](https://github.com/DrErwin/hackerthon-bank-agent/pull/175) | 已合入（`d6cb6a8`；17→48 条用例、同提交证据 `evals/subscription/evidence/2026-10-20/`） |
+| 11 退订声明升级三级敏感（#189） | [#194](https://github.com/DrErwin/hackerthon-bank-agent/pull/194) | 已合入（`709d844`；公开 + 私有声明 `MODIFY→SENSITIVE`，模块 README/spec/包口径同步；定向 188、backend 965 passed） |
+| 12 写前快照端到端断言与失败分支（#189） | [#195](https://github.com/DrErwin/hackerthon-bank-agent/pull/195) | 已合入（`09911e4`；51 用例 / 1161 断言、三条失败零提交红例、证据 `evidence/2026-10-20/` 被测提交 `e2d799e`） |
 
 **每票均配独立子代理审查**（AI 审查，非真人专业审查）。票 06/07 的审查在合并后返回「有条件通过」，审查驱动的三项补丁已另开单目录 PR 合入：[#156](https://github.com/DrErwin/hackerthon-bank-agent/pull/156)（确认单账户行「尾号 尾号 0001」用户可见缺陷）、[#157](https://github.com/DrErwin/hackerthon-bank-agent/pull/157)（消歧输入的验证码守卫回归）、[#158](https://github.com/DrErwin/hackerthon-bank-agent/pull/158)（话术红线等值断言 + 稳定性工具自举 + 证据干净树重归档）；票 06/07 的审查子代理在合并时仍在运行，结论到后按需以补丁追加。安全策略票按 PRD 仍需 Ringo 本人审查或 PM 豁免留痕（本次为 AI 独立审查 + 作者修复，**非 Ringo 签署**）。
 
