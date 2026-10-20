@@ -1,0 +1,476 @@
+{
+  "run": {
+    "kind": "l03_default_runtime_real_model",
+    "started_at": "2026-10-20T06:36:15.085903+00:00",
+    "finished_at": "2026-10-20T06:36:29.169720+00:00",
+    "duration_s": 14.52,
+    "repo_root": "D:\\hb-worktrees\\platform-stage2",
+    "base_commit": "d133f376675ede2551f03a7378c83ac53bdd2801",
+    "python": "3.12.3",
+    "runtime_factory": "app.agent_platform.local_demo:build_runtime",
+    "planner": "DeepAgentPlanner (real GLM chat completion)",
+    "model_name": "glm-5.3",
+    "base_url": "https://open.bigmodel.cn/api/coding/paas/v4/",
+    "planner_config_version": "zhipu-local-ee7f3f0a838aa9a5",
+    "config_source": "D:\\hackerthon-bank-agent\\.env.local-demo.json",
+    "build_runtime_s": 0.47,
+    "data_directory_mode": "fresh temporary directory (bank reseeded at clock)",
+    "transport": "FastAPI TestClient (in-process ASGI), not a deployed TCP server",
+    "browser": false,
+    "note": "real model + real API + real bills module + real local security policy + real seeded mock bank; no planner stub in this run"
+  },
+  "catalog": [
+    "transfer.start_transfer",
+    "bills.summarize",
+    "bills.generate_report",
+    "subscription.list_subscriptions",
+    "subscription.cancel_subscription"
+  ],
+  "phrasings": [
+    "帮我生成一份上个月的账单报告",
+    "我想看看上个月花了多少钱，帮我生成一份账单报告",
+    "生成上个月所有账户的账单报告"
+  ],
+  "routing_attempts": [
+    {
+      "phrasing": "帮我生成一份上个月的账单报告",
+      "thread_id": "b4df0bb7-2aac-446b-a493-df8f434e8685",
+      "accepted_status": 202,
+      "tasks": 1,
+      "assistant_replies": [
+        "请选择要查询的本人账户，不会替你默认选择。"
+      ],
+      "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49",
+      "module": "bills",
+      "status": "waiting_input",
+      "capability_name": "bills.generate_report",
+      "data_keys": [],
+      "selected_for_chain": true
+    }
+  ],
+  "task": {
+    "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49",
+    "module": "bills",
+    "status": "succeeded",
+    "message": "本次共查询到18笔交易；消费支出5864元00分，退款45元00分，净消费5819元00分。",
+    "run_id": "e73bf7ad-4744-47d9-b8e5-b2f673b4c21e",
+    "task_revision": 3
+  },
+  "events": [
+    {
+      "event_type": "message_completed",
+      "module": "platform",
+      "task_id": null,
+      "event_id": "dc44203e-d0dc-4aee-861f-1d45d868e378",
+      "payload": {
+        "message_id": "04c0da4e-b270-487f-8468-f72c21cd21af"
+      }
+    },
+    {
+      "event_type": "message_completed",
+      "module": "platform",
+      "task_id": null,
+      "event_id": "a24a7bbf-21fd-4778-9018-5752248c3b2a",
+      "payload": {
+        "message_id": "04c0da4e-b270-487f-8468-f72c21cd21af"
+      }
+    },
+    {
+      "event_type": "task_updated",
+      "module": "bills",
+      "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49",
+      "event_id": "9da60c69-a9fb-4446-bd45-e43fe0222a43",
+      "payload": {
+        "status": "waiting_input",
+        "module": "bills",
+        "data_keys": []
+      }
+    },
+    {
+      "event_type": "interaction_required",
+      "module": "bills",
+      "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49",
+      "event_id": "006f1933-755b-47e0-8b3b-1af584571366",
+      "payload": {
+        "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49"
+      }
+    },
+    {
+      "event_type": "message_completed",
+      "module": "platform",
+      "task_id": null,
+      "event_id": "4a520d61-0ec5-41cb-b29a-29ce3628dec4",
+      "payload": {
+        "message_id": "ab767511-5d48-4e62-858d-dfcf3c3b4058"
+      }
+    },
+    {
+      "event_type": "task_updated",
+      "module": "bills",
+      "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49",
+      "event_id": "2fecd248-add3-490d-a3f4-b3b8896e3289",
+      "payload": {
+        "status": "succeeded",
+        "module": "bills",
+        "data_keys": [
+          "average_basis",
+          "generated_at",
+          "monthly_average_fen",
+          "report_id",
+          "scope",
+          "spoken_summary",
+          "statistical_days",
+          "summary"
+        ]
+      }
+    },
+    {
+      "event_type": "message_completed",
+      "module": "platform",
+      "task_id": null,
+      "event_id": "79f13a7e-c9b2-4bf3-a7a6-413fd5c7ca4a",
+      "payload": {
+        "message_id": "bcab4c39-6f8e-4d84-a894-3d95ff0461d0"
+      }
+    },
+    {
+      "event_type": "report_ready",
+      "module": "bills",
+      "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49",
+      "event_id": "c1564d67-06f4-428d-ab43-1c2aded2a1a4",
+      "payload": {
+        "report_id": "fb8a7646-714b-4375-bc91-96a1034d4d68",
+        "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49"
+      }
+    }
+  ],
+  "report": {
+    "report_id": "fb8a7646-714b-4375-bc91-96a1034d4d68",
+    "scope": {
+      "account_ids": [
+        "A1",
+        "A5"
+      ],
+      "start_at": "2026-09-01T00:00:00+08:00",
+      "end_at": "2026-10-01T00:00:00+08:00"
+    },
+    "summary": {
+      "scope": {
+        "account_ids": [
+          "A1",
+          "A5"
+        ],
+        "start_at": "2026-09-01T00:00:00+08:00",
+        "end_at": "2026-10-01T00:00:00+08:00"
+      },
+      "as_of": "2026-10-20T14:36:20.620236+08:00",
+      "source_as_of": [
+        {
+          "account_id": "A1",
+          "as_of": "2026-10-20T14:36:20.620236+08:00"
+        },
+        {
+          "account_id": "A5",
+          "as_of": "2026-10-20T14:36:20.660239+08:00"
+        }
+      ],
+      "transaction_count": 18,
+      "consumption_gross_fen": 586400,
+      "consumption_refund_fen": 4500,
+      "consumption_net_fen": 581900,
+      "transfer_out_fen": 0,
+      "transfer_in_fen": 821000,
+      "categories": [
+        {
+          "category": "shopping",
+          "outflow_fen": 309300,
+          "refund_fen": 0,
+          "net_fen": 309300,
+          "share_bps": 5315,
+          "rank": 1
+        },
+        {
+          "category": "housing",
+          "outflow_fen": 240000,
+          "refund_fen": 0,
+          "net_fen": 240000,
+          "share_bps": 4124,
+          "rank": 2
+        },
+        {
+          "category": "other",
+          "outflow_fen": 15300,
+          "refund_fen": 0,
+          "net_fen": 15300,
+          "share_bps": 263,
+          "rank": 3
+        },
+        {
+          "category": "medical",
+          "outflow_fen": 13900,
+          "refund_fen": 0,
+          "net_fen": 13900,
+          "share_bps": 239,
+          "rank": 4
+        },
+        {
+          "category": "dining",
+          "outflow_fen": 7700,
+          "refund_fen": 4500,
+          "net_fen": 3200,
+          "share_bps": 55,
+          "rank": 5
+        },
+        {
+          "category": "transport",
+          "outflow_fen": 200,
+          "refund_fen": 0,
+          "net_fen": 200,
+          "share_bps": 3,
+          "rank": 6
+        },
+        {
+          "category": "transfer",
+          "outflow_fen": 0,
+          "refund_fen": 0,
+          "net_fen": 0,
+          "share_bps": null,
+          "rank": 7
+        }
+      ],
+      "comparison": null
+    },
+    "spoken_summary": "本次共查询到18笔交易；消费支出5864元00分，退款45元00分，净消费5819元00分。",
+    "monthly_average_fen": 586400,
+    "statistical_days": 30,
+    "average_basis": "按统计天数折算，每月30天；不预测未来实际支出",
+    "generated_at": "2026-10-20T06:36:20.702722Z"
+  },
+  "security": {
+    "admin_login": {
+      "status": 200,
+      "role": "admin"
+    },
+    "cross_identity": {
+      "f21": 404,
+      "f23_card": 404,
+      "f24_card": 404,
+      "f23_details": 404,
+      "f24_details": 404,
+      "random_report": 404
+    },
+    "share_request": {
+      "message_status": 202,
+      "report_generated": true,
+      "details_export": {
+        "create_status": 200,
+        "status": "waiting_verification",
+        "task_id": "b077b800-d2ae-4da7-831f-0b254f4bac4f"
+      },
+      "note": "share_request 只记录意图；无第三方身份、无外发通道，明细仍需本人本次验证"
+    }
+  },
+  "audit": {
+    "http": {
+      "status": 200,
+      "count": 25,
+      "types": {
+        "model.started": 1,
+        "model.finished": 1,
+        "security.decided": 10,
+        "tool.started": 5,
+        "tool.finished": 5,
+        "task.transition": 2,
+        "recovery.checked": 1
+      },
+      "modules": {
+        "agent_platform": 5,
+        "security": 10,
+        "bills": 10
+      }
+    },
+    "pairing": {
+      "tool_started": 5,
+      "tool_finished": 5,
+      "ids_match": true,
+      "tool_names": [
+        "bills.bank.list_accounts",
+        "bills.bank.list_transactions"
+      ],
+      "security_decided": 10,
+      "outcomes": {
+        "started": 6,
+        "succeeded": 18,
+        "waiting": 1
+      }
+    }
+  },
+  "bank": {
+    "balances_before": {
+      "A1": 6000000,
+      "A5": 0
+    },
+    "balances_after": {
+      "A1": 6000000,
+      "A5": 0
+    },
+    "balances_unchanged": true,
+    "non_seed_ledger_before": {
+      "A1": 0,
+      "A5": 0
+    },
+    "non_seed_ledger_after": {
+      "A1": 0,
+      "A5": 0
+    },
+    "zero_fund_actions": true,
+    "seeded_ledger_rows": {
+      "A1": 120,
+      "A5": 23
+    }
+  },
+  "resume": {
+    "wait_label_options": [
+      "主账户 · 尾号 0001",
+      "储蓄账户 · 尾号 0005",
+      "所有本人账户"
+    ],
+    "selected_option": "所有本人账户",
+    "http_status": 200
+  },
+  "events_check": {
+    "report_ready_count": 1,
+    "report_ready_payload": {
+      "report_id": "fb8a7646-714b-4375-bc91-96a1034d4d68",
+      "task_id": "36395aee-7ddd-410f-aeed-12c6da2c8e49"
+    },
+    "last_task_updated_module": "bills",
+    "last_task_updated_has_payload": true,
+    "last_task_updated_report_id": "fb8a7646-714b-4375-bc91-96a1034d4d68"
+  },
+  "report_check": {
+    "contract_fields_present": true,
+    "scope_account_ids": [
+      "A1",
+      "A5"
+    ],
+    "scope_start": "2026-09-01T00:00:00+08:00",
+    "scope_end": "2026-10-01T00:00:00+08:00",
+    "transaction_count": 18,
+    "bank_b08_rows_in_scope": 18,
+    "bank_rows_per_account": {
+      "A1": 14,
+      "A5": 4
+    },
+    "count_matches_bank": true,
+    "no_raw_transactions_in_card": true
+  },
+  "f21": {
+    "status_code": 200,
+    "matches_task_data": true
+  },
+  "card_export": {
+    "create_status": 200,
+    "view": {
+      "export_id": "c795acff-264a-4d64-a9f8-558519797275",
+      "kind": "card",
+      "status": "ready",
+      "task_id": null,
+      "file_name": "bill-report-fb8a7646-714b-4375-bc91-96a1034d4d68.html",
+      "media_type": "text/html",
+      "download_path": "/api/v1/exports/c795acff-264a-4d64-a9f8-558519797275/download",
+      "error": null
+    },
+    "f23_status": "ready",
+    "f24_status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "cache_control": "no-store",
+    "bytes": 1320,
+    "sha256": "bc0f2a8ad23fa6d9b59e152f5304400e3a263fb1d19d5b9b47516f49b10833d6",
+    "contains_transaction_ids": false
+  },
+  "details_export": {
+    "create_status": 200,
+    "view": {
+      "export_id": "ced142b1-9646-4ad8-b5fc-cd6b2f026696",
+      "kind": "details",
+      "status": "waiting_verification",
+      "task_id": "2ea7d490-f779-4772-ac94-5c0029f4041d",
+      "file_name": null,
+      "media_type": null,
+      "download_path": null,
+      "error": null
+    },
+    "task": {
+      "task_id": "2ea7d490-f779-4772-ac94-5c0029f4041d",
+      "module": "bills",
+      "status": "waiting_approval",
+      "message": "请完成身份验证以导出账单明细。"
+    },
+    "task_interaction_kind": "verification",
+    "download_before_verification": 409,
+    "verification": {
+      "demo_code_status": 200,
+      "demo_code_cache_control": "no-store",
+      "submit_status": 200,
+      "kind": "verified",
+      "task_status_after": "succeeded"
+    },
+    "f23_after": {
+      "export_id": "ced142b1-9646-4ad8-b5fc-cd6b2f026696",
+      "kind": "details",
+      "status": "ready",
+      "task_id": "2ea7d490-f779-4772-ac94-5c0029f4041d",
+      "file_name": "bill-details-fb8a7646-714b-4375-bc91-96a1034d4d68.csv",
+      "media_type": "text/csv",
+      "download_path": "/api/v1/exports/ced142b1-9646-4ad8-b5fc-cd6b2f026696/download",
+      "error": null
+    },
+    "f24_status": 200,
+    "content_type": "text/csv; charset=utf-8",
+    "cache_control": "no-store",
+    "csv_header": "occurred_at,account_id,direction,nature,category,amount_fen,counterparty_name,counterparty_account_masked,channel,summary,transaction_id",
+    "csv_rows": 18,
+    "csv_row_count_matches_report": true,
+    "sha256": "7551f48dee1d7b80dc7cdd4bda633f7327e3155fb4ff0a1dd373017f8b2651ec",
+    "task_updated_events": [
+      {
+        "event_type": "task_updated",
+        "module": "bills"
+      },
+      {
+        "event_type": "task_updated",
+        "module": "bills"
+      }
+    ]
+  },
+  "verdict": "completed",
+  "checks": {
+    "routed_to_bills_generate_report": true,
+    "task_is_bills_module": true,
+    "task_succeeded": true,
+    "report_matches_contract_fields": true,
+    "report_transaction_count_matches_bank": true,
+    "report_has_no_raw_transactions": true,
+    "f21_returns_task_report": true,
+    "report_ready_event_named": true,
+    "task_updated_carries_bills_payload": true,
+    "card_export_ready_without_verification": true,
+    "card_download_no_store": true,
+    "card_has_no_transaction_ids": true,
+    "details_export_requires_verification": true,
+    "details_task_is_bills_domain": true,
+    "details_download_gated_before_verification": true,
+    "details_verification_passed": true,
+    "csv_uses_frozen_header": true,
+    "csv_rows_match_report": true,
+    "cross_identity_report_denied": true,
+    "cross_identity_exports_denied": true,
+    "audit_tool_pairs_match": true,
+    "audit_security_decided_present": true,
+    "zero_fund_actions": true,
+    "bank_balances_unchanged": true,
+    "share_request_keeps_verification_gate": true,
+    "all_passed": true
+  }
+}

@@ -1,0 +1,4 @@
+Run at: 2026-10-20T14:38:46.5749432+08:00
+Command: backend/.venv/Scripts/python.exe -m pytest app/api/test_local_demo_l03_acceptance.py -q
+..                                                                       [100%]
+2 passed in 5.61s
