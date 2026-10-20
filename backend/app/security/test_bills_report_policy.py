@@ -42,7 +42,7 @@ def test_l03_declaration_is_whitelisted_for_the_demo_scope():
     # L01 and its private reads stay authorized; this change only adds L03.
     assert policy.authorize_capability(trusted(), BILLS_MANIFEST.capabilities[0])
     # The authorized set changed, so decisions must carry the bumped version.
-    assert policy.policy_version == "v04-local-demo-read-3"
+    assert policy.policy_version == "v04-main-declarations-l02-sensitive-5"
 
 
 @pytest.mark.parametrize("change", [
@@ -97,3 +97,4 @@ def test_l03_whitelist_requires_the_server_current_round():
     current_round[0] = "next-round"
 
     assert not policy.authorize_capability(trusted(), DECLARATION)
+

@@ -1,12 +1,14 @@
 # security —— 安全底座
 
-## 2026-10-20 L02 准入增量（Issue #187）
+## 2026-10-20：L02 与订阅敏感边界补充
 
-依据 main d133f376 的 PM 决定，新增安全目录持有的 bills.detect_anomalies 固定声明，取值来自已合入 PR #183 的 ANOMALY_MANIFEST，代码逐字段抄录并与业务对象分离。当前演示用户在服务端当前轮次可使用既有 bills.read 读取，策略版本升为 v04-local-demo-read-3。权限集合、私有工具白名单及风险分类保持原值，声明漂移和未知能力继续拒绝；L01/L03 保留原行为。
+`bills.detect_anomalies` 按 Issue #187 以安全侧独立快照收录，继续使用 `bills.read`、只读重试和本人当前轮次作用域。未知账单能力、声明漂移及越权作用域仍默认拒绝。
 
-本增量只完成安全准入，平台 local_demo 注册由 Erwin 按 Issue #123 交付，两项合入并联调后才可记 L02 真实可用。测试使用显式注册及脚本规划器，真实模型调用为零。Ringo 侧 Codex 辅助实施与 AI 审查单独留痕，真人签核仍待记录。验证与首次断言修订见 [L02 安全记录](l02-security-review-2026-10-20.md)。
+Issue #191 将公开退订能力及私有银行退订工具统一按 `SENSITIVE` 复核。普通退订仍沿用已定的按钮确认和会话级基础验证；放行时必须生成脱敏授权快照，快照写入失败返回 `PAUSE/AUDIT_UNAVAILABLE`。订阅读取能力保持 `READ`，不生成授权快照。策略版本升为 `v04-main-declarations-l02-sensitive-5`。
 
-下文 L03 的 L02 拒绝及 v04-local-demo-read-2 是该次历史切片。审计最小化缺口 #145 已由 PR #171 修复，安全侧当前严格专项通过；历史原文泄露报告保留用于对照。
+本轮定向回归 196 项通过，`app/security` 全量 287 项通过。订阅运行时零提交与快照失败证据由业务评测集提供，安全目录只证明安全门的拒绝和暂停边界；真人签核、真实模型复跑及 CI 结果分别记录。
+
+2026-10-20补充：#164声明冻结重新整理为独立主线分支，保留#184已合的L03快照，转账与订阅预期从业务可变对象分离；未知能力仍默认拒绝。206项定向通过，范围及初始版本断言修订见[module-declaration-review-2026-10-19.md](module-declaration-review-2026-10-19.md)。原#165关闭但未合入，新分支候选仍待合并，真人批准另记。
 
 归属：安全（Ringo）。
 
@@ -65,3 +67,4 @@
 - 验证：`app/security/test_bills_report_policy.py` 17 项（合法放行、九个声明字段〔不含 name〕逐一漂移拒绝 + name 改名经未知能力用例拒绝、冻结副本与模块对象独立、未知能力默认拒绝、用户/轮次越界拒绝）；`app/security` 全量 117 passed。另有真实 `DemoSecurityPolicy` + 已注册 L03 运行时的切换证据：改动前 `authorize_capability(...) == False`（`v04-local-demo-read-1`），改动后 `True`（`v04-local-demo-read-2`），同轮次 L01 仍为 `True`，越界用户/轮次仍为 `False`。真实 local-demo HTTP 栈实测：改动前 L03 能力被安全门拒绝、不建任务；改动后任务 `succeeded`、`module=bills` 并产出 `report_id`。
 
 **记录边界**：本单因 [#164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 在途、由 PM 指派的其它会话代做，属 **PM 代行、非 Ringo 本人审查**；AI 复核不等于真人专业签核，Ringo 本人的安全签核仍缺，不得据此记作已获安全签核。**合并决定与范围**：PM（Erwin）2026-10-20 决定由其它会话代做并按「只改 `backend/app/security/`、一票一目录一 PR」范围合入（[PR #184](https://github.com/DrErwin/hackerthon-bank-agent/pull/184) squash `3f9996c`）；该条是 PM 的代行/豁免记录，不改变安全专业审查由 Ringo 把关的长期规则。
+
