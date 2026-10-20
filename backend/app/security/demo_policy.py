@@ -195,7 +195,7 @@ _SUBSCRIPTION_PRIVATE_TOOLS = (
 class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
-    policy_version = "v04-main-declarations-l02-sensitive-5"
+    policy_version = "v04-local-demo-read-4"
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.

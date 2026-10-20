@@ -4,11 +4,11 @@
 
 `bills.detect_anomalies` 按 Issue #187 以安全侧独立快照收录，继续使用 `bills.read`、只读重试和本人当前轮次作用域。未知账单能力、声明漂移及越权作用域仍默认拒绝。
 
-Issue #191 将公开退订能力及私有银行退订工具统一按 `SENSITIVE` 复核。普通退订仍沿用已定的按钮确认和会话级基础验证；放行时必须生成脱敏授权快照，快照写入失败返回 `PAUSE/AUDIT_UNAVAILABLE`。订阅读取能力保持 `READ`，不生成授权快照。策略版本升为 `v04-main-declarations-l02-sensitive-5`。
+Issue #191 将公开退订能力及私有银行退订工具统一按 `SENSITIVE` 复核。普通退订仍沿用已定的按钮确认和会话级基础验证；放行时必须生成脱敏授权快照，快照写入失败返回 `PAUSE/AUDIT_UNAVAILABLE`。订阅读取能力保持 `READ`，不生成授权快照。策略版本按主线 `v04-local-demo-read-N` 序列升为 `v04-local-demo-read-4`（本次变更：转账 6 条、订阅 6 条共 12 条声明改为安全侧独立冻结副本，与业务模块声明全字段全等比较）。
 
-本轮订阅专项 11 项通过，`app/security` 全量 288 项通过。真实执行器回归证明授权快照先于银行处理器，快照失败时处理器零调用；真人签核、真实模型复跑及 CI 结果分别记录。
+本轮合并前复跑：`app/security` 288 passed、`evals/subscription` 51 passed、后端全量 1145 passed。真实执行器回归证明授权快照先于银行处理器，快照失败时处理器零调用；真人签核、真实模型复跑及 CI 结果分别记录。
 
-2026-10-20补充：#164声明冻结重新整理为独立主线分支，保留#184已合的L03快照，转账与订阅预期从业务可变对象分离；未知能力仍默认拒绝。206项定向通过，范围及初始版本断言修订见[module-declaration-review-2026-10-19.md](module-declaration-review-2026-10-19.md)。原#165关闭但未合入，新分支候选仍待合并，真人批准另记。
+2026-10-20补充：#164声明冻结重新整理为独立主线分支，保留#184已合的L03快照，转账与订阅预期从业务可变对象分离；未知能力仍默认拒绝。合并前复跑 `app/security` 288 passed、`evals/subscription` 51 passed、后端全量 1145 passed，范围及初始版本断言修订见[module-declaration-review-2026-10-19.md](module-declaration-review-2026-10-19.md)。原#165关闭但未合入；本独立分支已合入 main（#164/#191），合并为 PM 代行、非 Ringo 本人审查，真人批准另记。
 
 归属：安全（Ringo）。
 
