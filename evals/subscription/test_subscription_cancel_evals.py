@@ -459,8 +459,67 @@ def test_sub_eval_42_audit_chain_for_one_cancellation(
     observed = [record for record in records if record.event_type == "bank.observed"]
     log.eq("audit.bank_observed",
            observed[-1].payload.lookup if observed else None, facts["bank_observed"])
-    log.note("写前 AuthorizationSnapshot：取消订阅在 spec/契约声明为 MODIFY（二级），"
-             "快照仅在 SENSITIVE 时产生；PRD §5.10 称三级敏感的差异已记入 README §8")
+
+    # 写前授权快照（Issue #189 / 票 12）：被银行提交放行的那次执行 allow 必须带快照，
+    # 且快照已在 tool.started 之前落盘；确认/验证/操作绑定与执行裁决逐项一致。
+    execution_allows = [(event, decision)
+                        for event, decision in harness.security_decisions(comp, "T1")
+                        if (decision.action_name == harness.CANCEL_TOOL
+                            and decision.phase == "execution"
+                            and decision.decision == "allow")]
+    log.ok("snapshot.execution_allow_present", len(execution_allows) >= 1,
+           len(execution_allows))
+    log.eq("snapshot.every_execution_allow_has_ref",
+           all(decision.authorization_snapshot_ref for _, decision in execution_allows),
+           facts["snapshot_every_execution_allow_has_ref"])
+    write_start = next(record for record in records
+                       if record.event_type == "tool.started"
+                       and getattr(record.payload, "tool_name", None) == harness.CANCEL_TOOL)
+    bound = [item for item in execution_allows
+             if item[1].decision_id == write_start.payload.decision_id]
+    log.ok("snapshot.start_event_bound_to_snapshot_allow", len(bound) == 1, len(bound))
+    allow_event, allow_decision = bound[-1]
+    snapshot = harness.authorization_snapshot(
+        comp, allow_event, allow_decision.authorization_snapshot_ref)
+    log.ok("snapshot.evidence_readable", snapshot is not None,
+           allow_decision.authorization_snapshot_ref)
+    log.eq("snapshot.operation_binding",
+           [str(snapshot.operation_id), snapshot.action_revision],
+           [str(allow_decision.operation_id), allow_decision.action_revision])
+    log.eq("snapshot.identity",
+           [snapshot.task_id, snapshot.user_id], facts["snapshot_identity"])
+    log.eq("snapshot.session_and_round",
+           [snapshot.session_id, snapshot.demo_round_id],
+           [facts["snapshot_session_id"], facts["snapshot_demo_round_id"]])
+    log.eq("snapshot.parameter_evidence_persisted",
+           harness.stored_evidence(comp, allow_event, allow_decision.parameters_ref) is not None,
+           facts["snapshot_has_parameter_evidence"])
+    approved = [record.payload.confirmation_id for record in records
+                if record.event_type == "confirmation.changed"
+                and record.payload.decision == "approved"]
+    log.eq("snapshot.uses_approved_confirmation",
+           snapshot.confirmation.confirmation_id if snapshot.confirmation else None,
+           approved[-1] if approved else None)
+    log.eq("snapshot.confirmation_decision",
+           snapshot.confirmation.decision if snapshot.confirmation else None,
+           facts["snapshot_confirmation_decision"])
+    log.eq("snapshot.verification_scopes", [item.scope for item in snapshot.verifications],
+           facts["snapshot_verification_scopes"])
+    log.eq("snapshot.verification_methods", [item.methods for item in snapshot.verifications],
+           facts["snapshot_verification_methods"])
+    log.ok("snapshot.captured_at_present", snapshot.captured_at is not None,
+           snapshot.captured_at)
+    snapshot_json = snapshot.model_dump_json()
+    log.eq("snapshot.masked_account_present",
+           facts["snapshot_masked_account"] in snapshot_json, True)
+    log.eq("snapshot.raw_account_present",
+           facts["snapshot_raw_account_probe"] in snapshot_json,
+           facts["snapshot_raw_account_present"])
+    decision_index = next(index for index, record in enumerate(records)
+                          if record.event_id == allow_event.event_id)
+    log.ok("snapshot.persisted_before_start_log",
+           decision_index < records.index(write_start),
+           [decision_index, records.index(write_start)])
     assert_envelope(log, case, comp, done, produced=texts(done))
 
 
@@ -491,3 +550,114 @@ def test_sub_eval_43_no_code_or_raw_account_in_outputs(
     log.eq("redaction.masked_account_shown", "尾号 ****0001" in joined,
            facts["masked_account_shown"])
     assert_envelope(log, case, comp, done, produced=produced)
+
+
+# ------------------------------------------------------- 写前快照失败分支（票 12）
+
+
+def test_sub_eval_44_snapshot_write_failure_submits_nothing(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-SEC-03", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    harness.confirm_and_verify(comp, case["intent"])
+    log.eq("failure.before_submit.cancel_operations", cancel_operations(comp.bank), 0)
+
+    with harness.fail_authorization_snapshot():
+        done = resume(comp, "T1", "R3")
+
+    log.eq("failure.step", step_label(done), "failed")
+    log.eq("failure.error_code", done.error.code if done.error else None, facts["error_code"])
+    log.eq("failure.error_source", done.error.source if done.error else None,
+           facts["error_source"])
+    log.eq("failure.upstream_code", done.error.upstream_code if done.error else None,
+           facts["upstream_code"])
+    log.eq("failure.cancel_operations", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("failure.mandate_untouched", mandate_status(comp.bank, "sub_001"),
+           facts["mandate_status"])
+    paused = [(event, decision) for event, decision in harness.security_decisions(comp)
+              if decision.action_name == harness.CANCEL_TOOL
+              and decision.decision == "pause"
+              and facts["gate_reason"] in decision.reason_codes]
+    log.ok("failure.gate_paused_before_submit", len(paused) >= 1, len(paused))
+    log.eq("failure.no_write_started",
+           [event for event in events(comp)
+            if event.event_type == "tool.started"
+            and getattr(event.payload, "tool_name", None) == harness.CANCEL_TOOL], [])
+    log.eq("failure.no_allow_decision",
+           [decision for _, decision in harness.security_decisions(comp)
+            if decision.action_name == harness.CANCEL_TOOL
+            and decision.decision == "allow"], [])
+    assert_envelope(log, case, comp, done, produced=texts(done))
+
+
+def test_sub_eval_45_start_log_failure_submits_nothing(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-SEC-04", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    harness.confirm_and_verify(comp, case["intent"])
+
+    with harness.fail_cancel_start_log():
+        done = resume(comp, "T1", "R3")
+
+    log.eq("failure.final_status", done.status.value, facts["final_status"])
+    log.eq("failure.error_code", done.error.code if done.error else None, facts["error_code"])
+    log.eq("failure.error_source", done.error.source if done.error else None,
+           facts["error_source"])
+    log.eq("failure.recovery_reason", done.recovery_reason, facts["recovery_reason"])
+    log.eq("failure.cancel_operations", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("failure.mandate_untouched", mandate_status(comp.bank, "sub_001"),
+           facts["mandate_status"])
+    log.eq("failure.no_write_start_logged",
+           [event for event in events(comp)
+            if event.event_type == "tool.started"
+            and getattr(event.payload, "tool_name", None) == harness.CANCEL_TOOL], [])
+    snapshot_allows = [(event, decision)
+                       for event, decision in harness.security_decisions(comp)
+                       if (decision.action_name == harness.CANCEL_TOOL
+                           and decision.phase == "execution"
+                           and decision.decision == "allow"
+                           and decision.authorization_snapshot_ref)]
+    log.ok("failure.snapshot_already_persisted", len(snapshot_allows) >= 1,
+           len(snapshot_allows))
+    log.eq("failure.no_bank_observed",
+           [event for event in events(comp) if event.event_type == "bank.observed"], [])
+    assert_envelope(log, case, comp, done, produced=texts(done))
+
+
+def test_sub_eval_46_decision_persist_failure_submits_nothing(
+        subscription_runtime, case_reports, request):
+    case, log = begin(case_reports, request, "SUB-SEC-05", CASES)
+    facts = case["expected"]["facts"]
+    comp = subscription_runtime()
+    harness.confirm_and_verify(comp, case["intent"])
+
+    with harness.fail_cancel_security_decision():
+        done = resume(comp, "T1", "R3")
+
+    log.eq("failure.final_status", done.status.value, case["expected"]["final_status"])
+    log.eq("failure.error_code", done.error.code if done.error else None, facts["error_code"])
+    log.eq("failure.error_source", done.error.source if done.error else None,
+           facts["error_source"])
+    log.eq("failure.upstream_code", done.error.upstream_code if done.error else None,
+           facts["upstream_code"])
+    log.eq("failure.cancel_operations", cancel_operations(comp.bank),
+           facts["cancel_operations"])
+    log.eq("failure.mandate_untouched", mandate_status(comp.bank, "sub_001"),
+           facts["mandate_status"])
+    allows = [decision for _, decision in harness.security_decisions(comp)
+              if (decision.action_name == harness.CANCEL_TOOL
+                  and decision.phase == "execution"
+                  and decision.decision == "allow")]
+    log.eq("failure.persisted_allow_count", len(allows),
+           facts["persisted_allow_count"])
+    log.eq("failure.no_write_started",
+           [event for event in events(comp)
+            if event.event_type == "tool.started"
+            and getattr(event.payload, "tool_name", None) == harness.CANCEL_TOOL], [])
+    log.eq("failure.no_bank_observed",
+           [event for event in events(comp) if event.event_type == "bank.observed"], [])
+    assert_envelope(log, case, comp, done, produced=texts(done))

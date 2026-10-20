@@ -360,6 +360,53 @@ def fake_failed_operation(comp: Composition, failure_code="BANK_UNAVAILABLE"):
     comp.bank.get_operation = lookup
 
 
+def fail_authorization_snapshot():
+    """Fail the platform's write-ahead snapshot construction before the bank write.
+
+    The gate owns the failure semantics (``AUDIT_UNAVAILABLE`` pause); this only makes
+    the injected seam unavailable, exactly like a broken audit store.
+    """
+
+    return patch("app.agent_platform.subscription_runtime.AuthorizationSnapshot",
+                 side_effect=RuntimeError("authorization snapshot unavailable"))
+
+
+def fail_cancel_start_log():
+    """Fail the audit append of the write action's ``tool.started`` event."""
+
+    from app.audit.journal import AuditJournal
+
+    original = AuditJournal.append_in_transaction
+
+    def guarded(self, connection, event, **kwargs):
+        payload = getattr(event, "payload", None)
+        if (event.event_type == "tool.started"
+                and getattr(payload, "tool_name", None) == CANCEL_TOOL):
+            raise RuntimeError("audit journal unavailable at tool start")
+        return original(self, connection, event, **kwargs)
+
+    return patch.object(AuditJournal, "append_in_transaction", guarded)
+
+
+def fail_cancel_security_decision():
+    """Fail persisting the SENSITIVE ``allow`` decision itself (decision sink)."""
+
+    from app.audit.journal import AuditJournal
+
+    original = AuditJournal.append_in_transaction
+
+    def guarded(self, connection, event, **kwargs):
+        payload = getattr(event, "payload", None)
+        decision = getattr(payload, "decision", None)
+        if (event.event_type == "security.decided"
+                and getattr(decision, "action_name", None) == CANCEL_TOOL
+                and getattr(decision, "decision", None) == "allow"):
+            raise RuntimeError("audit journal unavailable at decision persist")
+        return original(self, connection, event, **kwargs)
+
+    return patch.object(AuditJournal, "append_in_transaction", guarded)
+
+
 def freeze_account(bank: MockBankService, account_id="A1", status="frozen") -> None:
     with transaction(bank.store.path) as connection:
         connection.execute("UPDATE accounts SET account_status = ? WHERE account_id = ?",
@@ -453,6 +500,33 @@ def security_confirmations(comp: Composition, task_id) -> int:
 
 def events(comp: Composition, task_id="T1"):
     return comp.runtime.audit._events(comp.round_id, task_id)
+
+
+def security_decisions(comp: Composition, task_id="T1"):
+    """Every appended security decision with its audit event, in stored order."""
+
+    return [(event, event.payload.decision) for event in events(comp, task_id)
+            if event.event_type == "security.decided"]
+
+
+def stored_evidence(comp: Composition, event, evidence_id):
+    """The raw audit-evidence content a decision event references (or None)."""
+
+    connection = connect(comp.application.path)
+    try:
+        row = comp.runtime.audit._stored_evidence(connection, event, evidence_id)
+    finally:
+        connection.close()
+    return None if row is None else row["content"]
+
+
+def authorization_snapshot(comp: Composition, event, evidence_id):
+    """Read the persisted write-ahead AuthorizationSnapshot a decision points at."""
+
+    from app.contracts.audit import AuthorizationSnapshot
+
+    content = stored_evidence(comp, event, evidence_id)
+    return None if content is None else AuthorizationSnapshot.model_validate_json(content)
 
 
 def texts(*values) -> list[str]:
