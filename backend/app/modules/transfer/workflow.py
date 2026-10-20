@@ -12,7 +12,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
 from app.contracts.bank import BankError, OperationResult, PayeeInput, QueryFailure
-from app.contracts.common import SecurityDecisionCode, TaskStatus
+from app.contracts.common import RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext, SecurityDecision
 from app.contracts.tasks import (
@@ -21,6 +21,20 @@ from app.contracts.tasks import (
 from app.security import ExecutionOutcome
 
 from .tools import TransferAction, payee_input
+
+
+# User-facing words for a security stop. The terminal sentence is used only for
+# HIGH_RISK; the pause sentence only while this task provably never submitted.
+_HIGH_RISK_TERMINAL_MESSAGE = (
+    "这笔转账已经终止，没有提交给银行，钱没有转出去。原因是这次请求有高风险特征，"
+    "比如有人让您保密、催您马上转钱、共享屏幕或要验证码。确认和身份验证都不能解除，"
+    "本期也没有人工复核。下一步：先停止共享屏幕、挂断电话，用卡背面的号码通过银行官方客服核实。"
+)
+_PAUSE_MESSAGE = (
+    "这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；"
+    "现在不用重复点确认，也不用重新验证。"
+)
+_BLOCK_MESSAGE_FALLBACK = "安全检查未通过，这笔转账不能提交。"
 
 
 class TransferPorts(Protocol):
@@ -351,7 +365,7 @@ class TransferWorkflow:
             decision = self.ports.check(self._trusted(state), self._action(state))
         return self._security_decision(decision)
 
-    def _security_decision(self, decision: SecurityDecision) -> dict:
+    def _security_decision(self, decision: SecurityDecision, *, reused: bool = False) -> dict:
         if decision.decision == SecurityDecisionCode.ALLOW:
             return {"status": TaskStatus.RUNNING.value, "interaction": None, "next": "submit"}
         if decision.decision in {
@@ -370,17 +384,30 @@ class TransferWorkflow:
                 "interaction": decision.interaction.model_dump(mode="json"),
                 "wait_kind": "details", "next": "wait", "message": "请补充必要信息。",
             }
+        if decision.decision == SecurityDecisionCode.PAUSE:
+            return self._fail(
+                decision.reason_codes[0], "security",
+                # A reused execution claim means the bank may already have the transfer.
+                decision.message if reused else _PAUSE_MESSAGE,
+                recoverable=True,
+            )
+        high_risk = (
+            decision.decision == SecurityDecisionCode.BLOCK and (
+                "HIGH_RISK" in decision.reason_codes
+                or decision.risk_level == RiskLevel.HIGH
+            )
+        )
         return self._fail(
             decision.reason_codes[0], "security",
-            "安全检查暂不允许提交这笔转账。",
-            recoverable=decision.decision == SecurityDecisionCode.PAUSE,
+            _HIGH_RISK_TERMINAL_MESSAGE if high_risk
+            else (decision.message or _BLOCK_MESSAGE_FALLBACK),
         )
 
     def _submit(self, state: TransferState) -> dict:
         with self._within_action(state):
             outcome = self.ports.execute(self._trusted(state), self._action(state))
         if outcome.decision is not None and outcome.decision.decision != SecurityDecisionCode.ALLOW:
-            return self._security_decision(outcome.decision)
+            return self._security_decision(outcome.decision, reused=outcome.reused)
         if isinstance(outcome.result, OperationResult):
             applied = self._apply_operation(state, outcome.result)
             return applied
