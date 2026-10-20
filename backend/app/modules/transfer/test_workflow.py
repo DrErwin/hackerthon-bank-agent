@@ -862,3 +862,140 @@ def test_recover_session_returns_terminal_history_without_reexecuting():
     assert recovered.run_id == "R2"
     assert ports.submissions == submissions
     assert ports.observations == observations
+
+
+# Issue #173: the words a stopped transfer shows its user. The two copy blocks
+# are the PM-approved wording; a change to them must be a deliberate copy change.
+HIGH_RISK_COPY = (
+    "这笔转账已经终止，没有提交给银行，钱没有转出去。原因是这次请求有高风险特征，"
+    "比如有人让您保密、催您马上转钱、共享屏幕或要验证码。确认和身份验证都不能解除，"
+    "本期也没有人工复核。下一步：先停止共享屏幕、挂断电话，用卡背面的号码通过银行官方客服核实。"
+)
+PAUSE_COPY = (
+    "这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；"
+    "现在不用重复点确认，也不用重新验证。"
+)
+
+
+def security_decision(action, code, *, reasons, message, risk_level=RiskLevel.LOW):
+    return SecurityDecision(
+        decision_id=str(uuid4()), task_id="T1", run_id="R1",
+        action_name="bank.submit_transfer", parameters_ref=action.parameters_ref,
+        operation_id=action.operation_id, action_revision=action.action_revision,
+        phase=Phase.ADMISSION, operation_level=OperationLevel.SENSITIVE,
+        risk_level=risk_level, decision=code, reason_codes=reasons,
+        rule_ids=["test"], policy_version="test", authorization_snapshot_ref=None,
+        evidence_refs=[], interaction=None, checked_at=NOW, message=message,
+    )
+
+
+class StoppedPorts(Ports):
+    def __init__(self, code, reasons, message, risk_level=RiskLevel.LOW):
+        super().__init__()
+        self.code, self.reasons, self.security_message = code, reasons, message
+        self.risk_level = risk_level
+
+    def check(self, _trusted, action):
+        return security_decision(
+            action, self.code, reasons=self.reasons,
+            message=self.security_message, risk_level=self.risk_level,
+        )
+
+
+def test_high_risk_copy_states_termination_reason_and_official_verification():
+    flow, ports = workflow(StoppedPorts(
+        SecurityDecisionCode.BLOCK, ["HIGH_RISK"], "风险过高，任务已终止。", RiskLevel.HIGH,
+    ))
+    result = flow.start(trusted(), request())
+    assert result.status == TaskStatus.FAILED
+    assert result.error.code == "HIGH_RISK"
+    assert result.error.source == "security"
+    assert result.message == HIGH_RISK_COPY
+    assert result.error.reason == HIGH_RISK_COPY
+    for phrase in (
+        "终止", "高风险特征", "保密", "共享屏幕", "验证码",
+        "确认和身份验证都不能解除", "没有人工复核", "银行官方客服核实",
+    ):
+        assert phrase in result.message
+    assert not result.recovery_required
+    assert result.allowed_actions == []
+    assert ports.submissions == 0
+    # A terminal HIGH_RISK task stays terminal: a later confirmation or resume cannot submit.
+    again = flow.resume(trusted(), {"choice": "approve"})
+    assert again.status == TaskStatus.FAILED
+    assert again.error.code == "HIGH_RISK"
+    assert again.message == HIGH_RISK_COPY
+    assert ports.submissions == 0
+
+
+@pytest.mark.parametrize("reason,gate_message", [
+    ("DEPENDENCY_UNAVAILABLE", "暂时无法完成风险核对。"),
+    ("AUDIT_UNAVAILABLE", "安全记录暂不可用，操作已暂停。"),
+])
+def test_pause_before_submission_uses_approved_pause_copy(reason, gate_message):
+    flow, ports = workflow(StoppedPorts(SecurityDecisionCode.PAUSE, [reason], gate_message))
+    result = flow.start(trusted(), request())
+    assert result.status == TaskStatus.NEEDS_ATTENTION
+    assert result.error.code == reason
+    assert result.message == PAUSE_COPY
+    assert result.error.reason == PAUSE_COPY
+    assert result.recovery_required
+    assert result.recovery_reason == reason
+    assert "暂停" in result.message
+    assert "稍后可以重新发起" in result.message
+    assert "终止" not in result.message
+    assert ports.submissions == 0
+
+
+class ReusedPausePorts(Ports):
+    def check(self, _trusted, action):
+        if not self.approved:
+            return self.decision(action, SecurityDecisionCode.REQUIRE_CONFIRMATION)
+        return self.decision(action, SecurityDecisionCode.ALLOW)
+
+    def execute(self, _trusted, action):
+        # DeterministicExecutor found an existing execution claim and could not
+        # recheck the query authority; the bank may already hold this transfer.
+        return ExecutionOutcome(
+            security_decision(
+                action, SecurityDecisionCode.PAUSE,
+                reasons=["DEPENDENCY_UNAVAILABLE"],
+                message="暂时无法核对原操作查询权限。",
+            ),
+            False, True, "unknown", None, None,
+        )
+
+
+def test_reused_execution_claim_pause_does_not_claim_the_money_never_left():
+    flow, ports = workflow(ReusedPausePorts())
+    flow.start(trusted(), request())
+    ports.approved = True
+    result = flow.resume(trusted(), {"choice": "approve"})
+    assert result.status == TaskStatus.NEEDS_ATTENTION
+    assert result.error.code == "DEPENDENCY_UNAVAILABLE"
+    assert result.message == "暂时无法核对原操作查询权限。"
+    assert "钱还在账上" not in result.message
+    assert result.recovery_required
+    assert result.recovery_reason == "DEPENDENCY_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("reason,gate_message", [
+    ("VERIFICATION_FAILED", "身份验证未通过，已停止这笔转账。"),
+    ("TASK_TERMINATED", "任务已终止，不能继续执行该操作。"),
+    ("ACCESS_DENIED", "无权执行该操作。"),
+    ("POLICY_VIOLATION", "该操作未获准执行。"),
+    ("CONFIRMATION_STALE", "确认内容已更新，请读取当前确认单。"),
+])
+def test_other_blocks_show_their_own_security_message(reason, gate_message):
+    flow, ports = workflow(StoppedPorts(
+        SecurityDecisionCode.BLOCK, [reason], gate_message, RiskLevel.MEDIUM,
+    ))
+    result = flow.start(trusted(), request())
+    assert result.status == TaskStatus.FAILED
+    assert result.error.code == reason
+    assert result.message == gate_message
+    assert result.error.reason == gate_message
+    for phrase in ("高风险特征", "银行官方客服", "没有人工复核", "钱没有转出去", "钱还在账上"):
+        assert phrase not in result.message
+    assert not result.recovery_required
+    assert ports.submissions == 0
