@@ -42,11 +42,12 @@ export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModif
   if (gated) {
     return (
       <div className="sh-task" data-task-id={task.task_id}>
+        {/* recovery_reason is an internal code; show the backend's user-facing copy instead. */}
         <RecoveryCard
           id={base + "-recovery"}
           facts={facts}
           statusText={status.text}
-          reason={task.recovery_reason}
+          reason={task.message || task.error?.reason || null}
           resolved={false}
           canDiscard={task.allowed_actions.includes("cancel")}
           busy={busy}

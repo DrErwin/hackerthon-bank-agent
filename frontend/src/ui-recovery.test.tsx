@@ -407,4 +407,29 @@ describe("recovery and retry controls", () => {
     expect(screen.getByText(/请立即停止共享屏幕/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /继续/ })).toBeNull();
   });
+
+  it("shows readable Chinese recovery copy instead of the raw recovery code", () => {
+    const task = makeTask({
+      status: "needs_attention",
+      recovery_required: true,
+      recovery_reason: "DEPENDENCY_UNAVAILABLE",
+      message: "验证结果待核实，请使用原提交重试；这不是验证未通过。",
+      error: {
+        code: "DEPENDENCY_UNAVAILABLE",
+        source: "bank",
+        field: null,
+        reason: "暂时无法核对验证结果。",
+        upstream_code: null,
+      },
+    });
+
+    render(<TaskCard {...makeTaskCardProps(task)} />);
+
+    expect(screen.getByText("验证结果待核实，请使用原提交重试；这不是验证未通过。")).toBeTruthy();
+    expect(screen.getByText("暂时无法核对验证结果。")).toBeTruthy();
+    expect(screen.getByText("此任务需要恢复核对。")).toBeTruthy();
+    expect(screen.getByText(/服务端状态：待核实。/)).toBeTruthy();
+    expect(document.body.textContent).not.toContain("DEPENDENCY_UNAVAILABLE");
+    expect(document.body.textContent).not.toContain("needs_attention");
+  });
 });

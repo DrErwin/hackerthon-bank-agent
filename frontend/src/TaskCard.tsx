@@ -386,7 +386,8 @@ export default function TaskCard(props: TaskCardProps) {
         <span className={"state-pill " + statusClass(task)} role="status" aria-live="polite"><span className="status-dot" />{statusLabel(task)}</span>
       </div>
       <p className="task-message">{task.message}</p>
-      {task.recovery_required && <p className="notice notice-warning">{task.recovery_reason || "此任务需要恢复核对。"}</p>}
+      {/* recovery_reason is an internal code; the user-facing message and error reason are already shown here. */}
+      {task.recovery_required && <p className="notice notice-warning">此任务需要恢复核对。</p>}
       {task.cancel_requested && <p className="notice notice-warning">已收到停止请求，仍需核对原操作状态。</p>}
       {task.error && <p className="notice notice-error" role="alert">{task.error.reason}</p>}
 
@@ -610,7 +611,7 @@ export default function TaskCard(props: TaskCardProps) {
       )}
 
       {(task.status === "needs_attention" || task.status === "running") && (
-        <p className="status-explainer">服务端状态：{task.status}。页面不会把请求受理或等待状态描述为交易成功。</p>
+        <p className="status-explainer">服务端状态：{statusLabel(task)}。页面不会把请求受理或等待状态描述为交易成功。</p>
       )}
       {operation && (
         <div className={"bank-result " + (operation.operation_status === "succeeded" ? "bank-result-success" : operation.operation_status === "failed" ? "bank-result-failure" : "bank-result-pending")}>
