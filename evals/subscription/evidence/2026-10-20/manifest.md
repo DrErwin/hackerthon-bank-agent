@@ -27,6 +27,15 @@
 - 原始报告：`subscription-platform-2026-10-19T193122Z.json.gz`（解压后 sha256 `076efc2eba8cb862276059e5750e5d6a3352aa717320ed9e30936e4c98f5eef7`）
 - 源文件校验：7 个评测源文件与提交 `62f9680eb4e11fb629ca961067030b555aeaa874` 逐字节一致：是（逐文件 blob sha 见 manifest.json）
 
+## subscription-platform-2026-10-20T085820Z（platform-runtime）
+
+- 运行时间：`2026-10-20T085820Z`；提交：`e2d799e9635e7e0acae9ba8c423a791ed6b22c08`；脏文件：0 个
+- 解释器：`python 3.12.3`；被测包：`D:\hackerthon-bank-agent\backend\app\__init__.py`
+- 命令：D:\hackerthon-bank-agent\backend\.venv\Scripts\python.exe D:\hackerthon-bank-agent\backend\.venv\Lib\site-packages\pytest\__main__.py evals/subscription -q
+- 用例：51；状态分布：{"Passed": 51}；断言：1161/1161
+- 原始报告：`subscription-platform-2026-10-20T085820Z.json.gz`（解压后 sha256 `b4ca0223479937c5daa9d64648039d15baa2ba72f501ad8d372870c14fca5376`）
+- 源文件校验：7 个评测源文件与提交 `e2d799e9635e7e0acae9ba8c423a791ed6b22c08` 逐字节一致：是（逐文件 blob sha 见 manifest.json）
+
 | 用例 | 场景 | 维度 | 状态 | 断言 | 失败断言 |
 |---|---|---|---|---|---|
 | SUB-CAN-03 | E01/T12 | 文字消歧 | Passed | 22/22 | — |
@@ -41,8 +50,11 @@
 | SUB-CAN-16 | T13/失败恢复 | 已退任务终态稳定 | Passed | 18/18 | — |
 | SUB-CAN-17 | SOP-3 例外/反例 | 无下一期日期不硬退 | Passed | 18/18 | — |
 | SUB-DIS-02 | E08/E05/交叉 | 批量拒绝后取消 | Passed | 21/21 | — |
-| SUB-SEC-01 | §5.10/审计 | 审计链路与写前快照 | Passed | 20/20 | — |
+| SUB-SEC-01 | §5.10/审计 | 审计链路与写前快照 | Passed | 36/36 | — |
 | SUB-SEC-02 | §5.6/脱敏 | 验证码与账号脱敏 | Passed | 12/12 | — |
+| SUB-SEC-03 | §5.10/审计 | 写前快照失败零银行提交 | Passed | 26/26 | — |
+| SUB-SEC-04 | §5.10/审计 | 开始日志失败零银行提交 | Passed | 24/24 | — |
+| SUB-SEC-05 | §5.10/审计 | 敏感裁决持久化失败零银行提交 | Passed | 25/25 | — |
 | SUB-INV-01 | SF01 / T01 / T14 | 盘点与提醒 | Passed | 29/29 | — |
 | SUB-INV-02 | SF07 / T15 / E12 | 证据不足 | Passed | 19/19 | — |
 | SUB-CAN-01 | SF02 / T04 | 单笔退订全链路 | Passed | 39/39 | — |

@@ -205,5 +205,73 @@
       "all_match_head": true
     },
     "extra": {}
+  },
+  {
+    "label": "subscription-platform-2026-10-20T085820Z",
+    "layer": "platform-runtime",
+    "generated_at": "2026-10-20T085820Z",
+    "revision": "e2d799e9635e7e0acae9ba8c423a791ed6b22c08",
+    "dirty_paths": [],
+    "app_file": "D:\\hackerthon-bank-agent\\backend\\app\\__init__.py",
+    "python": "3.12.3",
+    "commands": [
+      [
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Scripts\\python.exe",
+        "D:\\hackerthon-bank-agent\\backend\\.venv\\Lib\\site-packages\\pytest\\__main__.py",
+        "evals/subscription",
+        "-q"
+      ]
+    ],
+    "cases_run": 51,
+    "counts": {
+      "Passed": 51
+    },
+    "assertions_total": 1161,
+    "assertions_passed": 1161,
+    "failed_cases": [],
+    "evidence_file": "subscription-platform-2026-10-20T085820Z.json.gz",
+    "decompressed_sha256": "b4ca0223479937c5daa9d64648039d15baa2ba72f501ad8d372870c14fca5376",
+    "source_verification": {
+      "head_revision": "e2d799e9635e7e0acae9ba8c423a791ed6b22c08",
+      "files": {
+        "evals/subscription/conftest.py": {
+          "head_blob": "b3c1d33256cbe4d03cb347a75a1d9991e25e4d3f",
+          "worktree_blob": "b3c1d33256cbe4d03cb347a75a1d9991e25e4d3f",
+          "match": true
+        },
+        "evals/subscription/harness.py": {
+          "head_blob": "41c8690d9cd465d4f8c987a3072708aba5ba9e6e",
+          "worktree_blob": "41c8690d9cd465d4f8c987a3072708aba5ba9e6e",
+          "match": true
+        },
+        "evals/subscription/stability_sample.py": {
+          "head_blob": "23018df7c38e5766169073d60c781802b87756f3",
+          "worktree_blob": "23018df7c38e5766169073d60c781802b87756f3",
+          "match": true
+        },
+        "evals/subscription/test_subscription_cancel_evals.py": {
+          "head_blob": "5e621e512f928542de7d406a8942861f7a1c1732",
+          "worktree_blob": "5e621e512f928542de7d406a8942861f7a1c1732",
+          "match": true
+        },
+        "evals/subscription/test_subscription_evals.py": {
+          "head_blob": "5f0a36476495145c2c8f7a2f21d43bce7afaaa4d",
+          "worktree_blob": "5f0a36476495145c2c8f7a2f21d43bce7afaaa4d",
+          "match": true
+        },
+        "evals/subscription/test_subscription_read_evals.py": {
+          "head_blob": "d120fed3d55b500956607418fc781e982feca8ed",
+          "worktree_blob": "d120fed3d55b500956607418fc781e982feca8ed",
+          "match": true
+        },
+        "evals/subscription/golden_cases.json": {
+          "head_blob": "17676f2585407023e68222f59d78b66f008fe6ce",
+          "worktree_blob": "17676f2585407023e68222f59d78b66f008fe6ce",
+          "match": true
+        }
+      },
+      "all_match_head": true
+    },
+    "extra": {}
   }
 ]
