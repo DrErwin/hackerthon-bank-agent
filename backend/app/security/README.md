@@ -52,8 +52,8 @@
 `bills.generate_report`（L03 月度/年度本人账单报告）按 #149 的「安全侧独立冻结快照」口径收录：安全目录保存一份从该模块发布（`modules/bills/manifest.py` 的 `REPORT_MANIFEST`）抄来的固定声明，**不 import、不引用业务对象**；`authorize_capability` 仍逐字段全等比较，声明漂移、未知能力和业务对象原地改写一律拒绝。
 
 - 放行：当前轮次的演示用户（与 L01 相同作用域）调用 `bills.generate_report`；它是 `bills.read` 权限内的只读能力（`side_effect=False`、`confirmation_policy="none"`、`retry_policy="read_only"`），不触发确认/验证，也不产生资金或导出写入。
-- 拦截：越权用户、过期轮次、任何字段漂移的声明，以及未审阅的 L02 `bills.detect_anomalies`、敏感导出等未收录能力。本次没有放宽 `authorize_capability`，也没有批量放行账单能力；`_permissions` 与 `assess_risk` 未改。
-- 切换时点：合并后真实报告能力才可通过安全门（平台侧注册已由 [PR #178](https://github.com/DrErwin/hackerthon-bank-agent/pull/178) 完成）；放行集合变化，`policy_version` 升为 `v04-local-demo-read-2`，裁决与确认记录携带新版本。
-- 验证：`app/security/test_bills_report_policy.py` 17 项（合法放行、九个字段逐一漂移拒绝、冻结副本与模块对象独立、未知能力默认拒绝、用户/轮次越界拒绝）；`app/security` 全量 117 passed。另有真实 `DemoSecurityPolicy` + 已注册 L03 运行时的切换证据：改动前 `authorize_capability(...) == False`（`v04-local-demo-read-1`），改动后 `True`（`v04-local-demo-read-2`），同轮次 L01 仍为 `True`，越界用户/轮次仍为 `False`。
+- 拦截：越权用户、过期轮次、任何字段漂移的声明，以及未审阅的 L02 `bills.detect_anomalies`、敏感导出等未收录能力。本次未改 `authorize_capability` 的全等比较与用户/轮次作用域逻辑，只新增一条已审阅声明，也没有批量放行账单能力；`_permissions` 与 `assess_risk` 未改。
+- 切换时点：合并后真实报告能力才可通过安全门（平台侧注册已由 [PR #178](https://github.com/DrErwin/hackerthon-bank-agent/pull/178) 完成）；放行集合变化，`policy_version` 升为 `v04-local-demo-read-2`，安全裁决记录（`SecurityDecision.policy_version`）携带新版本；`ConfirmationRecord` 本身不含策略版本字段，L03 也不触发确认。
+- 验证：`app/security/test_bills_report_policy.py` 17 项（合法放行、九个声明字段〔不含 name〕逐一漂移拒绝 + name 改名经未知能力用例拒绝、冻结副本与模块对象独立、未知能力默认拒绝、用户/轮次越界拒绝）；`app/security` 全量 117 passed。另有真实 `DemoSecurityPolicy` + 已注册 L03 运行时的切换证据：改动前 `authorize_capability(...) == False`（`v04-local-demo-read-1`），改动后 `True`（`v04-local-demo-read-2`），同轮次 L01 仍为 `True`，越界用户/轮次仍为 `False`。真实 local-demo HTTP 栈实测：改动前 L03 能力被安全门拒绝、不建任务；改动后任务 `succeeded`、`module=bills` 并产出 `report_id`。
 
 **记录边界**：本单因 [#164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 在途、由 PM 指派的其它会话代做，属 **PM 代行、非 Ringo 本人审查**；AI 复核不等于真人专业签核，Ringo 本人的安全签核仍缺，不得据此记作已获安全签核。

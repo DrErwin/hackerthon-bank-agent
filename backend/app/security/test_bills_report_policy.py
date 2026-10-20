@@ -35,11 +35,14 @@ def trusted(**changes):
 def test_l03_declaration_is_whitelisted_for_the_demo_scope():
     policy, _ = make_policy(unavailable_facts)
 
-    assert policy.policy_version == "v04-local-demo-read-2"
+    # The authorization itself is the regression this issue fixes: it is False
+    # before the frozen L03 snapshot is added to the allowlist.
     assert DECLARATION.name == "bills.generate_report"
     assert policy.authorize_capability(trusted(), DECLARATION)
     # L01 and its private reads stay authorized; this change only adds L03.
     assert policy.authorize_capability(trusted(), BILLS_MANIFEST.capabilities[0])
+    # The authorized set changed, so decisions must carry the bumped version.
+    assert policy.policy_version == "v04-local-demo-read-2"
 
 
 @pytest.mark.parametrize("change", [
