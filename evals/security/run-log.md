@@ -21,9 +21,9 @@
 
 五项必交材料分别追加现有SEC的v02，统一分母137主用例 / 294实例 / 356行；原137/289/345批次保持。MAT专项共11轮，0 Passed / 0 Failed / 11 Blocked，0真实模型调用。聊天两项6轮的传输、待确认绑定及零资金副作用局部断言通过，实际模型及检测器证据仍缺；间接入口3项5轮载荷未送达，按Blocked记录。
 
-原始报告与边界见[MAT证据说明](evidence/2026-10-19/mat-README.md)，解压后sha256前16位120C4F3A472D338D。全目录64项测试通过，独立审查返修记录与整例Blocked分别保留。
+原始报告与边界见[MAT证据说明](evidence/2026-10-19/mat-README.md)，解压后sha256前16位120C4F3A472D338D。全目录在重基前快照为 64 项测试通过（2026-10-21 重基 main 后实跑 **79 passed（本机两次独立复跑 93.6s / 96.6s）**），独立审查返修记录与整例Blocked分别保留。
 
-同一固定代码及数据的完整356行计划为20 Passed / 0 Failed / 336 Blocked / 0 NotRun / 0 PENDING_SPEC，解压后sha256前16位C26D3C03C46854AB，原始文件见同批证据说明。来源Git验证false如实保留，54行metadata的数据哈希比对0差异。当前全量适配器未覆盖导出专项的CSV缺陷，专项4 Failed继续沿Issue #161登记。
+同一固定代码及数据的完整356行计划为20 Passed / 0 Failed / 336 Blocked / 0 NotRun / 0 PENDING_SPEC，解压后sha256前16位C26D3C03C46854AB，原始文件见同批证据说明。来源Git验证false如实保留，54行metadata的数据哈希比对0差异（`cases.jsonl` 为旧运行快照 `b1f0c428…`；#159 修订两条 NOT_RUN 用例正文后当前为 `4e039afe…`，结论不变）。当前全量适配器未覆盖导出专项的CSV缺陷，专项4 Failed继续沿Issue #161登记。
 
 ## 2026-10-19 覆盖扩充固定批次离线复跑
 

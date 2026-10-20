@@ -8,12 +8,12 @@ MAT-VFY16-02、03、04共5轮缺工具备注、资料/外发或记忆载入观�
 
 代码与数据固定于本地eval提交06744e4，后端为远端ecf90d0加PR #149安全改动（本地a74f9d5）。本地QA父根缺完整Git对象，报告code_revision unavailable如实保留，实际参数及适配器sha256已写入原报告。文件行尾在最终批次前统一为LF，首次探索性运行未作为固定批次归档。
 
-数据/适配全目录64 passed（171.31s），两轴AI复核遗留0。Standards初审的工作目录复用及manifest历史措辞已修正，既有全目录测试发现的模板顺序与新增gated数量断言也已同步。已归档旧345行批次保持；本票完整356行结果另在台账登记。
+数据/适配全目录在 2026-10-19 固定快照为 64 passed（171.31s）；本轮重基 main 后实跑 **79 passed（本机两次独立复跑 93.6s / 96.6s）**（base main 71 项 + 本票新增 8 项），两轴AI复核遗留0。Standards初审的工作目录复用及manifest历史措辞已修正，既有全目录测试发现的模板顺序与新增gated数量断言也已同步。已归档旧345行批次保持；本票完整356行结果另在台账登记。
 
 本票仍待实际检测及间接入口观察，#88继续开放。AI检查与Ringo本人专业批准分别记录，本轮真实模型调用须另行确认。
 
 ## 当前356行完整离线计划
 
-[完整356行原始JSON](2026-10-19-offline-full-356rows-mat.json.gz)解压后sha256为`C26D3C03C46854ABAA4C55EDA98C50416998B292B6071734BBDE4E6A4D630156`。分布为20 Passed / 0 Failed / 336 Blocked / 0 NotRun / 0 PENDING_SPEC，真实模型调用0次。54行已采集运行metadata的评测器及数据哈希与固定文件逐项比对，差异0项。
+[完整356行原始JSON](2026-10-19-offline-full-356rows-mat.json.gz)解压后sha256为`C26D3C03C46854ABAA4C55EDA98C50416998B292B6071734BBDE4E6A4D630156`。分布为20 Passed / 0 Failed / 336 Blocked / 0 NotRun / 0 PENDING_SPEC，真实模型调用0次。54行已采集运行metadata的评测器及数据哈希与固定文件逐项比对，差异0项。其中 `cases.jsonl` 为运行快照（sha256 `b1f0c428…`）；其后 #159 仅修订 SEC-M-009、SEC-D-010 两条 NOT_RUN 用例正文（当前 sha256 `4e039afefe2750979f64d14537fcd5d56d2ef1931c6c635be0adf5005c21c44a`），该两条不参与本批 MAT 断言，20 Passed / 0 Failed / 336 Blocked 结论不变（同口径见[2026-10-19 证据说明](README.md)）。
 
 报告内来源Git验证false及code_revision unavailable保持原样，七份冻结来源另经连接器核对，见source-manifest。该全量覆盖当前计划行，336条受阻记录的实际安全行为仍未完成验收。导出专项另有4条真实CSV失败，沿Issue #161保留，当前全量适配器未覆盖该专项，不能用这里0 Failed掩盖已知缺陷。
