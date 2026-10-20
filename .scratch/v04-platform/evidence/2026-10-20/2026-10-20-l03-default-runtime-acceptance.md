@@ -2,6 +2,7 @@
 
 - 票：[v04-platform/05：真实账单模块接入平台与纵向联调](https://github.com/DrErwin/hackerthon-bank-agent/blob/main/.scratch/v04-platform/issues/05-real-bills-integration.md)（阶段二 L03 部分）
 - 总跟踪：[Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123)（保持 OPEN）
+- 交付 PR：[#193](https://github.com/DrErwin/hackerthon-bank-agent/pull/193)（测试 + 证据 + 票 05 回填；CI `Repository checks` 绿；按分工由 PM 审核合并，本单不合并）
 - 执行：AI 实施会话（Lead）代执行 · **AI 代执行留痕，非真人审查**；PM 2026-10-20 13:47 口径「5A 授权 AI 代做、Erwin 审后合」
 - 基线：`origin/main` = `d133f376675ede2551f03a7378c83ac53bdd2801`（下文简称 `d133f37`）
 - 工作树：`D:\hb-worktrees\platform-stage2`（分支 `test/platform/l03-acceptance-20261020`，只新增本票测试与证据，**未改生产代码**）
