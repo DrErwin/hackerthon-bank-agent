@@ -46,3 +46,10 @@ python -c "import gzip,pathlib; p=pathlib.Path('evals/transfer/evidence/2026-10-
 code-review Skill分别启动Standards与Spec独立审查。首轮发现报告指纹/平台退出码/成功误报红线遗漏及恢复操作号、跨任务验证、回查过期、摘要截止漏检；已修复并按实际结果复跑。Standards复审无新阻塞；Spec最后复审6项覆盖缺口全部修复，无新阻塞。
 
 这两项是**AI审查**，不是Ringo本人审批、Erwin业务签署或人类合并批准。03代码仅在evals/transfer；未启动04，未合并本PR，未更新版本为完成。
+## 2026-10-21 票 05 主入口替换后的全量复跑（AI 代执行）
+
+v0.4 前端票 05 把正式前端切到 `/` 后，本套件的 OBS-03—07 浏览器检查按 PM 2026-10-21 授权做了最小适配（[PR #203](https://github.com/DrErwin/hackerthon-bank-agent/pull/203)：`.sh-task`/`.sh-conn`/恢复门/`.sh-choice` 等选择器，旧快照挂起语义保留；OBS-05 因完整前端是单会话入口、无切换对话动作，显式记 Blocked 并引用 `frontend/src/ui-recovery.test.tsx` 等价保护，不改写成通过）。
+
+干净提交 `cd976b9b5b5b76ebd75f6a6d89861eba1b6fc061`（`dirty_paths=[]`）串行 `--jobs 1` 全量 153：**152 Passed / 0 Failed / 1 Blocked**，标准 21/21，缺项追问 8/8，红线违规断言 0、红线结论 **Unverified**（唯一缺口 TF-OBS-05），`missing_evidence=true`、`acceptance=NotAccepted`。React 证据：OBS-03/04/06/07 Passed（`frontend_build=786ccaa8…`），OBS-05 Blocked。并行 `--jobs 4` 同提交曾出现一次 TF-RCV-08（`redaction.credential`）偶发失败，串行单跑通过，归档以串行为准。
+
+证据：[2026-10-21](evidence/2026-10-21/README.md)（报告 gz + report.md + 4 张 OBS 截图 + manifest）。**这不是全量通过**：OBS-05 的页面证据缺口如实保留，旧前端 2026-10-11 证据不替代新入口证据。

@@ -1,0 +1,284 @@
+{
+  "capturedAt": "2026-10-20T16:24:30.514Z",
+  "base": "http://127.0.0.1:5173/",
+  "threadId": "b9b560a8-4e89-4464-92bb-b67499c11b1b",
+  "taskId": "11b2b4b3-a36c-4e52-b60f-4d22b7b0ebc9",
+  "transactionId": "4aa450ce-20d7-4f9f-9557-f1d9a97b4759",
+  "checks": {
+    "entryIsCompleteFrontend": true,
+    "realApiNoDemoRibbon": true,
+    "modelProducedPlan": true,
+    "doubleClickSingleSubmit": true,
+    "codeVerificationPassed": true,
+    "refreshRestoredReadOnly": true,
+    "refreshNoLiveButtons": true,
+    "noUnexpectedApiFailures": true
+  },
+  "verdict": "PASS",
+  "steps": [
+    {
+      "n": 1,
+      "name": "ready",
+      "at": "2026-10-20T16:24:18.606Z",
+      "label": "entry boot"
+    },
+    {
+      "n": 2,
+      "name": "entry",
+      "at": "2026-10-20T16:24:18.608Z",
+      "path": "/",
+      "zhInput": true,
+      "legacyTextbox": false,
+      "demoRibbon": false
+    },
+    {
+      "n": 3,
+      "name": "ready",
+      "at": "2026-10-20T16:24:19.087Z",
+      "label": "new-thread"
+    },
+    {
+      "n": 4,
+      "name": "send",
+      "at": "2026-10-20T16:24:19.552Z",
+      "threadId": "b9b560a8-4e89-4464-92bb-b67499c11b1b"
+    },
+    {
+      "n": 5,
+      "name": "confirmation",
+      "at": "2026-10-20T16:24:26.163Z",
+      "taskId": "11b2b4b3-a36c-4e52-b60f-4d22b7b0ebc9",
+      "text": "请确认这笔转账 ? 等您确认 转出账户 主账户 尾号 0001 金额 500.00 元 收款人 王** ****0002 收款银行 模拟合作银行 手续费 0.00 元 到账方式 即时到账 风险提示 低风险；请核对收款人和金额。 请逐项核对。在聊天里说「确认」不算数，必须点下面的按钮。确认单在 01:24 前有效。 确认办理 修改 取消",
+      "buttons": [
+        "确认办理",
+        "修改",
+        "取消"
+      ]
+    },
+    {
+      "n": 6,
+      "name": "confirm-double-click",
+      "at": "2026-10-20T16:24:26.221Z"
+    },
+    {
+      "n": 7,
+      "name": "verification",
+      "at": "2026-10-20T16:24:28.355Z",
+      "text": "确认单记录 已确认办理 · 只读 转出账户 主账户 尾号 0001 金额 500.00 元 收款人 王** ****0002 收款银行 模拟合作银行 手续费 0.00 元 到账方式 即时到账 风险提示 低风险；请核对收款人和金额。 这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。 为了安全，请完成两项验证 ◆ 等您验证 1 验证码 等待输入 模拟验证码（演示专用提示区） 点这里查看 请输入 6 位验证码 提交验证码 重新获取验证码 验证码只填在这里，不要发到聊天里。请在 00:29 前完成。 取消这次办理",
+      "buttons": [
+        "点这里查看",
+        "提交验证码",
+        "重新获取验证码",
+        "取消这次办理"
+      ],
+      "answerCount": 1,
+      "taskCount": 1
+    },
+    {
+      "n": 8,
+      "name": "demo-code",
+      "at": "2026-10-20T16:24:28.729Z",
+      "code": "851245"
+    },
+    {
+      "n": 9,
+      "name": "code-submitted",
+      "at": "2026-10-20T16:24:29.110Z"
+    },
+    {
+      "n": 10,
+      "name": "result",
+      "at": "2026-10-20T16:24:30.023Z",
+      "taskId": "11b2b4b3-a36c-4e52-b60f-4d22b7b0ebc9",
+      "text": "确认单记录 已确认办理 · 只读 转出账户 主账户 尾号 0001 金额 500.00 元 收款人 王** ****0002 收款银行 模拟合作银行 手续费 0.00 元 到账方式 即时到账 风险提示 低风险；请核对收款人和金额。 这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。 安全验证记录 验证已通过 · 只读 1 验证码 已通过 这项验证已转为只读，不会再次提交。 办理结果 ✓ 转账成功 ¥500.00 收款人 王**（****0002） 收款银行 模拟合作银行 手续费 ¥0.00 交易号 4aa450ce-20d7-4f9f-9557-f1d9a97b4759",
+      "transactionId": "4aa450ce-20d7-4f9f-9557-f1d9a97b4759"
+    },
+    {
+      "n": 11,
+      "name": "ready",
+      "at": "2026-10-20T16:24:30.460Z",
+      "label": "reload"
+    },
+    {
+      "n": 12,
+      "name": "reload-recovery",
+      "at": "2026-10-20T16:24:30.465Z",
+      "text": "确认单记录 已确认办理 · 只读 转出账户 主账户 尾号 0001 金额 500.00 元 收款人 王** ****0002 收款银行 模拟合作银行 手续费 0.00 元 到账方式 即时到账 风险提示 低风险；请核对收款人和金额。 这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。 安全验证记录 验证已通过 · 只读 1 验证码 已通过 这项验证已转为只读，不会再次提交。 办理结果 ✓ 转账成功 ¥500.00 收款人 王**（****0002） 收款银行 模拟合作银行 手续费 ¥0.00 交易号 4aa450ce-20d7-4f9f-9557-f1d9a97b4759",
+      "taskBlockButtons": [],
+      "readOnlyLines": [
+        "这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。",
+        "这项验证已转为只读，不会再次提交。"
+      ],
+      "hasRecoveryGate": false,
+      "placeholders": [],
+      "liveButtonCount": 0
+    }
+  ],
+  "apiCalls": [
+    {
+      "method": "GET",
+      "url": "/api/v1/session",
+      "status": 401
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/session/enter",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads?limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads/5d1b1430-5211-433d-9bde-433a83e86a89/messages?limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/tasks?thread_id=5d1b1430-5211-433d-9bde-433a83e86a89&limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/tasks/9d31913c-5904-4185-b289-404f47b0218c/records",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/confirmations/74da2c87-3aa6-40ac-92ad-4d2af2fe0ff0",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads/5d1b1430-5211-433d-9bde-433a83e86a89/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/verifications/a7151cd1-47e5-4ba7-939a-290a18e8cfa5",
+      "status": 409
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/threads",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/session",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads?limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads/b9b560a8-4e89-4464-92bb-b67499c11b1b/messages?limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/tasks?thread_id=b9b560a8-4e89-4464-92bb-b67499c11b1b&limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads/b9b560a8-4e89-4464-92bb-b67499c11b1b/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/threads/b9b560a8-4e89-4464-92bb-b67499c11b1b/messages",
+      "status": 202
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/confirmations/e41c771c-55bb-4c6c-a345-424ce09c7550",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/confirmations/e41c771c-55bb-4c6c-a345-424ce09c7550/answer",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/confirmations/e41c771c-55bb-4c6c-a345-424ce09c7550",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/verifications/51e1f413-5493-4d3e-aaec-f2da5b3c387d",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/verifications/51e1f413-5493-4d3e-aaec-f2da5b3c387d/demo-code",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/v1/verifications/51e1f413-5493-4d3e-aaec-f2da5b3c387d/code",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/verifications/51e1f413-5493-4d3e-aaec-f2da5b3c387d",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/session",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads?limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads/b9b560a8-4e89-4464-92bb-b67499c11b1b/messages?limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/tasks?thread_id=b9b560a8-4e89-4464-92bb-b67499c11b1b&limit=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/tasks/11b2b4b3-a36c-4e52-b60f-4d22b7b0ebc9/records",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/confirmations/e41c771c-55bb-4c6c-a345-424ce09c7550",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/threads/b9b560a8-4e89-4464-92bb-b67499c11b1b/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/v1/verifications/51e1f413-5493-4d3e-aaec-f2da5b3c387d",
+      "status": 200
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "expected401": [
+    "/api/v1/session"
+  ],
+  "unexpectedApiFailures": []
+}

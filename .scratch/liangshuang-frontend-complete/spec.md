@@ -1,6 +1,6 @@
 # 梁爽 v0.4 完整前端实施规格
 
-Status: in_progress
+Status: done（2026-10-21：票 01—05 全部交付并合入，主入口替换与全面回归完成）
 Owner: 梁爽（主责；六水协助范围待本人确认）
 Source package: [frontend-complete/packages/01：v0.4 完整前端实现与替换](../frontend-complete/packages/01-v04-complete-frontend.md)
 Accepted: 2026-10-12

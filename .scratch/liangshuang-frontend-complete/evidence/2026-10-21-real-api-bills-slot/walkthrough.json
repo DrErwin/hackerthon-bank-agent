@@ -1,0 +1,815 @@
+{
+  "capturedAt": "2026-10-20T16:05:33.077Z",
+  "base": "http://127.0.0.1:5173/v04",
+  "stack": {
+    "frontend": "vite dev, VITE_API_MODE=real-api",
+    "backend": "local-demo uvicorn 127.0.0.1:8000",
+    "model": "zhipu Coding Plan glm-5.3",
+    "browser": "Microsoft Edge headless 1280x900"
+  },
+  "verdict": "PASS",
+  "checks": {
+    "summary.summaryTaskSucceeded": true,
+    "summary.cardTitle": true,
+    "summary.headlineNet": true,
+    "summary.field-消费支出": true,
+    "summary.field-退款": true,
+    "summary.field-转出": true,
+    "summary.field-转入": true,
+    "summary.count": true,
+    "summary.accounts": true,
+    "summary.category-1": true,
+    "summary.category-2": true,
+    "summary.category-3": true,
+    "summary.category-4": true,
+    "summary.category-5": true,
+    "summary.category-6": true,
+    "summary.category-7": true,
+    "summary.asOf": true,
+    "summary.noDemoNote": true,
+    "summary.realApiTopbar": true,
+    "summary.serverMessagePresent": true,
+    "detail.detailTaskSucceeded": true,
+    "detail.cardTitle": true,
+    "detail.headlineCount": true,
+    "detail.row-SEED-A1-20261008-a1-m0-noodle": true,
+    "detail.merchantUnmasked-SEED-A1-20261008-a1-m0-noodle": true,
+    "detail.row-SEED-A1-20261017-a1-m0-canteen": true,
+    "detail.merchantUnmasked-SEED-A1-20261017-a1-m0-canteen": true,
+    "detail.asOfNote": true,
+    "detail.noDemoNote": true,
+    "detail.serverMessagePresent": true,
+    "detailTransfer.detailTaskSucceeded": true,
+    "detailTransfer.cardTitle": true,
+    "detailTransfer.headlineCount": true,
+    "detailTransfer.hasMaskedRows": true,
+    "detailTransfer.row-c31d1cdb-e329-477f-ac59-698b43d0d3a5": true,
+    "detailTransfer.accountMasked-c31d1cdb-e329-477f-ac59-698b43d0d3a5": true,
+    "detailTransfer.row-ca3d79f3-a0a4-4710-92e0-50162959a316": true,
+    "detailTransfer.accountMasked-ca3d79f3-a0a4-4710-92e0-50162959a316": true,
+    "detailTransfer.row-e3eecb6a-a09c-4e12-96f3-aba4152a8aff": true,
+    "detailTransfer.accountMasked-e3eecb6a-a09c-4e12-96f3-aba4152a8aff": true,
+    "detailTransfer.row-0d877bc9-2e5b-47e5-a150-e7112b1b3a34": true,
+    "detailTransfer.accountMasked-0d877bc9-2e5b-47e5-a150-e7112b1b3a34": true,
+    "detailTransfer.row-SEED-A1-20261005-a1-m0-salary": true,
+    "detailTransfer.row-1a3db824-c543-4cd8-9d08-8b545f9320d2": true,
+    "detailTransfer.accountMasked-1a3db824-c543-4cd8-9d08-8b545f9320d2": true,
+    "detailTransfer.row-34542b70-805a-47a8-9af2-e2c6630d11f1": true,
+    "detailTransfer.accountMasked-34542b70-805a-47a8-9af2-e2c6630d11f1": true,
+    "detailTransfer.row-5c5d7cc3-c27b-4d9a-835a-386471430d26": true,
+    "detailTransfer.accountMasked-5c5d7cc3-c27b-4d9a-835a-386471430d26": true,
+    "detailTransfer.row-SEED-A5-20261012-a5-m0-inflow": true,
+    "detailTransfer.accountMasked-SEED-A5-20261012-a5-m0-inflow": true,
+    "detailTransfer.row-9707d5af-9a51-4673-b9b6-8ade576a7690": true,
+    "detailTransfer.accountMasked-9707d5af-9a51-4673-b9b6-8ade576a7690": true,
+    "detailTransfer.row-1edbc9f4-4898-47aa-8316-ee07480218b8": true,
+    "detailTransfer.accountMasked-1edbc9f4-4898-47aa-8316-ee07480218b8": true,
+    "detailTransfer.row-2b2bd26e-894c-478e-b562-f2c885b826ba": true,
+    "detailTransfer.accountMasked-2b2bd26e-894c-478e-b562-f2c885b826ba": true,
+    "detailTransfer.noDemoNote": true,
+    "anomaly.anomalyTaskSucceeded": true,
+    "anomaly.cardTitle": true,
+    "anomaly.locatedTransaction": true,
+    "anomaly.finding-rule-3": true,
+    "anomaly.finding-evidence-3": true,
+    "anomaly.finding-suggestion-3": true,
+    "anomaly.insufficient-1": true,
+    "anomaly.noActionButtons": true,
+    "anomaly.noDemoNote": true,
+    "anomaly.noFabricatedAmount": true,
+    "report.reportTaskSucceeded": true,
+    "report.noResultCard": true,
+    "report.cardTitle": true,
+    "report.period": true,
+    "report.headline": true,
+    "report.field-消费支出": true,
+    "report.field-退款": true,
+    "report.field-转出": true,
+    "report.field-转入": true,
+    "report.count": true,
+    "report.category-1": true,
+    "report.category-2": true,
+    "report.category-3": true,
+    "report.category-4": true,
+    "report.category-5": true,
+    "report.category-6": true,
+    "report.category-7": true,
+    "report.monthlyAverage": true,
+    "report.statisticalDays": true,
+    "report.averageBasis": true,
+    "report.generatedAt": true,
+    "report.spokenSummary": true,
+    "report.noRawTransactions": true,
+    "report.noDemoText": true,
+    "api.noUnexpectedFailures": true,
+    "console.noErrors": true
+  },
+  "results": [
+    {
+      "scenario": "summary",
+      "taskId": "44957f11-c56f-4298-ad7d-0e3915197473",
+      "threadId": "844a1ee8-5f91-44ab-a0f1-b59c9488d821",
+      "status": "succeeded",
+      "failed": [],
+      "checks": {
+        "summaryTaskSucceeded": true,
+        "cardTitle": true,
+        "headlineNet": true,
+        "field-消费支出": true,
+        "field-退款": true,
+        "field-转出": true,
+        "field-转入": true,
+        "count": true,
+        "accounts": true,
+        "category-1": true,
+        "category-2": true,
+        "category-3": true,
+        "category-4": true,
+        "category-5": true,
+        "category-6": true,
+        "category-7": true,
+        "asOf": true,
+        "noDemoNote": true,
+        "realApiTopbar": true,
+        "serverMessagePresent": true
+      },
+      "api": [
+        {
+          "phase": "summary",
+          "method": "POST",
+          "url": "/api/v1/threads/844a1ee8-5f91-44ab-a0f1-b59c9488d821/messages",
+          "status": 202
+        },
+        {
+          "phase": "summary",
+          "method": "POST",
+          "url": "/api/v1/tasks/44957f11-c56f-4298-ad7d-0e3915197473/inputs",
+          "status": 200
+        },
+        {
+          "phase": "summary",
+          "method": "GET",
+          "url": "/api/v1/tasks/44957f11-c56f-4298-ad7d-0e3915197473",
+          "status": 200
+        },
+        {
+          "phase": "summary",
+          "method": "GET",
+          "url": "/api/v1/tasks/44957f11-c56f-4298-ad7d-0e3915197473",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "scenario": "detail",
+      "taskId": "9cc20700-8092-486d-a03a-c0b0538c19e6",
+      "threadId": "1548beb0-213e-459c-a1d0-d06c95f02b8e",
+      "status": "succeeded",
+      "failed": [],
+      "checks": {
+        "detailTaskSucceeded": true,
+        "cardTitle": true,
+        "headlineCount": true,
+        "row-SEED-A1-20261008-a1-m0-noodle": true,
+        "merchantUnmasked-SEED-A1-20261008-a1-m0-noodle": true,
+        "row-SEED-A1-20261017-a1-m0-canteen": true,
+        "merchantUnmasked-SEED-A1-20261017-a1-m0-canteen": true,
+        "asOfNote": true,
+        "noDemoNote": true,
+        "serverMessagePresent": true
+      },
+      "api": [
+        {
+          "phase": "detail",
+          "method": "POST",
+          "url": "/api/v1/threads/1548beb0-213e-459c-a1d0-d06c95f02b8e/messages",
+          "status": 202
+        },
+        {
+          "phase": "detail",
+          "method": "POST",
+          "url": "/api/v1/tasks/9cc20700-8092-486d-a03a-c0b0538c19e6/inputs",
+          "status": 200
+        },
+        {
+          "phase": "detail",
+          "method": "GET",
+          "url": "/api/v1/tasks/9cc20700-8092-486d-a03a-c0b0538c19e6",
+          "status": 200
+        },
+        {
+          "phase": "detail",
+          "method": "GET",
+          "url": "/api/v1/tasks/9cc20700-8092-486d-a03a-c0b0538c19e6",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "scenario": "detailTransfer",
+      "taskId": "f5b0f392-6d54-4672-8b01-6f3a6a2ea682",
+      "threadId": "23097c0a-8fc0-4b03-9ca3-87835779994b",
+      "status": "succeeded",
+      "failed": [],
+      "checks": {
+        "detailTaskSucceeded": true,
+        "cardTitle": true,
+        "headlineCount": true,
+        "hasMaskedRows": true,
+        "row-c31d1cdb-e329-477f-ac59-698b43d0d3a5": true,
+        "accountMasked-c31d1cdb-e329-477f-ac59-698b43d0d3a5": true,
+        "row-ca3d79f3-a0a4-4710-92e0-50162959a316": true,
+        "accountMasked-ca3d79f3-a0a4-4710-92e0-50162959a316": true,
+        "row-e3eecb6a-a09c-4e12-96f3-aba4152a8aff": true,
+        "accountMasked-e3eecb6a-a09c-4e12-96f3-aba4152a8aff": true,
+        "row-0d877bc9-2e5b-47e5-a150-e7112b1b3a34": true,
+        "accountMasked-0d877bc9-2e5b-47e5-a150-e7112b1b3a34": true,
+        "row-SEED-A1-20261005-a1-m0-salary": true,
+        "row-1a3db824-c543-4cd8-9d08-8b545f9320d2": true,
+        "accountMasked-1a3db824-c543-4cd8-9d08-8b545f9320d2": true,
+        "row-34542b70-805a-47a8-9af2-e2c6630d11f1": true,
+        "accountMasked-34542b70-805a-47a8-9af2-e2c6630d11f1": true,
+        "row-5c5d7cc3-c27b-4d9a-835a-386471430d26": true,
+        "accountMasked-5c5d7cc3-c27b-4d9a-835a-386471430d26": true,
+        "row-SEED-A5-20261012-a5-m0-inflow": true,
+        "accountMasked-SEED-A5-20261012-a5-m0-inflow": true,
+        "row-9707d5af-9a51-4673-b9b6-8ade576a7690": true,
+        "accountMasked-9707d5af-9a51-4673-b9b6-8ade576a7690": true,
+        "row-1edbc9f4-4898-47aa-8316-ee07480218b8": true,
+        "accountMasked-1edbc9f4-4898-47aa-8316-ee07480218b8": true,
+        "row-2b2bd26e-894c-478e-b562-f2c885b826ba": true,
+        "accountMasked-2b2bd26e-894c-478e-b562-f2c885b826ba": true,
+        "noDemoNote": true
+      },
+      "api": [
+        {
+          "phase": "detailTransfer",
+          "method": "POST",
+          "url": "/api/v1/threads/23097c0a-8fc0-4b03-9ca3-87835779994b/messages",
+          "status": 202
+        },
+        {
+          "phase": "detailTransfer",
+          "method": "POST",
+          "url": "/api/v1/tasks/f5b0f392-6d54-4672-8b01-6f3a6a2ea682/inputs",
+          "status": 200
+        },
+        {
+          "phase": "detailTransfer",
+          "method": "GET",
+          "url": "/api/v1/tasks/f5b0f392-6d54-4672-8b01-6f3a6a2ea682",
+          "status": 200
+        },
+        {
+          "phase": "detailTransfer",
+          "method": "GET",
+          "url": "/api/v1/tasks/f5b0f392-6d54-4672-8b01-6f3a6a2ea682",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "scenario": "anomaly",
+      "taskId": "92d46b1b-df6f-4d39-a69a-0218df1754e4",
+      "threadId": "4274f9f5-5213-4b25-a358-4b8ab3f31031",
+      "status": "succeeded",
+      "failed": [],
+      "checks": {
+        "anomalyTaskSucceeded": true,
+        "cardTitle": true,
+        "locatedTransaction": true,
+        "finding-rule-3": true,
+        "finding-evidence-3": true,
+        "finding-suggestion-3": true,
+        "insufficient-1": true,
+        "noActionButtons": true,
+        "noDemoNote": true,
+        "noFabricatedAmount": true
+      },
+      "api": [
+        {
+          "phase": "anomaly",
+          "method": "POST",
+          "url": "/api/v1/threads/4274f9f5-5213-4b25-a358-4b8ab3f31031/messages",
+          "status": 202
+        },
+        {
+          "phase": "anomaly",
+          "method": "POST",
+          "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+          "status": 200
+        },
+        {
+          "phase": "anomaly",
+          "method": "POST",
+          "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+          "status": 200
+        },
+        {
+          "phase": "anomaly",
+          "method": "POST",
+          "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+          "status": 200
+        },
+        {
+          "phase": "anomaly",
+          "method": "POST",
+          "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+          "status": 200
+        },
+        {
+          "phase": "anomaly",
+          "method": "GET",
+          "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4",
+          "status": 200
+        },
+        {
+          "phase": "anomaly",
+          "method": "GET",
+          "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "scenario": "report",
+      "taskId": "7e0b1677-ca15-466a-b712-c15d3887b8f5",
+      "threadId": "22e43f5f-52a6-4b32-beb1-fe8294a7b509",
+      "status": "succeeded",
+      "failed": [],
+      "checks": {
+        "reportTaskSucceeded": true,
+        "noResultCard": true,
+        "cardTitle": true,
+        "period": true,
+        "headline": true,
+        "field-消费支出": true,
+        "field-退款": true,
+        "field-转出": true,
+        "field-转入": true,
+        "count": true,
+        "category-1": true,
+        "category-2": true,
+        "category-3": true,
+        "category-4": true,
+        "category-5": true,
+        "category-6": true,
+        "category-7": true,
+        "monthlyAverage": true,
+        "statisticalDays": true,
+        "averageBasis": true,
+        "generatedAt": true,
+        "spokenSummary": true,
+        "noRawTransactions": true,
+        "noDemoText": true
+      },
+      "api": [
+        {
+          "phase": "report",
+          "method": "POST",
+          "url": "/api/v1/threads/22e43f5f-52a6-4b32-beb1-fe8294a7b509/messages",
+          "status": 202
+        },
+        {
+          "phase": "report",
+          "method": "POST",
+          "url": "/api/v1/tasks/7e0b1677-ca15-466a-b712-c15d3887b8f5/inputs",
+          "status": 200
+        },
+        {
+          "phase": "report",
+          "method": "GET",
+          "url": "/api/v1/tasks/7e0b1677-ca15-466a-b712-c15d3887b8f5",
+          "status": 200
+        },
+        {
+          "phase": "report",
+          "method": "GET",
+          "url": "/api/v1/tasks/7e0b1677-ca15-466a-b712-c15d3887b8f5",
+          "status": 200
+        }
+      ]
+    }
+  ],
+  "apiCalls": [
+    {
+      "phase": "summary",
+      "method": "POST",
+      "url": "/api/v1/threads/844a1ee8-5f91-44ab-a0f1-b59c9488d821/messages",
+      "status": 202
+    },
+    {
+      "phase": "summary",
+      "method": "POST",
+      "url": "/api/v1/tasks/44957f11-c56f-4298-ad7d-0e3915197473/inputs",
+      "status": 200
+    },
+    {
+      "phase": "summary",
+      "method": "GET",
+      "url": "/api/v1/tasks/44957f11-c56f-4298-ad7d-0e3915197473",
+      "status": 200
+    },
+    {
+      "phase": "summary",
+      "method": "GET",
+      "url": "/api/v1/tasks/44957f11-c56f-4298-ad7d-0e3915197473",
+      "status": 200
+    },
+    {
+      "phase": "detail",
+      "method": "POST",
+      "url": "/api/v1/threads/1548beb0-213e-459c-a1d0-d06c95f02b8e/messages",
+      "status": 202
+    },
+    {
+      "phase": "detail",
+      "method": "POST",
+      "url": "/api/v1/tasks/9cc20700-8092-486d-a03a-c0b0538c19e6/inputs",
+      "status": 200
+    },
+    {
+      "phase": "detail",
+      "method": "GET",
+      "url": "/api/v1/tasks/9cc20700-8092-486d-a03a-c0b0538c19e6",
+      "status": 200
+    },
+    {
+      "phase": "detail",
+      "method": "GET",
+      "url": "/api/v1/tasks/9cc20700-8092-486d-a03a-c0b0538c19e6",
+      "status": 200
+    },
+    {
+      "phase": "detailTransfer",
+      "method": "POST",
+      "url": "/api/v1/threads/23097c0a-8fc0-4b03-9ca3-87835779994b/messages",
+      "status": 202
+    },
+    {
+      "phase": "detailTransfer",
+      "method": "POST",
+      "url": "/api/v1/tasks/f5b0f392-6d54-4672-8b01-6f3a6a2ea682/inputs",
+      "status": 200
+    },
+    {
+      "phase": "detailTransfer",
+      "method": "GET",
+      "url": "/api/v1/tasks/f5b0f392-6d54-4672-8b01-6f3a6a2ea682",
+      "status": 200
+    },
+    {
+      "phase": "detailTransfer",
+      "method": "GET",
+      "url": "/api/v1/tasks/f5b0f392-6d54-4672-8b01-6f3a6a2ea682",
+      "status": 200
+    },
+    {
+      "phase": "anomaly",
+      "method": "POST",
+      "url": "/api/v1/threads/4274f9f5-5213-4b25-a358-4b8ab3f31031/messages",
+      "status": 202
+    },
+    {
+      "phase": "anomaly",
+      "method": "POST",
+      "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+      "status": 200
+    },
+    {
+      "phase": "anomaly",
+      "method": "POST",
+      "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+      "status": 200
+    },
+    {
+      "phase": "anomaly",
+      "method": "POST",
+      "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+      "status": 200
+    },
+    {
+      "phase": "anomaly",
+      "method": "POST",
+      "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4/inputs",
+      "status": 200
+    },
+    {
+      "phase": "anomaly",
+      "method": "GET",
+      "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4",
+      "status": 200
+    },
+    {
+      "phase": "anomaly",
+      "method": "GET",
+      "url": "/api/v1/tasks/92d46b1b-df6f-4d39-a69a-0218df1754e4",
+      "status": 200
+    },
+    {
+      "phase": "report",
+      "method": "POST",
+      "url": "/api/v1/threads/22e43f5f-52a6-4b32-beb1-fe8294a7b509/messages",
+      "status": 202
+    },
+    {
+      "phase": "report",
+      "method": "POST",
+      "url": "/api/v1/tasks/7e0b1677-ca15-466a-b712-c15d3887b8f5/inputs",
+      "status": 200
+    },
+    {
+      "phase": "report",
+      "method": "GET",
+      "url": "/api/v1/tasks/7e0b1677-ca15-466a-b712-c15d3887b8f5",
+      "status": 200
+    },
+    {
+      "phase": "report",
+      "method": "GET",
+      "url": "/api/v1/tasks/7e0b1677-ca15-466a-b712-c15d3887b8f5",
+      "status": 200
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "unexpectedApiFailures": [],
+  "steps": [
+    {
+      "n": 1,
+      "name": "ready",
+      "at": "2026-10-20T16:04:21.371Z",
+      "label": "boot"
+    },
+    {
+      "n": 2,
+      "name": "boot-origin",
+      "at": "2026-10-20T16:04:21.373Z",
+      "ribbon": false,
+      "demoNotes": 0,
+      "topbar": "银 AI 银行助手 演示用户 已连接",
+      "billsHints": true
+    },
+    {
+      "n": 3,
+      "name": "ready",
+      "at": "2026-10-20T16:04:21.810Z",
+      "label": "new-thread 844a1ee8-5f91-44ab-a0f1-b59c9488d821"
+    },
+    {
+      "n": 4,
+      "name": "send",
+      "at": "2026-10-20T16:04:22.047Z",
+      "message": "这个月花了多少",
+      "threadId": "844a1ee8-5f91-44ab-a0f1-b59c9488d821"
+    },
+    {
+      "n": 5,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:04:30.609Z",
+      "target": "所有本人账户›",
+      "options": [
+        "主账户 · 尾号 0001›",
+        "储蓄账户 · 尾号 0005›",
+        "所有本人账户›"
+      ]
+    },
+    {
+      "n": 6,
+      "name": "terminal",
+      "at": "2026-10-20T16:04:31.839Z",
+      "taskId": "44957f11-c56f-4298-ad7d-0e3915197473",
+      "status": "succeeded",
+      "dirtyInput": ""
+    },
+    {
+      "n": 7,
+      "name": "checks",
+      "at": "2026-10-20T16:04:31.932Z",
+      "scenario": "summary",
+      "failed": [],
+      "status": "succeeded"
+    },
+    {
+      "n": 8,
+      "name": "ready",
+      "at": "2026-10-20T16:04:32.339Z",
+      "label": "new-thread 1548beb0-213e-459c-a1d0-d06c95f02b8e"
+    },
+    {
+      "n": 9,
+      "name": "send",
+      "at": "2026-10-20T16:04:32.652Z",
+      "message": "看看这个月的餐饮明细",
+      "threadId": "1548beb0-213e-459c-a1d0-d06c95f02b8e"
+    },
+    {
+      "n": 10,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:04:47.906Z",
+      "target": "所有本人账户›",
+      "options": [
+        "主账户 · 尾号 0001›",
+        "储蓄账户 · 尾号 0005›",
+        "所有本人账户›"
+      ]
+    },
+    {
+      "n": 11,
+      "name": "terminal",
+      "at": "2026-10-20T16:04:49.132Z",
+      "taskId": "9cc20700-8092-486d-a03a-c0b0538c19e6",
+      "status": "succeeded",
+      "dirtyInput": ""
+    },
+    {
+      "n": 12,
+      "name": "checks",
+      "at": "2026-10-20T16:04:49.213Z",
+      "scenario": "detail",
+      "failed": [],
+      "status": "succeeded"
+    },
+    {
+      "n": 13,
+      "name": "ready",
+      "at": "2026-10-20T16:04:49.655Z",
+      "label": "new-thread 23097c0a-8fc0-4b03-9ca3-87835779994b"
+    },
+    {
+      "n": 14,
+      "name": "send",
+      "at": "2026-10-20T16:04:49.970Z",
+      "message": "看看这个月的转账明细",
+      "threadId": "23097c0a-8fc0-4b03-9ca3-87835779994b"
+    },
+    {
+      "n": 15,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:05:01.591Z",
+      "target": "所有本人账户›",
+      "options": [
+        "主账户 · 尾号 0001›",
+        "储蓄账户 · 尾号 0005›",
+        "所有本人账户›"
+      ]
+    },
+    {
+      "n": 16,
+      "name": "terminal",
+      "at": "2026-10-20T16:05:02.817Z",
+      "taskId": "f5b0f392-6d54-4672-8b01-6f3a6a2ea682",
+      "status": "succeeded",
+      "dirtyInput": ""
+    },
+    {
+      "n": 17,
+      "name": "checks",
+      "at": "2026-10-20T16:05:02.900Z",
+      "scenario": "detailTransfer",
+      "failed": [],
+      "status": "succeeded"
+    },
+    {
+      "n": 18,
+      "name": "ready",
+      "at": "2026-10-20T16:05:03.309Z",
+      "label": "new-thread 4274f9f5-5213-4b25-a358-4b8ab3f31031"
+    },
+    {
+      "n": 19,
+      "name": "send",
+      "at": "2026-10-20T16:05:03.747Z",
+      "message": "这笔钱我不认识，是不是扣错了",
+      "threadId": "4274f9f5-5213-4b25-a358-4b8ab3f31031"
+    },
+    {
+      "n": 20,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:05:13.541Z",
+      "target": "本月›",
+      "options": [
+        "本月›",
+        "上月›",
+        "前两个月›"
+      ]
+    },
+    {
+      "n": 21,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:05:14.836Z",
+      "target": "列出原范围流水›",
+      "options": [
+        "列出原范围流水›"
+      ]
+    },
+    {
+      "n": 22,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:05:16.127Z",
+      "target": "所有本人账户›",
+      "options": [
+        "主账户 · 尾号 0001›",
+        "储蓄账户 · 尾号 0005›",
+        "所有本人账户›"
+      ]
+    },
+    {
+      "n": 23,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:05:17.421Z",
+      "target": "18 · 2026-10-20 01:24:27 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+      "options": [
+        "1 · 2026-10-02 00:05:00 · 8.00元 · 模拟银行 · 账号未知 · 渠道：未知›",
+        "2 · 2026-10-02 12:01:27 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+        "3 · 2026-10-02 12:03:31 · 501.00元 · 王** · ****0002 · 渠道：未知›",
+        "4 · 2026-10-02 12:07:58 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+        "5 · 2026-10-02 12:15:00 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+        "6 · 2026-10-05 09:10:00 · 6200.00元 · 某某科技有限公司 · 账号未知 · 渠道：手机银行›",
+        "7 · 2026-10-05 13:03:43 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+        "8 · 2026-10-05 13:17:10 · 501.00元 · 王** · ****0002 · 渠道：未知›",
+        "9 · 2026-10-07 09:40:00 · 26.00元 · 社区卫生服务中心 · 账号未知 · 渠道：手机银行›",
+        "10 · 2026-10-08 12:20:00 · 28.00元 · 楼下面馆 · 账号未知 · 渠道：快捷支付›",
+        "11 · 2026-10-11 08:05:00 · 2.00元 · 城市公交 · 账号未知 · 渠道：刷卡›",
+        "12 · 2026-10-11 13:48:40 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+        "13 · 2026-10-12 08:30:00 · 2000.00元 · 主账户 · 尾号 0001 · 渠道：手机银行›",
+        "14 · 2026-10-12 20:09:08 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+        "15 · 2026-10-14 18:40:00 · 98.00元 · 社区超市 · 账号未知 · 渠道：快捷支付›",
+        "16 · 2026-10-17 18:10:00 · 45.00元 · 社区食堂 · 账号未知 · 渠道：未知›",
+        "17 · 2026-10-19 10:30:00 · 36.00元 · 社区卫生服务中心 · 账号未知 · 渠道：手机银行›",
+        "18 · 2026-10-20 01:24:27 · 500.00元 · 王** · ****0002 · 渠道：未知›",
+        "19 · 2026-10-20 01:30:19 · 500.00元 · 王** · ****0002 · 渠道：未知›"
+      ]
+    },
+    {
+      "n": 24,
+      "name": "terminal",
+      "at": "2026-10-20T16:05:18.646Z",
+      "taskId": "92d46b1b-df6f-4d39-a69a-0218df1754e4",
+      "status": "succeeded",
+      "dirtyInput": ""
+    },
+    {
+      "n": 25,
+      "name": "checks",
+      "at": "2026-10-20T16:05:18.740Z",
+      "scenario": "anomaly",
+      "failed": [],
+      "status": "succeeded"
+    },
+    {
+      "n": 26,
+      "name": "ready",
+      "at": "2026-10-20T16:05:19.179Z",
+      "label": "new-thread 22e43f5f-52a6-4b32-beb1-fe8294a7b509"
+    },
+    {
+      "n": 27,
+      "name": "send",
+      "at": "2026-10-20T16:05:19.544Z",
+      "message": "给我出一份这个月的账单",
+      "threadId": "22e43f5f-52a6-4b32-beb1-fe8294a7b509"
+    },
+    {
+      "n": 28,
+      "name": "choice-clicked",
+      "at": "2026-10-20T16:05:31.770Z",
+      "target": "所有本人账户›",
+      "options": [
+        "主账户 · 尾号 0001›",
+        "储蓄账户 · 尾号 0005›",
+        "所有本人账户›"
+      ]
+    },
+    {
+      "n": 29,
+      "name": "terminal",
+      "at": "2026-10-20T16:05:32.990Z",
+      "taskId": "7e0b1677-ca15-466a-b712-c15d3887b8f5",
+      "status": "succeeded",
+      "dirtyInput": ""
+    },
+    {
+      "n": 30,
+      "name": "checks",
+      "at": "2026-10-20T16:05:33.076Z",
+      "scenario": "report",
+      "failed": [],
+      "status": "succeeded"
+    },
+    {
+      "n": 31,
+      "name": "api-summary",
+      "at": "2026-10-20T16:05:33.076Z",
+      "total": 23,
+      "byStatus": {
+        "200": 18,
+        "202": 5
+      },
+      "expected": [],
+      "unexpected": []
+    }
+  ]
+}

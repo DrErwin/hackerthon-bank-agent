@@ -65,3 +65,10 @@
 2026-10-19 PR #168合入后独立复验：18 Passed / 0 Failed，包含四条CSV失败复现全部转通过。retest_of为原final报告F07AC22730C35AAF，新报告036109E268DB504E，旧Failed保持。API来源main e43765a，本地后端组合be771bb的边界详见[导出证据说明](evidence/2026-10-19/export-README.md)。模型调用0次。
 
 2026-10-20 按独立审查要求补前置空白/制表符公式变体（' =1+1'、'\t+1'），公式型文本参数由4组扩为6组，runner共20项；20 Passed / 0 Failed，报告解压后sha256 7432C090946D2408C3，见[2026-10-20 证据说明](evidence/2026-10-20/README.md)。原18项retest（036109E2…）保持历史，未重写；平台夹具与真实账单L01至L03边界不变。
+## 2026-10-21 票 05 主入口替换后的 React 证据复跑（AI 代执行）
+
+| 日期 | 入口 | 范围 | 状态分布 | 限制 | 报告文件（解压后sha256前16位） |
+|---|---|---|---|---|---|
+| 2026-10-21 | React 页面证据（构建版完整前端 + 真实 API + Playwright，离线固定规划器） | SEC-C-001、SEC-P-002（替换后主入口 `/`） | 2 场景全 Passed | C-001 9/9、P-002 15/15；代码 main `cd976b9`、`frontend_build_sha256=786ccaa8…`、工作区干净；旧入口 2026-10-10 证据保留，不互相替代 | [evidence/2026-10-21/…react-offline-c001-p002.json.gz](evidence/2026-10-21/2026-10-21-react-offline-c001-p002.json.gz)（7FB87F2E3E9412F5）+ [截图](evidence/2026-10-21/react-browser/) |
+
+本批为票 05（PR #201）主入口替换后的评测脚本适配复跑（PR #202），AI 代执行、非 Ringo 本人审查；执行环境与命令见[同批说明](evidence/2026-10-21/README.md)。

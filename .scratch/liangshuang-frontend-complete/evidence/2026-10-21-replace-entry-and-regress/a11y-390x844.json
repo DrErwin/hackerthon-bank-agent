@@ -1,0 +1,3618 @@
+{
+  "capturedAt": "2026-10-20T16:56:44.673Z",
+  "base": "http://127.0.0.1:5173/",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "build": "ticket-05 worktree (feat/frontend/replace-entry)",
+  "checks": {
+    "fontFloor16": true,
+    "tapTargets48": true,
+    "noHorizontalOverflow": true,
+    "cardPadding20": true,
+    "gaps16": true,
+    "composerInViewport": true,
+    "focus": {
+      "firstIsSkipLink": true,
+      "allFocusVisible": true,
+      "focusedInViewport": true
+    }
+  },
+  "focusSequence": [
+    {
+      "tag": "A",
+      "cls": "sh-skip",
+      "text": "跳到对话内容",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "BUTTON",
+      "cls": "sh-mic",
+      "text": "按住说话，松开结束（演示转写）",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "INPUT",
+      "cls": "sh-input",
+      "text": "",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "BODY",
+      "cls": "",
+      "text": "跳到对话内容\n银\nAI 银行助手\n已连接",
+      "outline": "none 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "A",
+      "cls": "sh-skip",
+      "text": "跳到对话内容",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "BUTTON",
+      "cls": "sh-mic",
+      "text": "按住说话，松开结束（演示转写）",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "INPUT",
+      "cls": "sh-input",
+      "text": "",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "BODY",
+      "cls": "",
+      "text": "跳到对话内容\n银\nAI 银行助手\n已连接",
+      "outline": "none 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "A",
+      "cls": "sh-skip",
+      "text": "跳到对话内容",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "BUTTON",
+      "cls": "sh-mic",
+      "text": "按住说话，松开结束（演示转写）",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "INPUT",
+      "cls": "sh-input",
+      "text": "",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "BODY",
+      "cls": "",
+      "text": "跳到对话内容\n银\nAI 银行助手\n已连接",
+      "outline": "none 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "A",
+      "cls": "sh-skip",
+      "text": "跳到对话内容",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    },
+    {
+      "tag": "BUTTON",
+      "cls": "sh-mic",
+      "text": "按住说话，松开结束（演示转写）",
+      "outline": "solid 3px",
+      "shadow": "none",
+      "visible": true
+    }
+  ],
+  "failures": [],
+  "waived": [
+    {
+      "screen": "welcome",
+      "kind": "skip-link-subpixel",
+      "actual": 47.9
+    },
+    {
+      "screen": "welcome",
+      "kind": "brand-title-20-vs-22",
+      "actual": 20
+    },
+    {
+      "screen": "confirmation",
+      "kind": "skip-link-subpixel",
+      "actual": 47.9
+    },
+    {
+      "screen": "confirmation",
+      "kind": "brand-title-20-vs-22",
+      "actual": 20
+    },
+    {
+      "screen": "confirmation",
+      "kind": "off-scale-17",
+      "text": "转出账户",
+      "cls": ""
+    },
+    {
+      "screen": "confirmation",
+      "kind": "off-scale-17",
+      "text": "金额",
+      "cls": ""
+    },
+    {
+      "screen": "confirmation",
+      "kind": "off-scale-17",
+      "text": "收款人",
+      "cls": ""
+    },
+    {
+      "screen": "confirmation",
+      "kind": "off-scale-17",
+      "text": "收款银行",
+      "cls": ""
+    },
+    {
+      "screen": "confirmation",
+      "kind": "off-scale-17",
+      "text": "手续费",
+      "cls": ""
+    },
+    {
+      "screen": "confirmation",
+      "kind": "off-scale-17",
+      "text": "到账方式",
+      "cls": ""
+    },
+    {
+      "screen": "confirmation",
+      "kind": "off-scale-17",
+      "text": "风险提示",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "skip-link-subpixel",
+      "actual": 47.9
+    },
+    {
+      "screen": "verification",
+      "kind": "brand-title-20-vs-22",
+      "actual": 20
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "转出账户",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "金额",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "收款人",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "收款银行",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "手续费",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "到账方式",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "风险提示",
+      "cls": ""
+    },
+    {
+      "screen": "verification",
+      "kind": "off-scale-17",
+      "text": "请输入 6 位验证码",
+      "cls": "sh-label"
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "skip-link-subpixel",
+      "actual": 47.9
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "brand-title-20-vs-22",
+      "actual": 20
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "消费支出",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "退款",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "转出",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "转入",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "笔数",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "覆盖账户",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "第 1 类 · 转账",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "第 2 类 · 购物",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "第 3 类 · 餐饮",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "第 4 类 · 医疗",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "第 5 类 · 交通",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "第 6 类 · 居住",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "第 7 类 · 其他",
+      "cls": ""
+    },
+    {
+      "screen": "billsSummary",
+      "kind": "off-scale-17",
+      "text": "数据时间",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "skip-link-subpixel",
+      "actual": 47.9
+    },
+    {
+      "screen": "billsReport",
+      "kind": "brand-title-20-vs-22",
+      "actual": 20
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "消费支出",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "退款",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "转出",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "转入",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "笔数",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "覆盖账户",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "第 1 类 · 转账",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "第 2 类 · 购物",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "第 3 类 · 餐饮",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "第 4 类 · 医疗",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "第 5 类 · 交通",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "第 6 类 · 居住",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "第 7 类 · 其他",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "数据时间",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "月均消费",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "统计天数",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "月均口径",
+      "cls": ""
+    },
+    {
+      "screen": "billsReport",
+      "kind": "off-scale-17",
+      "text": "报告生成时间",
+      "cls": ""
+    }
+  ],
+  "contrastFailures": [
+    {
+      "screen": "confirmation",
+      "cls": "sh-time",
+      "text": "00:56",
+      "size": 16,
+      "weight": 400,
+      "color": "rgb(107, 114, 128)",
+      "background": "rgb(245, 246, 248)",
+      "ratio": 4.47,
+      "required": 4.5,
+      "pass": false
+    },
+    {
+      "screen": "verification",
+      "cls": "sh-time",
+      "text": "00:56",
+      "size": 16,
+      "weight": 400,
+      "color": "rgb(107, 114, 128)",
+      "background": "rgb(245, 246, 248)",
+      "ratio": 4.47,
+      "required": 4.5,
+      "pass": false
+    },
+    {
+      "screen": "billsSummary",
+      "cls": "sh-time",
+      "text": "00:56",
+      "size": 16,
+      "weight": 400,
+      "color": "rgb(107, 114, 128)",
+      "background": "rgb(245, 246, 248)",
+      "ratio": 4.47,
+      "required": 4.5,
+      "pass": false
+    },
+    {
+      "screen": "billsReport",
+      "cls": "sh-time",
+      "text": "00:56",
+      "size": 16,
+      "weight": 400,
+      "color": "rgb(107, 114, 128)",
+      "background": "rgb(245, 246, 248)",
+      "ratio": 4.47,
+      "required": 4.5,
+      "pass": false
+    }
+  ],
+  "verdict": "PASS_WITH_WAIVERS",
+  "steps": [
+    {
+      "n": 1,
+      "name": "ready",
+      "at": "2026-10-20T16:56:11.817Z",
+      "label": "boot"
+    },
+    {
+      "n": 2,
+      "name": "ready",
+      "at": "2026-10-20T16:56:12.232Z",
+      "label": "new-thread"
+    },
+    {
+      "n": 3,
+      "name": "01-welcome",
+      "at": "2026-10-20T16:56:12.269Z",
+      "fonts": 7,
+      "targets": 4,
+      "contrast": 7,
+      "overflow": 0,
+      "layout": {
+        "cardPadding": null,
+        "cardRadius": null,
+        "timelineGap": "16px",
+        "taskGap": null,
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      }
+    },
+    {
+      "n": 4,
+      "name": "focus-sequence",
+      "at": "2026-10-20T16:56:12.371Z",
+      "first": {
+        "tag": "A",
+        "cls": "sh-skip",
+        "text": "跳到对话内容",
+        "outline": "solid 3px",
+        "shadow": "none",
+        "visible": true
+      },
+      "count": 14
+    },
+    {
+      "n": 5,
+      "name": "send",
+      "at": "2026-10-20T16:56:12.756Z",
+      "message": "给妈妈转500元，主账户A1"
+    },
+    {
+      "n": 6,
+      "name": "02-confirmation",
+      "at": "2026-10-20T16:56:16.412Z",
+      "fonts": 31,
+      "targets": 7,
+      "contrast": 14,
+      "overflow": 0,
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      }
+    },
+    {
+      "n": 7,
+      "name": "03-verification",
+      "at": "2026-10-20T16:56:17.087Z",
+      "fonts": 41,
+      "targets": 8,
+      "contrast": 23,
+      "overflow": 0,
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      }
+    },
+    {
+      "n": 8,
+      "name": "ready",
+      "at": "2026-10-20T16:56:17.506Z",
+      "label": "new-thread"
+    },
+    {
+      "n": 9,
+      "name": "send",
+      "at": "2026-10-20T16:56:17.652Z",
+      "message": "这个月花了多少"
+    },
+    {
+      "n": 10,
+      "name": "choice",
+      "at": "2026-10-20T16:56:26.360Z",
+      "target": "所有本人账户›"
+    },
+    {
+      "n": 11,
+      "name": "04-bills-summary",
+      "at": "2026-10-20T16:56:28.560Z",
+      "fonts": 47,
+      "targets": 4,
+      "contrast": 16,
+      "overflow": 0,
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      }
+    },
+    {
+      "n": 12,
+      "name": "ready",
+      "at": "2026-10-20T16:56:28.972Z",
+      "label": "new-thread"
+    },
+    {
+      "n": 13,
+      "name": "send",
+      "at": "2026-10-20T16:56:29.198Z",
+      "message": "给我出一份这个月的账单"
+    },
+    {
+      "n": 14,
+      "name": "choice",
+      "at": "2026-10-20T16:56:42.492Z",
+      "target": "所有本人账户›"
+    },
+    {
+      "n": 15,
+      "name": "05-bills-report",
+      "at": "2026-10-20T16:56:44.673Z",
+      "fonts": 58,
+      "targets": 4,
+      "contrast": 17,
+      "overflow": 0,
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      }
+    }
+  ],
+  "samples": {
+    "welcome": {
+      "fonts": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "bg": "rgb(17, 24, 39)"
+        },
+        {
+          "cls": "",
+          "tag": "h1",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "tag": "span",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "您好，我是您的银行小助手。您想办点什么？",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-examples",
+          "tag": "p",
+          "text": "可以这样说：「转给妈妈 500 块」、「给张阿姨",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "bg": "rgb(228, 231, 236)"
+        },
+        {
+          "cls": "sh-composer-hint",
+          "tag": "p",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        }
+      ],
+      "targets": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "w": 136,
+          "h": 47.9,
+          "disabled": false
+        },
+        {
+          "cls": "sh-mic",
+          "tag": "button",
+          "text": "按住说话，松开结束（演示转写）",
+          "w": 52,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-input",
+          "tag": "input",
+          "text": "说说您想办什么…",
+          "w": 226,
+          "h": 56,
+          "disabled": false
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "w": 72,
+          "h": 56,
+          "disabled": true
+        }
+      ],
+      "contrasts": [
+        {
+          "cls": "sh-skip",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "background": "rgb(17, 24, 39)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 5.69,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "您好，我是您的银行小助手。您想办点什",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-examples",
+          "text": "可以这样说：「转给妈妈 500 块」",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 9.53,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-send",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "background": "rgb(228, 231, 236)",
+          "ratio": 6.2,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-composer-hint",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        }
+      ],
+      "overflow": [],
+      "layout": {
+        "cardPadding": null,
+        "cardRadius": null,
+        "timelineGap": "16px",
+        "taskGap": null,
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      },
+      "bodyText": "跳到对话内容 银 AI 银行助手 已连接 您好，我是您的银行小助手。您想办点什么？ 可以这样说：「转给妈妈 500 块」、「给张阿姨转 200 元」、「这个月花了多少」、「看看这个月的餐饮明细」、「这笔钱我不认识，是不是扣错了」、「给我出一份这个月的账单」 输入您想办的事 发送 验证码和完整账号请不要发在聊天里。"
+    },
+    "confirmation": {
+      "fonts": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "bg": "rgb(17, 24, 39)"
+        },
+        {
+          "cls": "",
+          "tag": "h1",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "tag": "span",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "您好，我是您的银行小助手。您想办点什么？",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-examples",
+          "tag": "p",
+          "text": "可以这样说：「转给妈妈 500 块」、「给张阿姨",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "给妈妈转500元，主账户A1",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 241, 230)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "请核对并点击当前确认单的按钮。",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "h3",
+          "text": "请确认这笔转账",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-badge sh-tone-pending",
+          "tag": "span",
+          "text": "等您确认",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 241, 230)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "转出账户",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "主账户 尾号 0001",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "金额",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "500.00 元",
+          "size": 28,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "收款人",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "王** ****0002",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "收款银行",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "模拟合作银行",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "手续费",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "0.00 元",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "到账方式",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "即时到账",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "风险提示",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "低风险；请核对收款人和金额。",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-hint",
+          "tag": "p",
+          "text": "请逐项核对。在聊天里说「确认」不算数，必须点下面",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-btn sh-btn-primary",
+          "tag": "button",
+          "text": "确认办理",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 106, 0)"
+        },
+        {
+          "cls": "sh-btn sh-btn-secondary",
+          "tag": "button",
+          "text": "修改",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-btn sh-btn-secondary",
+          "tag": "button",
+          "text": "取消",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "bg": "rgb(228, 231, 236)"
+        },
+        {
+          "cls": "sh-composer-hint",
+          "tag": "p",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        }
+      ],
+      "targets": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "w": 136,
+          "h": 47.9,
+          "disabled": false
+        },
+        {
+          "cls": "sh-btn sh-btn-primary",
+          "tag": "button",
+          "text": "确认办理",
+          "w": 318,
+          "h": 56,
+          "disabled": false
+        },
+        {
+          "cls": "sh-btn sh-btn-secondary",
+          "tag": "button",
+          "text": "修改",
+          "w": 318,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-btn sh-btn-secondary",
+          "tag": "button",
+          "text": "取消",
+          "w": 318,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-mic",
+          "tag": "button",
+          "text": "按住说话，松开结束（演示转写）",
+          "w": 52,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-input",
+          "tag": "input",
+          "text": "说说您想办什么…",
+          "w": 226,
+          "h": 56,
+          "disabled": false
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "w": 72,
+          "h": 56,
+          "disabled": true
+        }
+      ],
+      "contrasts": [
+        {
+          "cls": "sh-skip",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "background": "rgb(17, 24, 39)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 5.69,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "您好，我是您的银行小助手。您想办点什",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-examples",
+          "text": "可以这样说：「转给妈妈 500 块」",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 9.53,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "给妈妈转500元，主账户A1",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 16.03,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 4.47,
+          "required": 4.5,
+          "pass": false
+        },
+        {
+          "cls": "sh-badge sh-tone-pending",
+          "text": "等您确认",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 16.03,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "转出账户",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "主账户 尾号 0001",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "500.00 元",
+          "size": 28,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-hint",
+          "text": "请逐项核对。在聊天里说「确认」不算数",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-btn sh-btn-primary",
+          "text": "确认办理",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 106, 0)",
+          "ratio": 6.18,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-send",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "background": "rgb(228, 231, 236)",
+          "ratio": 6.2,
+          "required": 4.5,
+          "pass": true
+        }
+      ],
+      "overflow": [],
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      },
+      "bodyText": "跳到对话内容 银 AI 银行助手 已连接 您好，我是您的银行小助手。您想办点什么？ 可以这样说：「转给妈妈 500 块」、「给张阿姨转 200 元」、「这个月花了多少」、「看看这个月的餐饮明细」、「这笔钱我不认识，是不是扣错了」、「给我出一份这个月的账单」 您说： 给妈妈转500元，主账户A1 00:56 助手说： 请核对并点击当前确认单的按钮。 00:56 请确认这笔转账 ? 等您确认 转出账户 主账户 尾号 0001 金额 500.00 元 收款人 王** ****0002 收款银行 模拟合作银行 手续费 0.00 元 到账方式 即时到账 风险提示 低风险；请核对收款人和金额。 请逐项核对。在聊天里说「确认」不算数，必须点下面的按钮。确认单在 01:56 前有效。 确认办理 修改 取消 输入您想办的事 发送 验证码和完整账号请不要发在聊天里。"
+    },
+    "verification": {
+      "fonts": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "bg": "rgb(17, 24, 39)"
+        },
+        {
+          "cls": "",
+          "tag": "h1",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "tag": "span",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "您好，我是您的银行小助手。您想办点什么？",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-examples",
+          "tag": "p",
+          "text": "可以这样说：「转给妈妈 500 块」、「给张阿姨",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "给妈妈转500元，主账户A1",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 241, 230)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "请核对并点击当前确认单的按钮。",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "请完成专用身份验证。",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "h3",
+          "text": "确认单记录",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-stamp",
+          "tag": "span",
+          "text": "已确认办理· 只读",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgb(242, 244, 247)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "转出账户",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "主账户 尾号 0001",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "金额",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "500.00 元",
+          "size": 28,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "收款人",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "王** ****0002",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "收款银行",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "模拟合作银行",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "手续费",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "0.00 元",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "到账方式",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "即时到账",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "风险提示",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "低风险；请核对收款人和金额。",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-readonly-line",
+          "tag": "p",
+          "text": "这张确认单已转为只读，保留在记录里供您核对，按钮",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "h3",
+          "text": "为了安全，请完成两项验证",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-badge sh-tone-pending",
+          "tag": "span",
+          "text": "等您验证",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 241, 230)"
+        },
+        {
+          "cls": "",
+          "tag": "strong",
+          "text": "验证码",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-step-state",
+          "tag": "span",
+          "text": "等待输入",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "span",
+          "text": "模拟验证码（演示专用提示区）",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-link-btn",
+          "tag": "button",
+          "text": "点这里查看",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(154, 52, 18)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-label",
+          "tag": "label",
+          "text": "请输入 6 位验证码",
+          "size": 17,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-btn sh-btn-primary",
+          "tag": "button",
+          "text": "提交验证码",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "bg": "rgb(228, 231, 236)"
+        },
+        {
+          "cls": "sh-btn sh-btn-secondary",
+          "tag": "button",
+          "text": "重新获取验证码",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-hint",
+          "tag": "p",
+          "text": "验证码只填在这里，不要发到聊天里。请在01:01",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-btn sh-btn-quiet",
+          "tag": "button",
+          "text": "取消这次办理",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "bg": "rgb(228, 231, 236)"
+        },
+        {
+          "cls": "sh-composer-hint",
+          "tag": "p",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        }
+      ],
+      "targets": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "w": 136,
+          "h": 47.9,
+          "disabled": false
+        },
+        {
+          "cls": "sh-link-btn",
+          "tag": "button",
+          "text": "点这里查看",
+          "w": 90,
+          "h": 48,
+          "disabled": false
+        },
+        {
+          "cls": "sh-btn sh-btn-primary",
+          "tag": "button",
+          "text": "提交验证码",
+          "w": 290,
+          "h": 56,
+          "disabled": true
+        },
+        {
+          "cls": "sh-btn sh-btn-secondary",
+          "tag": "button",
+          "text": "重新获取验证码",
+          "w": 290,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-btn sh-btn-quiet",
+          "tag": "button",
+          "text": "取消这次办理",
+          "w": 362,
+          "h": 48,
+          "disabled": false
+        },
+        {
+          "cls": "sh-mic",
+          "tag": "button",
+          "text": "按住说话，松开结束（演示转写）",
+          "w": 52,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-input",
+          "tag": "input",
+          "text": "说说您想办什么…",
+          "w": 226,
+          "h": 56,
+          "disabled": false
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "w": 72,
+          "h": 56,
+          "disabled": true
+        }
+      ],
+      "contrasts": [
+        {
+          "cls": "sh-skip",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "background": "rgb(17, 24, 39)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 5.69,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "您好，我是您的银行小助手。您想办点什",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-examples",
+          "text": "可以这样说：「转给妈妈 500 块」",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 9.53,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "给妈妈转500元，主账户A1",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 16.03,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 4.47,
+          "required": 4.5,
+          "pass": false
+        },
+        {
+          "cls": "",
+          "text": "确认单记录",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 16.98,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-stamp",
+          "text": "已确认办理· 只读",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(242, 244, 247)",
+          "ratio": 9.35,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "转出账户",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 9.86,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "主账户 尾号 0001",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 16.98,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "500.00 元",
+          "size": 28,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 16.98,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-readonly-line",
+          "text": "这张确认单已转为只读，保留在记录里供",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 9.86,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-badge sh-tone-pending",
+          "text": "等您验证",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 16.03,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "验证码",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 16.41,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-step-state",
+          "text": "等待输入",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 9.53,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "模拟验证码（演示专用提示区）",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 16.03,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-link-btn",
+          "text": "点这里查看",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(154, 52, 18)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 6.6,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-label",
+          "text": "请输入 6 位验证码",
+          "size": 17,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 16.41,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-btn sh-btn-primary",
+          "text": "提交验证码",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "background": "rgb(228, 231, 236)",
+          "ratio": 6.2,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-btn sh-btn-secondary",
+          "text": "重新获取验证码",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-btn sh-btn-quiet",
+          "text": "取消这次办理",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 9.53,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-composer-hint",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        }
+      ],
+      "overflow": [],
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      },
+      "bodyText": "跳到对话内容 银 AI 银行助手 已连接 您好，我是您的银行小助手。您想办点什么？ 可以这样说：「转给妈妈 500 块」、「给张阿姨转 200 元」、「这个月花了多少」、「看看这个月的餐饮明细」、「这笔钱我不认识，是不是扣错了」、「给我出一份这个月的账单」 您说： 给妈妈转500元，主账户A1 00:56 助手说： 请核对并点击当前确认单的按钮。 00:56 助手说： 请完成专用身份验证。 00:56 确认单记录 已确认办理 · 只读 转出账户 主账户 尾号 0001 金额 500.00 元 收款人 王** ****0002 收款银行 模拟合作银行 手续费 0.00 元 到账方式 即时到账 风险提示 低风险；请核对收款人和金额。 这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。 为了安全，请完成两项验证 ◆ 等您验证 1 验证码 等待输入 模拟验证码（演示专用提示区） 点这里查看 请输入 6 位验证码 提交验证码 重新获取验证码 验证码只填在这里，不要发到聊天里。请在 01:01 前完成。 取消这次办理 输入您想办的事 发送 验证码和完整账号请不要发在聊天里。"
+    },
+    "billsSummary": {
+      "fonts": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "bg": "rgb(17, 24, 39)"
+        },
+        {
+          "cls": "",
+          "tag": "h1",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "tag": "span",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "您好，我是您的银行小助手。您想办点什么？",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-examples",
+          "tag": "p",
+          "text": "可以这样说：「转给妈妈 500 块」、「给张阿姨",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "这个月花了多少",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 241, 230)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "请选择要查询的本人账户，不会替你默认选择。",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "本人账户共 21 笔记录，消费支出 235.00",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "h3",
+          "text": "请选择要查询的本人账户，不会替你默认选择。",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-stamp",
+          "tag": "span",
+          "text": "已选择· 只读",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgb(242, 244, 247)"
+        },
+        {
+          "cls": "sh-readonly-line",
+          "tag": "p",
+          "text": "您选择了：所有本人账户",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "h3",
+          "text": "办理结果",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-badge sh-tone-success",
+          "tag": "span",
+          "text": "消费汇总",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(6, 118, 71)",
+          "bg": "rgb(236, 253, 243)"
+        },
+        {
+          "cls": "sh-headline",
+          "tag": "p",
+          "text": "¥235.00",
+          "size": 32,
+          "weight": 800,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "消费支出",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥235.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "退款",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥0.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "转出",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥6002.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "转入",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥8200.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "笔数",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "21",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "覆盖账户",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "2 个",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 1 类 · 转账",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥6002.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 2 类 · 购物",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥98.00 · 占比 41.70%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 3 类 · 餐饮",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥73.00 · 占比 31.06%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 4 类 · 医疗",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥62.00 · 占比 26.38%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 5 类 · 交通",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥2.00 · 占比 0.85%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 6 类 · 居住",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥0.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 7 类 · 其他",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥0.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "数据时间",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "2026/10/21 00:56",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "bg": "rgb(228, 231, 236)"
+        },
+        {
+          "cls": "sh-composer-hint",
+          "tag": "p",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        }
+      ],
+      "targets": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "w": 136,
+          "h": 47.9,
+          "disabled": false
+        },
+        {
+          "cls": "sh-mic",
+          "tag": "button",
+          "text": "按住说话，松开结束（演示转写）",
+          "w": 52,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-input",
+          "tag": "input",
+          "text": "说说您想办什么…",
+          "w": 226,
+          "h": 56,
+          "disabled": false
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "w": 72,
+          "h": 56,
+          "disabled": true
+        }
+      ],
+      "contrasts": [
+        {
+          "cls": "sh-skip",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "background": "rgb(17, 24, 39)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 5.69,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "您好，我是您的银行小助手。您想办点什",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-examples",
+          "text": "可以这样说：「转给妈妈 500 块」",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 9.53,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "这个月花了多少",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 16.03,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 4.47,
+          "required": 4.5,
+          "pass": false
+        },
+        {
+          "cls": "",
+          "text": "请选择要查询的本人账户，不会替你默认",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 16.98,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-stamp",
+          "text": "已选择· 只读",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(242, 244, 247)",
+          "ratio": 9.35,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-readonly-line",
+          "text": "您选择了：所有本人账户",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 9.86,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-badge sh-tone-success",
+          "text": "消费汇总",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(6, 118, 71)",
+          "background": "rgb(236, 253, 243)",
+          "ratio": 5.4,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-headline",
+          "text": "¥235.00",
+          "size": 32,
+          "weight": 800,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "消费支出",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "¥235.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-send",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "background": "rgb(228, 231, 236)",
+          "ratio": 6.2,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-composer-hint",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        }
+      ],
+      "overflow": [],
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      },
+      "bodyText": "跳到对话内容 银 AI 银行助手 已连接 您好，我是您的银行小助手。您想办点什么？ 可以这样说：「转给妈妈 500 块」、「给张阿姨转 200 元」、「这个月花了多少」、「看看这个月的餐饮明细」、「这笔钱我不认识，是不是扣错了」、「给我出一份这个月的账单」 您说： 这个月花了多少 00:56 助手说： 请选择要查询的本人账户，不会替你默认选择。 00:56 助手说： 本人账户共 21 笔记录，消费支出 235.00 元，退款 0.00 元，净消费 235.00 元；转出 6002.00 元、转入 8200.00 元单列。 00:56 请选择要查询的本人账户，不会替你默认选择。 已选择 · 只读 您选择了：所有本人账户 办理结果 ✓ 消费汇总 ¥235.00 消费支出 ¥235.00 退款 ¥0.00 转出 ¥6002.00 转入 ¥8200.00 笔数 21 覆盖账户 2 个 第 1 类 · 转账 ¥6002.00 第 2 类 · 购物 ¥98.00 · 占比 41.70% 第 3 类 · 餐饮 ¥73.00 · 占比 31.06% 第 4 类 · 医疗 ¥62.00 · 占比 26."
+    },
+    "billsReport": {
+      "fonts": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "bg": "rgb(17, 24, 39)"
+        },
+        {
+          "cls": "",
+          "tag": "h1",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "tag": "span",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "您好，我是您的银行小助手。您想办点什么？",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-examples",
+          "tag": "p",
+          "text": "可以这样说：「转给妈妈 500 块」、「给张阿姨",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "给我出一份这个月的账单",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 241, 230)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "请选择要查询的本人账户，不会替你默认选择。",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-bubble",
+          "tag": "p",
+          "text": "本次共查询到21笔交易；消费支出235元00分，",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgb(255, 255, 255)"
+        },
+        {
+          "cls": "sh-time",
+          "tag": "time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "h3",
+          "text": "请选择要查询的本人账户，不会替你默认选择。",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-stamp",
+          "tag": "span",
+          "text": "已选择· 只读",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgb(242, 244, 247)"
+        },
+        {
+          "cls": "sh-readonly-line",
+          "tag": "p",
+          "text": "您选择了：所有本人账户",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "h3",
+          "text": "账单报告",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-badge sh-tone-neutral",
+          "tag": "span",
+          "text": "报告",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(52, 64, 84)",
+          "bg": "rgb(242, 244, 247)"
+        },
+        {
+          "cls": "sh-hint",
+          "tag": "p",
+          "text": "统计范围：2026/10/01 00:00 起，",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "span",
+          "text": "消费净额",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "strong",
+          "text": "¥235.00",
+          "size": 28,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "消费支出",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥235.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "退款",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥0.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "转出",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥6002.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "转入",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥8200.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "笔数",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "21",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "覆盖账户",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "2 个",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 1 类 · 转账",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥6002.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 2 类 · 购物",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥98.00 · 占比 41.70%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 3 类 · 餐饮",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥73.00 · 占比 31.06%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 4 类 · 医疗",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥62.00 · 占比 26.38%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 5 类 · 交通",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥2.00 · 占比 0.85%",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 6 类 · 居住",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥0.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "第 7 类 · 其他",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥0.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "数据时间",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "2026/10/21 00:56",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "月均消费",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "¥335.71",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "统计天数",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "21",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "月均口径",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "按统计天数折算，每月30天；不预测未来实际支出",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dt",
+          "text": "报告生成时间",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "",
+          "tag": "dd",
+          "text": "2026/10/21 00:56",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-hint",
+          "tag": "p",
+          "text": "本次共查询到21笔交易；消费支出235元00分，",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "bg": "rgb(228, 231, 236)"
+        },
+        {
+          "cls": "sh-composer-hint",
+          "tag": "p",
+          "text": "验证码和完整账号请不要发在聊天里。",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "bg": "rgba(0, 0, 0, 0)"
+        }
+      ],
+      "targets": [
+        {
+          "cls": "sh-skip",
+          "tag": "a",
+          "text": "跳到对话内容",
+          "w": 136,
+          "h": 47.9,
+          "disabled": false
+        },
+        {
+          "cls": "sh-mic",
+          "tag": "button",
+          "text": "按住说话，松开结束（演示转写）",
+          "w": 52,
+          "h": 52,
+          "disabled": false
+        },
+        {
+          "cls": "sh-input",
+          "tag": "input",
+          "text": "说说您想办什么…",
+          "w": 226,
+          "h": 56,
+          "disabled": false
+        },
+        {
+          "cls": "sh-send",
+          "tag": "button",
+          "text": "发送",
+          "w": 72,
+          "h": 56,
+          "disabled": true
+        }
+      ],
+      "contrasts": [
+        {
+          "cls": "sh-skip",
+          "text": "跳到对话内容",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(255, 255, 255)",
+          "background": "rgb(17, 24, 39)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "AI 银行助手",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-conn sh-conn-on",
+          "text": "已连接",
+          "size": 16,
+          "weight": 600,
+          "color": "rgb(6, 118, 71)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 5.69,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "您好，我是您的银行小助手。您想办点什",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-examples",
+          "text": "可以这样说：「转给妈妈 500 块」",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 9.53,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-bubble",
+          "text": "给我出一份这个月的账单",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 241, 230)",
+          "ratio": 16.03,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-time",
+          "text": "00:56",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(107, 114, 128)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 4.47,
+          "required": 4.5,
+          "pass": false
+        },
+        {
+          "cls": "",
+          "text": "请选择要查询的本人账户，不会替你默认",
+          "size": 20,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 16.98,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "sh-stamp",
+          "text": "已选择· 只读",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(242, 244, 247)",
+          "ratio": 9.35,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-readonly-line",
+          "text": "您选择了：所有本人账户",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(249, 250, 251)",
+          "ratio": 9.86,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-badge sh-tone-neutral",
+          "text": "报告",
+          "size": 16,
+          "weight": 700,
+          "color": "rgb(52, 64, 84)",
+          "background": "rgb(242, 244, 247)",
+          "ratio": 9.49,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-hint",
+          "text": "统计范围：2026/10/01 00",
+          "size": 16,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "消费净额",
+          "size": 18,
+          "weight": 400,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 16.41,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "¥235.00",
+          "size": 28,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(245, 246, 248)",
+          "ratio": 16.41,
+          "required": 3,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "消费支出",
+          "size": 17,
+          "weight": 400,
+          "color": "rgb(55, 65, 81)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 10.31,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "",
+          "text": "¥235.00",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(17, 24, 39)",
+          "background": "rgb(255, 255, 255)",
+          "ratio": 17.74,
+          "required": 4.5,
+          "pass": true
+        },
+        {
+          "cls": "sh-send",
+          "text": "发送",
+          "size": 18,
+          "weight": 700,
+          "color": "rgb(71, 84, 103)",
+          "background": "rgb(228, 231, 236)",
+          "ratio": 6.2,
+          "required": 4.5,
+          "pass": true
+        }
+      ],
+      "overflow": [],
+      "layout": {
+        "cardPadding": "20px",
+        "cardRadius": "16px",
+        "timelineGap": "16px",
+        "taskGap": "16px",
+        "composerHeight": 103.8,
+        "composerBottom": 844,
+        "topbarHeight": 60,
+        "brandTitle": {
+          "size": 20,
+          "weight": 700
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "doc": {
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      },
+      "bodyText": "跳到对话内容 银 AI 银行助手 已连接 您好，我是您的银行小助手。您想办点什么？ 可以这样说：「转给妈妈 500 块」、「给张阿姨转 200 元」、「这个月花了多少」、「看看这个月的餐饮明细」、「这笔钱我不认识，是不是扣错了」、「给我出一份这个月的账单」 您说： 给我出一份这个月的账单 00:56 助手说： 请选择要查询的本人账户，不会替你默认选择。 00:56 助手说： 本次共查询到21笔交易；消费支出235元00分，退款0元00分，净消费235元00分。 00:56 请选择要查询的本人账户，不会替你默认选择。 已选择 · 只读 您选择了：所有本人账户 账单报告 ▤ 报告 统计范围：2026/10/01 00:00 起，2026/11/01 00:00 止（不含结束时刻） 消费净额 ¥235.00 消费支出 ¥235.00 退款 ¥0.00 转出 ¥6002.00 转入 ¥8200.00 笔数 21 覆盖账户 2 个 第 1 类 · 转账 ¥6002.00 第 2 类 · 购物 ¥98.00 · 占比 41.70% 第 3 类 · 餐饮 ¥73.00 · 占比 31.06% 第 4"
+    }
+  }
+}
