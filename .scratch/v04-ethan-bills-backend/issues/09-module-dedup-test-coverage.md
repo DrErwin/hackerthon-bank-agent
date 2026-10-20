@@ -4,7 +4,7 @@ Ticket ID: v04-ethan-bills-backend/09
 Type: 测试
 Owner: 周恩宇（Ethan）
 Directory: backend/app/modules/bills/
-Status: in_progress
+Status: resolved（模块防重测试 PR #182 已合入 main；Issue #136 已关闭）
 Package: [v04-bills/packages/01-bills-backend：v0.4 账单业务能力与评测](../../v04-bills/packages/01-bills-backend.md)
 Spec: [v04-ethan-bills-backend 账单实施规格](../spec.md)
 Core scenarios: BF01（同请求不重复读银行）；测试覆盖真实性返修
@@ -40,3 +40,7 @@ Source issue: [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issu
 - 同步 PR #153 合入后的 main `cd7c91ad80652852bb10fef139c2442d756ef359`，受测源码 `74350ce9766e1df0e566de4ac804f2fd7f9081be`；根执行者在本分支全后端实跑 **701 passed in 125.32s**。
 - 最终远端 [38aa8de1063b90462582346d18076761ace59792](https://github.com/DrErwin/hackerthon-bank-agent/commit/38aa8de1063b90462582346d18076761ace59792) 已推送，与受测源码 Git 树均为 `8445f1ada8e3f2089c4bda22020a14446b96f3aa`。前序 407a72c/e797a62 与 700/14 的结果保留为历史。
 - M2 仍是 **1 个独立变异 killed、0 survived、2 个测试变红**；新主线多出的测试不改变该变异统计。本票继续 `in_progress`，尚未为本分支新开第三个 PR，待队列与审查/合入。
+
+### 2026-10-20 晚最终完成记录
+
+[PR #182](https://github.com/DrErwin/hackerthon-bank-agent/pull/182) 已通过双轴审查并由 Erwin squash 合入，Issue #136 已关闭；直接模块防重覆盖成功结果与等待选择两种状态，变异 M2 测试可杀，合入前 CI 850 backend +14 MockBank passed。本票作为模块级返修 **resolved**，不代表更高层真实浏览器验收。
