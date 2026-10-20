@@ -30,3 +30,7 @@ main 399a2fe记录PM决定A：本期Demo沿用固定等级夹具，真实检测�
 在可导入PR #169及main e43765a backend的环境运行`python evals/security/detector_regression.py --output <仓库外的新报告路径>.json`。报告及工作目录独占创建，模型调用0次，eval.invalid仅作静态标记，runner没有外部网络调用。
 
 工具返回、不可信资料和记忆摘要的实际模型载入观察仍待相应入口；其余MAT材料与既有11轮报告保持Blocked。当前新增适配器不把直接聊天替代这些入口，也不替代真人安全批准。
+
+## 2026-10-21 重基与复跑
+
+本 PR 已重基到 main `34764ba`（#159/#163/#169 均已合入）：`pytest -q evals/security` **84 passed（90.33s）**（既有 79 + 本票 5）；检测器专项复跑 **12 Passed + 合法对照 Passed，整例仍 12 Blocked，真实模型调用 0**，与归档 initial/final/retest 结论一致。上文 `69 passed（143.59秒）` 与 PR #169 head `fb24cfb` 的 CI `945 passed` 均为 2026-10-19 历史快照；复现基线以当前 main 为准。
