@@ -19,6 +19,7 @@ from app.contracts.bank import SavedPayee
 from app.contracts.common import SecurityDecisionCode
 from app.contracts.security import ExecutionSecurityContext
 from app.memory.adapter import MemoryAdapter
+from app.modules.bills.anomaly_entry import register_bills_anomalies
 from app.modules.bills.entry import register_bills, register_bills_report
 from app.modules.bills.reads import GatewayBillsReads
 from app.modules.transfer.tools import TransferSnapshots
@@ -177,9 +178,10 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
 
     def risk_facts(context, action, declaration):
         if not declaration.side_effect:
-            # Read tools (transfer reads, the bills L01 module and the subscription
-            # reads) share the read fixture; their parameters live in their own
-            # per-task stores, so they must never be resolved through transfer snapshots.
+            # Read tools (transfer reads, the bills read modules L01/L02/L03 and the
+            # subscription reads) share the read fixture; their parameters live in
+            # their own per-task stores, so they must never be resolved through
+            # transfer snapshots.
             return config.read_fixture.evidence(config.facts_version)
         if declaration.name == subscription_runtime.CANCEL_TOOL:
             # The cancellation facts travel with the bound action reference (the
@@ -222,14 +224,19 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
         authorize_face=policy.authorize_face,
     )
     # Register the real bills capabilities before ApiService construction so the
-    # contract-shaped stub steps aside as a whole (v04-platform/05): L01 and L03 are
-    # real now, only L02 (`bills.detect_anomalies`) stays out of the public catalog.
-    # L03 keeps its own REPORT_MANIFEST/factory because one manifest shares one factory.
-    # Both capabilities are authorized by `security/demo_policy.py` (L03 since
-    # Issue #177, policy_version `v04-local-demo-read-2`), so a report task can
-    # reach its real handler and serve the frontend bills slot (ticket 04).
+    # contract-shaped stub steps aside as a whole (v04-platform/05): L01, L02 and
+    # L03 are all real now. Each capability keeps its own manifest/factory because
+    # one manifest shares one factory.
+    # L03 is authorized by `security/demo_policy.py` since Issue #177
+    # (policy_version `v04-local-demo-read-2`), so a report task can reach its real
+    # handler and serve the frontend bills slot (ticket 04).
+    # L02 is registered but not authorized yet: `security/demo_policy.py` does not
+    # list ANOMALY_MANIFEST (Issue #187, Ringo), so real anomaly calls are still
+    # rejected until that allowlist lands.
     register_bills(runtime.harness.registry, _bills_reads_factory(runtime),
                    lambda: datetime.now(timezone.utc))
+    register_bills_anomalies(runtime.harness.registry, _bills_reads_factory(runtime),
+                             lambda: datetime.now(timezone.utc))
     register_bills_report(runtime.harness.registry, _bills_reads_factory(runtime),
                           lambda: datetime.now(timezone.utc))
     # Scenario 05 rides the same confirmation service, audit journal and bank gateway;
