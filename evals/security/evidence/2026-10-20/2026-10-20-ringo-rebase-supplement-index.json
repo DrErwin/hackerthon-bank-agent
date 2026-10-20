@@ -1,0 +1,33 @@
+{
+  "schema_version": "ringo-main-rebase-supplement-v1",
+  "provider_main": "7a8dd1e6395a792f5130621fd74068566f0fc62e",
+  "declaration_branch": "0b8b2bad9dbd92ebf3a988bdd6cc197fa5643f78",
+  "risk_branch": "dc9db0518addcb88361ee23e730c94833b41e30b",
+  "reports": [
+    {
+      "pytest_exit_code": 0,
+      "suite": "declarations",
+      "counts": {
+        "Passed": 206
+      },
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-declarations206.json.gz",
+      "code_revision": "131cd936c5ed2e8dd1e071de7b8fc3f6918bc3a3",
+      "gzip_sha256": "96C572846E8340BF8F7290B28A0C9B12B41A7CBD8D85A62836CE21E87CE43A47",
+      "json_sha256": "4210BAA13DCBEB8F4D811A2AE3631506CC2F80AF1959FA17EC0639016646BD3E"
+    },
+    {
+      "pytest_exit_code": 0,
+      "suite": "security-core",
+      "counts": {
+        "Passed": 292
+      },
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-risk-core292.json.gz",
+      "code_revision": "3e9cc95d30897c0160bc23903e5b6ed1d943edb6",
+      "gzip_sha256": "B87CF1AC429940E3E8ECC74688CDFB44E1317392A93FC8BBCB61F974C84ADD2C",
+      "json_sha256": "CC9C7B7D64C21358579C70D7114AD01FC43074911814254EB659CB4E1A8D5D20"
+    }
+  ],
+  "real_model_calls": 0,
+  "changes_only_security": true,
+  "note": "Supplement after pinned357-row run; does not replace prior reports or human attestation."
+}

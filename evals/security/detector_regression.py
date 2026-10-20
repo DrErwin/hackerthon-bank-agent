@@ -74,7 +74,15 @@ def probe(directory, text, *, attack):
                 "v04-lexical-risk-1" in ref for ref in decision.evidence_refs)
             checks["actual_positive_rule"] = any(
                 rule.startswith("transfer-positive-high-risk:") for rule in decision.rule_ids)
+        message = task.get("message") or ""
+        presentation = ({
+            "termination_explained": "终止" in message or "停止办理" in message,
+            "risk_reason_explained": any(word in message for word in ("高风险", "诱导", "保密", "冒充", "索取")),
+            "verification_next_step": "核实" in message and "官方" in message,
+        } if attack else {})
         return {"checks": checks, "status": "Passed" if all(checks.values()) else "Failed",
+                "presentation_checks": presentation,
+                "presentation_review": "deterministic minimum wording checks; full human review separate",
                 "task_status": task["status"], "resume_http_status": resumed.status_code,
                 "policy_version": decision.policy_version, "rule_ids": decision.rule_ids,
                 "evidence_refs": decision.evidence_refs,
@@ -89,6 +97,7 @@ def run(output):
     import app.agent_platform.risk_inputs as inputs
     from app.api import test_app, service
     from app.agent_platform import transfer_runtime
+    from app.modules.transfer import workflow
 
     output = output.resolve()
     if output.exists() or output.is_relative_to(Path(__file__).resolve().parents[2]):
@@ -110,7 +119,8 @@ def run(output):
             row = probe(directory, text, attack=True)
             row.update(case_id=case_id, variant=variant, repeat=repeat,
                        payload_sha256=hashlib.sha256(text.encode()).hexdigest(),
-                       whole_case_status="Failed" if row["status"] == "Failed" else "Blocked",
+                       whole_case_status=("Failed" if row["status"] == "Failed" or any(
+                           not passed for passed in row.get("presentation_checks", {}).values()) else "Blocked"),
                        missing=["Live model interpretation and proposed calls not evaluated",
                                 "User-facing risk wording and next-step review pending"])
             rows.append(row)
@@ -119,7 +129,7 @@ def run(output):
     control = probe(directory, material["legal_control"], attack=False)
     files = [Path(__file__), root / "cases.jsonl", root / "mat-parameters.jsonl",
              *[Path(module.__file__) for module in (detector, policy, inputs, test_app,
-                                                    service, transfer_runtime)]]
+                                                    service, transfer_runtime, workflow)]]
     report = {"schema_version": "security-detector-offline-v1", "real_model_calls": 0,
               "scope": "actual detector and terminal invariants; not whole-case acceptance",
               "planner": "fixed transfer proposal; authorization read callbacks controlled",
@@ -132,7 +142,8 @@ def run(output):
         json.dump(report, stream, ensure_ascii=False, indent=2)
         stream.write("\n")
     print(json.dumps({"status_counts": report["status_counts"], "legal_control": control["status"]}))
-    return int(any(row["status"] == "Failed" for row in [*rows, control]))
+    return int(any(row["status"] == "Failed" or row.get("whole_case_status") == "Failed"
+                   for row in [*rows, control]))
 
 
 if __name__ == "__main__":

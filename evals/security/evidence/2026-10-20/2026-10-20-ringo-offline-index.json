@@ -1,0 +1,262 @@
+{
+  "owner": "Ringo",
+  "date": "2026-10-20",
+  "reports": [
+    {
+      "gzip_bytes": 404,
+      "json_sha256": "71A7B7F8093E9D680AF6F6892DAC76CFE1457D755A2B3B9A9C61EA75598111F2",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-historical-main40-audit.json.gz",
+      "gzip_sha256": "48563AD6543EA37CD109C7BCAA49A0724E0C7DEA50ACB0EC1BA4AED71B8A9B95",
+      "summary": {
+        "status": "Failed"
+      }
+    },
+    {
+      "gzip_bytes": 398,
+      "json_sha256": "056762F1525592141587FD8625AD0336228E4F683538C6F7CAF43250DC5022D1",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-candidate-b3a00b0-audit.json.gz",
+      "gzip_sha256": "272E9599F9CC413883D7424CB52A7319601CEB5AF8D6C6BE5410E472BF75B6E7",
+      "summary": {
+        "status": "Passed"
+      }
+    },
+    {
+      "gzip_bytes": 2060,
+      "json_sha256": "51AED298EADFCB5F03E83BC3751FFE70D51C52DB9AB039AE1BA8B77EB0F7BF28",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-historical-main40-detector.json.gz",
+      "gzip_sha256": "500B2A45B72FB76B431459444CCFC8C47C8DC3E4C050070EB1BFB7937CCDD358",
+      "summary": {
+        "status_counts": {
+          "Passed": 12
+        },
+        "whole_case_status_counts": {
+          "Failed": 12
+        }
+      }
+    },
+    {
+      "gzip_bytes": 37905,
+      "json_sha256": "58C06B21855FC03795CA2997F42D747E0D9FBAC2FEAF7E0EC7C2C38DB59001FF",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-historical-composite-backend.json.gz",
+      "gzip_sha256": "C548055EA496807AA0D5558A83F7403856E9A8F32518FB26C096E87FBA379484",
+      "summary": {
+        "code_revision": "5018b8909c780d9f595890e7997693e64d61fa73",
+        "pytest_exit_code": 0,
+        "suite": "backend",
+        "counts": {
+          "Passed": 1017
+        }
+      }
+    },
+    {
+      "gzip_bytes": 4787,
+      "json_sha256": "0D0CC5D51BA9C6576927E8F01457470814FA4CF381250A967EF088E42567FEEB",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-historical-composite-security.json.gz",
+      "gzip_sha256": "9CEA3DD8B050600F38609499D2E29ACC3D898D4EE247E717C019BF6E61379513",
+      "summary": {
+        "code_revision": "5018b8909c780d9f595890e7997693e64d61fa73",
+        "pytest_exit_code": 0,
+        "suite": "security",
+        "counts": {
+          "Passed": 122
+        }
+      }
+    },
+    {
+      "gzip_bytes": 355505,
+      "json_sha256": "195C7F5B5C91C0ECF492A52478EFC50BFB50D583AFD35678D76BBE08086D51C5",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-historical-composite-catalog.json.gz",
+      "gzip_sha256": "CE3F6BD66831B5E69DD5B9E073A9EDCA99AE5DF0F28DE0F1CD54D8502AC0BBB4",
+      "summary": {
+        "code_revision": "5018b8909c780d9f595890e7997693e64d61fa73",
+        "denominators": {
+          "main_cases": 138,
+          "parameter_instances": 295,
+          "planned_result_rows": 357
+        },
+        "status_counts": {
+          "Passed": 20,
+          "Failed": 16,
+          "Blocked": 321,
+          "NotRun": 0,
+          "PENDING_SPEC": 0
+        }
+      }
+    },
+    {
+      "gzip_bytes": 38821,
+      "json_sha256": "656B827F3D5239F1789301430881F2B5FBF6E312C4DCCA05386F9A117A76D5C2",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-current-composite-backend.json.gz",
+      "gzip_sha256": "A67CA4FD48AC8884064BD3C09A5689FC38CE25179DEFA3045B64FCA36F01AB9C",
+      "summary": {
+        "code_revision": "b96ce8c9dc8c03c8acca326dbfdfffc00c368464",
+        "pytest_exit_code": 1,
+        "suite": "backend",
+        "counts": {
+          "Passed": 1041,
+          "Failed": 1
+        }
+      }
+    },
+    {
+      "gzip_bytes": 5306,
+      "json_sha256": "CB2D84E0B1651FEDC77DDED77BAEEB1E4B9669B3E354B31D2A194157EF024778",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-current-composite-security.json.gz",
+      "gzip_sha256": "9A7D4E082958CDB1EA0AC3BE542FBECF7911962B843C095D8C584A8F004B6F7F",
+      "summary": {
+        "code_revision": "a472cba40c91873b4f9e501ad618fd6f24dc989e",
+        "pytest_exit_code": 0,
+        "suite": "security",
+        "counts": {
+          "Passed": 136
+        }
+      }
+    },
+    {
+      "gzip_bytes": 355657,
+      "json_sha256": "8BC453C719D56641A6C5A1F4F0DC8B4B3D27D9924675EA7C0C66F55027651F05",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-current-composite-catalog.json.gz",
+      "gzip_sha256": "7DCA0442D2EB935A712D529449D83C45723F25829593262BBDC39D05DC49390B",
+      "summary": {
+        "code_revision": "6f6f9684b2a3048705d66a952fc53dce00d689e1",
+        "denominators": {
+          "main_cases": 138,
+          "parameter_instances": 295,
+          "planned_result_rows": 357
+        },
+        "status_counts": {
+          "Passed": 20,
+          "Failed": 12,
+          "Blocked": 325,
+          "NotRun": 0,
+          "PENDING_SPEC": 0
+        }
+      }
+    },
+    {
+      "gzip_bytes": 272,
+      "json_sha256": "084259C1DC744B9915FA6BA0306326E579E54ECC5D03807E54AB33A9D237030E",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-backend-isolated-retests.json.gz",
+      "gzip_sha256": "12F658B8369812A7D8889446EA07CE160028958EEF8BE190164F48F47365DEFA",
+      "summary": {}
+    },
+    {
+      "gzip_bytes": 2109,
+      "json_sha256": "2EFE77B4D25C9A8245CB79E7DE804D88A44901E029B1B4141E73DD29A2D6B988",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-current-detector-terminal.json.gz",
+      "gzip_sha256": "CAFEFFF2337008D86A59FC23AAF635E5C4ACD3E3CD90F74E576F6A9DE296DD38",
+      "summary": {
+        "status_counts": {
+          "Passed": 12
+        },
+        "whole_case_status_counts": {
+          "Failed": 12
+        }
+      }
+    },
+    {
+      "gzip_bytes": 8206,
+      "json_sha256": "A41E480325C081C4016B0B7352B950E6F2385E76996E854BCEEF54EA4B975887",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-provider-fixes-retest.json.gz",
+      "gzip_sha256": "6DA39875CC8CBE1DA8442E3CA8B950A945C974B3552C3B014D927E8C88AE28AA",
+      "summary": {
+        "code_revision": "b96ce8c9dc8c03c8acca326dbfdfffc00c368464",
+        "denominators": {
+          "main_cases": 138,
+          "parameter_instances": 295,
+          "planned_result_rows": 357
+        },
+        "status_counts": {
+          "Passed": 0,
+          "Failed": 0,
+          "Blocked": 3,
+          "NotRun": 354,
+          "PENDING_SPEC": 0
+        }
+      }
+    },
+    {
+      "gzip_bytes": 443,
+      "json_sha256": "ADA83844EFA65D4EA9843FCAB7E9462FF9A58DDCD87CCEB05D372D1EB8E3DCB7",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-merged-audit-minimum.json.gz",
+      "gzip_sha256": "5F1418C9246FE62A51A411AC0AEB8AF483E5A121CCDFF3C282504369DE7BE725",
+      "summary": {
+        "status": "Passed"
+      }
+    },
+    {
+      "gzip_bytes": 1094,
+      "json_sha256": "4653846AD0729BD2FA0F1DF242033FE0DCB05378BA51D515E3FCCF2CBE9921A1",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-export20-merged.json.gz",
+      "gzip_sha256": "601DD2C2FC2CDBBD0831D4951090712E0262D6DC4AF114DC564D9C72E91D114B",
+      "summary": {
+        "status_counts": {
+          "Passed": 20
+        },
+        "pytest_exit_code": 0
+      }
+    },
+    {
+      "gzip_bytes": 3130,
+      "json_sha256": "A6B82F477C8158A3F21D7EF7762A7FC14716A6A210ACD45D568B64A276380FBF",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-independent-l03-76.json.gz",
+      "gzip_sha256": "6DDB8314079680B1990EA8C0E44C0481FE946F413F03C57C85A57C99A48CD88A",
+      "summary": {
+        "code_revision": "21c90136d20f7fad02d13fda2a13efffe8c286da",
+        "pytest_exit_code": 0,
+        "suite": "l03",
+        "counts": {
+          "Passed": 76
+        }
+      }
+    },
+    {
+      "gzip_bytes": 7882,
+      "json_sha256": "E490A62BAA2A8660E13A463BA829AEDF20BCAE6D1B17DE49AEE2F9175CA89FE3",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-audit-authorisation-retest.json.gz",
+      "gzip_sha256": "EB1ACC41AF1A697676860DBB92D131803E9861BFE2CD69E22D6C55B0C69AF0AF",
+      "summary": {
+        "code_revision": "b96ce8c9dc8c03c8acca326dbfdfffc00c368464",
+        "denominators": {
+          "main_cases": 138,
+          "parameter_instances": 295,
+          "planned_result_rows": 357
+        },
+        "status_counts": {
+          "Passed": 0,
+          "Failed": 0,
+          "Blocked": 5,
+          "NotRun": 352,
+          "PENDING_SPEC": 0
+        }
+      }
+    },
+    {
+      "gzip_bytes": 16270,
+      "json_sha256": "D197B7AC8D2C615BDA002A4E7ADE1F015F47888E4042D58C2445627D5D6D1BB0",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-function-readiness.json.gz",
+      "gzip_sha256": "BC3078ECA25393B8AEC75A414FCEACF66BD10F87381FD7AC1C00F82B00ACBB0A",
+      "summary": {
+        "design_quantity_gate": true,
+        "six_direction_design_gate": true,
+        "acceptance_item_quantity_gate": false,
+        "denominators": {
+          "main_cases": 138,
+          "parameter_instances": 295,
+          "planned_result_rows": 357
+        }
+      }
+    },
+    {
+      "gzip_bytes": 8147,
+      "json_sha256": "A6DB2A442628F18A21AC2F750AB6EAAC30B866D46906DB09A649BDB420678323",
+      "path": "evals/security/evidence/2026-10-20/2026-10-20-ringo-source-snapshot.json.gz",
+      "gzip_sha256": "2EB588B50EB370F334FAC435675C17D6BAF91E63E9C1EE79C3A5A528D526C401",
+      "summary": {}
+    }
+  ],
+  "real_model_calls": 0,
+  "schema_version": "ringo-offline-evidence-index-v1",
+  "whole_system": "Unverified",
+  "authoring": "AI-assisted under current user authorization; not human attestation"
+}

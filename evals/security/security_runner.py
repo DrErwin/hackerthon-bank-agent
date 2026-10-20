@@ -128,14 +128,20 @@ def verify_source_manifest(manifest: dict) -> list[dict]:
         revision = f"{source['source_commit']}:{source['repository_path']}"
         result = subprocess.run(
             ["git", "rev-parse", revision], cwd=ROOT,
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         actual = result.stdout.strip() if result.returncode == 0 else None
+        local_file = ROOT / source["repository_path"]
+        content = local_file.read_bytes() if local_file.is_file() else None
+        local_blob = (hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest()
+                      if content is not None else None)
         verified.append({
             "id": source["id"],
             "expected_blob": source["git_blob_sha"],
             "actual_blob": actual,
             "verified": actual == source["git_blob_sha"],
+            "working_copy_blob": local_blob,
+            "working_copy_matches_expected": local_blob == source["git_blob_sha"],
         })
     return verified
 
@@ -339,7 +345,7 @@ def _runtime_artifacts(env, case: dict, variant_index: int | None, repeat_index:
 def _git_head_revision() -> str:
     """Single git HEAD lookup shared by every evaluator revision stamp."""
     result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
-                            capture_output=True, text=True, check=False)
+                            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
     return result.stdout.strip() if result.returncode == 0 else "unavailable"
 
 
@@ -1333,6 +1339,16 @@ def _retired_schedule_update(env, assertions: list[dict], evidence: dict) -> lis
     return ["The current runtime has no schedule API/fixture; original-schedule preservation and model routing to cancel/create were not observed."]
 
 
+def _observe_safely(case, variant, repeat, execution_id, callback):
+    try:
+        return callback()
+    except Exception as error:
+        return _result(case, variant, repeat,
+            [{"name": "adapter.execution_completed", "passed": False}],
+            ["The isolated offline probe stopped before required observations completed."],
+            {"adapter_error_type": type(error).__name__, "real_model_calls": 0}, execution_id)
+
+
 def run_instance(case: dict, directory: Path, variant_index: int | None = None,
                  repeat_index: int = 1,
                  planner_factory: Callable[[], object] | None = None) -> dict:
@@ -1353,11 +1369,55 @@ def run_instance(case: dict, directory: Path, variant_index: int | None = None,
     case_id = case["id"]
     execution_id = str(uuid4())
     assertions, missing, evidence = [], [], {"parameter": variant}
+    from public_boundary_adapter import SUPPORTED as PUBLIC_BOUNDARIES, run_public_boundary
+    if case_id == "SEC-L-010":
+        if planner_factory is not None:
+            return _result(case, variant_index, repeat_index, [],
+                ["Read audit probe is offline only; supplied model factory was not executed."],
+                {"real_model_calls": 0}, execution_id)
+        from bills_audit_probe import probe
+        def audit_row():
+            result = probe(directory)
+            return _result(case, variant_index, repeat_index,
+                [{"name": name, "passed": passed} for name, passed in result["checks"].items()],
+                ["Full production L03 assembly and model remain outside this read-audit probe."],
+                result, execution_id)
+        return _observe_safely(case, variant_index, repeat_index, execution_id, audit_row)
+    if case_id in PUBLIC_BOUNDARIES:
+        if planner_factory is not None:
+            return _result(case, variant_index, repeat_index, [],
+                ["Public boundary probe is fixed-offline-only; supplied model factory was not executed."],
+                {"real_model_calls": 0}, execution_id)
+        return run_public_boundary(case, directory, variant_index, repeat_index, execution_id)
+    if case_id in {"SEC-T-003", "SEC-T-004", "SEC-T-005"} and planner_factory is None:
+        import app.security
+        from detector_regression import probe
+        def detector_row():
+            Path(directory).mkdir(parents=True, exist_ok=False)
+            text = (case["material_parameters"][variant_index]["payload"]
+                    if variant_index in case.get("material_parameters", {}) else
+                    case["steps"][0]["instruction"].removeprefix("发送："))
+            result = probe(directory, text, attack=True)
+            return _result(case, variant_index, repeat_index,
+                [{"name": name, "passed": passed} for name, passed in result["checks"].items()] +
+                [{"name": "presentation." + name, "passed": passed}
+                 for name, passed in result.get("presentation_checks", {}).items()],
+                ["Actual model interpretation and full human presentation review remain unexecuted."],
+                result, execution_id)
+        return _observe_safely(case, variant_index, repeat_index, execution_id, detector_row)
     if variant_index in case.get("material_parameters", {}):
         if planner_factory is not None:
             raise ValueError("MAT_LIVE_ADAPTER_NOT_IMPLEMENTED")
         from mat_adapter import run_material_instance
         return run_material_instance(case, directory, variant_index, repeat_index, execution_id)
+    from component_adapter import BINDINGS, run_component
+    if case_id in BINDINGS:
+        if planner_factory is not None:
+            return _result(case, variant_index, repeat_index, [],
+                ["Registered component probes are offline only; no model factory was called."],
+                {"real_model_calls": 0}, execution_id)
+        return _observe_safely(case, variant_index, repeat_index, execution_id,
+            lambda: run_component(case, directory, variant_index, repeat_index, execution_id))
     if case_id == "SEC-A-002" and variant_index not in (3, 4, 10, 11):
         return _result(case, variant_index, repeat_index, assertions,
                        ["No public transfer API exists for this resource family; the variant remains unexecuted."],
@@ -1483,6 +1543,7 @@ def run_suite(catalog: SecurityCatalog, output_dir: Path, case_ids: list[str] | 
         "real_model_calls": 0,
         "model_mode": "fixed offline proposal only",
         "source_manifest": {"all_blob_hashes_verified": all(item["verified"] for item in metadata),
+                             "all_working_copy_hashes_match": all(item["working_copy_matches_expected"] for item in metadata),
                              "sources": metadata},
         "denominators": {"main_cases": len(catalog.cases),
                          "parameter_instances": catalog.parameter_instances,
