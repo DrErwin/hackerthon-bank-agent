@@ -1,0 +1,51 @@
+name: Bills 06 real L01 public business evidence
+on:
+  push:
+    branches:
+      - ci/bills-06-evidence-20261020
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install checked-in test dependencies
+        run: python -m pip install -e './backend[dev]'
+      - name: Real full checkout pinned 17-case business run
+        run: python evals/bills/run_business_evidence.py --revision c2e8f3ea2949c32bf4526b426f647e6c03f69f5c
+      - name: Print verified gzip and manifest for archival
+        run: |
+          python - <<'PY'
+          import base64, gzip, hashlib, json
+          from pathlib import Path
+          files=list(Path('evals/bills/evidence').glob('**/*-public-l01-phase1-c2e8f3ea2949.json.gz'))
+          assert len(files)==1, len(files)
+          p=files[0]
+          data=p.read_bytes()
+          plain=gzip.decompress(data)
+          report=json.loads(plain)
+          assert report['tested_revision']=='c2e8f3ea2949c32bf4526b426f647e6c03f69f5c'
+          assert report['source_verification']=='git_object_verified_complete_business_sources'
+          assert report['summary']=={'passed':17,'failed':0,'skipped':0,'error':0,'collection_errors':0},report['summary']
+          assert report['runtime_sources_verified']
+          assert report['full_ticket_acceptance'] is False
+          info={'filename':p.name,'source':report['tested_revision'],'tree':report['tested_tree'],'collected':report['collected'],'summary':report['summary'],'source_files':len(report['source_files']),'imported_modules':len(report['runtime_imports']),'bank_checks':len(report['samples']),'gzip_sha256':hashlib.sha256(data).hexdigest(),'json_sha256':hashlib.sha256(plain).hexdigest()}
+          print('L01_META='+json.dumps(info,separators=(',',':')))
+          b64=base64.b64encode(data).decode()
+          for k in range(0,len(b64),1200):
+              print(f'L01_CHUNK_{k//1200:04d}='+b64[k:k+1200])
+          print('L01_TOTAL_CHUNKS='+str((len(b64)+1199)//1200))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bills-06-l01-c2e8f3ea2949
+          path: evals/bills/evidence/**/*-public-l01-phase1-c2e8f3ea2949.json.gz
+          if-no-files-found: error
+          retention-days: 7
