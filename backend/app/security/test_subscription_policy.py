@@ -20,7 +20,9 @@ from app.contracts.security import (
 )
 from app.modules.subscription.manifest import MANIFEST as SUBSCRIPTION_MANIFEST
 from app.modules.subscription.reads import PRIVATE_TOOLS as SUBSCRIPTION_PRIVATE_TOOLS
-from app.security import ConfirmationService, SecurityGate, ToolRegistry
+from app.security import (
+    ConfirmationService, DeterministicExecutor, OperationObservation, SecurityGate, ToolRegistry,
+)
 from app.security.demo_policy import DemoRiskEvidence, DemoRiskSignal, DemoSecurityPolicy
 from app.security.gate import RiskFactsUnavailable
 
@@ -65,10 +67,10 @@ def descriptor(name: str = CANCEL.name) -> ActionDescriptor:
 
 def build_gate(
     tmp_path, current_policy, declaration, *, records=None, challenges=None,
-    snapshot_writer=lambda *_: "AUTH-1",
+    snapshot_writer=lambda *_: "AUTH-1", handler=lambda context, payload: payload,
 ):
     registry = ToolRegistry()
-    registry.register(declaration, lambda context, payload: payload)
+    registry.register(declaration, handler)
     confirmations = ConfirmationService(tmp_path / "subscription.sqlite3", clock=lambda: NOW)
     stored = records if records is not None else {}
     created = challenges if challenges is not None else []
@@ -209,14 +211,49 @@ def test_ordinary_cancel_is_low_risk_and_never_asks_for_a_face(tmp_path):
     assert allowed.authorization_snapshot_ref == "AUTH-1"
 
 
+def test_cancel_executor_writes_snapshot_before_bank_submit(tmp_path):
+    events = []
+
+    def write_snapshot(*args):
+        events.append("snapshot")
+        return "AUTH-1"
+
+    def submit(context, payload):
+        events.append("bank")
+        return {"operation_id": str(context.operation_id), "receipt": "R1"}
+
+    current = policy_for(LOW_SIGNALS)
+    gate, confirmations, records, _ = build_gate(
+        tmp_path, current, CANCEL, snapshot_writer=write_snapshot, handler=submit)
+    context = security_context()
+    first = gate.check_action(context, descriptor())
+    confirmed, _ = approve_created_confirmation(
+        confirmations, context, descriptor(), first.interaction.record_ref)
+    basic = session_verification(confirmed)
+    records[basic.verification_id] = basic
+    ready = confirmed.model_copy(update={"verification_ids": [basic.verification_id]})
+    executor = DeterministicExecutor(
+        gate, parameter_resolver=lambda *_: {"mandate_id": "M1"},
+        operation_lookup=lambda *_: None,
+        result_observer=lambda result: OperationObservation(
+            operation_id=ready.operation_id, state="completed", result=result, result_ref="R1"),
+    )
+
+    outcome = executor.execute(ready, descriptor())
+    assert outcome.executed and outcome.decision.authorization_snapshot_ref == "AUTH-1"
+    assert events[-1] == "bank" and events[:-1] == ["snapshot", "snapshot"]
+
+
 def test_cancel_snapshot_failure_pauses_before_execution(tmp_path):
     current = policy_for(LOW_SIGNALS)
+    submissions = []
 
     def unavailable_snapshot(*args):
         raise OSError("snapshot store unavailable")
 
     gate, confirmations, records, _ = build_gate(
-        tmp_path, current, CANCEL, snapshot_writer=unavailable_snapshot)
+        tmp_path, current, CANCEL, snapshot_writer=unavailable_snapshot,
+        handler=lambda *_: submissions.append(True))
     context = security_context()
     first = gate.check_action(context, descriptor())
     confirmed, _ = approve_created_confirmation(
@@ -224,11 +261,15 @@ def test_cancel_snapshot_failure_pauses_before_execution(tmp_path):
     basic = session_verification(confirmed)
     records[basic.verification_id] = basic
 
-    paused = gate.check_action(
+    executor = DeterministicExecutor(
+        gate, parameter_resolver=lambda *_: {"mandate_id": "M1"},
+        operation_lookup=lambda *_: None, result_observer=lambda *_: None)
+    outcome = executor.execute(
         confirmed.model_copy(update={"verification_ids": [basic.verification_id]}), descriptor())
-    assert paused.decision == SecurityDecisionCode.PAUSE
-    assert paused.reason_codes == ["AUDIT_UNAVAILABLE"]
-    assert paused.authorization_snapshot_ref is None
+    assert not outcome.executed and submissions == []
+    assert outcome.decision.decision == SecurityDecisionCode.PAUSE
+    assert outcome.decision.reason_codes == ["AUDIT_UNAVAILABLE"]
+    assert outcome.decision.authorization_snapshot_ref is None
 
 
 def test_transfer_medium_signals_never_escalate_a_cancel_to_step_up(tmp_path):
@@ -326,4 +367,3 @@ def test_unregistered_write_declaration_is_out_of_the_policy_scope():
     assert current.authorize_tool(security_context(), descriptor(stranger.name), stranger) is False
     with pytest.raises(RiskFactsUnavailable):
         current.assess_risk(security_context(), descriptor(stranger.name), stranger)
-

@@ -4,7 +4,7 @@
 
 主线已将 `subscription.cancel_subscription` 与 `subscription.bank.cancel_subscription` 定为 `SENSITIVE`。安全侧冻结声明同步该已定业务属性，并增加两条关键回归：正常退订在确认和基础验证后必须携带授权快照，快照存储异常必须暂停且不形成放行决定。订阅读取保持 `READ` 且快照引用为空。
 
-Issue #187 的 `bills.detect_anomalies` 以独立常量进入安全白名单，不引用业务模块的可变对象。L01、L02、L03 继续逐字段全等比较，用户与演示轮次边界保持不变。策略版本为 `v04-main-declarations-l02-sensitive-5`，定向 196 项及安全目录 287 项均通过。
+Issue #187 的 `bills.detect_anomalies` 以独立常量进入安全白名单，不引用业务模块的可变对象。L01、L02、L03 继续逐字段全等比较，用户与演示轮次边界保持不变。策略版本为 `v04-main-declarations-l02-sensitive-5`，定向 196 项及安全目录 288 项均通过。
 
 上述记录属于离线代码与测试证据。业务评测集负责证明快照失败时银行提交次数为零，真实模型与真人专业签核仍独立处理。
 
