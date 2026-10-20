@@ -193,7 +193,7 @@ def test_security_refusal_happens_before_bank_read(env):
     assert any(d.decision == "block" for d in env.decisions)
 
 
-def test_no_duplicate_reads_when_original_start_is_replayed(env):
+def test_harness_replay_does_not_duplicate_bank_reads(env):
     request_id = uuid4()
     first = env.harness.start(trusted(), request_id, "2026年9月所有账户账单")
     count = len(env.gateway.reads)

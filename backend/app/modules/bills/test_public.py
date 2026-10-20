@@ -262,6 +262,36 @@ def test_restart_replay_does_not_requery():
         entry(r,s).start(CTX,request.model_copy(update={'intent_text':'上个月'}),thread_id='thread1')
 
 
+@pytest.mark.parametrize('intent,status', [
+    ('2026年9月所有账户账单', 'succeeded'),
+    ('2026年9月账单', 'waiting_input'),
+])
+def test_module_start_replay_returns_saved_result_without_reads_or_checkpoints(intent, status):
+    """Issue #136, v04-ethan-bills-backend/09: replay after entry recreation.
+
+    Deleting the saved-result guard in BillsEntry.start must make this fail;
+    no Harness deduplication or private-method mock can satisfy the assertions.
+    """
+    reads = Reads([transaction()])
+    saver = Saver()
+    request = StartTransferInput(request_id=uuid4(), intent_text=intent)
+    first = entry(reads, saver).start(CTX, request, thread_id='thread1')
+    assert first.status == status
+    assert any(call[0] == 'accounts' for call in reads.calls)
+    if status == 'succeeded':
+        assert any(call[0] == 'transactions' for call in reads.calls)
+    calls_before = list(reads.calls)
+    writes_before = saver.writes
+
+    replay_context = CTX.model_copy(update={'run_id': 'r2'})
+    replay = entry(reads, saver).start(replay_context, request, thread_id='thread1')
+
+    assert reads.calls == calls_before
+    assert saver.writes == writes_before
+    expected = first.model_copy(update={'run_id': replay_context.run_id})
+    assert replay.model_dump(mode='json') == expected.model_dump(mode='json')
+
+
 def test_cancel_and_old_choice_never_restart_completed_task():
     r=Reads([transaction()]); e=entry(r); waiting=start(e)
     result=e.resume(CTX,{'cancel':True},thread_id='thread1')
