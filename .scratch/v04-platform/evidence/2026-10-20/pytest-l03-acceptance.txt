@@ -1,4 +1,6 @@
 Run at: 2026-10-20T14:38:46.5749432+08:00
-Command: backend/.venv/Scripts/python.exe -m pytest app/api/test_local_demo_l03_acceptance.py -q
+Working directory: backend/
+Command: .venv\Scripts\python.exe -m pytest app/api/test_local_demo_l03_acceptance.py -q
+# 2026-10-20 合并后文档修正：命令路径写法与 cwd 对齐，输出数字未改。
 ..                                                                       [100%]
 2 passed in 5.61s

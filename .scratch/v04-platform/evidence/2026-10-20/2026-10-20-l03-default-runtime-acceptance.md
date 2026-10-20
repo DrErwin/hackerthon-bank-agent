@@ -2,10 +2,10 @@
 
 - 票：[v04-platform/05：真实账单模块接入平台与纵向联调](https://github.com/DrErwin/hackerthon-bank-agent/blob/main/.scratch/v04-platform/issues/05-real-bills-integration.md)（阶段二 L03 部分）
 - 总跟踪：[Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123)（保持 OPEN）
-- 交付 PR：[#193](https://github.com/DrErwin/hackerthon-bank-agent/pull/193)（测试 + 证据 + 票 05 回填；CI `Repository checks` 绿；按分工由 PM 审核合并，本单不合并）
+- 交付 PR：[#193](https://github.com/DrErwin/hackerthon-bank-agent/pull/193)（测试 + 证据 + 票 05 回填；CI `Repository checks` 绿；**已于 2026-10-20 由 PM squash 合并为 `4e2ae92`**，合并记录注明 AI 代行、非真人审查）
 - 执行：AI 实施会话（Lead）代执行 · **AI 代执行留痕，非真人审查**；PM 2026-10-20 13:47 口径「5A 授权 AI 代做、Erwin 审后合」
 - 基线：`origin/main` = `d133f376675ede2551f03a7378c83ac53bdd2801`（下文简称 `d133f37`）
-- 工作树：`D:\hb-worktrees\platform-stage2`（分支 `test/platform/l03-acceptance-20261020`，只新增本票测试与证据，**未改生产代码**）
+- 工作树：独立临时 worktree（分支 `test/platform/l03-acceptance-20261020`，只新增本票测试与证据，**未改生产代码**；开发机绝对路径已按 2026-10-20 合并后文档修正移除）
 - 范围切分：本单**只验收 L03**。L02 真实链路（安全白名单 [#187](https://github.com/DrErwin/hackerthon-bank-agent/issues/187) + 平台注册 [#190](https://github.com/DrErwin/hackerthon-bank-agent/pull/190)）由其它会话负责，不在本单；前端账单插槽联调归前端票 04。
 
 ## 1. 环境
@@ -69,19 +69,21 @@
 命令与输出（2026-10-20 14:38 实测）：
 
 ```powershell
-# backend/ 下
-backend/.venv/Scripts/python.exe -m pytest app/api/test_local_demo_l03_acceptance.py -q
+# 以下命令均在 backend/ 目录执行（worktree 内）
+.venv\Scripts\python.exe -m pytest app/api/test_local_demo_l03_acceptance.py -q
 # 2 passed in 5.61s
 
-backend/.venv/Scripts/python.exe -m pytest app/api -q
+.venv\Scripts\python.exe -m pytest app/api -q
 # 100 passed in 157.72s
 
-backend/.venv/Scripts/python.exe -m pytest -q
+.venv\Scripts\python.exe -m pytest -q
 # 967 passed in 303.78s（= 分支树全量，含本票新增 2 项）
 
-backend/.venv/Scripts/python.exe -m pytest -q ../evals/mockbank/test_mockbank_eval.py
+.venv\Scripts\python.exe -m pytest -q ../evals/mockbank/test_mockbank_eval.py
 # 14 passed in 1.04s
 ```
+
+> 文档修正（2026-10-20 合并后）：命令写法统一为在 `backend/` 目录执行 `.venv\Scripts\python.exe`；两个 `real-model-run*.json` 的 `repo_root`/`config_source` 已替换为 `<repo-worktree>` / `<repo>/.env.local-demo.json` 占位符，其余字段与业务数字未改。
 
 ## 5. Issue #122 三处接缝在真数据下的复验
 
