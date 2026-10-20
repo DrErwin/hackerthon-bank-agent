@@ -194,6 +194,75 @@ describe("shell recovery from server records", () => {
     harness.releaseRecords();
     await waitFor(() => expect(harness.recordCalls()).toBe(afterBoot + 2));
   });
+
+  it("shows the backend's Chinese explanation instead of raw recovery codes", async () => {
+    const harness = sourceHarness();
+    harness.messages.push(message("给妈妈转五百", ["task-paused"]));
+    harness.tasks.push({
+      task: {
+        ...task("task-paused", "needs_attention"),
+        message: "验证结果待核实，请使用原提交重试；这不是验证未通过。",
+        error: {
+          code: "DEPENDENCY_UNAVAILABLE",
+          source: "bank",
+          field: null,
+          reason: "暂时无法核对验证结果。",
+          upstream_code: null,
+        },
+        allowed_actions: ["resume", "cancel"],
+        recovery_required: true,
+        recovery_reason: "DEPENDENCY_UNAVAILABLE",
+      },
+      module: "transfer",
+    });
+    harness.tasks.push({
+      task: {
+        ...task("task-failed", "failed", 2),
+        message: "这笔转账没有办成。",
+        error: {
+          code: "HIGH_RISK",
+          source: "security",
+          field: null,
+          reason: "这笔转账已被安全规则终止，没有提交给银行。",
+          upstream_code: null,
+        },
+      },
+      module: "transfer",
+    });
+
+    render(<AssistantPage source={harness.source} slots={slots} />);
+
+    expect(await screen.findByText("验证结果待核实，请使用原提交重试；这不是验证未通过。")).toBeTruthy();
+    expect(await screen.findByText("这笔转账已被安全规则终止，没有提交给银行。")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "有一项没办完的任务" })).toBeTruthy();
+    expect(document.body.textContent).not.toContain("DEPENDENCY_UNAVAILABLE");
+    expect(document.body.textContent).not.toContain("HIGH_RISK");
+  });
+
+  it("falls back to the error reason when a recovery task has no message copy", async () => {
+    const harness = sourceHarness();
+    harness.tasks.push({
+      task: {
+        ...task("task-no-message", "needs_attention"),
+        message: "",
+        error: {
+          code: "OPERATION_UNKNOWN",
+          source: "bank",
+          field: null,
+          reason: "暂时无法核对原转账结果。",
+          upstream_code: null,
+        },
+        recovery_required: true,
+        recovery_reason: "OPERATION_UNKNOWN",
+      },
+      module: "transfer",
+    });
+
+    render(<AssistantPage source={harness.source} slots={slots} />);
+
+    expect(await screen.findByText("暂时无法核对原转账结果。")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("OPERATION_UNKNOWN");
+  });
 });
 
 describe("real-api admin entry", () => {

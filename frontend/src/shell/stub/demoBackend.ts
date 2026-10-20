@@ -460,8 +460,9 @@ export function createDemoBackend(options: StubOptions = {}) {
         for (const record of Object.values(state.tasks)) {
           if (record.phase === "confirm" || record.phase === "verify") {
             bump(record, {
+              message: "登录已更换，原来的确认和验证不能继续使用，需要重新确认。",
               recovery_required: true,
-              recovery_reason: "登录已更换，原来的确认和验证不能继续使用，需要重新确认。",
+              recovery_reason: "SESSION_RECONFIRMATION_REQUIRED",
               allowed_actions: ["resume", "cancel"],
             });
           }
