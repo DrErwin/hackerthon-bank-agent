@@ -52,13 +52,22 @@ def _run_browser(env, url: str, scenario: dict) -> dict:
         }])
         page = context.new_page()
         page.goto(url, wait_until="domcontentloaded")
+        # v0.4 ticket 05: the complete shell is the root entry; wait for its composer.
+        page.wait_for_function(
+            "() => document.querySelector('#sh-input') && !document.querySelector('#sh-input').disabled",
+            timeout=30_000)
         confirm_button = page.get_by_role("button", name="确认办理", exact=True)
-        expect(confirm_button).to_be_visible(timeout=20_000)
-        card = page.locator(".task-card")
+        # A pre-existing waiting task is shown behind the shell recovery gate.
+        try:
+            expect(confirm_button).to_be_visible(timeout=8_000)
+        except AssertionError:
+            page.get_by_role("button", name="查看原任务", exact=True).click()
+            expect(confirm_button).to_be_visible(timeout=20_000)
+        card = page.locator(".sh-task")
         card_text = card.inner_text()
         env.check("react.confirmation_card_amount", "500.00" in card_text, card_text)
         env.check("react.confirmation_note_present",
-                  "不会批准" in card_text and "确认" in card_text, card_text)
+                  "不算数" in card_text and "确认" in card_text, card_text)
         pending = env.confirmation()
         env.check("react.backend_decision_pending",
                   pending is not None and pending["decision"] == "pending",
@@ -66,7 +75,7 @@ def _run_browser(env, url: str, scenario: dict) -> dict:
 
         if scenario["followup_text"]:
             env.planner.plan.variant = "INP-18"
-            page.locator("#chat-input").fill(scenario["followup_text"])
+            page.locator("#sh-input").fill(scenario["followup_text"])
             page.get_by_role("button", name="发送", exact=True).click()
             page.wait_for_timeout(3_000)
             env.get_task()
@@ -78,15 +87,15 @@ def _run_browser(env, url: str, scenario: dict) -> dict:
                       confirm_button.count() == 1 and confirm_button.is_enabled())
             card_after = card.inner_text()
             env.check("react.followup_no_success", "成功" not in card_after, card_after)
-            env.check("react.followup_single_task", page.locator(".task-card").count() == 1)
+            env.check("react.followup_single_task", page.locator(".sh-task").count() == 1)
             env.zero()
             captured["dom_after_followup"] = page.locator("body").inner_text()
         else:
             confirm_button.click()
-            code_input = page.get_by_label("验证码（专用输入）")
+            code_input = page.get_by_label("请输入 6 位验证码")
             expect(code_input).to_be_visible(timeout=20_000)
-            page.get_by_role("button", name="打开模拟验证码提示区", exact=True).click()
-            panel = page.locator(".demo-code-panel strong")
+            page.get_by_role("button", name="点这里查看", exact=True).click()
+            panel = page.locator(".sh-demo-code strong")
             expect(panel).to_be_visible(timeout=15_000)
             code = panel.inner_text().strip()
             env.secrets.append(code)
@@ -146,6 +155,8 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Security React evidence (offline planner)")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--date", default="2026-10-10",
+                        help="evidence date directory, e.g. 2026-10-21")
     args = parser.parse_args(argv)
 
     output = Path(args.output)
@@ -158,10 +169,10 @@ def main(argv: list[str] | None = None) -> int:
     c001 = select_cases(catalog, ["SEC-C-001"])[0]
     p002 = select_cases(catalog, ["SEC-P-002"])[0]
 
-    browser_dir = SECURITY_DIR / "evidence" / "2026-10-10" / "react-browser"
+    browser_dir = SECURITY_DIR / "evidence" / args.date / "react-browser"
     report = {
         "schema_version": "security-react-evidence-v1",
-        "date": "2026-10-10",
+        "date": args.date,
         "transport": "TCP HTTP + built React dist + real FastAPI service, offline fixed planner",
         "frontend_build_sha256": _sha256(DIST / "index.html"),
         "browser": "playwright chromium headless",
