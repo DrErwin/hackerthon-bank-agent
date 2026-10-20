@@ -4,7 +4,7 @@ Ticket ID: liangshuang-frontend-complete/04
 Type: 开发
 Owner: 梁爽
 Directory: frontend/
-Status: planned（v0.4，**PM 2026-10-20 01:45 决定：不顺延，本期完成**〔撤回同日 01:41 的 deferred 记录〕。两个硬前置在平台/安全目录：① 平台 `local_demo.py`/`build_runtime` 只 `register_bills`（L01），`bills.generate_report`（L03）未注册；② 安全 `demo_policy.py` 的 `_capabilities` 只收 `BILLS_MANIFEST`（L01），未收 `REPORT_MANIFEST`。**2026-10-20 两项前置均已解除**：① 平台注册 [PR #178](https://github.com/DrErwin/hackerthon-bank-agent/pull/178) `2791e40`；② 安全白名单 [PR #184](https://github.com/DrErwin/hackerthon-bank-agent/pull/184) `3f9996c`（`policy_version=v04-local-demo-read-2`，PM 代行、非 Ringo 本人审查）——可做真实联调、不留 stub、不得把 stub 通过记为真实联调）
+Status: in_progress（v0.4，**PM 2026-10-20 13:00 决定：照做、走真实接口、不砍范围**，已转实施；前置全部解除，不得用 stub 记真实联调。**PM 2026-10-20 01:45 决定：不顺延，本期完成**〔撤回同日 01:41 的 deferred 记录〕。两个硬前置在平台/安全目录：① 平台 `local_demo.py`/`build_runtime` 只 `register_bills`（L01），`bills.generate_report`（L03）未注册；② 安全 `demo_policy.py` 的 `_capabilities` 只收 `BILLS_MANIFEST`（L01），未收 `REPORT_MANIFEST`。**2026-10-20 两项前置均已解除**：① 平台注册 [PR #178](https://github.com/DrErwin/hackerthon-bank-agent/pull/178) `2791e40`；② 安全白名单 [PR #184](https://github.com/DrErwin/hackerthon-bank-agent/pull/184) `3f9996c`（`policy_version=v04-local-demo-read-2`，PM 代行、非 Ringo 本人审查）——可做真实联调、不留 stub、不得把 stub 通过记为真实联调）
 Package: [frontend-complete/packages/01：v0.4 完整前端实现与替换](../../frontend-complete/packages/01-v04-complete-frontend.md)
 Spec: [梁爽完整前端实施规格](../spec.md)
 Core scenarios: [FE-02、FE-03、FE-06](../../frontend-complete/spec.md)

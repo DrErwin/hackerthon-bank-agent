@@ -35,3 +35,8 @@ Verification: locate候选不代选；single核对银行事实；scan仅规则4�
 - 三项 Spec 修复：规则2按全部既往交易识别已知对手方，规则1金额基线继续只用支出；缺少商户 ID 的消费使规则4为 insufficient_data，已有真实匹配证据仍可返回；完整银行查询确无该 ID 为 `RECORD_NOT_FOUND`，银行边界无法完整查询仍为 `BILLS_LOCATE_REQUIRED`。
 - 独立复核执行 `python -m pytest -q app/modules/bills/test_anomaly_entry.py app/modules/bills/test_anomaly_service.py -k 'partial_days or merchant_literal or direct_replay or prior_inflow or missing_merchant_identity or single_unknown_id'`，**15 passed, 52 deselected in 2.01s**。Standards 本轴无新增硬性或结构阻断项；生产声明、权限装配和联合业务验收仍按各工作线执行，不因模块修复完成而关闭本票。
 - 最终远端 [ad627f00e4d3ff94d54c612eac4d4499094c0769](https://github.com/DrErwin/hackerthon-bank-agent/commit/ad627f00e4d3ff94d54c612eac4d4499094c0769) 已推送，与完整受测 2843f6ba8d13cd4ce3a29bd340150398753691ac 的 Git 树均为 `129f9da59469fb9ad67de65bae0ae4fbd0f6223f`，已核对相等。本分支后端实际 **793 passed in 124.91s**；独立 Spec / Standards 两轴已完成复核。保持 `in_progress`，分支已发布不等于已经合入。
+
+### 2026-10-20 收口日：模块已合入 + L02 接真实链路决定
+
+- 独立审查（AI、非真人，钉 head `7d9682a`）为「有条件可合」：P0=0、P1=2（`ZoneInfo` 未声明 `tzdata` 导致 Windows 无法收集、分支落后 main 20 个提交）、P2=14；`single` 规则 4 命中为唯一存活变异（真实测试缺口）。合入前两项 P1 与 P2-1/2/10/14 一并处理后，[PR #183](https://github.com/DrErwin/hackerthon-bank-agent/pull/183) squash **`7a8dd1e`** 合入 main；合并后在 main 上 `app/modules/bills` **316 passed**、后端全量 948 passed、mockbank 14 passed、CI 绿。审查与修复为 AI 代行（PM 授权），非作者真人复核。
+- **PM 2026-10-20 13:00 决定：L02 也接真实链路**。模块本身已完成；剩余两步在别的目录，不归本票：① 平台装配注册（`backend/app/agent_platform/local_demo.py` 调 `register_bills_anomalies`）；② 安全白名单（`backend/app/security/demo_policy.py` 按 #149/#164 口径写独立冻结快照，`policy_version` 再升位）。**两步未做前 L02 不进 `public_catalog()`、安全门仍拒绝，不得记作已可用。** 平台/安全侧实施与验收另记。

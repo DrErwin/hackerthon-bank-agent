@@ -4,7 +4,7 @@ Ticket ID: liangshuang-frontend-complete/05
 Type: 开发 / 联调验收
 Owner: 梁爽（Erwin 集成验收）
 Directory: frontend/
-Status: blocked（v0.4，**PM 2026-10-20 01:45 决定：不顺延，本期完成**〔撤回同日 01:41 的 deferred 记录〕。Blocked by 票 04 账单插槽与所需真实接口；替换主入口需宕机窗口 + 全面回归 / 适老化走查证据）
+Status: blocked（v0.4，**PM 2026-10-20 13:00 决定：照做、不砍范围**（仍阻塞于票 04 与真实接口可运行）；**2026-10-20 01:45 决定：不顺延，本期完成**〔撤回同日 01:41 的 deferred 记录〕。Blocked by 票 04 账单插槽与所需真实接口；替换主入口需宕机窗口 + 全面回归 / 适老化走查证据）
 Package: [frontend-complete/packages/01：v0.4 完整前端实现与替换](../../frontend-complete/packages/01-v04-complete-frontend.md)
 Spec: [梁爽完整前端实施规格](../spec.md)
 Core scenarios: [FE-01～FE-06](../../frontend-complete/spec.md)
