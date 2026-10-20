@@ -144,5 +144,5 @@ python evals/subscription/stability_sample.py --attempts 150 --label <标签> --
 | `reminder_days` / `status_filter` 参数化 | 平台入口（S01 逻辑入参）未接线，评测无法从用户请求传入 | 平台规划槽位 |
 | SOP-3「下一期异常需核实」标注 | 只实现「不猜日期」，标注文案未实现；`SUB-REM-04` 断言不猜半边 | 订阅模块后续 |
 | 关键内容变化后的平台确定性 | **已修复（Issue #176）**：此前同一用例（`SUB-CAN-11`）在 `PYTHONHASHSEED` 不同时收尾不同——一支重出确认单 v2（`waiting_approval:confirmation`），一支 `failed`/`SECURITY_REJECTED`（上游 `OPERATION_CONFLICT`）；根因是模块把参数哈希当动作修订号，随机撞上安全状态「新修订号必须更大」的判据。模块修复见 PR #179（单调修订号），本集断言已收紧为只接受 v2，不再作为缺口 | — |
-| 快照/开始日志写入失败后的任务终态 | PRD §五第 10 项写「立即暂停」；当前订阅模块把快照失败（gate `PAUSE`/`AUDIT_UNAVAILABLE`）与开始日志失败落为 `failed`（`SECURITY_REJECTED` / `SUBSCRIPTION_INTERNAL_ERROR`），转账对 `PAUSE` 落可恢复 `NEEDS_ATTENTION`。本集已断言**零银行提交、协议不变**；是否要求可恢复暂停待 PM/安全侧裁定，不在评测里伪造状态 | 订阅模块 / 平台（另定） |
+| 快照/开始日志写入失败后的任务终态 | PRD §五第 10 项写「立即暂停」；当前订阅模块把快照失败（gate `PAUSE`/`AUDIT_UNAVAILABLE`）与开始日志失败落为 `failed`（`SECURITY_REJECTED` / `SUBSCRIPTION_INTERNAL_ERROR`），转账对 `PAUSE` 落可恢复 `NEEDS_ATTENTION`。本集已断言**零银行提交、协议不变**。**PM 已于 2026-10-21 裁定选项 1（最小口径）：零银行提交 + 任务如实失败，不改为可恢复暂停（可恢复体验挂 v0.5）**；本集不在评测里伪造状态。 | 订阅模块 / 平台（另定） |
 | 真实 GLM 意图理解、前端渲染/语音播报、两进程并发同一退订 | 属真实模型 / 前端 / 并发评测 | v0.5 端到端 E2E 与安全评测 |
