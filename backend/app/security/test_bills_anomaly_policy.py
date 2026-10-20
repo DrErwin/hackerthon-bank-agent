@@ -30,7 +30,7 @@ def test_l02_admission_preserves_l01_and_l03_without_new_permissions():
     policy, _ = make_policy(unavailable_facts)
     for declaration in (MANIFEST.capabilities[0], REPORT_MANIFEST.capabilities[0], DECLARATION):
         assert policy.authorize_capability(policy_context(), declaration)
-    assert policy.policy_version == "v04-local-demo-read-3"
+    assert policy.policy_version == "v04-main-declarations-l02-sensitive-5"
 
 
 @pytest.mark.parametrize("change", [
@@ -162,3 +162,4 @@ def test_real_admission_and_private_read_recheck_round_before_bank(tmp_path, iso
         assert env.bank_facts() == before and env.gateway.bank_writes == 0
     finally:
         env.close()
+

@@ -63,7 +63,10 @@ def descriptor(name: str = CANCEL.name) -> ActionDescriptor:
     return ActionDescriptor(action_name=name, parameters_ref="P1", resource_refs=[], phase=Phase.EXECUTION)
 
 
-def build_gate(tmp_path, current_policy, declaration, *, records=None, challenges=None):
+def build_gate(
+    tmp_path, current_policy, declaration, *, records=None, challenges=None,
+    snapshot_writer=lambda *_: "AUTH-1",
+):
     registry = ToolRegistry()
     registry.register(declaration, lambda context, payload: payload)
     confirmations = ConfirmationService(tmp_path / "subscription.sqlite3", clock=lambda: NOW)
@@ -113,7 +116,7 @@ def build_gate(tmp_path, current_policy, declaration, *, records=None, challenge
             challenge.model_copy(update={"challenge_status": "passed"})
             for challenge, _, _ in created if challenge.challenge_id == challenge_id),
         decision_sink=lambda decision: None,
-        snapshot_writer=lambda *_: "AUTH-1",
+        snapshot_writer=snapshot_writer,
         summary_validator=lambda *_: False,
         clock=lambda: NOW,
     )
@@ -203,6 +206,29 @@ def test_ordinary_cancel_is_low_risk_and_never_asks_for_a_face(tmp_path):
     allowed = gate.check_action(
         confirmed.model_copy(update={"verification_ids": [basic.verification_id]}), descriptor())
     assert allowed.decision == SecurityDecisionCode.ALLOW
+    assert allowed.authorization_snapshot_ref == "AUTH-1"
+
+
+def test_cancel_snapshot_failure_pauses_before_execution(tmp_path):
+    current = policy_for(LOW_SIGNALS)
+
+    def unavailable_snapshot(*args):
+        raise OSError("snapshot store unavailable")
+
+    gate, confirmations, records, _ = build_gate(
+        tmp_path, current, CANCEL, snapshot_writer=unavailable_snapshot)
+    context = security_context()
+    first = gate.check_action(context, descriptor())
+    confirmed, _ = approve_created_confirmation(
+        confirmations, context, descriptor(), first.interaction.record_ref)
+    basic = session_verification(confirmed)
+    records[basic.verification_id] = basic
+
+    paused = gate.check_action(
+        confirmed.model_copy(update={"verification_ids": [basic.verification_id]}), descriptor())
+    assert paused.decision == SecurityDecisionCode.PAUSE
+    assert paused.reason_codes == ["AUDIT_UNAVAILABLE"]
+    assert paused.authorization_snapshot_ref is None
 
 
 def test_transfer_medium_signals_never_escalate_a_cancel_to_step_up(tmp_path):
@@ -288,7 +314,9 @@ def test_read_capability_is_allowed_without_any_extra_step(tmp_path):
     current = policy_for(LOW_SIGNALS)
     gate, _, _, _ = build_gate(tmp_path, current, READ)
     context = security_context(operation_id=None, action_revision=None)
-    assert gate.check_action(context, descriptor(READ.name)).decision == SecurityDecisionCode.ALLOW
+    allowed = gate.check_action(context, descriptor(READ.name))
+    assert allowed.decision == SecurityDecisionCode.ALLOW
+    assert allowed.authorization_snapshot_ref is None
 
 
 def test_unregistered_write_declaration_is_out_of_the_policy_scope():
@@ -298,3 +326,4 @@ def test_unregistered_write_declaration_is_out_of_the_policy_scope():
     assert current.authorize_tool(security_context(), descriptor(stranger.name), stranger) is False
     with pytest.raises(RiskFactsUnavailable):
         current.assess_risk(security_context(), descriptor(stranger.name), stranger)
+
