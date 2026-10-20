@@ -46,3 +46,14 @@
 账单预期声明固定在安全目录，逐项全等比较。业务模块修改六项安全属性、输入输出模型引用或处理器引用后，原白名单拒绝该声明，须新安全审阅；业务对象的原地修改同样不能改写安全预期。该策略返回带版本与规则依据的读取分类，跳过转账演示夹具。转账仍要求原有可信风险事实，缺失事实继续暂停。
 
 审计口径要求采用参数摘要与结果引用；当前实现仍记录原始参数与完整银行结果，具体边界及已知落盘缺口见 [安全意见](bills-read-security-review-2026-10-19.md) §3。[Issue #145](https://github.com/DrErwin/hackerthon-bank-agent/issues/145)由账单负责人整改，本次安全目录改动不代替该修复，也不构成真人签核。
+
+## v0.4 L03 账单报告能力收录（Issue #177）
+
+`bills.generate_report`（L03 月度/年度本人账单报告）按 #149 的「安全侧独立冻结快照」口径收录：安全目录保存一份从该模块发布（`modules/bills/manifest.py` 的 `REPORT_MANIFEST`）抄来的固定声明，**不 import、不引用业务对象**；`authorize_capability` 仍逐字段全等比较，声明漂移、未知能力和业务对象原地改写一律拒绝。
+
+- 放行：当前轮次的演示用户（与 L01 相同作用域）调用 `bills.generate_report`；它是 `bills.read` 权限内的只读能力（`side_effect=False`、`confirmation_policy="none"`、`retry_policy="read_only"`），不触发确认/验证，也不产生资金或导出写入。
+- 拦截：越权用户、过期轮次、任何字段漂移的声明，以及未审阅的 L02 `bills.detect_anomalies`、敏感导出等未收录能力。本次未改 `authorize_capability` 的全等比较与用户/轮次作用域逻辑，只新增一条已审阅声明，也没有批量放行账单能力；`_permissions` 与 `assess_risk` 未改。
+- 切换时点：合并后真实报告能力才可通过安全门（平台侧注册已由 [PR #178](https://github.com/DrErwin/hackerthon-bank-agent/pull/178) 完成）；放行集合变化，`policy_version` 升为 `v04-local-demo-read-2`，安全裁决记录（`SecurityDecision.policy_version`）携带新版本；`ConfirmationRecord` 本身不含策略版本字段，L03 也不触发确认。
+- 验证：`app/security/test_bills_report_policy.py` 17 项（合法放行、九个声明字段〔不含 name〕逐一漂移拒绝 + name 改名经未知能力用例拒绝、冻结副本与模块对象独立、未知能力默认拒绝、用户/轮次越界拒绝）；`app/security` 全量 117 passed。另有真实 `DemoSecurityPolicy` + 已注册 L03 运行时的切换证据：改动前 `authorize_capability(...) == False`（`v04-local-demo-read-1`），改动后 `True`（`v04-local-demo-read-2`），同轮次 L01 仍为 `True`，越界用户/轮次仍为 `False`。真实 local-demo HTTP 栈实测：改动前 L03 能力被安全门拒绝、不建任务；改动后任务 `succeeded`、`module=bills` 并产出 `report_id`。
+
+**记录边界**：本单因 [#164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 在途、由 PM 指派的其它会话代做，属 **PM 代行、非 Ringo 本人审查**；AI 复核不等于真人专业签核，Ringo 本人的安全签核仍缺，不得据此记作已获安全签核。

@@ -115,21 +115,30 @@ _BILLS_READ_CAPABILITY = CapabilityDefinition(
     operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
     timeout_ms=10_000, retry_policy="read_only", handler_ref="bills.summarize",
 )
+_BILLS_REPORT_CAPABILITY = CapabilityDefinition(
+    name="bills.generate_report", input_schema_ref="GenerateReportInput",
+    output_schema_ref="BillReport", required_permissions=["bills.read"],
+    operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
+    timeout_ms=10_000, retry_policy="read_only", handler_ref="bills.generate_report",
+)
 _BILLS_READ_NAMES = frozenset(item.name for item in _BILLS_READ_TOOLS)
 
 
 class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
-    policy_version = "v04-local-demo-read-1"
+    policy_version = "v04-local-demo-read-2"
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.
+    # Issue #177 adds the separate L03 report capability as a second frozen copy
+    # of its module release; the un-reviewed L02 stays out of the allowlist.
     # Scenario 05 adds its own read permission plus the single cancellation write.
     _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read",
                               "subscription.read", "subscription.cancel"})
     _capabilities = {item.name: item for item in (
-        *MANIFEST.capabilities, _BILLS_READ_CAPABILITY, *SUBSCRIPTION_MANIFEST.capabilities)}
+        *MANIFEST.capabilities, _BILLS_READ_CAPABILITY, _BILLS_REPORT_CAPABILITY,
+        *SUBSCRIPTION_MANIFEST.capabilities)}
     _private_tools = {item.name: item for item in (
         *PRIVATE_TOOLS, *_BILLS_READ_TOOLS, *SUBSCRIPTION_PRIVATE_TOOLS)}
 
