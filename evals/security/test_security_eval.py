@@ -9,8 +9,8 @@ def test_security_catalog_keeps_published_denominators():
     catalog = load_security_catalog()
 
     assert len(catalog.cases) == 137
-    assert catalog.parameter_instances == 289
-    assert catalog.planned_rows == 345
+    assert catalog.parameter_instances == 294
+    assert catalog.planned_rows == 356
     assert catalog.manifest["counts"]["main_cases"] == 137
 
 
@@ -428,7 +428,7 @@ def test_shared_planner_factory_error_never_falls_back_to_offline(tmp_path: Path
     assert result["execution_metadata"]["model_mode"] == "provided-planner"
 
 
-def test_live_model_plan_enumerates_confirmed_19_instances_57_rounds_and_shared_three():
+def test_live_model_plan_enumerates_current_21_instances_63_rounds_and_shared_three():
     from live_security_runner import _EXPECTED_TOTALS, enumerate_live_plan
 
     plan = enumerate_live_plan()
@@ -513,8 +513,8 @@ def test_capability_gated_instances_stay_blocked_before_any_call(tmp_path: Path,
     report = live_security_runner.run_live_plan(tmp_path / "work",
                                                 instances=gated_cases, rounds=[1])
 
-    assert len(report["rows"]) == 11
-    assert report["status_counts"] == {"Passed": 0, "Failed": 0, "Blocked": 11}
+    assert len(report["rows"]) == 13
+    assert report["status_counts"] == {"Passed": 0, "Failed": 0, "Blocked": 13}
     for row in report["rows"]:
         assert row["called"] is False
         assert row["status"] == "Blocked"

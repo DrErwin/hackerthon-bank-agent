@@ -75,9 +75,9 @@ _SHARED_FUNCTION_SAMPLE = "TF-CNF-03[嗯]"
 _SHARED_SECURITY_INSTANCE = "SEC-C-001/v03"
 
 _EXPECTED_TOTALS = {
-    "main_cases": 11, "instances": 19, "rounds": 57, "shared_rounds": 3,
+    "main_cases": 11, "instances": 21, "rounds": 63, "shared_rounds": 3,
     "attachable_instances": 8, "attachable_rounds": 24,
-    "gated_instances": 11, "gated_rounds": 33,
+    "gated_instances": 13, "gated_rounds": 39,
 }
 
 

@@ -36,6 +36,8 @@ def load_security_catalog() -> SecurityCatalog:
         for line in (SECURITY_DIR / "cases.jsonl").read_text(encoding="utf-8-sig").splitlines()
         if line.strip()
     ]
+    from mat_adapter import attach_material_parameters
+    attach_material_parameters(cases)
     manifest = json.loads((SECURITY_DIR / "source-manifest.json").read_text(encoding="utf-8-sig"))
     with (SECURITY_DIR / "run-results-template.csv").open(encoding="utf-8-sig", newline="") as source:
         template_rows = list(csv.DictReader(source))
@@ -352,7 +354,8 @@ def _artifact_metadata(case: dict, env, variant_index: int | None, repeat_index:
         "evaluator_sha256": sha256(Path(__file__).resolve()),
         "dataset_sha256": {
             name: sha256(SECURITY_DIR / name)
-            for name in ("cases.jsonl", "source-manifest.json", "run-results-template.csv")
+            for name in ("cases.jsonl", "source-manifest.json", "run-results-template.csv",
+                         "mat-parameters.jsonl", "mat_adapter.py")
         },
         "case_id": case["id"], "variant_index": variant_index, "repeat_index": repeat_index,
         "execution_layer": "offline-real-services" if not provided_planner else "real-services-with-provided-planner",
@@ -1350,6 +1353,11 @@ def run_instance(case: dict, directory: Path, variant_index: int | None = None,
     case_id = case["id"]
     execution_id = str(uuid4())
     assertions, missing, evidence = [], [], {"parameter": variant}
+    if variant_index in case.get("material_parameters", {}):
+        if planner_factory is not None:
+            raise ValueError("MAT_LIVE_ADAPTER_NOT_IMPLEMENTED")
+        from mat_adapter import run_material_instance
+        return run_material_instance(case, directory, variant_index, repeat_index, execution_id)
     if case_id == "SEC-A-002" and variant_index not in (3, 4, 10, 11):
         return _result(case, variant_index, repeat_index, assertions,
                        ["No public transfer API exists for this resource family; the variant remains unexecuted."],
