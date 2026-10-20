@@ -36,6 +36,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const [preparedDraft, setPreparedDraft] = useState<string | null>(null);
   const timeline = useMemo(() => buildTimeline(messages, tasks), [messages, tasks]);
   const primarySlot = slots.slots[0];
+  const exampleHints = slots.slots.flatMap((slot) => slot.exampleHints ?? []);
 
   // Cards load asynchronously, so follow content growth while the reader is at the bottom.
   useEffect(() => {
@@ -86,8 +87,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
           <div className="sh-timeline" aria-live="polite" ref={timelineRef}>
             <article className="sh-msg sh-msg-assistant">
               <p className="sh-bubble">您好，我是您的银行小助手。您想办点什么？</p>
-              {primarySlot?.exampleHints && (
-                <p className="sh-examples">可以这样说：{primarySlot.exampleHints.map((hint) => "「" + hint + "」").join("、")}</p>
+              {exampleHints.length > 0 && (
+                <p className="sh-examples">可以这样说：{exampleHints.map((hint) => "「" + hint + "」").join("、")}</p>
               )}
             </article>
             {booting && <p className="sh-hint" role="status">正在读取对话记录…</p>}

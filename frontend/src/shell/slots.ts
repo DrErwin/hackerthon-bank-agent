@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { DisplayField, ModuleError, ResultView, ShellTask } from "./types";
+import type { DisplayField, ModuleError, ReportView, ResultView, ShellTask } from "./types";
 
 export interface SlotAction {
   label: string;
@@ -17,6 +17,7 @@ export interface BusinessSlot<D = unknown> {
   // Facts already returned by the server, shown on waiting / recovery / needs_attention cards.
   summarize?: (task: ShellTask<D>) => DisplayField[];
   result?: (task: ShellTask<D>) => ResultView | null;
+  report?: (task: ShellTask<D>) => ReportView | null;
   errorHint?: (error: ModuleError, task: ShellTask<D>) => ReactNode;
   confirmationActions?: (task: ShellTask<D>) => SlotAction[];
 }

@@ -90,14 +90,14 @@ export type Label = string;
 export type Options = InteractionOption[];
 export type RecordRef = string | null;
 export type Code1 = string;
-export type Source = "platform" | "security" | "bank" | "transfer" | "bills" | "cross";
+export type Source = "platform" | "security" | "bank" | "transfer" | "bills" | "subscription" | "cross";
 export type Field = string | null;
 export type Reason = string;
 export type UpstreamCode = string | null;
 export type AllowedActions = ("provide_input" | "confirm" | "verify" | "query" | "cancel" | "resume")[];
 export type RecoveryRequired = boolean;
 export type RecoveryReason = string | null;
-export type Module = ("transfer" | "bills" | "cross") | null;
+export type Module = ("transfer" | "bills" | "subscription" | "cross") | null;
 export type ThreadId3 = string;
 export type DemoRoundId2 = string;
 export type SnapshotAt = string;
@@ -111,7 +111,7 @@ export type Message1 = string;
 export type AllowedActions1 = ("provide_input" | "confirm" | "verify" | "query" | "cancel" | "resume")[];
 export type RecoveryRequired1 = boolean;
 export type RecoveryReason1 = string | null;
-export type Module1 = ("transfer" | "bills" | "cross") | null;
+export type Module1 = ("transfer" | "bills" | "subscription" | "cross") | null;
 export type ThreadId4 = string;
 export type DemoRoundId3 = string;
 export type SnapshotAt1 = string;
@@ -389,6 +389,75 @@ export type RequestId6 = string;
 export type SubmissionId1 = string;
 export type DemoRoundId6 = string;
 export type Result2 = "passed" | "failed";
+/**
+ * @minItems 1
+ */
+export type AccountIds = [string, ...string[]];
+export type StartAt = string;
+export type EndAt = string;
+export type AsOf1 = string;
+export type AccountId1 = string;
+export type AsOf2 = string;
+export type SourceAsOf = AccountSourceAsOf[];
+export type TransactionCount = number;
+export type ConsumptionGrossFen = number;
+export type ConsumptionRefundFen = number;
+export type ConsumptionNetFen = number;
+export type TransferOutFen = number;
+export type TransferInFen = number;
+/**
+ * Bank flow categories (bank fields §3); bills display names map one to one.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "Category".
+ */
+export type Category = "dining" | "transport" | "medical" | "shopping" | "housing" | "transfer" | "other";
+export type OutflowFen = number;
+export type RefundFen = number;
+export type NetFen = number;
+export type ShareBps = number | null;
+export type Rank = number;
+export type Categories = CategoryTotal[];
+export type AsOf3 = string;
+export type ConsumptionNetFen1 = number;
+export type DeltaFen = number;
+export type ChangeBps = number | null;
+export type TransactionId2 = string;
+export type AccountId2 = string;
+export type OccurredAt1 = string;
+export type AmountFen3 = number;
+export type Nature = "consumption" | "transfer" | "refund" | "interest";
+export type Direction = "inflow" | "outflow";
+export type CounterpartyId = string | null;
+export type CounterpartyName = string;
+export type CounterpartyAccountMasked = string | null;
+export type Channel = string | null;
+export type Summary = string;
+export type OriginalTransactionId = string | null;
+export type OriginalOccurredAt = string | null;
+export type Transactions = Transaction[];
+export type SourceAsOf1 = AccountSourceAsOf[];
+export type AsOf4 = string;
+export type TransactionIds = string[];
+export type RuleId = 1 | 2 | 3 | 4;
+export type Attention = "notice" | "high_attention";
+export type Evidence1 = string;
+export type Suggestion = string;
+export type Findings = AnomalyFinding[];
+export type RuleId1 = 1 | 2 | 3 | 4;
+export type Status = "evaluated" | "insufficient_data";
+export type Reason2 = string | null;
+export type Checks = RuleCheck[];
+export type AsOf5 = string;
+export type Candidates1 = Transaction[];
+export type SourceAsOf2 = AccountSourceAsOf[];
+export type AsOf6 = string;
+export type ReportId1 = string;
+export type SpokenSummary = string;
+export type MonthlyAverageFen = number | null;
+export type StatisticalDays = number;
+export type AverageBasis = string;
+export type GeneratedAt = string;
 
 export interface ContractSchema {
   SessionView: SessionView;
@@ -419,6 +488,11 @@ export interface ContractSchema {
   ConfirmationAnswerRequest: ConfirmationAnswerRequest;
   VerificationCodeRequest: VerificationCodeRequest;
   FaceAnswer: FaceAnswer;
+  SpendingSummary: SpendingSummary;
+  BillDetails: BillDetails;
+  AnomalyResult: AnomalyResult;
+  TransactionCandidates: TransactionCandidates;
+  BillReport: BillReport;
   [k: string]: unknown;
 }
 /**
@@ -1142,6 +1216,165 @@ export interface FaceAnswer {
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "SpendingSummary".
+ */
+export interface SpendingSummary {
+  scope: BillScope;
+  as_of: AsOf1;
+  source_as_of: SourceAsOf;
+  transaction_count: TransactionCount;
+  consumption_gross_fen: ConsumptionGrossFen;
+  consumption_refund_fen: ConsumptionRefundFen;
+  consumption_net_fen: ConsumptionNetFen;
+  transfer_out_fen: TransferOutFen;
+  transfer_in_fen: TransferInFen;
+  categories: Categories;
+  comparison: SpendingComparison | null;
+}
+/**
+ * Half-open range over the caller's own accounts; the bank clock decides RANGE_UNSUPPORTED.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "BillScope".
+ */
+export interface BillScope {
+  account_ids: AccountIds;
+  start_at: StartAt;
+  end_at: EndAt;
+}
+/**
+ * When the bank data of one account was read; never claimed as an atomic snapshot.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "AccountSourceAsOf".
+ */
+export interface AccountSourceAsOf {
+  account_id: AccountId1;
+  as_of: AsOf2;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "CategoryTotal".
+ */
+export interface CategoryTotal {
+  category: Category;
+  outflow_fen: OutflowFen;
+  refund_fen: RefundFen;
+  net_fen: NetFen;
+  share_bps: ShareBps;
+  rank: Rank;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "SpendingComparison".
+ */
+export interface SpendingComparison {
+  scope: BillScope;
+  as_of: AsOf3;
+  consumption_net_fen: ConsumptionNetFen1;
+  delta_fen: DeltaFen;
+  change_bps: ChangeBps;
+  largest_change_category: Category | null;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "BillDetails".
+ */
+export interface BillDetails {
+  scope: BillScope;
+  category: Category | null;
+  transactions: Transactions;
+  source_as_of: SourceAsOf1;
+  as_of: AsOf4;
+}
+/**
+ * One bank-recorded flow row as B08 returns it (bank fields §3).
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "Transaction".
+ */
+export interface Transaction {
+  transaction_id: TransactionId2;
+  account_id: AccountId2;
+  occurred_at: OccurredAt1;
+  amount_fen: AmountFen3;
+  nature: Nature;
+  category: Category;
+  direction: Direction;
+  counterparty_id: CounterpartyId;
+  counterparty_name: CounterpartyName;
+  counterparty_account_masked: CounterpartyAccountMasked;
+  channel: Channel;
+  summary: Summary;
+  original_transaction_id: OriginalTransactionId;
+  original_occurred_at: OriginalOccurredAt;
+}
+/**
+ * L02 single/scan result; transaction carries the single target (scan: null).
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "AnomalyResult".
+ */
+export interface AnomalyResult {
+  transaction: Transaction | null;
+  findings: Findings;
+  checks: Checks;
+  as_of: AsOf5;
+}
+/**
+ * A suspected-anomaly notice; attention is a bill hint, not a security verdict.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "AnomalyFinding".
+ */
+export interface AnomalyFinding {
+  transaction_ids: TransactionIds;
+  rule_id: RuleId;
+  attention: Attention;
+  evidence: Evidence1;
+  suggestion: Suggestion;
+}
+/**
+ * One L02 rule outcome; missing data stays distinct from checked-and-clear.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "RuleCheck".
+ */
+export interface RuleCheck {
+  rule_id: RuleId1;
+  status: Status;
+  reason: Reason2;
+}
+/**
+ * L02 locate result: bank-matched candidates over a complete scope.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "TransactionCandidates".
+ */
+export interface TransactionCandidates {
+  scope: BillScope;
+  candidates: Candidates1;
+  source_as_of: SourceAsOf2;
+  as_of: AsOf6;
+}
+/**
+ * L03 result and the controlled report an F21 card reads (§5.3); no raw detail list.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "BillReport".
+ */
+export interface BillReport {
+  report_id: ReportId1;
+  scope: BillScope;
+  summary: SpendingSummary;
+  spoken_summary: SpokenSummary;
+  monthly_average_fen: MonthlyAverageFen;
+  statistical_days: StatisticalDays;
+  average_basis: AverageBasis;
+  generated_at: GeneratedAt;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
  * via the `definition` "PublicContract".
  */
 export interface PublicContract {
@@ -1173,5 +1406,10 @@ export interface PublicContract {
   ConfirmationAnswerRequest: ConfirmationAnswerRequest;
   VerificationCodeRequest: VerificationCodeRequest;
   FaceAnswer: FaceAnswer;
+  SpendingSummary: SpendingSummary;
+  BillDetails: BillDetails;
+  AnomalyResult: AnomalyResult;
+  TransactionCandidates: TransactionCandidates;
+  BillReport: BillReport;
   [k: string]: unknown;
 }
