@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/07
 Type: 评测
 Owner: 周恩宇（业务评测证据）
 Directory: evals/bills/
-Status: in_progress
+Status: in_progress（L03 F21—F24 HTTP 7场景 /87请求在新 main 基线重跑通过；真实 GLM L03 平台验收已有 #193，React/整包未通过）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF07](../../v04-bills/spec.md)
-Blocked by: 本阶段真实 L03 报告与两层导出 HTTP 评测已通过；默认工厂仍只注册 L01、生产 L02/L03 准入待所属工作线完成；当前缺合法模型配置，React 页面及专业安全分别验收。其余 HTTP 分支是待补评测，不误记为接口缺失。
+Blocked by: L03 默认运行时已由 Erwin 在 PR #193 的真实 glm-5.3 两次独立运行验收，F21—F24 当前可用；L02 默认注册 PR #192、安全准入 #187/#196 和业务回归 #188/#197 待合，前端票04/05、浏览器真实页面与专业安全仍为跨线依赖；本票其余错误/SSE/会话分支继续补测。
 Verification: 自然表达、聊天/卡片/结果一致、修改/恢复、两层导出；HTTP、真实模型、页面分别记录；证据交Erwin的v04-bills/02汇总。
 
 ## 验收
@@ -48,3 +48,7 @@ Verification: 自然表达、聊天/卡片/结果一致、修改/恢复、两层
 - 每例所有非 `bank_verification*` 银行表摘要保持不变，资金提交次数为 0；敏感导出会合法新增验证挑战/提交/结果记录，因此不声称银行全表不变。验证码原文、其响应摘要、请求体、Cookie 签名和 CSV 全文不进入原始报告；失败归档也只保留源码位置。
 - 规划器固定 L03、U1/D1 的声明 allowlist 和 LOW 风险输入属于明确测试替身；银行账本时钟与验证时钟分别说明，到期值由银行返回，未复制有效期规则。进程内 HTTP 不等于部署 TCP/TLS、真实模型、浏览器或生产安全批准。报告 `phase_result=Passed`、`overall_status=partial`、`full_ticket_acceptance=false` 同时保留。
 - F21 资源、自动报告落库和 F22—F24 两层导出已经实际贯通，不再统称外部接口缺失。L01/L02 HTTP 全流程、L03 F10 澄清/恢复、跨轮次/会话到期、导出重发/取消/重试、攻击性 HTML/CSV、SSE 重连等属于仍需补测的具体分支；页面、合法真实模型配置、生产准入与专业安全结论按各工作线继续验收。本票保持 `in_progress`。
+
+### 2026-10-20 晚更新版 HTTP 证据
+
+独立分支 [`test/bills/07-http-l03-20261020`](https://github.com/DrErwin/hackerthon-bank-agent/tree/test/bills/07-http-l03-20261020) 已将 L03/F21—F24 七条 HTTP 场景重基于 10-20 main 并重新钉住后台 Git tree，固定受测 SHA `e1111830cece552da8009ca474c9a7db3058571d`。新 [GitHub Actions #39426333629](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426333629) **7 passed、0 failed，共 87 次 HTTP 请求**，136份源文件与60个导入模块比对一致；[原始 gzip + 两份 SHA256](https://github.com/DrErwin/hackerthon-bank-agent/blob/8ef74e690f6cb013e747c2effe46e77cb8c26234/evals/bills/run-log-http-07.md) 已归档。因 Ethan 目前开放 PR #197/#198 达仓库上限，本票尚未开第三张 PR；报告边界保持 `full_ticket_acceptance=false`。Erwin 平台 [PR #193](https://github.com/DrErwin/hackerthon-bank-agent/pull/193) 已另验证真实 GLM L03 两次全链路，包括报告自动落库/F21/F22/F24，不能混写成该 TestClient 的同一次运行。
