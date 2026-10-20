@@ -101,7 +101,7 @@ PRIVATE_TOOLS = (
         name="subscription.bank.cancel_subscription",
         input_schema_ref="subscription.reads.CancelWriteInput",
         output_schema_ref="OperationResult[SubscriptionCancelReceipt]",
-        required_permissions=["subscription.cancel"], operation_level=OperationLevel.MODIFY,
+        required_permissions=["subscription.cancel"], operation_level=OperationLevel.SENSITIVE,
         side_effect=True, confirmation_policy="per_action", timeout_ms=8_000, retry_policy="none",
         handler_ref="subscription.bank.cancel_subscription",
     ),
