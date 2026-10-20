@@ -11,9 +11,8 @@ from calendar import monthrange
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Iterable, Protocol
-from zoneinfo import ZoneInfo
 
-BEIJING = ZoneInfo("Asia/Shanghai")
+from ._statistics import BEIJING
 
 
 class TransactionFact(Protocol):
