@@ -178,9 +178,10 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
 
     def risk_facts(context, action, declaration):
         if not declaration.side_effect:
-            # Read tools (transfer reads, the bills L01 module and the subscription
-            # reads) share the read fixture; their parameters live in their own
-            # per-task stores, so they must never be resolved through transfer snapshots.
+            # Read tools (transfer reads, the bills read modules L01/L02/L03 and the
+            # subscription reads) share the read fixture; their parameters live in
+            # their own per-task stores, so they must never be resolved through
+            # transfer snapshots.
             return config.read_fixture.evidence(config.facts_version)
         if declaration.name == subscription_runtime.CANCEL_TOOL:
             # The cancellation facts travel with the bound action reference (the
