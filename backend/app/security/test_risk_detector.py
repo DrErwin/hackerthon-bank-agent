@@ -121,6 +121,8 @@ def test_actual_detector_and_gate_are_fail_closed_with_independent_bank_facts(tm
         assert decisions[-1].decision == expected_code
         if text == RISK_TEXT:
             assert any("v04-lexical-risk-1" in ref for ref in decisions[-1].evidence_refs)
+            assert any("transfer-positive-high-risk" in rule and "impersonation" in rule
+                       for rule in decisions[-1].rule_ids)
             again = app.harness.resume(trusted("R2"), {"choice": "approve"})
             assert again.status == TaskStatus.FAILED
             assert len(bank.store.list_ledger("U1", "A1")) == before

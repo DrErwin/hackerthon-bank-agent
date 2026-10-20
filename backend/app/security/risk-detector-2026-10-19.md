@@ -41,4 +41,4 @@ main 399a2fe记录Erwin本人PM决定A：Demo继续固定等级流程对照，�
 
 ## 重基与主线版本（2026-10-21）
 
-固定提交370827e已重基到main `8d52387`（#164/#191冻结声明已由PR #204合入）。策略版本不再沿用候选号`v04-main-risk-inputs-l02-sensitive-6`，按主线单一序列改为`v04-local-demo-read-5`（main为read-4；本次内容变化即本文档所述可信请求规则识别与正向高风险终止短路）。检测器版本`v04-lexical-risk-1`与匹配/裁决行为不变。跨目录仅同步`backend/app/modules/bills/test_anomaly_integration.py`的版本接受集合纳入read-5，未改账单业务逻辑。
+固定提交370827e已重基到main `228a2b8`（含#204 squash `8d52387`；#164/#191冻结声明已由PR #204合入）。策略版本不再沿用候选号`v04-main-risk-inputs-l02-sensitive-6`，按主线单一序列改为`v04-local-demo-read-5`（main为read-4；本次内容变化即本文档所述可信请求规则识别与正向高风险终止短路）。检测器版本`v04-lexical-risk-1`与匹配/裁决行为不变。跨目录仅同步`backend/app/modules/bills/test_anomaly_integration.py`的版本接受集合纳入read-5，未改账单业务逻辑。重基后本分支实跑：`app/security` 318 passed（合并前复跑 20.06s）、后端全量 1175 passed（重基后复跑）；main 为 289/1145，本票新增 29 项检测器测试，真实模型调用仍为 0。
