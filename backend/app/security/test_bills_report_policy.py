@@ -42,7 +42,7 @@ def test_l03_declaration_is_whitelisted_for_the_demo_scope():
     # L01 and its private reads stay authorized; this change only adds L03.
     assert policy.authorize_capability(trusted(), BILLS_MANIFEST.capabilities[0])
     # The authorized set changed, so decisions must carry the bumped version.
-    assert policy.policy_version == "v04-local-demo-read-2"
+    assert policy.policy_version == "v04-local-demo-read-3"
 
 
 @pytest.mark.parametrize("change", [
@@ -75,7 +75,7 @@ def test_module_mutation_cannot_mutate_the_security_allowlist(monkeypatch):
 
 
 @pytest.mark.parametrize("name", [
-    "bills.detect_anomalies", "bills.export_details", "bills.bank.list_accounts",
+    "bills.unknown", "bills.export_details", "bills.bank.list_accounts",
 ])
 def test_unknown_capabilities_remain_default_denied(name):
     policy, _ = make_policy(unavailable_facts)
