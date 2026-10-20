@@ -14,6 +14,8 @@ import re
 from typing import Callable
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from app.contracts.bills import (
     AnomalyResult, BillScope, DetectAnomaliesInput, TransactionCandidates, TransactionClues,
 )
@@ -121,11 +123,16 @@ class BillsAnomalyEntry:
 
     @staticmethod
     def _result(context, state):
-        result = ModuleResult.model_validate(state["result"])
-        data = result.data
-        if isinstance(data, dict):
-            model = TransactionCandidates if "candidates" in data else AnomalyResult
-            data = model.model_validate(data)
+        # A checkpoint written by an older result shape must fail truthfully,
+        # exactly like L03's BillReport replay, instead of raising into harness.
+        try:
+            result = ModuleResult.model_validate(state["result"])
+            data = result.data
+            if isinstance(data, dict):
+                model = TransactionCandidates if "candidates" in data else AnomalyResult
+                data = model.model_validate(data)
+        except (ValidationError, ValueError, TypeError):
+            return fail(context, BillsError("BILLS_RESULT_INVALID"))
         return result.model_copy(update={"run_id": context.run_id, "data": data})
 
     def _wait(self, context, state, prompt, choices, reason, *, data=None):

@@ -1,4 +1,5 @@
 """L02 task seam: deterministic choices and durable state, no live-model claim."""
+from copy import deepcopy
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -252,6 +253,19 @@ def test_direct_replay_keeps_public_data_type_ids_and_does_not_read_or_checkpoin
         assert result.task_id == first.task_id and result.run_id == "r2"
         assert result.interaction == first.interaction
     assert (reads.calls, saver.writes) == before
+
+
+def test_replayed_checkpoint_with_a_drifted_result_fails_with_controlled_error():
+    reads, saver = Reads([transaction()], accounts=("a1",)), Saver()
+    request = StartTransferInput(request_id=uuid4(), intent_text="核对交易，2026年9月所有账户")
+    assert entry(reads, saver).start(CTX, request, thread_id="thread1").status == "succeeded"
+    # An older checkpoint shape must not raise pydantic errors into the harness.
+    drifted = deepcopy(saver.saved)
+    drifted.checkpoint["channel_values"]["bills_anomaly_state"]["result"]["data"] = {"unexpected": True}
+    saver.saved = drifted
+    replay = entry(reads, saver).start(CTX, request, thread_id="thread1")
+    assert replay.status == "failed" and replay.data is None
+    assert replay.error.code == "BILLS_RESULT_INVALID"
 
 
 def test_secret_input_is_rejected_without_saving_raw_text():

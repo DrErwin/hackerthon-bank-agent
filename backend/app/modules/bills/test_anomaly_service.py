@@ -57,6 +57,26 @@ def test_single_observes_exact_transaction_and_four_rule_checks():
     assert all("盗刷已确认" not in x.evidence for x in result.data.findings)
 
 
+def test_single_target_inside_periodic_sequence_hits_rule4_with_the_real_ids():
+    """The located transaction itself may be one charge of a monthly series.
+
+    Guarded because emptying `periodic_history` in the service (so single-mode
+    rule 4 can never see the target) previously left every L02 test green.
+    """
+    charges = [transaction(name, amount=3900, at=date(value)) for name, value in (
+        ("jul", "2026-07-10T12:00:00+08:00"),
+        ("aug", "2026-08-10T12:00:00+08:00"),
+        ("sep", "2026-09-10T12:00:00+08:00"))]
+    svc, reads = service(charges)
+    result = svc.detect(CTX, {"mode": "single", "account_id": "a1", "transaction_id": "sep"},
+                        located_scope=BillScope.model_validate(query_scope()))
+    assert result.status == "succeeded", result
+    assert result.data.checks[3].status == "evaluated"
+    assert result.data.checks[3].reason == "matched"
+    rule4 = [finding for finding in result.data.findings if finding.rule_id == 4]
+    assert len(rule4) == 1 and rule4[0].transaction_ids == ["jul", "aug", "sep"]
+
+
 def test_single_unknown_id_is_failure_not_empty_clearance():
     svc,r=service([transaction()])
     result=svc.detect(CTX,{"mode":"single","account_id":"a1",
