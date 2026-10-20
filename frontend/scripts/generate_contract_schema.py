@@ -32,6 +32,13 @@ from app.contracts.api import (  # noqa: E402
 )
 from app.contracts.audit import AuditEventDetail, AuditEventSummary  # noqa: E402
 from app.contracts.bank import PayeeCandidate  # noqa: E402
+from app.contracts.bills import (  # noqa: E402
+    AnomalyResult,
+    BillDetails,
+    BillReport,
+    SpendingSummary,
+    TransactionCandidates,
+)
 from app.contracts.security import ConfirmationView, VerificationView  # noqa: E402
 from app.contracts.tasks import TaskView, TransferTaskView  # noqa: E402
 
@@ -64,6 +71,11 @@ PUBLIC_MODELS = {
     "ConfirmationAnswerRequest": ConfirmationAnswerRequest,
     "VerificationCodeRequest": VerificationCodeRequest,
     "FaceAnswer": FaceAnswer,
+    "SpendingSummary": SpendingSummary,
+    "BillDetails": BillDetails,
+    "AnomalyResult": AnomalyResult,
+    "TransactionCandidates": TransactionCandidates,
+    "BillReport": BillReport,
 }
 
 

@@ -18,6 +18,11 @@ export type DetailsResponse = PublicContract["DetailsResponse"];
 export type StreamEvent = PublicContract["StreamEvent"];
 export type AuditEventSummary = PublicContract["AuditEventSummary"];
 export type AuditEventDetail = PublicContract["AuditEventDetail"];
+export type SpendingSummary = PublicContract["SpendingSummary"];
+export type BillDetails = PublicContract["BillDetails"];
+export type AnomalyResult = PublicContract["AnomalyResult"];
+export type TransactionCandidates = PublicContract["TransactionCandidates"];
+export type BillReport = PublicContract["BillReport"];
 
 export type TaskStatus = TaskView["status"];
 export type AllowedAction = TaskView["allowed_actions"][number];

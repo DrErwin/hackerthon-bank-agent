@@ -6,7 +6,7 @@ import type { DataOrigin, ResultView, TaskEnvelope } from "../types";
 import type { Conversation } from "../useConversation";
 import { ConfirmationCard } from "./ConfirmationCard";
 import { Notice } from "./Primitives";
-import { InputCard, NeedsAttentionCard, RecoveryCard, ResultCard, WaitingCard } from "./StatusCards";
+import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, WaitingCard } from "./StatusCards";
 import { VerificationCard } from "./VerificationCard";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
@@ -58,9 +58,10 @@ export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModif
     );
   }
 
-  const result: ResultView | null = isTerminal(task)
-    ? slot.result?.(task) ?? { tone: status.tone, title: status.text, fields: facts, note: task.message }
-    : null;
+  const report = isTerminal(task) ? slot.report?.(task) ?? null : null;
+  const mapped = isTerminal(task) ? slot.result?.(task) ?? null : null;
+  const result: ResultView | null = mapped
+    ?? (isTerminal(task) && !report ? { tone: status.tone, title: status.text, fields: facts, note: task.message } : null);
   const interactionActive = !expired && task.status === "waiting_approval" && !task.recovery_required;
   const showTaskCancel = !expired && task.allowed_actions.includes("cancel") && task.interaction?.kind !== "confirmation";
 
@@ -169,6 +170,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModif
           onQuery={() => void actions.queryResult(task)}
         />
       )}
+      {report && <ReportCard id={base + "-report"} view={report} origin={origin} />}
       {result && <ResultCard id={base + "-result"} view={result} origin={origin} />}
       {task.error && (
         <Notice tone="danger" title={isTerminal(task) ? "原因说明" : "需要注意"}>

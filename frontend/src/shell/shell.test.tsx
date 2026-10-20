@@ -5,11 +5,12 @@ import { ApiError } from "../api";
 import { AdminDemoPage } from "./AdminDemoPage";
 import { AssistantPage } from "./AssistantPage";
 import { createSlotRegistry, genericSlot } from "./slots";
+import { billsSlot } from "./slots/billsSlot";
 import { transferSlot } from "./slots/transferDemoSlot";
 import { createDemoBackend } from "./stub/demoBackend";
 import type { DemoBackend } from "./stub/demoBackend";
 
-const slots = createSlotRegistry([transferSlot]);
+const slots = createSlotRegistry([transferSlot, billsSlot]);
 
 function makeBackend(): DemoBackend {
   return createDemoBackend({ replyDelayMs: 0, submitMs: 30, bankMs: 30, tickMs: 20 });
@@ -293,8 +294,9 @@ describe("v0.4 shell with stub data", () => {
   });
 
   it("falls back to the generic slot for an unknown module and mounts under /v04 only", async () => {
-    expect(slots.resolve("bills")).toBe(genericSlot);
+    expect(slots.resolve("bills")).toBe(billsSlot);
     expect(slots.resolve("transfer")).toBe(transferSlot);
+    expect(slots.resolve("payroll")).toBe(genericSlot);
     render(<App />);
     expect(await screen.findByRole("heading", { name: "AI 银行助手" })).toBeTruthy();
   });
