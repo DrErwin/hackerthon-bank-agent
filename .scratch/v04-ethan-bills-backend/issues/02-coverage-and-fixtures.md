@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/02
 Type: 评测
 Owner: 周恩宇（Ethan）
 Directory: evals/bills/
-Status: in_progress
+Status: resolved（#93 已合入；96 条设计、33 黄金样本、147 项算术/工具实跑归档；完整公共业务数量下限单列票 06）
 Package: [v04-bills/packages/01-bills-backend：账单业务能力与评测](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人实施规格](../spec.md)
 Core scenarios: [BF01—BF06覆盖设计；当前仅算术子断言可运行](../../v04-bills/spec.md)
-Blocked by: None（文档/数据）；自动化算术样本依赖 [01](01-statistics-core.md)
+Blocked by: None（统计内核和 GOLDEN 运行前置已解除；其余业务公共路径属票 06/07）
 Verification: 稳定ID去重、八字段、逐规则映射；手算golden数据与33个局部样本；报告按指南§六压缩归档。真实业务在 [06](06-full-business-eval.md) 逐路径记录，本票算术结果不代替业务验收。
 
 ## 交付与验收
@@ -40,3 +40,7 @@ Verification: 稳定ID去重、八字段、逐规则映射；手算golden数据�
 - 独立 Spec 复核直接比对压缩原字节、解压 SHA256、14 份 Git blob / 规范化 SHA256 / 工作区字节及哈希：全部一致。147 条唯一逐样本记录均 passed，起止时间和阶段结果有效；此前 4 份证据逐字节保留。受测提交确实基于 cd7c91ad，未把前一轮运行改标成新主线证据。
 - 96 / 33 / 130 / 17 / 147 口径不变，50 项仍与 147 项重叠；两次实际复跑也不相加为新覆盖。已披露的 `tier_counts` 非阻塞分类限制保留；前序 CI 698/14 不自动视为本版本 CI 结果。
 - 最终远端 [d367456961679d5431d4f1f534f723c9b6b079d9](https://github.com/DrErwin/hackerthon-bank-agent/commit/d367456961679d5431d4f1f534f723c9b6b079d9) 已推送，与归档 cac529389e25f5eacfed3bc3f32dbe1786cfb67c 的 Git 树均为 `e2ef7b203df170f4dde5704cbd1e001817f9dc3c`；[CI 39223750787 / job 117964933338](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39223750787/job/117964933338) 已 success，根执行者核对为后端 **699 passed**、Mock Bank **14 passed**。
+
+### 2026-10-20 最终归属更新
+
+[PR #93](https://github.com/DrErwin/hackerthon-bank-agent/pull/93) 已由 Erwin 正式 squash 合并；运行证据 147 passed（130 算术 +17 工具），原始 gzip 与 SHA256 有独立审查。**本票关于覆盖规划/黄金数据/算术子集的交付 resolved，不表示 96 条业务设计全已实跑**，所有公开业务下限仍由票 06 补齐。
