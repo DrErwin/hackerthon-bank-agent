@@ -590,9 +590,14 @@ class ApiService:
             self.store.finish_export(export_id, "failed", error_code="ACCESS_DENIED",
                 error_reason="没有操作或查看权限。")
             raise
-        suffix = f"-{task_id}" if task_id else ""
+        except Exception:
+            # A generation fault closes the row instead of leaving it "preparing".
+            self.store.finish_export(export_id, "failed", error_code="DEPENDENCY_UNAVAILABLE",
+                error_reason="暂时无法生成审计证据包，导出未完成。")
+            raise
+        # The file name only carries the server-generated export id, never request text.
         self.store.finish_export(export_id, "ready",
-            file_name=f"audit-{demo_round_id}{suffix}.json", media_type="application/json",
+            file_name=f"audit-{export_id}.json", media_type="application/json",
             content=content.decode("utf-8"))
         return self.export_view(self.store.export_row(export_id, identity.user_id,
                                                       identity.demo_round_id))
@@ -623,14 +628,21 @@ class ApiService:
         row = self.store.export_row(export_id, identity.user_id, identity.demo_round_id)
         if not row:
             raise ApiProblem(404, "NOT_FOUND")
-        if row["status"] != "ready":
-            raise ApiProblem(409, "EXPORT_NOT_READY")
         if row["kind"] == "audit":
             # §6.7 F24: an audit download re-checks the independent management identity
-            # and reuses the scope frozen at creation: no fresh verification, no session binding.
+            # and reuses the scope frozen at creation: no fresh verification, no session
+            # binding. Every attempt on the frozen row is trail-recorded, including refusals.
             if identity.role != "admin":
+                self.record_audit_download(identity, row, permitted=False,
+                                           reason_code="ACCESS_DENIED")
                 raise ApiProblem(403, "ACCESS_DENIED")
+            if row["status"] != "ready":
+                self.record_audit_download(identity, row, permitted=False,
+                                           reason_code="EXPORT_NOT_READY")
+                raise ApiProblem(409, "EXPORT_NOT_READY")
             self.record_audit_download(identity, row)
+        elif row["status"] != "ready":
+            raise ApiProblem(409, "EXPORT_NOT_READY")
         elif row["kind"] == "details":
             if row["session_id"] != identity.session_id:
                 # §6.7: a session change voids the old export authorization.
@@ -641,7 +653,7 @@ class ApiService:
                 raise ApiProblem(409, "EXPORT_NOT_READY")
         return row["file_name"], row["media_type"], row["content"]
 
-    def record_audit_download(self, identity, row):
+    def record_audit_download(self, identity, row, *, permitted=True, reason_code="ALLOWED"):
         """§6.8: audit reads leave a trail, and a download names the export it delivered."""
         self.runtime.audit.append(AuditEvent(
             event_id=str(uuid4()), trace_id=str(uuid4()), span_id=str(uuid4()),
@@ -650,12 +662,14 @@ class ApiService:
             target_session_id=None, target_user_id=None, thread_id=None,
             task_id=row["task_id"], run_id=None, module="audit",
             event_type="audit.accessed", timestamp=now(), logical_at=None,
-            outcome="succeeded", evidence_ref=None,
-            evidence_status="missing", missing_reason="download event has no content snapshot",
+            outcome="succeeded" if permitted else "denied",
+            evidence_ref=None, evidence_status="missing",
+            missing_reason="download event has no content snapshot",
             payload=AuditAccessedPayload(
                 action="download", filter_ref=row["demo_round_id"],
                 target_refs=[] if row["task_id"] is None else [row["task_id"]],
-                export_id=row["export_id"], permitted=True, reason_code="ALLOWED",
+                export_id=row["export_id"], permitted=permitted,
+                reason_code=reason_code,
             ),
         ))
 
