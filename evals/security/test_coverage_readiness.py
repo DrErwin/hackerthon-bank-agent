@@ -16,6 +16,10 @@ def test_function_quantities_are_independent_ids_and_not_group_rename():
     assert len(result["inventory"]) == 138
     assert not result["acceptance_item_quantity_gate"]
     assert len(result["acceptance_items_under_10"]) == 29
+    assert all(row["deficit_to_10"] == 10 - row["main_case_count"]
+               for row in result["acceptance_items_under_10"])
+    assert result["cases_outside_function_matrix"] == [
+        "SEC-N-008", "SEC-P-003", "SEC-P-004", "SEC-P-005", "SEC-P-007", "SEC-P-010"]
     for issue in ("#174", "#145"):
         state = next(row["state"] for row in result["known_external_dependencies"] if issue in row["scope"])
         assert "historical Failed" in state and "merged" in state
