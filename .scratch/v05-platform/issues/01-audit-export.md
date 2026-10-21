@@ -3,7 +3,7 @@
 Ticket ID: v05-platform/01
 Type: 开发
 Owner: Erwin
-Status: in_progress（2026-10-21 领取，同日交付）
+Status: resolved（2026-10-21 领取并交付；[PR #214](https://github.com/DrErwin/hackerthon-bank-agent/pull/214) squash `b01ceb9` 合入，CI run 39630254969 pass 3m15s）
 Directory: `backend/app/api/` + `backend/app/audit/` —— **PM 2026-10-21 授权一次交付**：整轮导出要在审计只读端补一个可选的筛选范围，端点与下载分支在 api；两者同属底座（Erwin），按一次交付、一个 PR 落地，跨两个底座目录在票面如实留痕，不再拆成两票两 PR。
 Package: [v04-platform/packages/01：v0.4 底座、Agent 与模拟银行](../../v04-platform/packages/01-foundation-agent-mockbank.md)（#121 原登记为该包范围外的遗留，按 PM 决定提前实施）
 Spec: [v05-platform 场景规格](../spec.md)
@@ -49,3 +49,5 @@ Source issue: [Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issu
   - **证据**：`run_f35_evidence.py` 修正字段名并新增快照一致性检查；`check_real_demo_db.py` 改用 SQLite backup API、记录源库路径/大小/sha256；`capture_pytest_evidence.py` 增全量后端日志。
   - **测试与证据更新**：`app/api app/audit` **117 passed**、后端全量 **1191 passed**、模拟银行 **14 passed**；证据 `evidence/2026-10-21/` 已重生成（含 `pytest-backend-full.txt`）。
   - 未采纳/留作后续：task-less `audit.accessed` 经 F33/F34 读取需放宽管理只读授权（涉安全口径，登记为已知限制）；F35 异步化不在本票（契约 F35 为同步返回，演示规模可接受）。
+
+- 2026-10-21 23:59 合入：[PR #214](https://github.com/DrErwin/hackerthon-bank-agent/pull/214) 已 squash 合入 main，合并提交 `b01ceb9`，CI run 39630254969 pass（3m15s，whitespace / 文档链接 / Python 语法 / 后端全量 / 模拟银行）。票置 resolved；Issue #121 关闭。
