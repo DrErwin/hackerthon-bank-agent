@@ -30,3 +30,7 @@
 | `react-browser/SEC-P-002.png` | sha256 `00CF10E561F38099CC831481A21FE549FE3B863EA042689DD2A97716E13F2B1F` |
 
 旧批次（2026-10-10，简易前端入口）保持原报告与 run-log 行，不改历史。真人安全签核仍按项目门槛另行进行；本批为 AI 代执行。
+
+## 同目录新增（2026-10-21 晚联调）
+
+本目录另归档同日晚真实模型批次 A 证据（`live-2026-10-21-batchA.json.gz`、`…-explanation-review.json.gz`、`…batchB-gated-blocked.json.gz`），执行环境、结果与哈希见 [批次 A 归档说明](live-2026-10-21-batchA-README.md)；页面离线回归（新目录 `2026-10-21-live/`）见 [该目录说明](../2026-10-21-live/README.md)。
