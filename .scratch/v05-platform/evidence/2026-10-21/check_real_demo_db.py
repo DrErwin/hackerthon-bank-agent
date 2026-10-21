@@ -153,7 +153,8 @@ def main() -> int:
               "synthetic_migration": synthetic_preservation(),
               "real_demo": real_demo()}
     (HERE / "real-demo-check.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+        newline="\n")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     synthetic = result["synthetic_migration"]
     ok = (synthetic["old_report_id_notnull"] and synthetic["new_report_id_nullable"]

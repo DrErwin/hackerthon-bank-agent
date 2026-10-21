@@ -11,7 +11,7 @@
     },
     "round_package": {
       "bytes": 104860,
-      "sha256": "9789b18e0d4f10d0ae12e65bc51644e63523c6c02c97f6f3fb6e9e08f6392252",
+      "sha256": "42df46c2f69efd3bd9c8bc6974397ad2cea0c86d5a47399022a00daaca583734",
       "event_count": 67,
       "evidence_count": 13,
       "missing_count": 52,
@@ -29,7 +29,7 @@
         "verification.changed"
       ],
       "self_export_event": [
-        "076fd8e1-1374-42c3-9743-2d9f6a2ef893"
+        "47fcb726-37ce-4545-9a49-defea0b0e3a6"
       ]
     },
     "verification_code_absent": true,
@@ -37,20 +37,20 @@
     "frozen_sha_after_new_events": true,
     "task_package": {
       "bytes": 103962,
-      "sha256": "7797f90c966f3dc0c3c352603f26a3240956c7a59e14d1a58376661e063310d9",
-      "task_id": "349cb8ff-213b-4862-b777-1cbb822c553c",
+      "sha256": "63be9ceb0a68751fbf499f2b87cca71fda5f6480f2019aae2453170111503911",
+      "task_id": "b0dd4df4-d4c2-4d7e-9818-993711482168",
       "event_count": 66,
       "all_events_scoped": true
     },
     "audit_trail": {
       "export": [
-        "076fd8e1-1374-42c3-9743-2d9f6a2ef893",
-        "ace57b6b-abf6-4f81-b36d-f80d88119ab9"
+        "47fcb726-37ce-4545-9a49-defea0b0e3a6",
+        "da75a559-a0c7-4be2-b31d-e4c7e991dcfc"
       ],
       "download": [
-        "076fd8e1-1374-42c3-9743-2d9f6a2ef893",
-        "076fd8e1-1374-42c3-9743-2d9f6a2ef893",
-        "ace57b6b-abf6-4f81-b36d-f80d88119ab9"
+        "47fcb726-37ce-4545-9a49-defea0b0e3a6",
+        "47fcb726-37ce-4545-9a49-defea0b0e3a6",
+        "da75a559-a0c7-4be2-b31d-e4c7e991dcfc"
       ]
     },
     "model_calls": {

@@ -114,7 +114,8 @@ def main() -> int:
                 "admin": admin_app.state.api.runtime.harness.planner.calls,
             }
     (HERE / "summary.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+        newline="\n")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     required = (
         checks["verification_code_absent"],
