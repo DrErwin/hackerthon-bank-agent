@@ -1,0 +1,504 @@
+{
+  "ticket_id": "v04-ethan-bills-backend/06",
+  "phase": "phase2-public-l02-l03-and-12-bank-rule-contrasts",
+  "overall_status": "partial",
+  "full_ticket_acceptance": false,
+  "original_l01_runtime_cases": 17,
+  "independent_new_cases": 40,
+  "case_counts": {
+    "l02_public": 14,
+    "l03_public": 14,
+    "l02_rule_public": 12,
+    "rule_1": 3,
+    "rule_2": 3,
+    "rule_3": 3,
+    "rule_4": 3
+  },
+  "real_components": [
+    "AgentHarness and registered L02/L03 production BillsEntry",
+    "SQLite scoped application checkpoint and SecurityGate executor",
+    "BankGateway B01/B08 to a fresh, seeded MockBankStore",
+    "Synthetic extra seeded rows inserted via public test-bank seed API before task start",
+    "Independent bank SQLite digest, balances and zero submit calls"
+  ],
+  "test_doubles": [
+    "Planner selects the declared public capability, not a live LLM",
+    "Authorization callback and LOW risk input are scripted; SecurityGate and executor are real",
+    "Bank clock fixed/advancing around 2026-10-14, no real bank connection"
+  ],
+  "exclusions": [
+    "Browser/GLM and professional security approvals are separate evidence",
+    "HTTP export, SSE and recovery branches are ticket07",
+    "Existing arithmetic 147, phase1 L01 17 and these independent cases must not be added as if overlapping work were unique coverage"
+  ],
+  "cases": [
+    {
+      "id": "BILL-PUBLIC-L02-01",
+      "tier": "l02_public",
+      "kind": "multiple_candidates",
+      "input": "核对交易，2026年9月所有账户",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-02",
+      "tier": "l02_public",
+      "kind": "select_first",
+      "input": "核对交易，2026年9月所有账户",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-03",
+      "tier": "l02_public",
+      "kind": "select_last",
+      "input": "核对交易，2026年9月所有账户",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-04",
+      "tier": "l02_public",
+      "kind": "scan",
+      "input": "所有账户最近三个完整月份检查周期扣款",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-05",
+      "tier": "l02_public",
+      "kind": "missing_month",
+      "input": "核对交易",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-06",
+      "tier": "l02_public",
+      "kind": "choose_account",
+      "input": "核对交易，2026年9月",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-07",
+      "tier": "l02_public",
+      "kind": "ambiguous_amount",
+      "input": "核对交易，2026年9月所有账户金额大约30元",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-08",
+      "tier": "l02_public",
+      "kind": "no_matching_amount",
+      "input": "核对交易，2026年9月所有账户金额9999999元",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-09",
+      "tier": "l02_public",
+      "kind": "partial_month",
+      "input": "核对交易，2026年9月上半月所有账户",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-10",
+      "tier": "l02_public",
+      "kind": "cancel",
+      "input": "核对交易",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-11",
+      "tier": "l02_public",
+      "kind": "request_replay",
+      "input": "核对交易，2026年9月所有账户",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-12",
+      "tier": "l02_public",
+      "kind": "permission_revoked",
+      "input": "核对交易，2026年9月所有账户",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-13",
+      "tier": "l02_public",
+      "kind": "session_recovery",
+      "input": "核对交易，2026年9月所有账户",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L02-14",
+      "tier": "l02_public",
+      "kind": "scan_replay",
+      "input": "所有账户最近三个完整月份检查周期扣款",
+      "bf": [
+        "BF02",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; no banking writes"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-01",
+      "tier": "l03_public",
+      "kind": "september",
+      "input": "2026年9月所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-02",
+      "tier": "l03_public",
+      "kind": "august",
+      "input": "2026年8月所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-03",
+      "tier": "l03_public",
+      "kind": "this_year",
+      "input": "今年所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-04",
+      "tier": "l03_public",
+      "kind": "choose_accounts",
+      "input": "2026年9月账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-05",
+      "tier": "l03_public",
+      "kind": "missing_period",
+      "input": "查账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-06",
+      "tier": "l03_public",
+      "kind": "comparison_clarification",
+      "input": "2026年9月跟上月比的所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-07",
+      "tier": "l03_public",
+      "kind": "future_period",
+      "input": "2027年9月所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-08",
+      "tier": "l03_public",
+      "kind": "category_clarification",
+      "input": "2026年9月所有账户仅餐饮账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-09",
+      "tier": "l03_public",
+      "kind": "permission_revoked",
+      "input": "2026年9月所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-10",
+      "tier": "l03_public",
+      "kind": "request_replay",
+      "input": "2026年9月所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-11",
+      "tier": "l03_public",
+      "kind": "retry_B08",
+      "input": "2026年9月所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-12",
+      "tier": "l03_public",
+      "kind": "printed_report",
+      "input": "2026年9月所有账户打印账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-13",
+      "tier": "l03_public",
+      "kind": "share_request",
+      "input": "2026年9月所有账户给子女看账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-PUBLIC-L03-14",
+      "tier": "l03_public",
+      "kind": "unsupported_day",
+      "input": "2026年9月15日所有账户账单报告",
+      "bf": [
+        "BF03",
+        "BF05",
+        "BF06"
+      ],
+      "expectation": "real Harness + scoped security executor + B01/B08 seeded MockBank; typed BillReport or explicit no-bank clarification"
+    },
+    {
+      "id": "BILL-RULE-1-HIT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 1,
+      "variant": "hit",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-1-MISS",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 1,
+      "variant": "miss",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-1-INSUFFICIENT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 1,
+      "variant": "insufficient",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-2-HIT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 2,
+      "variant": "hit",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-2-MISS",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 2,
+      "variant": "miss",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-2-INSUFFICIENT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 2,
+      "variant": "insufficient",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-3-HIT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 3,
+      "variant": "hit",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-3-MISS",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 3,
+      "variant": "miss",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-3-INSUFFICIENT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 3,
+      "variant": "insufficient",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-4-HIT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 4,
+      "variant": "hit",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-4-MISS",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 4,
+      "variant": "miss",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    },
+    {
+      "id": "BILL-RULE-4-INSUFFICIENT",
+      "tier": "l02_rule_public",
+      "kind": "synthetic_bank_fact",
+      "rule": 4,
+      "variant": "insufficient",
+      "bf": [
+        "BF02"
+      ],
+      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+    }
+  ]
+}
