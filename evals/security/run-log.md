@@ -121,7 +121,7 @@ SEC-T-003/004/005原话术及MAT-FRAUD-01各3轮，实际检测/终止专项12 P
 - 检测器三档复跑（`detector_regression.py`，main `f841db3`，16:39:09—16:39:25，0 模型调用）：专项 **12 Passed + 合法对照 Passed**，整例 **12 Blocked**（真实模型解释/人工展示复核未做）；决策含 `policy_version=v0.3-minimum-security-gate-1+v04-local-demo-read-5`、`rule_ids=transfer-positive-high-risk:<signal>`、`evidence_refs=trusted-request-lexical-detector:v04-lexical-risk-1:risk-inputs-<digest>`；`bank_submit_count=0`。证据 [detector-2026-10-21-rerun.json.gz](evidence/2026-10-21/detector-2026-10-21-rerun.json.gz)（解压 9513CF504576EC6B；gzip 58AD7662C2432269）。
 - 三档结论：**高**离线已验；**中**信号级已验、门级因 14 维 `checked_signals` 覆盖规则按暂停（#160 P0 待安全侧/PM 决定）；**低**缺设备事实、金额阈值口径与清楚请求信号而不可达。逐项、缺数据清单与提供方见 [2026-10-21 离线收尾](offline-2026-10-21-closeout.md)。
 - 测试：`pytest -q evals/security` **146 passed**（153.53 秒）；`pytest -q backend/app/security/test_risk_detector.py` **29 passed**（5.83 秒）。
-- 联调：真实模型 24 轮可跑、39 轮 gated 解门前不跑、S2 三类观察端与页面走查清单见 [Erwin 联调清单](live-model-page-run-plan.md)。未关闭 #86/#88；是否关闭由 PM 决定。
+- 联调：真实模型 24 轮可跑、39 轮 gated 解门前不跑、S2 三类观察端与页面走查清单见 [Erwin 联调清单](live-model-page-run-plan.md)。当时未关闭 #86/#88；后于 2026-10-22 00:45 由 PM 决定关闭（见下节）。
 
 ## 2026-10-21 晚联调：真实模型批次 A + 页面回归（PM 授权代行执行，AI 整理与审查）
 
@@ -136,7 +136,7 @@ SEC-T-003/004/005原话术及MAT-FRAUD-01各3轮，实际检测/终止专项12 P
 
 - 执行细节：报告先写仓库外唯一新路径再 gzip 归档（`filename=""`、`mtime=0`，解压逐字节一致）；模型入口只走 Coding Plan，未与普通 API 混用；未打印/提交任何密钥。批次 B/C 未按验证口径执行（B 仅留门拦截零费用证据；C 缺平台接缝）。
 - 页面：离线回归完成；真实模型页面 6 步走查于 2026-10-22 00:17 由 PM 本人操作并口头验收通过（AI 按 PM 选择补跑缺项），记录见 [页面走查记录](evidence/2026-10-21-live/page-walkthrough-2026-10-22.md)。
-- 未关闭 #86/#88；39 轮 gated 实际验证、批次 C 三类观察端、§4.4 安全侧真人复核与 Ringo 本人安全签核仍缺。
+- **#86/#88 已于 2026-10-22 00:45 由 PM 决定关闭**（关闭依据：离线全量 20/0/337、检测器专项、批次 A 真实模型 24 轮、21 轮解释复核 PM 确认、页面 6 步走查 PM 验收；留痕 PM 授权代行与决定、AI 实施与审查，**非 Ringo 本人审查，安全签核仍缺**）；39 轮 gated 实际验证、批次 C 三类观察端、§4.4 安全侧讲解复核、#160（v0.5）与 #137 读账书面复核另行跟踪。
 
 ## 2026-10-22 凌晨：真实模型页面走查（PM 本人 + AI 代点补证）
 
