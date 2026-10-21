@@ -193,7 +193,11 @@ class HttpEvidence:
                 result = "error"
             integrity = record.get("bank_integrity", {})
             if result == "passed" and (not record.get("requirement_mapping")
-                    or not record.get("http_observations") or not record.get("bank_calls")
+                    or not record.get("http_observations")
+                    or (not record.get("bank_calls") and not (
+                        (record.get("requirement_mapping") or {}).get("kind") == "l02_cancel"
+                        and any(item.get("action") == "zero_bank_read_asserted"
+                                for item in record.get("http_observations", []))))
                     or not integrity.get("accounts_ledger_unchanged") or integrity.get("funds_submit_calls") != 0):
                 result = "error"
                 record["evidence_error"] = "missing HTTP/real-bank observations or unchanged-funds proof"
