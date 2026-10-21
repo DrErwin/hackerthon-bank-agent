@@ -19,7 +19,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import sqlite3
 import sys
 import tempfile
@@ -109,10 +108,27 @@ def synthetic_preservation() -> dict:
 def real_demo() -> dict:
     if not (DEMO / "application.sqlite3").exists():
         return {"skipped": "no local demo database"}
+    source = {
+        "data_directory": str(DEMO),
+        "files": {name: {"bytes": (DEMO / name).stat().st_size,
+                         "sha256": hashlib.sha256((DEMO / name).read_bytes()).hexdigest()}
+                  for name in ("application.sqlite3", "mock_bank.sqlite3")},
+    }
+
+    def backup(source_path: Path, target_path: Path) -> None:
+        """SQLite backup API keeps a consistent copy, including any pending WAL."""
+        origin = sqlite3.connect(source_path)
+        copied = sqlite3.connect(target_path)
+        try:
+            origin.backup(copied)
+        finally:
+            copied.close()
+            origin.close()
+
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp)
-        shutil.copy2(DEMO / "application.sqlite3", target / "application.sqlite")
-        shutil.copy2(DEMO / "mock_bank.sqlite3", target / "bank.sqlite")
+        backup(DEMO / "application.sqlite3", target / "application.sqlite")
+        backup(DEMO / "mock_bank.sqlite3", target / "bank.sqlite")
         before_schema = columns(target / "application.sqlite")
         before_counts = counts(target / "application.sqlite")
         app = make_app(target)
@@ -123,6 +139,7 @@ def real_demo() -> dict:
             elapsed = time.perf_counter() - started
             assert created.status_code == 200, created.text
             view = created.json()["data"]
+            journal_events = len(app.state.api.runtime.audit._events("D1"))
             started = time.perf_counter()
             download = admin.get(f"/api/v1/exports/{view['export_id']}/download")
             download_elapsed = time.perf_counter() - started
@@ -131,9 +148,11 @@ def real_demo() -> dict:
         after_schema = columns(target / "application.sqlite")
         round_events = package["summary"]["event_count"]
         return {
+            "source": source,
             "old_report_id_notnull": before_schema["report_id"] == 1,
             "new_report_id_nullable": after_schema["report_id"] == 0,
             "round_events_before_export": before_counts["events"],
+            "journal_events_after_export": journal_events,
             "export_rows_before": before_counts["exports"],
             "export_view": {key: view[key] for key in
                             ("kind", "status", "task_id", "media_type")},
@@ -142,7 +161,8 @@ def real_demo() -> dict:
             "package_event_count": round_events,
             "package_evidence_count": len(package["evidence"]),
             "package_missing_count": len(package["missing"]),
-            "events_match_journal": round_events == before_counts["events"] + 1,
+            "events_match_journal": (
+                round_events == journal_events == before_counts["events"] + 1),
             "create_seconds": round(elapsed, 3),
             "download_seconds": round(download_elapsed, 3),
         }

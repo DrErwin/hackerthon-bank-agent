@@ -19,6 +19,7 @@ BACKEND = ROOT / "backend"
 HERE = Path(__file__).resolve().parent
 
 COMMANDS = (
+    ("pytest-backend-full.txt", ["-m", "pytest", "-q"]),
     ("pytest-api-audit.txt", ["-m", "pytest", "app/api", "app/audit", "-q"]),
     ("pytest-mockbank.txt", ["-m", "pytest", "-q", "../evals/mockbank/test_mockbank_eval.py"]),
 )

@@ -51,6 +51,8 @@ def main() -> int:
         with TestClient(user_app) as user, TestClient(admin_app) as admin:
             task_id, code = finish_transfer(user)
             admin_login(admin)
+            before_round = {event.event_id for event
+                            in admin_app.state.api.runtime.audit._events("D1")}
 
             created = post(admin, "/admin/audit/exports", demo_round_id="D1")
             assert created.status_code == 200, created.text
@@ -62,6 +64,10 @@ def main() -> int:
             assert first.status_code == 200, first.text
             (HERE / "audit-export-round.json").write_bytes(first.content)
             package = first.json()
+            package_ids = {event["event_id"] for event in package["events"]}
+            access_ids = [event["event_id"] for event in package["events"]
+                          if event["event_type"] == "audit.accessed"
+                          and event["payload"]["action"] == "export"]
             checks["round_package"] = {
                 "bytes": len(first.content),
                 "sha256": digest(first.content),
@@ -69,10 +75,14 @@ def main() -> int:
                 "evidence_count": package_hashes_hold(package),
                 "missing_count": len(package["missing"]),
                 "event_types": sorted({event["event_type"] for event in package["events"]}),
-                "self_export_event": [
+                "export_access_export_ids": [
                     event["payload"]["export_id"] for event in package["events"]
                     if event["event_type"] == "audit.accessed"
                     and event["payload"]["action"] == "export"],
+                "matches_journal_snapshot": (
+                    len(access_ids) == 1
+                    and package_ids == before_round | {access_ids[0]}
+                    and package["summary"]["event_count"] == len(before_round) + 1),
             }
             checks["verification_code_absent"] = code not in first.text
 
@@ -85,6 +95,8 @@ def main() -> int:
             checks["frozen_sha_after_new_events"] = (
                 digest(second.content) == checks["round_package"]["sha256"])
 
+            before_task = {event.event_id for event
+                           in admin_app.state.api.runtime.audit._events("D1", task_id)}
             scoped = post(admin, "/admin/audit/exports", demo_round_id="D1", task_id=task_id)
             assert scoped.status_code == 200, scoped.text
             scoped_view = scoped.json()["data"]
@@ -98,6 +110,8 @@ def main() -> int:
                 "task_id": scoped_package["task_id"],
                 "event_count": scoped_package["summary"]["event_count"],
                 "all_events_scoped": {event["task_id"] for event in scoped_package["events"]} == {task_id},
+                "matches_task_journal_snapshot": (
+                    {event["event_id"] for event in scoped_package["events"]} == before_task),
             }
             checks["audit_trail"] = {
                 "export": [event.payload.export_id for event
@@ -123,7 +137,9 @@ def main() -> int:
         checks["frozen_sha_after_new_events"],
         checks["task_package"]["all_events_scoped"],
         checks["model_calls"] == {"user": 1, "admin": 0},
-        checks["round_package"]["self_export_event"] == [view["export_id"]],
+        checks["round_package"]["export_access_export_ids"] == [view["export_id"]],
+        checks["round_package"]["matches_journal_snapshot"],
+        checks["task_package"]["matches_task_journal_snapshot"],
         checks["audit_trail"]["export"] == [view["export_id"], scoped_view["export_id"]],
         checks["audit_trail"]["download"] == [view["export_id"], view["export_id"],
                                               scoped_view["export_id"]],
