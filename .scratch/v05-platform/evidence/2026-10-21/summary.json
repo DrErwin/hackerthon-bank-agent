@@ -1,0 +1,61 @@
+{
+  "ticket": "v05-platform/01",
+  "source_issue": 121,
+  "checks": {
+    "export_view": {
+      "kind": "audit",
+      "status": "ready",
+      "task_id": null,
+      "file_name": "audit-D1.json",
+      "media_type": "application/json"
+    },
+    "round_package": {
+      "bytes": 104860,
+      "sha256": "9789b18e0d4f10d0ae12e65bc51644e63523c6c02c97f6f3fb6e9e08f6392252",
+      "event_count": 67,
+      "evidence_count": 13,
+      "missing_count": 52,
+      "event_types": [
+        "audit.accessed",
+        "bank.observed",
+        "confirmation.changed",
+        "model.finished",
+        "model.started",
+        "recovery.checked",
+        "security.decided",
+        "task.transition",
+        "tool.finished",
+        "tool.started",
+        "verification.changed"
+      ],
+      "self_export_event": [
+        "076fd8e1-1374-42c3-9743-2d9f6a2ef893"
+      ]
+    },
+    "verification_code_absent": true,
+    "frozen_after_new_events": true,
+    "frozen_sha_after_new_events": true,
+    "task_package": {
+      "bytes": 103962,
+      "sha256": "7797f90c966f3dc0c3c352603f26a3240956c7a59e14d1a58376661e063310d9",
+      "task_id": "349cb8ff-213b-4862-b777-1cbb822c553c",
+      "event_count": 66,
+      "all_events_scoped": true
+    },
+    "audit_trail": {
+      "export": [
+        "076fd8e1-1374-42c3-9743-2d9f6a2ef893",
+        "ace57b6b-abf6-4f81-b36d-f80d88119ab9"
+      ],
+      "download": [
+        "076fd8e1-1374-42c3-9743-2d9f6a2ef893",
+        "076fd8e1-1374-42c3-9743-2d9f6a2ef893",
+        "ace57b6b-abf6-4f81-b36d-f80d88119ab9"
+      ]
+    },
+    "model_calls": {
+      "user": 1,
+      "admin": 0
+    }
+  }
+}
