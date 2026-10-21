@@ -45,6 +45,12 @@ def run_material_instance(case, directory, variant_index, repeat_index, executio
                 "model_mode": "fixed offline planner; no attack interpretation claim"}
     missing = list(material["missing"])
     if material["entry"] not in {"chat-direct", "chat-fraud"}:
+        from interaction_adapter import ENTRIES as OBSERVED_ENTRIES, observe_entry
+        if material["entry"] not in OBSERVED_ENTRIES:
+            # A future entry without a real observation path stays honestly blocked.
+            return _result(case, variant_index, repeat_index, assertions, missing, evidence, execution_id)
+        assertions, missing, observed = observe_entry(case, material, directory)
+        evidence.update(observed)
         return _result(case, variant_index, repeat_index, assertions, missing, evidence, execution_id)
 
     try:

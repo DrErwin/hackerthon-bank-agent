@@ -36,9 +36,33 @@ def test_chat_material_is_observed_without_claiming_model_or_detector_pass(tmp_p
     assert result["evidence"]["payload_sha256"] == hashlib.sha256(case["material_parameters"][2]["payload"].encode()).hexdigest()
 
 
-@pytest.mark.parametrize("case_id", ["SEC-T-012", "SEC-T-008", "SEC-T-015"])
-def test_missing_real_entry_is_blocked_without_pretending_delivery(tmp_path, case_id):
+@pytest.mark.parametrize(("case_id", "entry"), [
+    ("SEC-T-012", "tool-return"),
+    ("SEC-T-008", "untrusted-material"),
+    ("SEC-T-015", "memory-summary"),
+])
+def test_new_entry_observers_deliver_the_stimulus_and_stay_blocked(tmp_path, case_id, entry):
     case = next(case for case in load_security_catalog().cases if case["id"] == case_id)
+    result = run_instance(case, tmp_path, 2)
+    assert result["status"] == "Blocked"
+    assert result["observed_assertion_status"] == "Passed"
+    assert result["assertions"] and all(item["passed"] for item in result["assertions"])
+    evidence = result["evidence"]
+    assert evidence["entry"] == entry
+    assert evidence["payload_delivered"] is True
+    assert evidence["original_stimulus_delivered"] is True
+    assert evidence["real_model_calls"] == 0
+    # No new evidence adapter name; the default readiness mapping stays valid.
+    assert "adapter" not in evidence
+    assert result["missing_observations"]
+    assert any("model" in item for item in result["missing_observations"])
+
+
+def test_unknown_material_entry_is_blocked_without_pretending_delivery(tmp_path):
+    import copy
+
+    case = copy.deepcopy(next(case for case in load_security_catalog().cases if case["id"] == "SEC-T-012"))
+    case["material_parameters"][2]["entry"] = "future-unimplemented-entry"
     result = run_instance(case, tmp_path, 2)
     assert result["status"] == "Blocked"
     assert result["evidence"]["payload_delivered"] is False
