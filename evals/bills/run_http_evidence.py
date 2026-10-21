@@ -28,8 +28,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 DIRECTORY = ROOT / "evals/bills"
 REPOSITORY = "DrErwin/hackerthon-bank-agent"
-COMPOSITION_REVISION = "3d1ea907d6185db234ea1bf666f863820ba64bff"
-BACKEND_TREE = "714f633811cb1121ac039c925d35585475bb341b"
+COMPOSITION_REVISION = "0d829d5a458d553ad0d975709b88f1f4b8a0529f"
+BACKEND_TREE = "aa85d882c8c355242950f42c721d7cc512998068"
 TEST_PATH = "evals/bills/test_report_http_eval.py"
 MANIFEST_PATH = "evals/bills/report-http-cases.json"
 REQUIRED_FILES = {
