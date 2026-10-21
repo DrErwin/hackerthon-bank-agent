@@ -1,6 +1,6 @@
 # 交付包 01：v0.4 账单业务能力与评测
 
-Status: in_progress（2026-10-11 周恩宇已接受并开始本模块局部实施；公开链路依赖见 Issue #91）
+Status: in_progress（2026-10-21：L01/L02/L03 与安全平台注册/前端联调相应代码已合入，个人票06/07仍缺完整评测验收；不可写成accepted）
 Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Activation: 2026-10-11 Erwin 建立（v0.4 正式启动同日）
 Start when: v0.4 已于 2026-10-11 正式启动；[02 账单 PRD](../../../docs/prd/02-账单分析-PRD-2026-09-23.md)与[公共契约](../../../docs/contracts/公共契约-2026-09-23.md)已冻结、[21 条代表性用例](../../../evals/bills/)已合入——接包即可 `to-spec → to-tickets`
@@ -64,3 +64,9 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 - **未合 / 未开 PR**：L02 私有规则分支 `feat/bills/l02-private-rules` 与 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136) 票 09 分支 `test/bills/l01-module-dedup-136-09` 仍未开 PR（受「一人最多两张未合 PR」限制）；#136 保持 OPEN。
 - **跨线前置**：L03 `bills.generate_report` 尚未在平台注册、安全白名单只收 L01 → 前端票 04 账单插槽真实联调不可用（见 [平台票 05](../v04-platform/issues/05-real-bills-integration.md) 2026-10-20 留痕）。
 - **BF 口径（如实）**：BF01/BF03/BF05/BF06 仅有部分算术断言；BF02/BF04/BF07 未完成；96 条设计 ≠ 96 条全部通过，评测证据只覆盖 147 项算术/工具合跑。
+
+## 2026-10-21 · 交付包01最新个人交付记录（AI过程更新，非联合验收）
+- 账单 L01/L02/L03及返修相关PR #92/#131/#140/#151/#171/#182/#183已合并；#188联动[PR #197](https://github.com/DrErwin/hackerthon-bank-agent/pull/197) 已合，安全L02白名单 #196、平台注册 #192亦已合入，当前能力不再标记为“未注册”。
+- 业务评测 [PR #198](https://github.com/DrErwin/hackerthon-bank-agent/pull/198) 已合入，L01一期17个真实公共业务场景有固定源Actions实跑17/17及原始证据；**不是**所有功能评测达到数量下限。
+- 票07 [PR #208](https://github.com/DrErwin/hackerthon-bank-agent/pull/208) 已发起审查，历史固定源7个真实HTTP场景/87请求专项7/7成功且原始证据归档；新主线专项运行与缺失场景仍在进行，不能因普通CI通过即等同专项通过。
+- 前端 #199/#201 已合入，其独立真实接口及浏览器验收证据由前端线记录；项目平台 [Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) 仍开放，安全专业批准也不由账单Owner代签。个人10张票中01/02/03/04/05/08/09/10为已合入子范围；06/07 `in_progress`。BF01—BF07完整联合验收和评测数量下限未核销，**整个交付包仍 `in_progress`**。
