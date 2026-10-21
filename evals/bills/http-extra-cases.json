@@ -1,0 +1,122 @@
+{
+  "ticket": "v04-ethan-bills-backend/07",
+  "stage": "phase2_in_process_bills_http_coverage",
+  "status": "executed_15_of_15_http_passed_2026-10-21",
+  "overall_status": "partial",
+  "full_ticket_acceptance": false,
+  "prior_independent_http_scenarios": 7,
+  "new_http_scenarios": 8,
+  "case_ids": [
+    "BILL-HTTP-X01",
+    "BILL-HTTP-X02",
+    "BILL-HTTP-X03",
+    "BILL-HTTP-X04",
+    "BILL-HTTP-X05",
+    "BILL-HTTP-X06",
+    "BILL-HTTP-X07",
+    "BILL-HTTP-X08"
+  ],
+  "cases": [
+    {
+      "id": "BILL-HTTP-X01",
+      "kind": "l01_summary",
+      "dimension": "L01真实HTTP汇总",
+      "input": "2026年9月所有账户账单",
+      "bf": [
+        "BF01"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    },
+    {
+      "id": "BILL-HTTP-X02",
+      "kind": "l01_details",
+      "dimension": "L01类别真实明细",
+      "input": "2026年9月所有账户餐饮明细",
+      "bf": [
+        "BF01",
+        "BF04"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    },
+    {
+      "id": "BILL-HTTP-X03",
+      "kind": "l01_clarification",
+      "dimension": "L01 HTTP F10澄清连续原任务",
+      "input": "查账单",
+      "bf": [
+        "BF05",
+        "BF06"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    },
+    {
+      "id": "BILL-HTTP-X04",
+      "kind": "l02_candidate",
+      "dimension": "L02候选定位经F10选择后真实复查",
+      "input": "核对交易，2026年9月所有账户",
+      "bf": [
+        "BF02",
+        "BF05"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    },
+    {
+      "id": "BILL-HTTP-X05",
+      "kind": "l02_scan",
+      "dimension": "L02真实HTTP周期规则扫描",
+      "input": "所有账户最近三个完整月份检查周期扣款",
+      "bf": [
+        "BF02"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    },
+    {
+      "id": "BILL-HTTP-X06",
+      "kind": "l02_no_match",
+      "dimension": "L02空匹配不可误判为无异常",
+      "input": "核对交易，2026年9月所有账户金额9999999元",
+      "bf": [
+        "BF02",
+        "BF06"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    },
+    {
+      "id": "BILL-HTTP-X07",
+      "kind": "l02_cancel",
+      "dimension": "L02等待态HTTP专用取消入口与原任务终止",
+      "input": "核对交易",
+      "bf": [
+        "BF05",
+        "BF06"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    },
+    {
+      "id": "BILL-HTTP-X08",
+      "kind": "csv_formula",
+      "dimension": "敏感CSV导出实际银行公式型商户字段转义",
+      "input": "2026年9月所有账户账单报告",
+      "bf": [
+        "BF04"
+      ],
+      "source": "real ApiService/FastAPI/TestClient -> registered public BillsEntry -> BankGateway/MockBank; scripted planner and test authorization; no live provider, browser or professional security approval",
+      "expected": "status/amount/verification/escaping asserted against real task and seeded bank, zero funds submissions"
+    }
+  ],
+  "remaining": [
+    "SSE positive reconnect/session expiry",
+    "export resend and duplicate-write retries",
+    "adversarial HTML payload via full API",
+    "cross-round/expired user session",
+    "browser and live GLM acceptance in PM-owned joint verification"
+  ],
+  "funds_effects": "All scenarios retain actual bank verification records as allowed but prohibit balance, ledger and transfer/subscription submissions"
+}

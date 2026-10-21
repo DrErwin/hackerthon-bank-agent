@@ -28,10 +28,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 DIRECTORY = ROOT / "evals/bills"
 REPOSITORY = "DrErwin/hackerthon-bank-agent"
-COMPOSITION_REVISION = "3d1ea907d6185db234ea1bf666f863820ba64bff"
-BACKEND_TREE = "714f633811cb1121ac039c925d35585475bb341b"
+COMPOSITION_REVISION = "ca3f579d22d0261ff4466e8c4a5d7317ee9f75e2"
+BACKEND_TREE = "aa85d882c8c355242950f42c721d7cc512998068"
 TEST_PATH = "evals/bills/test_report_http_eval.py"
 MANIFEST_PATH = "evals/bills/report-http-cases.json"
+EXTRA_TEST_PATH = "evals/bills/test_http_extra_eval.py"
+EXTRA_MANIFEST_PATH = "evals/bills/http-extra-cases.json"
 REQUIRED_FILES = {
     "backend/app/__init__.py", "backend/app/contracts/__init__.py",
     "backend/app/api/__init__.py", "backend/app/api/app.py", "backend/app/api/service.py",
@@ -51,7 +53,8 @@ REQUIRED_FILES = {
     "backend/app/services/mock_bank/seeds/flow_history.json",
     "backend/app/services/mock_bank/seeds/subscription_flows.json", "backend/pyproject.toml",
     "evals/bills/conftest.py", "evals/bills/run_http_evidence.py", TEST_PATH, MANIFEST_PATH,
-    "evals/bills/report-http-cases.md", ".scratch/v04-ethan-bills-backend/issues/07-integration-evidence.md",
+    "evals/bills/report-http-cases.md", EXTRA_TEST_PATH, EXTRA_MANIFEST_PATH,
+    ".scratch/v04-ethan-bills-backend/issues/07-integration-evidence.md",
     "docs/contracts/公共契约-2026-09-23.md",
 }
 REQUIRED_IMPORTS = {
@@ -61,6 +64,8 @@ REQUIRED_IMPORTS = {
     "app.security.gate", "app.security", "app.memory.adapter",
     "app.services.bank_gateway.gateway", "app.services.mock_bank.core",
     "app.services.mock_bank.verification", "app.storage.application", "app.audit.journal",
+    "app.modules.bills.anomaly_entry", "app.modules.bills.anomaly_service",
+    "app.modules.bills.anomaly_manifest",
 }
 
 
@@ -149,7 +154,9 @@ class HttpEvidence:
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_protocol(self, item, nextitem):
         case_id = item.callspec.id if hasattr(item, "callspec") else None
-        record = {"nodeid": item.nodeid, "sample_id": case_id, "tier": "in_process_http_real_l03",
+        tier = ("in_process_http_real_l03" if case_id and case_id.startswith("BILL-HTTP-0")
+                else "in_process_http_real_bills_phase2")
+        record = {"nodeid": item.nodeid, "sample_id": case_id, "tier": tier,
                   "requirement_mapping": self.cases.get(case_id), "started_at": utc_now(), "phases": []}
         self.samples[item.nodeid] = record
         started = time.perf_counter()
@@ -186,7 +193,11 @@ class HttpEvidence:
                 result = "error"
             integrity = record.get("bank_integrity", {})
             if result == "passed" and (not record.get("requirement_mapping")
-                    or not record.get("http_observations") or not record.get("bank_calls")
+                    or not record.get("http_observations")
+                    or (not record.get("bank_calls") and not (
+                        (record.get("requirement_mapping") or {}).get("kind") == "l02_cancel"
+                        and any(item.get("action") == "zero_bank_read_asserted"
+                                for item in record.get("http_observations", []))))
                     or not integrity.get("accounts_ledger_unchanged") or integrity.get("funds_submit_calls") != 0):
                 result = "error"
                 record["evidence_error"] = "missing HTTP/real-bank observations or unchanged-funds proof"
@@ -204,16 +215,22 @@ def main():
     args = parser.parse_args()
     tree, sources = verify_sources(args.revision)
     manifest = json.loads((ROOT / MANIFEST_PATH).read_text(encoding="utf-8"))
-    expected = {f"BILL-HTTP-{number:02}" for number in range(1, 8)}
-    if len(manifest["cases"]) != len(expected) or {case["id"] for case in manifest["cases"]} != expected:
-        raise ValueError("the declared seven HTTP scenarios must each occur once")
+    extra = json.loads((ROOT / EXTRA_MANIFEST_PATH).read_text(encoding="utf-8"))
+    first_ids = {f"BILL-HTTP-{number:02}" for number in range(1, 8)}
+    extra_ids = {f"BILL-HTTP-X{number:02}" for number in range(1, 9)}
+    if len(manifest["cases"]) != 7 or {c["id"] for c in manifest["cases"]} != first_ids:
+        raise ValueError("original seven distinct HTTP cases must be preserved")
+    if len(extra["cases"]) != 8 or {c["id"] for c in extra["cases"]} != extra_ids:
+        raise ValueError("eight new L01/L02/F10/CSV HTTP cases must be present")
+    expected = first_ids | extra_ids
+    cases = manifest["cases"] + extra["cases"]
     if manifest["overall_status"] != "partial" or not manifest["remaining_dependencies"]:
         raise ValueError("HTTP-only evidence cannot claim full ticket acceptance")
-    plugin = HttpEvidence(manifest["cases"])
+    plugin = HttpEvidence(cases)
     started = utc_now()
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT / "backend"))
-    command = ["-q", "--rootdir", str(ROOT), TEST_PATH]
+    command = ["-q", "--rootdir", str(ROOT), TEST_PATH, EXTRA_TEST_PATH]
     exit_code = int(pytest.main(command, plugins=[plugin]))
     summary, samples = plugin.results()
     observed = [sample["sample_id"] for sample in samples]
@@ -244,12 +261,16 @@ def main():
         "dependencies": {name: version(name) for name in ("pytest", "pydantic", "fastapi", "starlette", "httpx", "langgraph", "deepagents")},
         "system": platform.system(), "pytest_args": command, "exit_code": exit_code,
         "business_clock": "2026-10-14T13:00:00+08:00", "test_data": "fresh synthetic SQLite bank per scenario",
-        "real_components": manifest["real_components"], "test_doubles": manifest["test_doubles"],
+        "real_components": manifest["real_components"] + [
+            "Real L01/L02 registered public capabilities, API F10/cancel, bank-backed CSV formula path"],
+        "test_doubles": manifest["test_doubles"],
+        "additional_case_manifest": EXTRA_MANIFEST_PATH, "extra_scenarios": len(extra["cases"]),
         "collected": plugin.collected, "summary": summary,
         "tier_counts": dict(Counter(sample["tier"] for sample in samples)),
         "http_request_count": sum(sample["http_request_count"] for sample in samples),
         "collection_errors": plugin.collection_errors, "samples": samples,
         "remaining_dependencies": manifest["remaining_dependencies"],
+        "extra_remaining": extra["remaining"],
         "coverage_limitations": manifest["coverage_limitations"],
         "counting_rule": "one sample per declared scenario; expected refusals can pass; HTTP request count is not case count; no live-model/page/security signoff or full BF acceptance"}
     raw = (json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
