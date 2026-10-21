@@ -421,13 +421,15 @@ def test_public_bank_rule_contrast(case, bank_env):
     check = checks[rule]
     # Rule 3 has no "insufficient" classification for valid bank timestamps:
     # its third contrast proves noneligible nighttime bank income stays clear.
-    expected = {
-        "hit": ("evaluated", True),
-        "miss": ("evaluated", False),
-        "insufficient": ("insufficient_data", None),
-        "noneligible": ("evaluated", False),
+    # The public RuleCheck exposes status/reason only; matched/not-matched is
+    # asserted through the public findings below.
+    expected_status = {
+        "hit": "evaluated",
+        "miss": "evaluated",
+        "insufficient": "insufficient_data",
+        "noneligible": "evaluated",
     }[variant]
-    assert (check.status, check.matched) == expected, (case["id"], check)
+    assert check.status == expected_status, (case["id"], check)
     if variant == "hit":
         assert any(item.rule_id == rule and target_id in item.transaction_ids
                    for item in data.findings)

@@ -146,7 +146,7 @@ def main():
     started = utc_now()
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT / "backend"))
-    command = ["-q", "--rootdir", str(ROOT), TEST_PATH]
+    command = ["-q", "--rootdir", ".", TEST_PATH]
     exit_code = int(pytest.main(command, plugins=[plugin]))
     summary, samples = plugin.finalize()
     if (plugin.collected != 40 or len(samples) != 40
