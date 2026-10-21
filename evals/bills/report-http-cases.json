@@ -1,0 +1,31 @@
+{
+  "ticket_id": "v04-ethan-bills-backend/07",
+  "stage": "in_process_http_real_l03_report_exports",
+  "overall_status": "partial",
+  "cases": [
+    {"id": "BILL-HTTP-01", "dimension": "真实L03报告资源", "bf": ["BF03"], "spec": "公共契约 §5.3 L03；§6.4 F05/F06；§6.5 F08/F09；§6.7 F21", "input": "2026年9月所有账户账单报告", "assertions": "HTTP消息经真实L03/Harness/银行生成BillReport；F21与任务同report_id/内容；聊天report_ids及播报一致；18笔银行流水独立复算；零验证挑战"},
+    {"id": "BILL-HTTP-02", "dimension": "普通卡片导出", "bf": ["BF04"], "spec": "公共契约 §6.7 F22/F23/F24 普通卡片", "input": "导出当前真实报告的card", "assertions": "无需敏感验证，ready且无导出任务；F23状态可取；F24下载HTML包含报告播报但无逐笔ID；no-store"},
+    {"id": "BILL-HTTP-03", "dimension": "明细验证前拒绝与通过后下载", "bf": ["BF04"], "spec": "公共契约 §6.7 敏感明细；F16/F17/F19/F22-F24", "input": "导出details，专用入口提交真实银行演示验证码", "assertions": "验证前409且无下载地址；同bills导出任务沿真实银行验证成功；CSV每个字段与报告范围内真实B08一致"},
+    {"id": "BILL-HTTP-04", "dimension": "错误验证终止", "bf": ["BF04", "BF06"], "spec": "公共契约 §6.7；银行验证码失败累计规则", "input": "同一明细挑战连续 3 次提交同一错误验证码值（均非正确值），各用独立 submission_id", "assertions": "实际银行逐次拒绝；每次不能下载；三次后导出及任务失败VERIFICATION_REJECTED"},
+    {"id": "BILL-HTTP-05", "dimension": "银行判定过期验证", "bf": ["BF04", "BF06"], "spec": "公共契约 §6.7；F16/F17/F23/F24", "input": "将注入的银行验证时钟推进到银行公开的code_expires_at，再提交原正确验证码", "assertions": "挑战状态与校验结果由银行计算，评测不改挑战状态、不复制有效期规则（bank_verification* 记录按真实流程合法新增）；F17拒绝409 TASK_TERMINATED；F23归一为VERIFICATION_EXPIRED、任务失败、下载409"},
+    {"id": "BILL-HTTP-06", "dimension": "跨用户资源拒绝", "bf": ["BF04"], "spec": "公共契约 §6.3本人范围；§6.7资源归属", "input": "另一个测试配置的普通用户U2读取U1报告/导出/挑战及创建导出", "assertions": "F21、F22、F23、F24和演示验证码入口均404且不新增银行读取；本用例断言状态码与访问拒绝，不做逐字节响应体对比"},
+    {"id": "BILL-HTTP-07", "dimension": "跨会话明细授权失效", "bf": ["BF04", "BF06"], "spec": "公共契约 §6.7 session变化使旧导出授权失效", "input": "U1在S1验证下载完成后以新S2再次请求同一CSV", "assertions": "同用户F21仍可读；旧敏感下载409 SESSION_RECONFIRMATION_REQUIRED，不能复用S1授权"}
+  ],
+  "real_components": ["FastAPI HTTP routes and middleware through in-process TestClient", "ApiService automatic report capture, resource store and exporter", "real L03 register_bills_report/BillsEntry/BillsReportService", "TransferRuntime, AgentHarness and scoped SQLite checkpointer", "existing local_demo bills reads factory, SecurityGate and deterministic executor", "BankGateway and seeded MockBankService with real verification service"],
+  "test_doubles": ["ReportPlanner fixes routing to bills.generate_report; no live model/provider", "Explicit U1/D1 L01/L03 declaration allowlist and private READ tool policy; LOW risk input is scripted, not DemoSecurityPolicy approval", "Bank ledger clock fixed at 2026-10-14T13:00:00+08:00; verification clock starts at actual run time and only expiry case advances to bank-provided deadline", "Forwarding gateway observers preserve actual responses and only record scope/count metadata; no bank-result stubs", "A second injected ApiConfig exposes synthetic U2 for ownership testing; no production deployment"],
+  "coverage_limitations": [
+    "Seven scenarios are a report/export HTTP stage only; no claim that all BF01-BF07 or every ticket07 branch is complete.",
+    "The ASGI HTTP layer runs in process through TestClient, without a deployed TCP/TLS service, live SSE reconnect, browser or real model.",
+    "L01/L02 HTTP journeys, report F10 clarification/recovery, cross-round/expired-session variants, export resend/cancel/retry, and adversarial HTML/CSV inputs are not covered by these seven cases. They are missing coverage, not claims of missing platform interfaces.",
+    "The expiry POST is HTTP409 TASK_TERMINATED; the resulting export and task carry VERIFICATION_EXPIRED. These are separate observations.",
+    "Funding state remains unchanged; the bank legitimately creates/updates verification records for detail export. The unchanged-bank claim excludes exactly the bank_verification* tables.",
+    "A passed sensitive-export case exercises the existing API and bank guards with scripted admission/risk inputs, not professional security or production approval.",
+    "Natural-language expression is not exercised: the scripted planner always selects bills.generate_report and the user text does not participate in understanding."
+  ],
+  "remaining_dependencies": [
+    {"path": "production default-run admission and joint acceptance", "status": "Blocked", "owner": "Erwin / Ringo", "reason": "At the tested revision (e1111830) the default local_demo factory registered only L01/L03 and the policy covered only those; main has since registered L01-L03 with the bills security allowlists (#178/#184/#192/#196). Remaining gaps are production admission, joint acceptance and human security sign-off, not missing interfaces."},
+    {"path": "live-model natural-language routing", "status": "Blocked", "owner": "Ethan / Erwin", "reason": "This test selects L03 with a scripted planner. Legal live provider configuration and separate model evidence remain required."},
+    {"path": "frontend bills UI and browser", "status": "Blocked", "owner": "frontend owner / Ethan", "reason": "In-process HTTP does not render or operate the React bills slot. Frontend tickets 04/05 have since merged (#199/#201) with separate real-API/browser walkthrough evidence; this stage cannot replace page evidence."},
+    {"path": "professional security acceptance", "status": "Blocked", "owner": "Ringo", "reason": "Real API ownership and bank verification responses are exercised; scripted admission/risk input is not production-policy or detector signoff."}
+  ]
+}
