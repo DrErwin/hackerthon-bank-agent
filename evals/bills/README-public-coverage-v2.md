@@ -1,7 +1,8 @@
 # 票06：L02/L03 真实公共业务评测 + 四类异常各三对照（第二阶段候选）
 
-> 状态：**已实现并提交测试代码，未取得当前组合的专项执行结果，不能记 Passed。**
+> 状态：**已实现并在 2026-10-21 实跑：40/40 通过（L02 14 + L03 14 + 规则对照 12）；整票仍为 partial，不能记整包验收。**
 > Owner: Ethan / `zhouey314-cloud`; Ticket: `v04-ethan-bills-backend/06`. 目录仅 `evals/bills/`。
+> 执行与合并留痕：PM Erwin 授权代行；AI 实施与审查，非 Ethan 本人审查。
 
 ## 本轮新增测试
 
@@ -9,6 +10,14 @@
 - 新一期：L02 公开入口14场景、L03公开入口14场景、异常规则1—4各3种新银行流水对照（12个），合计**40个不重复参数用例**。所有用例经真实注册的 BillsEntry + Harness + task-scoped SecurityGate/执行器 + BankGateway + 新建SQLite MockBank；规则对照用测试专属 `MockBankStore.seed_ledger_rows` 新增真实可读取的行，插入后才计算银行完整表 SHA256，不修改生产 seed 文件。
 - 分类覆盖：L02候选定位/选中后重读/周期扣款扫描/缺月/选账户/含糊金额/空候选/半月/取消/幂等/权限拒绝/跨会话恢复；L03月度/年度部分范围、报告/选择账户、比较和未来期间澄清、类别筛选、权限拒绝、幂等、B08失败重试、打印/分享无隐式权限。
 - 异常：规则1金额突变（命中/不命中/可信亲属缺失），规则2陌生收款方（命中/既有收款方/缺对手方ID），规则3夜间（夜间命中/白天/非支出夜间不适用），规则4周期扣款（三月匹配/不匹配/缺商户ID）。**规则3第三条是 noneligible，不谎称 insufficient。**
+
+## 已执行结果（2026-10-21）
+
+- 被测源码 `b1f9982ff1f79f1e7d6e6acd5a45273e193c6459`（tree `3750898675f2c073150456b11cea9b64fc47ebbe`），基线 main `0d829d5a458d553ad0d975709b88f1f4b8a0529f`；Windows / Python 3.12.3 / pytest 9.1.1。
+- `python -m pytest -q evals/bills/test_public_coverage_v2.py` → **40 passed**，exit 0。
+- `python evals/bills/run_public_coverage_v2.py --revision b1f9982ff1f79f1e7d6e6acd5a45273e193c6459` → **40 collected / 40 passed / 0 failed / 0 skipped / 0 error**，`phase_result=Passed`，exit 0；`overall_status=partial`、`full_ticket_acceptance=false` 保持不变。
+- 分层：L02 14/14、L03 14/14、规则对照 12/12；143 个源码 blob 前后校验、56 个运行时模块来自被测源码、40 例资金提交零次、银行表 SHA256 与余额均不变。
+- 证据：[通过报告 gzip](evidence/2026-10-21/20261021T122151264650Z-python3.12.3-public-coverage-v2-b1f9982ff1f7.json.gz)（gzip SHA256 `1eba7f43984aaee726d33edd37a3a1f2dffcabf7ae2a91335f3b1d4ef6a5bbc6`，解压 JSON SHA256 `25f8e01c3168decb8349e5f0ba86771b54fa9ad5b0813e0f0a30af3dab5bce44`）。首次失败的原始证据、修复说明与完整命令见 [run-log-public-coverage-v2.md](run-log-public-coverage-v2.md)。
 
 ## 如何执行与验收
 
@@ -25,6 +34,6 @@ runner 先校验全部Git源码，然后独立收集**恰好40**个参数用例�
 
 ## 尚未核销
 
-- 新40例是否运行成功：**待专项实跑**（提交测试 ≠ 通过）。
+- 新40例已实跑通过 40/40（见上）；仍不代表 HTTP/浏览器/真实模型/专业安全覆盖。
 - 所有异常/错误种类的完整公共 API HTTP覆盖、SSE/浏览器/GLM+生产安全，继续独立对应票07、Erwin和Ringo。
 - 个人整票及v0.4 BF01—BF07联合验收：**仍为 partial / in_progress**。测试替身是 scripted planner/LOW风险与授权事实，不代真实模型与专业安全审查。
