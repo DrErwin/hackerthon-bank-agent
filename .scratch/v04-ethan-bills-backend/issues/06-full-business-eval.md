@@ -4,7 +4,7 @@ Ticket ID: v04-ethan-bills-backend/06
 Type: 评测
 Owner: 周恩宇
 Directory: evals/bills/
-Status: in_progress（2026-10-21：PR #198 一期 17 条 L01 已合入；PR #209 新增 L02/L03/异常规则对照 40 条已实跑 40/40 并合入 main `4b32b98`；整票仍 partial，`full_ticket_acceptance=false`）
+Status: done（2026-10-22 收口，含例外：L01 17/17、L02 14/14、L03 14/14、四规则对照 12/12 均已实跑并合入；PM 决定不硬凑指标，错误种类补量约 13 条不补、如实登记为联合验收例外 E1；代行为 AI 按 PM 授权，非 Ethan 本人审查）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF06](../../v04-bills/spec.md)
@@ -63,3 +63,11 @@ Verification: 冻结规则逐项映射；每功能>=10、每类异常>=3并消�
 - 首跑 `d77b9f9` 为 28 passed / 12 failed：12 条对照读取了公开契约中不存在的 `RuleCheck.matched`（只存在于内部实现），判定为测试问题；最小修复改为断言公开 `check.status`、matched 由公开 `findings` 覆盖，未放宽断言；通过本与失败本两份证据均保留（`evals/bills/evidence/2026-10-21/`）。
 - 合并留痕：PM Erwin 授权代行跑证据与合并、AI 实施与审查、非 Ethan 本人审查。
 - 仍为 `overall_status=partial` / `full_ticket_acceptance=false`：BF01—BF06 整包与验收条目口径未全部通过，真实模型/页面/专业安全另记。
+
+### 2026-10-22 收口（含例外，PM 决定不硬凑指标）
+
+- 证据复核：L01 公共业务 17/17（PR #198）；L02 14/14 + L03 14/14 + 四规则对照 12/12（PR #209，合计 40/40）——本票用例全部实跑通过；L01 的 17 条与 HTTP 15 条由票 07 记录。单元层 147 项（130 算术 + 17 工具）单独计数，不计入业务覆盖。
+- 数量门：每功能 ≥10（L01 20 / L02 30 / L03 22）、每类异常 ≥3（四规则各 3 条）已达；**每种错误 ≥3 未补齐**（约 13 条：导出技术故障、报告资源读写故障、验证码重发/取消/重复提交、恶意 HTML、银行范围拒绝、取消）。
+- PM Erwin 2026-10-22 决定：不硬凑指标，上述缺口如实登记为[联合验收例外 E1](../../../docs/versions/v0.4.0/acceptance-evidence-2026-10-22.md)，本票按"已完成、含例外"收口；不写 `full_ticket_acceptance=true`，也不写成"全部通过"。
+- 未并入本票：真实模型与 React 页面（独立证据，见联合验收记录 E4）、Ringo 真人安全签核。
+- 代行记录：PM 授权、AI 实施与审查，**非 Ethan 本人审查**。

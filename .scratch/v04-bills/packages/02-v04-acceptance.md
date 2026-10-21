@@ -1,12 +1,12 @@
 # 交付包 02：v0.4 联合验收与收口
 
-Status: planned（依赖各线交付，条件见 Start when；不冒充通过。**2026-10-20 收口日核对**：① 账单——L01/L03/评测/审计证据已合入，L02 与 Issue #136 票 09 未开 PR，BF01—BF06 未全部通过；② 前端——票 03 已交付，票 04/05 按 PM 01:45 决定留在本期、不顺延；③ 安全——三张 Ready（#149/#159/#162）待退修合并，检测器与观察端未完成；④ 平台——F21—F24 与票 05 阶段一已合入，L03 注册与阶段二未完成。**任一线未齐不启动、不记通过**）
+Status: in_progress（**2026-10-22 启动联合验收**：PM Erwin 决定不硬凑指标，按现有实跑证据 + 如实例外收口；证据汇总与逐项判定见[v0.4 联合验收记录](../../../docs/versions/v0.4.0/acceptance-evidence-2026-10-22.md)。版本状态翻转与飞书同步待 PM 确认）
 Owner: Erwin 牵头；参与：周恩宇（账单）、梁爽/六水（前端）、Ringo 或 PM 代行（安全）、Erwin（平台/底座，[v04-platform/01](../v04-platform/packages/01-foundation-agent-mockbank.md)）
 Activation: 2026-10-11 建立（v0.4 启动同日）
 Start when: ① [包 01 账单业务能力与评测](01-bills-backend.md) 主体交付（BF01—BF06 通过、评测下限达标）；② [frontend-complete/01](../../frontend-complete/packages/01-v04-complete-frontend.md) 交付（FE-01—FE-06 通过、替换简易前端）；③ [v04-security/01](../../v04-security/packages/01-detector-and-coverage.md) 检测器与评测完整性完成；④ [v04-platform/01](../v04-platform/packages/01-foundation-agent-mockbank.md) 主体交付——F21—F24 报告与文件交付已合入 main，**真实账单模块接入（[票 05](../v04-platform/issues/05-real-bills-integration.md)）完成**后账单纵向链路才具备联调条件。任一线未齐时如实记录阻塞与提供方
 Spec: [v0.4 账单纵向场景规格](../spec.md) · [v0.4 需求](../../../docs/versions/v0.4.0/requirements.md)
 
-Accepted by: 未记录
+Accepted by: 未记录（PM Erwin 已决定收口口径；正式接受待确认）
 Accepted at: 未记录
 Work spec: 待启动时建立（Erwin 自拆）
 
@@ -37,3 +37,16 @@ Erwin 自拆：证据汇总与 completion 更新归 `docs/versions/`（文档票
 ## 候选证据（已产出，待联合验收汇总时正式并入）
 
 - 2026-10-18 [票 05 阶段一（L01）独立检查验收记录](../v04-platform/issues/05-real-bills-integration.md)：真实 GLM 规划（`glm-5.3`）→ 消息入口 → `bills.summarize` 任务（`module=bills`）→ 月份等待 → 恢复 → succeeded（15 笔 / 576100 fen / 账户 A1+A5），零资金动作，审计成对、无验证码原文；两次独立运行一致。基线 main `c10ba00`（PR #143 白名单 `81345b5` + #144 接线 `c10ba00`，代行已记录）。阶段二与前端/账单线纵向联调证据仍缺。
+
+## 2026-10-22 联合验收启动与证据汇总
+
+PM Erwin 2026-10-22 决定：**不硬凑评测数量指标**，按现有实跑证据 + 如实例外收口。交付包状态由 `planned` 转 `in_progress`，证据汇总与 BF01—BF07 逐项判定见 [v0.4 联合验收记录](../../../docs/versions/v0.4.0/acceptance-evidence-2026-10-22.md)。
+
+启动条件核对（原 4 条）：
+
+1. 账单包：L01 17/17、L02 14/14、L03 14/14、四规则对照 12/12、HTTP 15/15，合计 72 条实跑全过；票 06/07 于 2026-10-22 收口为"已完成、含例外"（错误种类补量约 13 条不补，例外 E1）。
+2. 前端包：票 03/04/05 全部合入并回归，PM 2026-10-21 验收通过（单会话、不部署）。
+3. 安全包：#86/#88 由 PM 2026-10-22 决定关闭（**非 Ringo 签核**）；离线全量 20/0/337、批次 A 24 轮真实模型、页面离线 24/24 与 PM 真实页面走查均完成；批次 B/C、安全侧真人复核与签核登记为例外。
+4. 平台包：真实账单模块接入阶段一（L01，10-18）与阶段二（L03，10-20）均验收；L02 真实链路 10-20 完成；[Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) 于 2026-10-22 关闭。
+
+**验收记录已出，正式接受与版本状态翻转待 PM Erwin 确认。** 本包不代签 Ringo 安全结论，例外不因收口消失。

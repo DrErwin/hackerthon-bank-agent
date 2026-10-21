@@ -56,8 +56,8 @@
 
 | 编号 | 交付包 | Owner | 状态 |
 |---|---|---|---|
-| [01](packages/01-bills-backend.md) | v0.4 账单业务能力与评测 | 周恩宇 | ready |
-| [02](packages/02-v04-acceptance.md) | v0.4 联合验收与收口 | Erwin 牵头 | planned |
+| [01](packages/01-bills-backend.md) | v0.4 账单业务能力与评测 | 周恩宇 | done（2026-10-22 收口，含例外） |
+| [02](packages/02-v04-acceptance.md) | v0.4 联合验收与收口 | Erwin 牵头 | in_progress（2026-10-22 启动，记录见 [验收记录](../../../docs/versions/v0.4.0/acceptance-evidence-2026-10-22.md)） |
 
 ## 7. 与其他工作线的关系
 

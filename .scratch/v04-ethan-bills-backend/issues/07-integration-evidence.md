@@ -4,7 +4,7 @@ Ticket ID: v04-ethan-bills-backend/07
 Type: 评测
 Owner: 周恩宇（业务评测证据）
 Directory: evals/bills/
-Status: in_progress（2026-10-21 晚：PR #208（7 场景/87 请求，历史源码）与 PR #210（当前 main 15 场景/128 请求）已合入；票仍 partial，SSE/重发取消重试/攻击性 HTML 全链路/真实模型与页面/Ringo 签核未覆盖）
+Status: done（2026-10-22 收口，含例外：PR #208/#210 的 HTTP 证据（7 场景/87 请求历史源码 + 15 场景/128 请求当前 main）已合入；SSE、验证码重发/取消/重试、恶意 HTML 全链路、真实模型与页面、Ringo 签核未覆盖，登记为联合验收例外 E1/E4/E5；代行为 AI 按 PM 授权，非 Ethan 本人审查）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF07](../../v04-bills/spec.md)
@@ -66,3 +66,10 @@ Verification: 自然表达、聊天/卡片/结果一致、修改/恢复、两层
 - 实跑（Windows / Python 3.12.3）：受测 `4254949`，**15 collected / 15 passed / 0 failed / 0 skipped**，**128 次 HTTP 请求**（原 7 例 87 + 新增 8 例 41），6 个真实验证挑战；逐例零资金提交、账户与流水摘要不变，145 份源码逐字节核验、64 个真实模块导入；请求体/验证码原文/Cookie 签名/CSV 全文未落盘。证据 `evals/bills/evidence/2026-10-21/20261021T122114556792Z-python3.12.3-http-l03-exports-4254949cc81f.json.gz`（gzip `e4666b67…`，解压 `954fba89…`），台账 `evals/bills/run-log-http-current-07.md`。
 - 合并留痕：PM Erwin 授权代行跑证据与合并、AI 实施与审查、非 Ethan 本人审查。
 - 票仍 `partial`：L01/L02 HTTP 全流程、F10 澄清/恢复、跨轮次/会话到期、重发/取消/重试、攻击性 HTML/CSV、SSE、真实模型、React 页面与 Ringo 签核未覆盖。
+
+### 2026-10-22 收口（含例外，PM 决定不硬凑指标）
+
+- 证据：15 场景/128 请求在当前 main 实跑 15/15（PR #210）、7 场景/87 请求历史源码证据（PR #208）均已合入；覆盖 L01 汇总/明细与 F10 澄清、L02 候选/扫描/空候选/取消、L03 报告生成 → 银行真实验证码 → 明细导出（含 CSV 公式型文本安全前缀）。
+- 未覆盖（如实登记、不补）：SSE 正向重连/失效、验证码重发/取消/重复提交、恶意 HTML 全链路、更多会话过期分支、真实模型与 React 页面（独立证据）、Ringo 真人签核；见[联合验收记录](../../../docs/versions/v0.4.0/acceptance-evidence-2026-10-22.md) E1/E4/E5。
+- PM Erwin 2026-10-22 决定：不硬凑指标，本票按"已完成、含例外"收口。
+- 代行记录：PM 授权、AI 实施与审查，**非 Ethan 本人审查**。
