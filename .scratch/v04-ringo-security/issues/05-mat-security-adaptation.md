@@ -7,7 +7,7 @@ Core scenarios: RS01、RS05、RS09、RS10，以 #133 定稿集合为准
 Type: 评测
 Owner: Ringo
 Directory: evals/security/
-Status: blocked（五项材料参数化与离线探针已交付，真实检测及间接观察待补）
+Status: blocked（#163 材料参数化已合；真实检测与间接观察待联调批次）
 Blocked by: 按所选样本关联 /02 真实检测能力与 /03 观察端；付费调用另确认预算。#133 范围澄清已完成。
 Source issue: #88 / #133（[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)）
 Verification: 核对来源与编号映射、数据安全及合法对照；先做本票可执行离线验证，实际检测证据来自已接入链路。MAT 用例编写完成与识别通过分别留痕。

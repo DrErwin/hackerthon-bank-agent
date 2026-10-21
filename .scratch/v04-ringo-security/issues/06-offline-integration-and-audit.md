@@ -7,7 +7,7 @@ Core scenarios: RS01 至 RS10 的当前版本适用部分
 Type: 评测
 Owner: Ringo
 Directory: evals/security/
-Status: blocked（阶段全计划已归档，核心接入与已知缺陷未齐）
+Status: in_review（离线收尾 #207/#213 已合：全量 20/0/337，138/295/357；真实模型批次按 live-model-page-run-plan.md 执行）
 Blocked by: [v04-ringo-security/01：覆盖缺口及冲突用例修订](01-coverage-and-case-revision.md)、[03：检测与攻击观察评测接入](03-attack-observers-and-adapters.md)、[04：明细导出通知口径回归](04-details-export-regression.md)；[05：MAT 材料安全实例改编](05-mat-security-adaptation.md) 为必需前置（#133 已定）
 Source issue: #86 / #88（[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)）
 Verification: 先跑核心实例及现有结构/适配器测试，必要问题修复后复验受影响路径，再运行完整适用离线计划。逐轮核对断言与银行记录，独立校验规模和报告指纹；本票不调用付费模型。

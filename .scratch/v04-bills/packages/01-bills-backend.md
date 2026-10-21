@@ -1,6 +1,6 @@
 # 交付包 01：v0.4 账单业务能力与评测
 
-Status: in_progress（2026-10-21：L01/L02/L03 与安全平台注册/前端联调相应代码已合入，个人票06/07仍缺完整评测验收；不可写成accepted）
+Status: in_progress（2026-10-21 晚：票06 PR #209 实跑 40/40 合入、票07 PR #210 实跑 15 场景/128 请求合入；证据已进 main，整包仍缺 BF01—BF07 联合与专业/版本验收，不可写成 accepted）
 Owner: 周恩宇（Ethan / @zhouey314-cloud）
 Activation: 2026-10-11 Erwin 建立（v0.4 正式启动同日）
 Start when: v0.4 已于 2026-10-11 正式启动；[02 账单 PRD](../../../docs/prd/02-账单分析-PRD-2026-09-23.md)与[公共契约](../../../docs/contracts/公共契约-2026-09-23.md)已冻结、[21 条代表性用例](../../../evals/bills/)已合入——接包即可 `to-spec → to-tickets`
@@ -70,3 +70,9 @@ Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issue
 - 业务评测 [PR #198](https://github.com/DrErwin/hackerthon-bank-agent/pull/198) 已合入，L01一期17个真实公共业务场景有固定源Actions实跑17/17及原始证据；**不是**所有功能评测达到数量下限。
 - 票07 [PR #208](https://github.com/DrErwin/hackerthon-bank-agent/pull/208) 已发起审查，历史固定源7个真实HTTP场景/87请求专项7/7成功且原始证据归档；新主线专项运行与缺失场景仍在进行，不能因普通CI通过即等同专项通过。
 - 前端 #199/#201 已合入，其独立真实接口及浏览器验收证据由前端线记录；项目平台 [Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) 仍开放，安全专业批准也不由账单Owner代签。个人10张票中01/02/03/04/05/08/09/10为已合入子范围；06/07 `in_progress`。BF01—BF07完整联合验收和评测数量下限未核销，**整个交付包仍 `in_progress`**。
+
+## 2026-10-21 晚 · 票06/07 实跑并入 main（AI 代行，非联合验收）
+
+- 票06 [PR #209](https://github.com/DrErwin/hackerthon-bank-agent/pull/209) `4b32b98`：L02/L03/异常规则对照 40 条，实跑 **40/40 passed**，143 份源码 blob 校验、零资金提交；首跑 12 条失败为测试读取非公开字段，已最小修复（未放宽断言），失败证据保留。
+- 票07 [PR #210](https://github.com/DrErwin/hackerthon-bank-agent/pull/210) `c27d23c`：当前 main 上 15 个 HTTP 场景、**128 次请求，15/15 passed**，145 份源码校验、64 个真实导入、逐例零资金提交；[PR #208](https://github.com/DrErwin/hackerthon-bank-agent/pull/208) `0d829d5` 为历史源码 7 场景/87 请求证据。
+- 合并留痕：PM Erwin 授权代行跑证据与合并、AI 实施与审查、非 Ethan 本人审查；两票仍 `partial`，BF01—BF07 联合验收、真实模型/页面与专业安全未覆盖，整包不写 accepted。

@@ -7,7 +7,7 @@ Core scenarios: RS09；保持 RS02、RS04、RS06、RS07 的既定判据
 Type: 评测
 Owner: Ringo
 Directory: evals/security/
-Status: in_review（设计及数量核查已交付，待评审及前置合入）
+Status: resolved（#159 合入；2026-10-21 #211 覆盖审计与数量门收尾；验收条目例外按 PM 决定 A 登记，见 evals/security/coverage-audit-2026-10-21.md）
 Blocked by: None
 Source issue: #88（[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)）
 Verification: 核对 JSONL 全部主编号唯一、参数展开及轮次统计；检查覆盖引用与结果模板一一对应，复核 R06 和八组下限及异常类型。运行本目录已有结构/目录测试；仅文档变化做内容与链接检查，涉及数据及测试代码按相应验证和独立 PR 处理。

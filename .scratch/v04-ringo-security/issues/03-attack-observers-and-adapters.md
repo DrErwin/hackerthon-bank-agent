@@ -7,7 +7,7 @@ Core scenarios: RS01、RS04、RS05、RS10
 Type: 开发
 Owner: Ringo
 Directory: evals/security/
-Status: in progress（离线检测观察已交PR #170，其他攻击入口与实际模型证据待补）
+Status: in_progress（观察端 #170 已合；2026-10-21 S2 #212 补三类观察入口；真实模型/页面证据待联调）
 Blocked by: [v04-ringo-security/02：真实风险识别与安全门组合](02-real-risk-detector.md)；33 轮各自所需的资料入口与攻击观察公开能力（提供方按真实缺口登记）
 Source issue: #86（[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)）
 Verification: 对每类门各运行合法对照和攻击样本，核对实际输入、裁决与工具调用；资金相关实例同时检查独立银行提交/流水。先验证本票，再在所需路径就绪时联调；真实模型执行留到 /07。

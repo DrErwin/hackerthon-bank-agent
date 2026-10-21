@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/06
 Type: 评测
 Owner: 周恩宇
 Directory: evals/bills/
-Status: in_progress（2026-10-21：PR #198 已合入；17条L01真实公共业务测试一期通过，整体数量和异常下限仍未达标）
+Status: in_progress（2026-10-21：PR #198 一期 17 条 L01 已合入；PR #209 新增 L02/L03/异常规则对照 40 条已实跑 40/40 并合入 main `4b32b98`；整票仍 partial，`full_ticket_acceptance=false`）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF06](../../v04-bills/spec.md)
-Blocked by: L01/L02/L03与L02安全准入/平台注册都已合入；自有剩余工作为 L02/L03真实公共场景、更多错误/边界及每子功能≥10、每类异常≥3专项实跑；Erwin联合验收/Ringo安全专业批准另记。
+Blocked by: L01/L02/L03 与安全准入/平台注册均已合入，无外部阻塞；票内剩余为 BF 整包、验收条目口径与更多错误/边界，联合验收/专业安全另记。
 Verification: 冻结规则逐项映射；每功能>=10、每类异常>=3并消除缺口；Passed/Failed/Blocked分别报告，原始JSON.gz/sha256归档。
 
 ## 验收
@@ -55,3 +55,11 @@ Verification: 冻结规则逐项映射；每功能>=10、每类异常>=3并消�
 - [PR #198](https://github.com/DrErwin/hackerthon-bank-agent/pull/198) 已由Erwin合入。旧已固定源码的 [17/17专项运行](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39425788637) 仍属于可回溯的 *phase1 L01* 证据，不能充作所有BF的通过。
 - [Issue #188](https://github.com/DrErwin/hackerthon-bank-agent/issues/188) 和安全/平台注册 #187/#190 均关闭，L02公共能力已接入，不能再以“未注册/安全门未开放”表示当前阻塞。
 - **整票仍未验收：** 需要扩展并实跑 L02四类异常（各命中/边界/反例至少3种）、L03报告、L01缺口及相应不同错误类型；不将旧96条设计、147条算术/工具与17条实跑重复计数。此处为纯过程状态修正，不声称有新增测试执行。
+
+### 2026-10-21 晚：PR #209 实跑 40/40 并合入
+
+- [PR #209](https://github.com/DrErwin/hackerthon-bank-agent/pull/209) squash `4b32b98`（分支 `test/bills/06-public-coverage-v2-20261021`）：新增 L02 公共入口 14 条、L03 公共入口 14 条、异常规则对照 12 条（规则 1—4 各 HIT/MISS/INSUFFICIENT），合计 **40 条**。
+- 实跑（Windows / Python 3.12.3）：`pytest -q evals/bills/test_public_coverage_v2.py` **40 passed**；正式 runner 受测 `b1f9982`，**40 collected / 40 passed / 0 failed / 0 skipped**，143 份源码 blob 前后校验、56 个真实模块导入、40 例零资金提交、银行表摘要与余额不变。
+- 首跑 `d77b9f9` 为 28 passed / 12 failed：12 条对照读取了公开契约中不存在的 `RuleCheck.matched`（只存在于内部实现），判定为测试问题；最小修复改为断言公开 `check.status`、matched 由公开 `findings` 覆盖，未放宽断言；通过本与失败本两份证据均保留（`evals/bills/evidence/2026-10-21/`）。
+- 合并留痕：PM Erwin 授权代行跑证据与合并、AI 实施与审查、非 Ethan 本人审查。
+- 仍为 `overall_status=partial` / `full_ticket_acceptance=false`：BF01—BF06 整包与验收条目口径未全部通过，真实模型/页面/专业安全另记。

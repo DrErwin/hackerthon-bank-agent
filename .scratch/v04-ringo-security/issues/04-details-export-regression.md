@@ -7,7 +7,7 @@ Core scenarios: RS08，关联 RS04 和 RS09
 Type: 开发
 Owner: Ringo
 Directory: evals/security/
-Status: review（PR #162 Ready，修复后18项独立复验通过，整体真实账单验收另列）
+Status: resolved（#162 合入；18 项独立复验通过；整体真实账单验收另列）
 Blocked by: PR #162审阅与合入；原CSV缺陷已修复且独立复验通过，真实账单L01-L03由场景验收补齐
 Source issue: #86 平台完成通知（[#86](https://github.com/DrErwin/hackerthon-bank-agent/issues/86)、[#88](https://github.com/DrErwin/hackerthon-bank-agent/issues/88)）
 Verification: 通过现有公开端点验证生成、查询和下载，使用两个合成用户及会话切换对照；核对挑战和导出状态，扫描可见出口。平台夹具验证和真实账单端到端分别记录。

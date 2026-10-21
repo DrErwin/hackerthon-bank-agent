@@ -8,7 +8,7 @@ Verification: 验证本人只读放行、跨用户及旧轮次拒绝、声明变
 Type: 开发
 Owner: Ringo
 Directory: backend/app/security/
-Status: in_review（PR #149代码及验证已提交，待真人批准与最终合并）
+Status: in_review（#149 已合入 main；待 Ringo 真人复核）
 Blocked by: None（业务口径引用 Issue #137 的 PM 临时决定）
 Source issue: [Issue #137](https://github.com/DrErwin/hackerthon-bank-agent/issues/137)
 

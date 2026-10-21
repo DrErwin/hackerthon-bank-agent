@@ -6,7 +6,7 @@ Spec: [本人工作规格](../spec.md)
 Type: 安全返修
 Owner: Ringo
 Directory: backend/app/security/
-Status: in_review（实现与定向回归已提交，完整CI已通过，真人批准分别记录）
+Status: in_review（#204 已合入 main；真人复核/签核另记）
 Blocked by: [PR #149](https://github.com/DrErwin/hackerthon-bank-agent/pull/149)先合入，再重基main
 Source issue: [Issue #164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164)
 Verification: 原声明合法对照、每字段及嵌套权限漂移拒绝；真实Gate与执行器的降权请求在处理器调用前停止。独立AI复核、完整后端及真人批准分别记录。

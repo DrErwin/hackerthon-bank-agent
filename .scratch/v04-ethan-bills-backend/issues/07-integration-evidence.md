@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/07
 Type: 评测
 Owner: 周恩宇（业务评测证据）
 Directory: evals/bills/
-Status: in_progress（2026-10-21：票07一期7个L03/F21–F24 HTTP场景、87请求证据已通过历史固定源码专项；PR #208 正式提审；新main专项与完整BF联调仍未完成）
+Status: in_progress（2026-10-21 晚：PR #208（7 场景/87 请求，历史源码）与 PR #210（当前 main 15 场景/128 请求）已合入；票仍 partial，SSE/重发取消重试/攻击性 HTML 全链路/真实模型与页面/Ringo 签核未覆盖）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF07](../../v04-bills/spec.md)
-Blocked by: L02平台注册 #192、安全 #196、业务回归 #197 和前端 #199/#201 已合入；票07自有缺口为最新主线专项复跑、L01/L02 HTTP、F10/SSE/恢复/故障分支等；跨线真实GLM/浏览器验收分别引用Erwin/前端证据，Ringo真人签核与Issue #123纵向收口仍待负责人。
+Blocked by: 平台/安全/业务/前端依赖均已合入；票内剩余为 SSE、验证码重发/取消/重试、攻击性 HTML 全链路等分支；真实模型/页面与 Ringo 签核另列，不阻塞本票证据继续累积。
 Verification: 自然表达、聊天/卡片/结果一致、修改/恢复、两层导出；HTTP、真实模型、页面分别记录；证据交Erwin的v04-bills/02汇总。
 
 ## 验收
@@ -58,3 +58,11 @@ Verification: 自然表达、聊天/卡片/结果一致、修改/恢复、两层
 - 平台 #192、安全 #196、业务口径 #197 均合入且 Issue #187/#188/#190 CLOSED，前端 #199/#201已合入且前端负责人另有 2026-10-21 真实API/GLM/浏览器走查证据；不能沿用旧“尚未注册、前端未实现”的阻塞描述。
 - PR普通 Repository checks 只跑后端和MockBank，**不覆盖** `evals/bills/test_report_http_eval.py`，必须另执行 `python -m pytest -q evals/bills/test_report_http_eval.py` 与固定版本的 `run_http_evidence.py` 后方能取得这批源码的新主线专项运行证据。未取得则继续 `full_ticket_acceptance=false`。
 - 余量：L01/L02 HTTP+更多错误与恢复分支、SSE/前端关联、真正的多场景联合验收；专业安全Ringo批准与平台 Issue #123 归Erwin/Ringo，不擅自代签。
+
+### 2026-10-21 晚：PR #208 / #210 合入，当前 main 15 场景实跑
+
+- [PR #208](https://github.com/DrErwin/hackerthon-bank-agent/pull/208) squash `0d829d5`：7 个 L03/F21—F24 HTTP 场景、87 请求，受测为历史固定源码 `e1111830`（非新 main 实跑）；PM 授权代行审查与合并，审查修复了受测组合/复现命令等 4 处说明文字（gzip 与 runner 未改）。
+- [PR #210](https://github.com/DrErwin/hackerthon-bank-agent/pull/210) squash `c27d23c`：`run_http_evidence.py` 的 `COMPOSITION_REVISION` 钉到当时 main `ca3f579`、`BACKEND_TREE` 保持 `aa85d88`，扩展到 **15 个场景（BILL-HTTP-01..07 + X01..08）**。
+- 实跑（Windows / Python 3.12.3）：受测 `4254949`，**15 collected / 15 passed / 0 failed / 0 skipped**，**128 次 HTTP 请求**（原 7 例 87 + 新增 8 例 41），6 个真实验证挑战；逐例零资金提交、账户与流水摘要不变，145 份源码逐字节核验、64 个真实模块导入；请求体/验证码原文/Cookie 签名/CSV 全文未落盘。证据 `evals/bills/evidence/2026-10-21/20261021T122114556792Z-python3.12.3-http-l03-exports-4254949cc81f.json.gz`（gzip `e4666b67…`，解压 `954fba89…`），台账 `evals/bills/run-log-http-current-07.md`。
+- 合并留痕：PM Erwin 授权代行跑证据与合并、AI 实施与审查、非 Ethan 本人审查。
+- 票仍 `partial`：L01/L02 HTTP 全流程、F10 澄清/恢复、跨轮次/会话到期、重发/取消/重试、攻击性 HTML/CSV、SSE、真实模型、React 页面与 Ringo 签核未覆盖。
