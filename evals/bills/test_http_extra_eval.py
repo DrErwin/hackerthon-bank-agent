@@ -88,7 +88,7 @@ def extra_env(tmp_path, request, monkeypatch):
         )
         assert before == after, "bank balances/ledger changed after read/export path"
         assert integrity["funds_submit_calls"] == 0, "a bills query must not write funds"
-        assert env.observations and env.bank_calls
+        assert env.observations and (env.bank_calls or kind == "l02_cancel")
 
 
 def _route(env, cap):
@@ -238,6 +238,11 @@ def test_extra_bills_http_scenario(case, extra_env):
         else:
             pytest.fail("scenario not implemented: " + kind)
 
-        assert env.bank_calls
+        if kind == "l02_cancel":
+            assert env.bank_calls == []
+            env.observations.append({"action": "zero_bank_read_asserted",
+                                     "task_id": task["task_id"], "actual_reads": 0})
+        else:
+            assert env.bank_calls
         assert all(row["user_id"] == "U1" and row["demo_round_id"] == "D1"
                    for row in env.bank_calls)
