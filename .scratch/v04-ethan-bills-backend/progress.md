@@ -1,5 +1,20 @@
 # 周恩宇 v0.4 账单实施台账
 
+
+## 2026-10-21 · 当前最新核查（覆盖后续旧时间线；AI执行记录，非Erwin/Ringo签核）
+
+个人10票状态：**01/02/03/04/05/08/09/10 已有合入交付证据**；**06/07 in_progress（分阶段评测，不得记完整通过）**。新增 Issue #188 已随 PR #197 关闭。账号 `zhouey314-cloud` 个人已关闭的 #197/#198 不再占用两张未合 PR 名额。
+
+| 工作 | 2026-10-21 GitHub事实 | 未完及签核边界 |
+|---|---|---|
+| L01 / L02 / L03 与模块返修 | #92/#131/#140/#151/#171/#182/#183 已合；L02安全业务同步 #197、安全冻结白名单 #196、平台注册 #192 全部合入，Issue #187/#188/#190 closed | 真实模型、浏览器、专业安全属相应独立工作线/联合验收，不由本模块代签 |
+| 票06 公共业务评测 | #198 **已合入 main**，17个L01公共业务场景原始专项 [Actions #39425788637](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39425788637) 17/17成功；新主线复跑另见 main 对应报告 | **仍欠每功能≥10、每异常≥3以及L02/L03完整公共业务证据**；保持 `in_progress`，不能把96条设计当作执行数 |
+| 票07 HTTP与联调 | 7条L03/F21–F24真实in-process HTTP场景、87请求，固定旧源专项 [Actions #39426333629](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426333629) 7/7；此前分支重基后，新提交 [PR #208](https://github.com/DrErwin/hackerthon-bank-agent/pull/208) 已送Erwin审核 | **新main尚无票07独立专项复跑记录**；旧源的7/7不能充作新head测试；L01/L02 HTTP、SSE/恢复/故障分支、真实模型/React交叉证据与安全专业签核仍要分层验收 |
+| 其他工作线进展 | 前端账单插槽 #199、主入口替换 #201 已合入；前端真实GLM+浏览器证据已由前端线独立存档；安全/平台 L02前置已合 | [Issue #123](https://github.com/DrErwin/hackerthon-bank-agent/issues/123) 平台纵向联合验收仍由Erwin负责且未关闭；Ringo本人安全批准不能由AI测试代签 |
+
+本轮只更新本人过程文档，不擅自合并代码PR、不将阶段1 `Passed` 转为整包 `accepted`。后文2026-10-20及更早段落为当时快照，已不代表当前GitHub状态。
+
+
 ## 2026-10-20 21:00 · Ethan 最新可验收状态
 
 **按10张实施票**：01/02/03/04/05/08/09/10 属于已合并、模块/黄金子范围 resolved；06/07 属于在 GitHub 真实新主线实跑但整体业务/联调数量未达标的 `in_progress`。另外 [Issue #188](https://github.com/DrErwin/hackerthon-bank-agent/issues/188) 是 10-20 临时新增的 L02 安全准入业务联动票，不应被遗漏。**项目 v0.4 仍在联合验收 `planned/in_progress`，绝非 accepted。**
