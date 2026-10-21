@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/06
 Type: 评测
 Owner: 周恩宇
 Directory: evals/bills/
-Status: in_progress（17 条 L01 公共真实链路当前主线重跑已通过，PR #198 阶段一待合；全功能/异常下限尚未达标）
+Status: in_progress（2026-10-21：PR #198 已合入；17条L01真实公共业务测试一期通过，整体数量和异常下限仍未达标）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF06](../../v04-bills/spec.md)
-Blocked by: 核心 L01/L02/L03 模块均已合并；后续本票仍需为 L02、L03 和其余错误类型补场景满足每子功能≥10/每类异常≥3；真实 L02 准入依赖 #188/#187/#190 联调；真人专业验收不由本票代签。
+Blocked by: L01/L02/L03与L02安全准入/平台注册都已合入；自有剩余工作为 L02/L03真实公共场景、更多错误/边界及每子功能≥10、每类异常≥3专项实跑；Erwin联合验收/Ringo安全专业批准另记。
 Verification: 冻结规则逐项映射；每功能>=10、每类异常>=3并消除缺口；Passed/Failed/Blocked分别报告，原始JSON.gz/sha256归档。
 
 ## 验收
@@ -50,3 +50,8 @@ Verification: 冻结规则逐项映射；每功能>=10、每类异常>=3并消�
 ### 2026-10-20 晚新主线实跑与 PR 提审
 
 [PR #198](https://github.com/DrErwin/hackerthon-bank-agent/pull/198) 正式提交了只在 `evals/bills/` 的 17 条公共 L01 自动化。固定源码 `c2e8f3ea2949c32bf4526b426f647e6c03f69f5c` 在 [GitHub Actions #39425788637](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39425788637) **17/17 passed、0 failed**，133份真实源文件核验、44个真实模块导入、17例资金不变检查；[原始 gzip 和 SHA256](https://github.com/DrErwin/hackerthon-bank-agent/blob/a13234205b79f54ab630da8ce66f35076e5a4ec1/evals/bills/run-log-public-06.md) 已上传。最新 PR head [CI #39426994398](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426994398) **967 backend +14 MockBank passed**。这是对当前合并基线的新实跑，不是复用历史证据。**仍为 phase1 partial**；BF01—BF07 与数量下限不能由 17 条直接推定全通过。
+
+### 2026-10-21 · 票06最新验收口径
+- [PR #198](https://github.com/DrErwin/hackerthon-bank-agent/pull/198) 已由Erwin合入。旧已固定源码的 [17/17专项运行](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39425788637) 仍属于可回溯的 *phase1 L01* 证据，不能充作所有BF的通过。
+- [Issue #188](https://github.com/DrErwin/hackerthon-bank-agent/issues/188) 和安全/平台注册 #187/#190 均关闭，L02公共能力已接入，不能再以“未注册/安全门未开放”表示当前阻塞。
+- **整票仍未验收：** 需要扩展并实跑 L02四类异常（各命中/边界/反例至少3种）、L03报告、L01缺口及相应不同错误类型；不将旧96条设计、147条算术/工具与17条实跑重复计数。此处为纯过程状态修正，不声称有新增测试执行。
