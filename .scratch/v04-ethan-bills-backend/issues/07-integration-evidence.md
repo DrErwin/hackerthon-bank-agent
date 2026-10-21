@@ -4,11 +4,11 @@ Ticket ID: v04-ethan-bills-backend/07
 Type: 评测
 Owner: 周恩宇（业务评测证据）
 Directory: evals/bills/
-Status: in_progress（L03 F21—F24 HTTP 7场景 /87请求在新 main 基线重跑通过；真实 GLM L03 平台验收已有 #193，React/整包未通过）
+Status: in_progress（2026-10-21：票07一期7个L03/F21–F24 HTTP场景、87请求证据已通过历史固定源码专项；PR #208 正式提审；新main专项与完整BF联调仍未完成）
 Package: [v04-bills/01](../../v04-bills/packages/01-bills-backend.md)
 Spec: [本人规格](../spec.md)
 Core scenarios: [BF01—BF07](../../v04-bills/spec.md)
-Blocked by: L03 默认运行时已由 Erwin 在 PR #193 的真实 glm-5.3 两次独立运行验收，F21—F24 当前可用；L02 默认注册 PR #192、安全准入 #187/#196 和业务回归 #188/#197 待合，前端票04/05、浏览器真实页面与专业安全仍为跨线依赖；本票其余错误/SSE/会话分支继续补测。
+Blocked by: L02平台注册 #192、安全 #196、业务回归 #197 和前端 #199/#201 已合入；票07自有缺口为最新主线专项复跑、L01/L02 HTTP、F10/SSE/恢复/故障分支等；跨线真实GLM/浏览器验收分别引用Erwin/前端证据，Ringo真人签核与Issue #123纵向收口仍待负责人。
 Verification: 自然表达、聊天/卡片/结果一致、修改/恢复、两层导出；HTTP、真实模型、页面分别记录；证据交Erwin的v04-bills/02汇总。
 
 ## 验收
@@ -52,3 +52,9 @@ Verification: 自然表达、聊天/卡片/结果一致、修改/恢复、两层
 ### 2026-10-20 晚更新版 HTTP 证据
 
 独立分支 [`test/bills/07-http-l03-20261020`](https://github.com/DrErwin/hackerthon-bank-agent/tree/test/bills/07-http-l03-20261020) 已将 L03/F21—F24 七条 HTTP 场景重基于 10-20 main 并重新钉住后台 Git tree，固定受测 SHA `e1111830cece552da8009ca474c9a7db3058571d`。新 [GitHub Actions #39426333629](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426333629) **7 passed、0 failed，共 87 次 HTTP 请求**，136份源文件与60个导入模块比对一致；[原始 gzip + 两份 SHA256](https://github.com/DrErwin/hackerthon-bank-agent/blob/8ef74e690f6cb013e747c2effe46e77cb8c26234/evals/bills/run-log-http-07.md) 已归档。因 Ethan 目前开放 PR #197/#198 达仓库上限，本票尚未开第三张 PR；报告边界保持 `full_ticket_acceptance=false`。Erwin 平台 [PR #193](https://github.com/DrErwin/hackerthon-bank-agent/pull/193) 已另验证真实 GLM L03 两次全链路，包括报告自动落库/F21/F22/F24，不能混写成该 TestClient 的同一次运行。
+
+### 2026-10-21 · ticket07 正式提审与跨线依赖核销
+- [PR #208](https://github.com/DrErwin/hackerthon-bank-agent/pull/208) 已正式提交到 `main` 并请求 Erwin review。PR 仅含本票 `evals/bills/` 七个原字节测试/说明/证据文件；历史原始 gzip 保持相同 Git Blob，复用固定旧受测源码 [Actions #39426333629](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39426333629) 7/7 HTTP场景、87次请求。该归档是**历史源码**的有效证据，并非新主线重新执行的报告。
+- 平台 #192、安全 #196、业务口径 #197 均合入且 Issue #187/#188/#190 CLOSED，前端 #199/#201已合入且前端负责人另有 2026-10-21 真实API/GLM/浏览器走查证据；不能沿用旧“尚未注册、前端未实现”的阻塞描述。
+- PR普通 Repository checks 只跑后端和MockBank，**不覆盖** `evals/bills/test_report_http_eval.py`，必须另执行 `python -m pytest -q evals/bills/test_report_http_eval.py` 与固定版本的 `run_http_evidence.py` 后方能取得这批源码的新主线专项运行证据。未取得则继续 `full_ticket_acceptance=false`。
+- 余量：L01/L02 HTTP+更多错误与恢复分支、SSE/前端关联、真正的多场景联合验收；专业安全Ringo批准与平台 Issue #123 归Erwin/Ringo，不擅自代签。
