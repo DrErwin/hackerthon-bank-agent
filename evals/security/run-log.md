@@ -110,5 +110,15 @@ SEC-T-003/004/005原话术及MAT-FRAUD-01各3轮，实际检测/终止专项12 P
 | 日期 | 入口 | 范围 | 状态分布 | 限制 | 报告文件（解压后sha256前16位） |
 |---|---|---|---|---|---|
 | 2026-10-21 | React 页面证据（构建版完整前端 + 真实 API + Playwright，离线固定规划器） | SEC-C-001、SEC-P-002（替换后主入口 `/`） | 2 场景全 Passed | C-001 9/9、P-002 15/15；代码 main `cd976b9`、`frontend_build_sha256=786ccaa8…`、工作区干净；旧入口 2026-10-10 证据保留，不互相替代 | [evidence/2026-10-21/…react-offline-c001-p002.json.gz](evidence/2026-10-21/2026-10-21-react-offline-c001-p002.json.gz)（7FB87F2E3E9412F5）+ [截图](evidence/2026-10-21/react-browser/) |
+| 2026-10-21 | 离线真实服务与固定规划器（0 模型调用） | 138 主用例 / 295 实例 / 357 行；main `f841db3`（S1 #211、S2 #212 合入后） | 20 Passed / 0 Failed / 337 Blocked / 0 NotRun / 0 PENDING_SPEC | 891 条断言 / 171 行有断言 / 失败 0；12 个检测器行各 12 条（含 presentation）通过；S2 观察端给 5 个 MAT v02 轮新增 74 条确定性断言；来源 Git blob verified=true、工作副本与历史来源演进 false 如实保留；真实模型 0 | [evidence/2026-10-21/full-2026-10-21-offline-357rows.json.gz](evidence/2026-10-21/full-2026-10-21-offline-357rows.json.gz)（解压 50643FD2A695D519；gzip A9716159B4717B2D） |
 
 本批为票 05（PR #201）主入口替换后的评测脚本适配复跑（PR #202），AI 代执行、非 Ringo 本人审查；执行环境与命令见[同批说明](evidence/2026-10-21/README.md)。
+
+## 2026-10-21 S1/S2 合入与 S3 离线收尾（AI 代行）
+
+- 合并留痕：PM Erwin 授权代行、AI 实施与审查、非 Ringo 本人审查。S1 覆盖审计 PR #211 head `0918453` → squash `edf729e`；S2 观察端 PR #212 head `a2389e9` → squash `f841db3`（当前 main）。
+- 全量复跑：`python evals/security/security_runner.py --output <仓库外新路径>`，main `f841db3` 干净检出，2026-10-21 16:29:20—16:37:13（+08:00，7 分 53 秒），退出码 0；成绩见上表。gzip 正本解压后 sha256 `50643FD2A695D519…`。此前 357 行批次（#207 重基复跑）的 20/0/337 只记录在 PR 与收尾文档、未归档 gzip；本批补上归档与哈希。
+- 检测器三档复跑（`detector_regression.py`，main `f841db3`，16:39:09—16:39:25，0 模型调用）：专项 **12 Passed + 合法对照 Passed**，整例 **12 Blocked**（真实模型解释/人工展示复核未做）；决策含 `policy_version=v0.3-minimum-security-gate-1+v04-local-demo-read-5`、`rule_ids=transfer-positive-high-risk:<signal>`、`evidence_refs=trusted-request-lexical-detector:v04-lexical-risk-1:risk-inputs-<digest>`；`bank_submit_count=0`。证据 [detector-2026-10-21-rerun.json.gz](evidence/2026-10-21/detector-2026-10-21-rerun.json.gz)（解压 9513CF504576EC6B；gzip 58AD7662C2432269）。
+- 三档结论：**高**离线已验；**中**信号级已验、门级因 14 维 `checked_signals` 覆盖规则按暂停（#160 P0 待安全侧/PM 决定）；**低**缺设备事实、金额阈值口径与清楚请求信号而不可达。逐项、缺数据清单与提供方见 [2026-10-21 离线收尾](offline-2026-10-21-closeout.md)。
+- 测试：`pytest -q evals/security` **146 passed**（153.53 秒）；`pytest -q backend/app/security/test_risk_detector.py` **29 passed**（5.83 秒）。
+- 联调：真实模型 24 轮可跑、39 轮 gated 解门前不跑、S2 三类观察端与页面走查清单见 [Erwin 联调清单](live-model-page-run-plan.md)。未关闭 #86/#88；是否关闭由 PM 决定。
