@@ -32,6 +32,9 @@ def audit(report=None):
                           "runtime_complete": False})
     threats = {name: sum(case["threat"] == name for case in catalog.cases)
                for name in ("coercion", "exfiltration", "authorization", "prompt_injection")}
+    # Cases that serve business-module scenarios rather than a public security family stay visible.
+    function_ids = set().union(*(set(item["case_ids"]) for item in functions))
+    outside_functions = sorted(set(by_id) - function_ids)
     # Record each exact cited clause instead of treating group counts as proof.
     clauses = sorted({ref for case in catalog.cases for ref in case["source_refs"]})
     clause_rows = [{"source_ref": ref, "case_ids": sorted(case["id"] for case in catalog.cases if ref in case["source_refs"])}
@@ -40,7 +43,8 @@ def audit(report=None):
     for kind in ("acceptance_ids", "prd_acceptance_ids"):
         for key in sorted({key for case in catalog.cases for key in case[kind]}):
             ids = sorted(case["id"] for case in catalog.cases if key in case[kind])
-            acceptance_rows.append({"type": kind, "id": key, "case_ids": ids, "main_case_count": len(ids)})
+            acceptance_rows.append({"type": kind, "id": key, "case_ids": ids, "main_case_count": len(ids),
+                                    "deficit_to_10": max(0, 10 - len(ids))})
     under_10 = [row for row in acceptance_rows if row["main_case_count"] < 10]
     if report is not None and report["denominators"] != {
             "main_cases": len(catalog.cases), "parameter_instances": catalog.parameter_instances,
@@ -82,6 +86,7 @@ def audit(report=None):
             "quantity_gate_scope": "12 security function families only; does not close the acceptance-item gate",
             "acceptance_item_quantity_gate": not under_10,
             "acceptance_items_under_10": under_10,
+            "cases_outside_function_matrix": outside_functions,
             "six_direction_design_gate": all(item["six_directions_have_design"] for item in functions),
             "rule_trace": clause_rows, "inventory": inventory,
             "known_external_dependencies": [
