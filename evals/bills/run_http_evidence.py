@@ -28,7 +28,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 DIRECTORY = ROOT / "evals/bills"
 REPOSITORY = "DrErwin/hackerthon-bank-agent"
-COMPOSITION_REVISION = "0d829d5a458d553ad0d975709b88f1f4b8a0529f"
+COMPOSITION_REVISION = "ca3f579d22d0261ff4466e8c4a5d7317ee9f75e2"
 BACKEND_TREE = "aa85d882c8c355242950f42c721d7cc512998068"
 TEST_PATH = "evals/bills/test_report_http_eval.py"
 MANIFEST_PATH = "evals/bills/report-http-cases.json"

@@ -1,7 +1,7 @@
 {
   "ticket": "v04-ethan-bills-backend/07",
   "stage": "phase2_in_process_bills_http_coverage",
-  "status": "candidate_unrun",
+  "status": "executed_15_of_15_http_passed_2026-10-21",
   "overall_status": "partial",
   "full_ticket_acceptance": false,
   "prior_independent_http_scenarios": 7,
