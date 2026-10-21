@@ -12,7 +12,7 @@
 | 12 个公共安全功能族 ≥10 | 全部达标（min 10，`design_quantity_gate=true`） |
 | 每类异常 ≥3 | 四类全部达标（coercion 5、exfiltration 20、authorization 36、prompt_injection 7） |
 | 六方向设计登记 | 12 个功能族均有登记（`six_direction_design_gate=true`） |
-| 每验收条目 ≥10（另一口径） | **未达标**：29 项关联主用例 <10，合计差额 170 条（`acceptance_item_quantity_gate=false`），见 §4 |
+| 每验收条目 ≥10（另一口径） | 29 项关联主用例 <10、合计差额 170（`acceptance_item_quantity_gate=false`）；**PM 2026-10-21 决定按选项 A 接受例外**，保留 12 功能族数量门，见 §4 |
 | SEC-E-006/v06 修订 | 已按撤销能力拒绝修订并保持 ID；单例离线复跑 4/4 断言通过、整例仍 Blocked，见 §6 |
 | 行为结果 | 本轮**未重跑全量**，沿用台账 #207（20 Passed / 0 Failed / 337 Blocked）；不并入本核查结论 |
 
@@ -76,10 +76,9 @@
 | prd | A08 | 4 | 6 | | | | | |
 | prd | A11 | 4 | 6 | | | | | |
 
-这些条目多数是**跨模块/端到端验收**（api、frontend、transfer、bills、cross、audit 组合），其中窄口径条目（如 F-A03 断流补齐、S07 限定释放、S09 中风险摘要、M04 预约四分支、M10 分账尾差、M16 L01 分类明细）要各凑到 10 条独立主用例，只能靠重复或同义改写，属于票面明令禁止的凑数。本轮因此**不扩量、不改引用**，把差额如实交 PM 决定：
+这些条目多数是**跨模块/端到端验收**（api、frontend、transfer、bills、cross、audit 组合），其中窄口径条目（如 F-A03 断流补齐、S07 限定释放、S09 中风险摘要、M04 预约四分支、M10 分账尾差、M16 L01 分类明细）要各凑到 10 条独立主用例，只能靠重复或同义改写，属于票面明令禁止的凑数。本轮因此**不扩量、不改引用**，把差额如实交 PM 决定。
 
-- 选项 A（推荐）：接受例外——保留 12 功能族 ≥10 + 四类异常 ≥3 作为数量门，验收条目差额在 #88 与 version completion 中如实登记。
-- 选项 B：按条目补量——需要跨模块（转账/账单/联动/前端）共同扩量并接入执行证据，另开票排期，不在安全侧单方完成。
+**PM 决定（2026-10-21 16:03，Erwin）：采用选项 A——接受例外。** 安全评测数量门维持「12 功能族 ≥10 + 四类异常 ≥3」；上述 29 项验收条目差额不另扩量、不以重复或同义方式补齐，按例外如实登记。该例外由 S3 收尾时在 Issue #88 回帖与 v0.4 completion 中登记；若后续需要按验收条目扩量，另开跨模块票排期，不在安全侧单方凑数。
 
 ## 5. 未归属 12 功能族的用例
 
@@ -107,7 +106,7 @@
 
 | 证据 | 路径 | gzip SHA256 | 解压 SHA256 |
 |---|---|---|---|
-| 覆盖就绪报告（设计/数量） | [coverage-readiness-2026-10-21.json.gz](evidence/2026-10-21/coverage-readiness-2026-10-21.json.gz) | `1958E197DCC1ACE8CF997F6DCE06F314E34F7FDC8D65F3033C8D5111BA6685EC` | `19B5DDA3C74842E1CFCCFA2BCF3C99F02703FFA4C3FC63029906B169A9FA3FC9` |
+| 覆盖就绪报告（设计/数量） | [coverage-readiness-2026-10-21.json.gz](evidence/2026-10-21/coverage-readiness-2026-10-21.json.gz) | `993EFDDCB7836042B729D2CBB0FE4DEB4C0E53883B50B0BA03EA2D7E5DB7088F` | `32A33D0D0C07E90137A633DB8DFC86415B8F76E79F7CCE4960E89B8405A3BA2B` |
 | SEC-E-006/v06 单例离线复跑 | [coverage-sec-e-006-v06-2026-10-21.json.gz](evidence/2026-10-21/coverage-sec-e-006-v06-2026-10-21.json.gz) | `BA26B91FED1F7F56F1525761E32E695989C1F886695E5D6AD94BA745A707AE89` | `C285D42B072E4CE39FE539D49DE5A7AD27718A5A06DE98DEC362C3E1BAA4A23C` |
 
 复现命令（仓库外新建输出路径；worktree 使用主仓库 venv 并指向本 worktree backend）：
@@ -119,7 +118,7 @@ python evals/security/security_runner.py --case SEC-E-006 --output <仓库外新
 ```
 
 - 覆盖就绪命令退出码为 **1**：仅因 `acceptance_item_quantity_gate=false`（§4 的 29 项，PM 待决口径）；12 功能族与六方向门均为 true，原因见脚本输出。
-- 覆盖就绪报告的 `input_sha256`：cases.jsonl `cddc9bd2…`、function-coverage.json `784bc302…`、source-manifest.json `9fe7d1ae…`；执行时间 2026-10-21 15:40 (+08:00)，代码基线 main `0d829d5`，真实模型调用 0。
+- 覆盖就绪报告的 `input_sha256`：cases.jsonl `cddc9bd2…`、function-coverage.json `78477a00…`、source-manifest.json `9fe7d1ae…`；执行时间 2026-10-21 16:06 (+08:00)，代码基线 main `0d829d5`，真实模型调用 0。
 - 用 `regenerate_catalog_tables.py` 复算 `coverage.csv` 与 `run-results-template.csv`，归一化行尾后无内容差异（幂等），故本轮未改这两个文件。
 - 旧审计（2026-10-11、2026-10-19）与旧证据保持原样，未改写、未覆盖。
 
