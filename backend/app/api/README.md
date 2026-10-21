@@ -2,7 +2,7 @@
 
 归属：底座（Erwin）。
 
-票据：[10：任务 API、确认验证与事件流](../../../.scratch/v03-erwin-vertical-backend/issues/10-api-task-stream.md)、[v03-session-recovery-reply/06：API 仅回复接入](../../../.scratch/v03-session-recovery-reply/issues/06-api-reply-only.md)。协议沿用[公共契约 §6](../../../docs/contracts/公共契约-2026-09-23.md)，请求和视图引用 `app.contracts`。本目录负责身份、协议与协调；转账流程、安全规则和银行规则继续由原目录执行。
+票据：[10：任务 API、确认验证与事件流](../../../.scratch/v03-erwin-vertical-backend/issues/10-api-task-stream.md)、[v03-session-recovery-reply/06：API 仅回复接入](../../../.scratch/v03-session-recovery-reply/issues/06-api-reply-only.md)、[v05-platform/01：管理端审计导出 F35 与 F24 audit 下载分支](../../../.scratch/v05-platform/issues/01-audit-export.md)。协议沿用[公共契约 §6](../../../docs/contracts/公共契约-2026-09-23.md)，请求和视图引用 `app.contracts`。本目录负责身份、协议与协调；转账流程、安全规则和银行规则继续由原目录执行。
 
 ## 启动与配置
 
@@ -49,6 +49,7 @@ $env:BANK_API_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000'
 | GET `/verifications/{id}/demo-code` | 演示提示区专用响应，no-store，禁止进入聊天或日志 |
 | POST `/admin/verifications/{id}/face-result` | 管理员回答当前模拟人脸，记录实际操作者和目标用户 |
 | GET `/admin/audit/events?task_id=...`、GET `/admin/audit/events/{id}` | 脱敏、只读时间线及证据详情，查看留痕 |
+| POST `/admin/audit/exports` | F35 管理端审计导出：管理员按当前轮次（可选 `task_id`）冻结范围并生成 JSON 证据包；文件仍经 F24 下载（复用第 42 行 `/exports/{id}/download`，audit 分支复核管理身份与创建时范围） |
 
 普通消息不批准资金动作；意图判断交给 Harness。任务缺金额时，inputs.text 为人民币元，例如 `500` 或 `500 元`，API 转成契约中的整数分。账户及收款人选项只接受当前交互 / 当前查询产生的编号。资料表单的完整账号不回传聊天、SSE 或请求回执。
 
@@ -75,6 +76,8 @@ PR #25 合入时的基线回归为后端 **178 项**（API 29 项）、模拟银
 无业务意图的公开 `ReplyOnly` 结果由 [补票 05](../../../.scratch/v03-session-recovery-reply/issues/05-harness-reply-only.md) 的 Harness 提供；本目录只消费 Harness 结果。`ReplyOnly` 路径不创建 `api_tasks` 记录，也不经过确认、验证或银行入口。~~报告、导出及其他业务的入口不属于本票范围~~：报告读取（F21）已由 [v04-platform/01](../../../.scratch/v04-platform/issues/01-report-storage-read.md) 落地；导出链路（F22—F24）已由 [v04-platform/02](../../../.scratch/v04-platform/issues/02-export-chain.md) 落地；账单任务接线（module / 载荷 / report_ready）已由 [v04-platform/04](../../../.scratch/v04-platform/issues/04-bills-task-wiring.md) 落地。
 
 导出链路口径（v04-platform/02）：明细导出是平台任务（`api_exports` 行 + `api_tasks`/application 任务 + 银行 basic_identity 挑战），暂停 / 恢复 / 取消沿同一平台任务；验证经既有 F16—F20 端点完成，文件生成在验证通过后惰性触发；明细 CSV 直接取自银行 B08 流水（报告 scope 找回，商户名不打码、账号沿用银行打码），HTML 卡片由导出器转义；会话变化后旧导出授权失效，重新发起须重走验证。验证口径选择（basic_identity 仅验证码、无 operation 绑定、绑定走导出任务）由 PM 于 2026-10-13 代行豁免 Ringo 审批（非本人审查，如实记录）。
+
+审计导出口径（v05-platform/01，[Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)）：F35 只接受管理身份，按请求的 `demo_round_id`（必须等于管理员当前轮次）与可选 `task_id` 冻结筛选范围，创建即用审计只读端生成脱敏 JSON 证据包（`status=ready`，不重复生成、不需要验证码）；缺省 `task_id` 即整轮范围（含无业务任务的管理事件）。F24 的 audit 分支在下载时重新核验独立管理身份并复用创建时范围，不绑定创建会话、不重走验证；导出与下载各写 `audit.accessed`（`export_id` 可回指），读取不调用模型或业务。`api_exports` 的 `report_id` / `thread_id` 对审计导出为空，旧演示库在 `ApiStore` 首次打开时做一次保留数据的结构迁移。**管理前端入口未实现（PM 2026-10-21 决定本次只交后端契约能力），F35 当前没有页面可达路径。**
 
 第二模块接线（v04-platform/04、06、07）：`ApiService` 装配时把账单桩注册进运行时注册表（只有注册表内没有任何 `bills.*` 能力时才注册，真实账单模块整体替换）；任务视图与 `task_updated` 事件的 `module` 按任务快照 `capability_name` 前缀取，转账任务保持定型视图与既有行为；敏感明细导出任务按 `bills.export_details` 记为账单域（Issue #122 第 3 项）；账单任务结果 `data` 为 `BillReport` 时平台自动落库（F21 即可读取）、助手消息携带 `report_ids` 并发射 `report_ready` 事件（§6.6）。第二模块的 `task_updated` 事件按 §6.5/§6.6 携带模块自身载荷（载荷联合类型由 v04-platform/06 收敛为通用 `TaskView`，**事件载荷不做强制校验**，前端按 `module` 解释）；harness 恢复解析的分模块口径归 `agent_platform/` 的 v04-platform/08，不在本目录。Issue #122 登记的三处接缝里，第 1 项（SSE 事件载荷按转账视图定型）已由契约票 v04-platform/06 收敛、第 3 项（导出任务 `module` 回退 `transfer`）已由本目录修复；第 2 项（harness 恢复解析定型）归 `agent_platform/` 的 v04-platform/08。口径边界：F22/F23 导出任务**对外按 `bills` 域**，但它是平台自建任务、结果信封仍按 `ModuleResult[TransferTaskView]` 构造与校验（`data` 恒为空，承接契约 06 登记的「REST 任务视图仍保持转账定型」接受项）；`capability_name` 只用于任务视图的模块名，导出任务在 `continue_task()` 处即被 `export_for_task()` 短路、不进 harness 的能力解析，因此该名字不需要在注册表里存在。**若将来导出任务开始携带自身 `data`，或把它引入 harness 的恢复入口，必须同时放宽 `service.py` 的转账定型校验并给该名字一个注册依据。**
 

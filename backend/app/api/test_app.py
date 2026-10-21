@@ -1,6 +1,7 @@
 """Exercise HTTP boundaries with the real bank, security gate and transfer graph."""
 
 import csv
+import hashlib
 import io
 import json
 from uuid import uuid4
@@ -2143,3 +2144,143 @@ def test_default_assembly_installs_the_contract_stub(tmp_path):
         assert task["module"] == "bills"
         assert task["message"] == STUB_MESSAGE
         assert task["data"] is None
+
+
+def admin_login(client):
+    response = client.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
+                           headers={"Origin": "http://testserver",
+                                    "X-Demo-Admin-Key": "test-admin-key"})
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["role"] == "admin"
+    return response.json()["data"]
+
+
+def finish_transfer(client):
+    """One low-risk transfer through confirmation and code verification."""
+    _, task = start(client)
+    waiting = approve(client, task)
+    challenge = waiting["interaction"]["record_ref"]
+    code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+    result = post(client, f"/verifications/{challenge}/code",
+                  submission_id=str(uuid4()), code=code)
+    assert result.status_code == 200, result.text
+    assert result.json()["data"]["task"]["status"] == "succeeded"
+    return task["task_id"], code
+
+
+def test_f35_round_export_is_a_frozen_redacted_evidence_package(tmp_path):
+    """F35 / F24 audit: whole-round package, frozen bytes, verifiable hashes (§6.7/§6.8)."""
+
+    user_app, admin_app = make_app(tmp_path), make_app(tmp_path)
+    with TestClient(user_app) as user, TestClient(admin_app) as admin:
+        task_id, code = finish_transfer(user)
+        admin_login(admin)
+        created = post(admin, "/admin/audit/exports", demo_round_id="D1")
+        assert created.status_code == 200, created.text
+        view = created.json()["data"]
+        assert (view["kind"], view["status"], view["task_id"]) == ("audit", "ready", None)
+        assert (view["file_name"], view["media_type"]) == ("audit-D1.json", "application/json")
+        assert view["download_path"] == f"/api/v1/exports/{view['export_id']}/download"
+
+        first = admin.get(f"/api/v1/exports/{view['export_id']}/download")
+        assert first.status_code == 200, first.text
+        assert first.headers["content-type"].startswith("application/json")
+        assert first.headers["content-disposition"] == 'attachment; filename="audit-D1.json"'
+        package = first.json()
+        assert package["demo_round_id"] == "D1" and package["task_id"] is None
+        assert package["summary"]["event_count"] == len(package["events"]) > 0
+        event_types = {event["event_type"] for event in package["events"]}
+        assert {"model.started", "security.decided", "bank.observed"} <= event_types
+        # The export names itself in the trail it froze.
+        export_access = [event for event in package["events"]
+                         if event["event_type"] == "audit.accessed"
+                         and event["payload"]["action"] == "export"]
+        assert [event["payload"]["export_id"] for event in export_access] == [view["export_id"]]
+        assert code not in first.text
+        # Every packaged evidence snapshot still matches its manifest hash.
+        checked = 0
+        for item in package["evidence"].values():
+            encoded = json.dumps(item["content"], ensure_ascii=False, sort_keys=True,
+                                 separators=(",", ":"))
+            assert hashlib.sha256(encoded.encode()).hexdigest() == item["snapshot"]["content_hash"]
+            checked += 1
+        assert checked > 0
+
+        # Reading more of the round afterwards must not move the frozen file.
+        assert admin.get("/api/v1/admin/audit/events",
+                         params={"task_id": task_id}).status_code == 200
+        second = admin.get(f"/api/v1/exports/{view['export_id']}/download")
+        assert second.status_code == 200
+        assert second.content == first.content
+
+        # Audit export and download are read-only: the only new events are access records.
+        events = admin_app.state.api.runtime.audit._events("D1")
+        added = events[package["summary"]["event_count"]:]
+        assert {(event.event_type, event.payload.action) for event in added} == {
+            ("audit.accessed", "download"), ("audit.accessed", "list")}
+        assert user_app.state.api.runtime.harness.planner.calls == 1
+        assert admin_app.state.api.runtime.harness.planner.calls == 0
+
+
+def test_f35_task_scope_and_f24_audit_download_checks(tmp_path):
+    """A task-scoped export keeps only that task; F24 audit rechecks admin, not the session."""
+
+    user_app, admin_app = make_app(tmp_path), make_app(tmp_path)
+    with TestClient(user_app) as user, TestClient(admin_app) as admin:
+        task_id, _ = finish_transfer(user)
+        admin_login(admin)
+        created = post(admin, "/admin/audit/exports", demo_round_id="D1", task_id=task_id)
+        assert created.status_code == 200, created.text
+        view = created.json()["data"]
+        assert view["task_id"] == task_id
+        assert view["file_name"] == f"audit-D1-{task_id}.json"
+        package = admin.get(f"/api/v1/exports/{view['export_id']}/download").json()
+        assert package["task_id"] == task_id
+        assert {event["task_id"] for event in package["events"]} == {task_id}
+        assert {"bank.observed", "confirmation.changed", "verification.changed"} <= {
+            event["event_type"] for event in package["events"]}
+
+        # An ordinary user neither sees nor downloads the management export.
+        assert user.get(f"/api/v1/exports/{view['export_id']}").status_code == 404
+        assert user.get(f"/api/v1/exports/{view['export_id']}/download").status_code == 404
+        # The audit download rechecks the management identity, not the creating session.
+        admin.cookies.clear()
+        admin_login(admin)
+        assert admin.get(f"/api/v1/exports/{view['export_id']}/download").status_code == 200
+
+        downloads = [event for event in admin_app.state.api.runtime.audit._events("D1")
+                     if event.event_type == "audit.accessed"
+                     and event.payload.action == "download"]
+        assert [event.payload.export_id for event in downloads] == [view["export_id"]] * 2
+        assert len({event.session_id for event in downloads}) == 2
+        assert [event.task_id for event in downloads] == [task_id, task_id]
+
+        # Only the management identity and its current round pass the frozen scope.
+        assert post(user, "/admin/audit/exports", demo_round_id="D1").status_code == 403
+        assert post(admin, "/admin/audit/exports", demo_round_id="D0").status_code == 403
+        assert post(admin, "/admin/audit/exports", demo_round_id="D1",
+                    task_id=str(uuid4())).status_code == 403
+
+
+def test_f35_replays_the_same_request_id_without_duplicating(tmp_path):
+    """F35 reuses the platform request receipt: one request id, one frozen export."""
+
+    admin_app = make_app(tmp_path)
+    with TestClient(admin_app) as admin:
+        admin_login(admin)
+        body = {"request_id": str(uuid4()), "demo_round_id": "D1"}
+        first = admin.post("/api/v1/admin/audit/exports", json=body,
+                           headers={"Origin": "http://testserver"})
+        replay = admin.post("/api/v1/admin/audit/exports", json=body,
+                            headers={"Origin": "http://testserver"})
+        assert first.status_code == replay.status_code == 200
+        assert first.json() == replay.json()
+        conflict = admin.post("/api/v1/admin/audit/exports", json={**body, "task_id": str(uuid4())},
+                              headers={"Origin": "http://testserver"})
+        assert conflict.status_code == 409
+        assert conflict.json()["error"]["code"] == "REQUEST_CONFLICT"
+        assert admin_app.state.api.store.rows(
+            "SELECT COUNT(*) AS n FROM api_exports WHERE kind='audit'")[0]["n"] == 1
+        exports = [event for event in admin_app.state.api.runtime.audit._events("D1")
+                   if event.event_type == "audit.accessed" and event.payload.action == "export"]
+        assert len(exports) == 1

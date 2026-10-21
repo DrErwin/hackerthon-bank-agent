@@ -280,14 +280,22 @@ class AuditJournal:
                 return
         raise ValueError("side-effect tool start requires a persisted matching allow decision")
 
-    def _events(self, demo_round_id: str, task_id: str) -> list[AuditEvent]:
+    def _events(self, demo_round_id: str, task_id: str | None = None) -> list[AuditEvent]:
+        """One task's events, or every event of the round when no task narrows the scope."""
         connection = connect(self.path)
         try:
-            rows = connection.execute(
-                """SELECT event_json FROM audit_events WHERE demo_round_id = ? AND task_id = ?
-                   ORDER BY row_id""",
-                (demo_round_id, task_id),
-            ).fetchall()
+            if task_id is None:
+                rows = connection.execute(
+                    """SELECT event_json FROM audit_events WHERE demo_round_id = ?
+                       ORDER BY row_id""",
+                    (demo_round_id,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT event_json FROM audit_events WHERE demo_round_id = ? AND task_id = ?
+                       ORDER BY row_id""",
+                    (demo_round_id, task_id),
+                ).fetchall()
             return [AuditEvent.model_validate_json(row["event_json"]) for row in rows]
         finally:
             connection.close()
@@ -339,7 +347,7 @@ class AuditReader:
         self._authorize = authorize
 
     def _access(self, viewer: AuditViewer, action: str, target_round: str,
-                target_ref: str | None) -> None:
+                target_ref: str | None, export_id: str | None = None) -> None:
         try:
             permitted = self._authorize is not None and self._authorize(
                 viewer, action, target_round, target_ref,
@@ -359,7 +367,7 @@ class AuditReader:
             payload=AuditAccessedPayload(
                 action=action, filter_ref=target_round,
                 target_refs=[] if target_ref is None else [target_ref],
-                export_id=None, permitted=permitted,
+                export_id=export_id, permitted=permitted,
                 reason_code="ALLOWED" if permitted else "ACCESS_DENIED",
             ),
         )
@@ -396,8 +404,10 @@ class AuditReader:
         return self._detail(event)
 
     def export_json(self, viewer: AuditViewer, demo_round_id: str,
-                    task_id: str) -> bytes:
-        self._access(viewer, "export", demo_round_id, task_id)
+                    task_id: str | None = None, *,
+                    export_id: str | None = None) -> bytes:
+        """A task's evidence package, or the whole round when no task narrows the scope."""
+        self._access(viewer, "export", demo_round_id, task_id, export_id)
         events = self._journal._events(demo_round_id, task_id)
         details = [self._detail(event) for event in events]
         evidence = {}
