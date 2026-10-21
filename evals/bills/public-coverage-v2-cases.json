@@ -457,15 +457,15 @@
       "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
     },
     {
-      "id": "BILL-RULE-3-INSUFFICIENT",
+      "id": "BILL-RULE-3-NONELIGIBLE",
       "tier": "l02_rule_public",
       "kind": "synthetic_bank_fact",
       "rule": 3,
-      "variant": "insufficient",
+      "variant": "noneligible",
       "bf": [
         "BF02"
       ],
-      "expectation": "Seed extra synthetic rows via MockBankStore.seed_ledger_rows before measuring bank integrity; public L02 Harness selects the exact bank-returned transaction and checks its real RuleCheck. No internal rule function is invoked as the test subject."
+      "expectation": "The third distinct Rule 3 variant tests a legitimate non-spending late-night bank interest: evaluated/not_matched, not an invented insufficient-data classification for a timezone-aware bank record."
     },
     {
       "id": "BILL-RULE-4-HIT",
