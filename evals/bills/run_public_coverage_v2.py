@@ -120,7 +120,8 @@ def read_manifest():
     if counts != {"l02_public": 14, "l03_public": 14, "l02_rule_public": 12}:
         raise ValueError(f"unexpected public case tiers: {counts}")
     for rule in range(1, 5):
-        required = {f"BILL-RULE-{rule}-{kind}" for kind in ("HIT", "MISS", "INSUFFICIENT")}
+        variants = ("HIT", "MISS", "NONELIGIBLE") if rule == 3 else ("HIT", "MISS", "INSUFFICIENT")
+        required = {f"BILL-RULE-{rule}-{kind}" for kind in variants}
         if required - set(ids):
             raise ValueError(f"rule {rule} missing contrasts")
     if data["overall_status"] != "partial" or data["full_ticket_acceptance"]:
