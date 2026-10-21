@@ -375,7 +375,7 @@ def _rule_rows(case):
         merchant = "EMPLOYER" if variant == "miss" else None if variant == "insufficient" else prefix
     elif rule == 3:
         when = "2026-09-15T23:10:00+08:00" if variant != "miss" else when
-        if variant == "insufficient":
+        if variant == "noneligible":
             # Non-spending late-night bank interest is explicitly not suspicious;
             # unlike rules 1/2/4, rule 3 has no insufficient state for a
             # timezone-aware, authenticated transaction. This variant checks
@@ -424,7 +424,8 @@ def test_public_bank_rule_contrast(case, bank_env):
     expected = {
         "hit": ("evaluated", True),
         "miss": ("evaluated", False),
-        "insufficient": ("insufficient_data", None) if rule != 3 else ("evaluated", False),
+        "insufficient": ("insufficient_data", None),
+        "noneligible": ("evaluated", False),
     }[variant]
     assert (check.status, check.matched) == expected, (case["id"], check)
     if variant == "hit":
