@@ -20,6 +20,17 @@ def dump(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+# Export resources. F35 audit exports carry no report or thread (§6.7), so both columns
+# accept NULL; `clause` lets setup create the table or rebuild a pre-F35 one in place.
+EXPORTS_DDL = """CREATE TABLE {clause}api_exports (
+    export_id TEXT PRIMARY KEY, report_id TEXT, kind TEXT NOT NULL,
+    user_id TEXT NOT NULL, demo_round_id TEXT NOT NULL,
+    session_id TEXT NOT NULL, task_id TEXT, challenge_id TEXT,
+    thread_id TEXT, status TEXT NOT NULL, created_at TEXT NOT NULL,
+    file_name TEXT, media_type TEXT, content TEXT,
+    error_code TEXT, error_reason TEXT)"""
+
+
 class ApiStore:
     EVENT_PAGE_SIZE = 100
 
@@ -72,15 +83,18 @@ class ApiStore:
                     demo_round_id TEXT NOT NULL, task_id TEXT NOT NULL,
                     thread_id TEXT NOT NULL, created_at TEXT NOT NULL,
                     report_json TEXT NOT NULL)""",
-                """CREATE TABLE IF NOT EXISTS api_exports (
-                    export_id TEXT PRIMARY KEY, report_id TEXT NOT NULL, kind TEXT NOT NULL,
-                    user_id TEXT NOT NULL, demo_round_id TEXT NOT NULL,
-                    session_id TEXT NOT NULL, task_id TEXT, challenge_id TEXT,
-                    thread_id TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL,
-                    file_name TEXT, media_type TEXT, content TEXT,
-                    error_code TEXT, error_reason TEXT)""",
+                EXPORTS_DDL.format(clause="IF NOT EXISTS "),
             ):
                 c.execute(sql)
+            # F35: an audit export has no report or thread, so both columns allow NULL.
+            # Demo databases created before this ticket still enforce NOT NULL once;
+            # rebuild that one table and keep every export row.
+            columns = {row["name"]: row for row in c.execute("PRAGMA table_info(api_exports)")}
+            if columns["report_id"]["notnull"]:
+                c.execute("ALTER TABLE api_exports RENAME TO api_exports_before_f35")
+                c.execute(EXPORTS_DDL.format(clause=""))
+                c.execute("INSERT INTO api_exports SELECT * FROM api_exports_before_f35")
+                c.execute("DROP TABLE api_exports_before_f35")
 
     def rows(self, sql, parameters=()):
         with closing(connect(self.path)) as c:

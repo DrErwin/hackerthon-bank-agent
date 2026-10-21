@@ -14,7 +14,9 @@ from uuid import UUID, uuid4
 from app.audit.journal import AuditReader, AuditViewer, redact
 from app.agent_platform.bills_stub import register_bills_stub
 from app.agent_platform.model import ReplyOnly
-from app.contracts.audit import AuditEvent, TaskTransitionPayload, VerificationChangedPayload
+from app.contracts.audit import (
+    AuditAccessedPayload, AuditEvent, TaskTransitionPayload, VerificationChangedPayload,
+)
 from app.contracts.api import (
     ExportView, MessageView, ReportReady, StreamEvent, TaskRecordsView, VerificationResponse,
 )
@@ -572,6 +574,34 @@ class ApiService:
         return self.export_view(self.store.export_row(export_id, identity.user_id,
                                                       identity.demo_round_id))
 
+    def create_audit_export(self, identity, demo_round_id, task_id):
+        """F35: freeze the admin's audit filter and render one redacted evidence package."""
+        reader, viewer = self.audit_reader(identity)
+        export_id = str(uuid4())
+        # The row is written first so the export's own audit.accessed event can point
+        # at it; a denied scope closes the row and still leaves the denied event.
+        self.store.save_export({"export_id": export_id, "report_id": None, "kind": "audit",
+            "user_id": identity.user_id, "demo_round_id": demo_round_id,
+            "session_id": identity.session_id, "task_id": task_id, "challenge_id": None,
+            "thread_id": None, "status": "preparing", "created_at": now().isoformat()})
+        try:
+            content = reader.export_json(viewer, demo_round_id, task_id, export_id=export_id)
+        except PermissionError:
+            self.store.finish_export(export_id, "failed", error_code="ACCESS_DENIED",
+                error_reason="没有操作或查看权限。")
+            raise
+        except Exception:
+            # A generation fault closes the row instead of leaving it "preparing".
+            self.store.finish_export(export_id, "failed", error_code="DEPENDENCY_UNAVAILABLE",
+                error_reason="暂时无法生成审计证据包，导出未完成。")
+            raise
+        # The file name only carries the server-generated export id, never request text.
+        self.store.finish_export(export_id, "ready",
+            file_name=f"audit-{export_id}.json", media_type="application/json",
+            content=content.decode("utf-8"))
+        return self.export_view(self.store.export_row(export_id, identity.user_id,
+                                                      identity.demo_round_id))
+
     def export_view(self, row):
         error = None
         if row["error_code"]:
@@ -598,9 +628,22 @@ class ApiService:
         row = self.store.export_row(export_id, identity.user_id, identity.demo_round_id)
         if not row:
             raise ApiProblem(404, "NOT_FOUND")
-        if row["status"] != "ready":
+        if row["kind"] == "audit":
+            # §6.7 F24: an audit download re-checks the independent management identity
+            # and reuses the scope frozen at creation: no fresh verification, no session
+            # binding. Every attempt on the frozen row is trail-recorded, including refusals.
+            if identity.role != "admin":
+                self.record_audit_download(identity, row, permitted=False,
+                                           reason_code="ACCESS_DENIED")
+                raise ApiProblem(403, "ACCESS_DENIED")
+            if row["status"] != "ready":
+                self.record_audit_download(identity, row, permitted=False,
+                                           reason_code="EXPORT_NOT_READY")
+                raise ApiProblem(409, "EXPORT_NOT_READY")
+            self.record_audit_download(identity, row)
+        elif row["status"] != "ready":
             raise ApiProblem(409, "EXPORT_NOT_READY")
-        if row["kind"] == "details":
+        elif row["kind"] == "details":
             if row["session_id"] != identity.session_id:
                 # §6.7: a session change voids the old export authorization.
                 raise ApiProblem(409, "SESSION_RECONFIRMATION_REQUIRED")
@@ -609,6 +652,26 @@ class ApiService:
             if challenge.challenge_status != "passed":
                 raise ApiProblem(409, "EXPORT_NOT_READY")
         return row["file_name"], row["media_type"], row["content"]
+
+    def record_audit_download(self, identity, row, *, permitted=True, reason_code="ALLOWED"):
+        """§6.8: audit reads leave a trail, and a download names the export it delivered."""
+        self.runtime.audit.append(AuditEvent(
+            event_id=str(uuid4()), trace_id=str(uuid4()), span_id=str(uuid4()),
+            sequence=0, parent_span_id=None, demo_round_id=row["demo_round_id"],
+            actor_id=identity.user_id, session_id=identity.session_id,
+            target_session_id=None, target_user_id=None, thread_id=None,
+            task_id=row["task_id"], run_id=None, module="audit",
+            event_type="audit.accessed", timestamp=now(), logical_at=None,
+            outcome="succeeded" if permitted else "denied",
+            evidence_ref=None, evidence_status="missing",
+            missing_reason="download event has no content snapshot",
+            payload=AuditAccessedPayload(
+                action="download", filter_ref=row["demo_round_id"],
+                target_refs=[] if row["task_id"] is None else [row["task_id"]],
+                export_id=row["export_id"], permitted=permitted,
+                reason_code=reason_code,
+            ),
+        ))
 
     def export_for_task(self, identity, task_id):
         rows = self.store.rows("""SELECT * FROM api_exports
@@ -1111,9 +1174,14 @@ class ApiService:
                 current = self.identity(self.cookie(viewer.session_id))
                 if current.role != "admin" or target_round != current.demo_round_id:
                     return False
-                if action == "list":
-                    return bool(self.store.rows("SELECT task_id FROM api_tasks WHERE task_id=? AND demo_round_id=?",
-                                               (target, target_round)))
+                if action in {"list", "export"}:
+                    # A round-wide audit export has no task filter; a task-scoped read or
+                    # export still has to name a task of the admin's current round.
+                    if target is None:
+                        return action == "export"
+                    return bool(self.store.rows(
+                        "SELECT task_id FROM api_tasks WHERE task_id=? AND demo_round_id=?",
+                        (target, target_round)))
                 return bool(self.store.rows("""SELECT e.event_id FROM audit_events e JOIN api_tasks t
                     ON e.task_id=t.task_id WHERE e.event_id=? AND e.demo_round_id=?
                     AND t.demo_round_id=?""", (target, target_round, target_round)))

@@ -58,6 +58,11 @@ class ExportRequest(RequestIdOnly):
     kind: Literal["card", "details"]
 
 
+class AuditExportRequest(RequestIdOnly):
+    demo_round_id: str
+    task_id: str | None = None
+
+
 def problem(exc):
     if isinstance(exc, ApiProblem):
         status, code = exc.status, exc.code
@@ -482,6 +487,12 @@ def create_app(runtime=None, config=None):
     def evidence(event_id: str, who=Depends(identity), service=Depends(api)):
         reader, viewer = service.audit_reader(who)
         return success(reader.detail(viewer, who.demo_round_id, event_id))
+
+    @application.post("/api/v1/admin/audit/exports")
+    def audit_export(request: Request, body: AuditExportRequest, who=Depends(identity), service=Depends(api)):
+        def action():
+            return service.create_audit_export(who, body.demo_round_id, body.task_id)
+        return mutation(service, who, request, body, action)
 
     @application.get("/api/v1/threads/{thread_id}/events")
     async def events(request: Request, thread_id: str, who=Depends(identity), service=Depends(api)):
