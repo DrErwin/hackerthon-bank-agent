@@ -29,3 +29,12 @@ Source issue: [Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## Comments
 
 - 2026-10-21 22:40：PM Erwin 指派「把 121 做了」，确认两条口径——①跨 `api/` + `audit/` 两个底座目录一次交付、一个 PR（票面留痕）；②本次不加前端管理页入口，只交后端契约能力，并注明该限制。建票开工。
+- 2026-10-21 23:10 实施完成并开 [PR #214](https://github.com/DrErwin/hackerthon-bank-agent/pull/214)（分支 `v05-platform-01-audit-export`，基线 main `27bc9ca`；两个提交：代码+票面 / 证据）：
+  - `backend/app/audit/journal.py`：`_events` / `export_json` 支持可选任务范围（缺省整轮）；`_access` 与 `audit.accessed` 携带 `export_id`。
+  - `backend/app/api/store.py`：导出表 `report_id` / `thread_id` 允许空，旧演示库一次保留数据的结构迁移。
+  - `backend/app/api/app.py` + `service.py`：F35 端点；F24 audit 分支（复核管理身份、复用创建时范围、不绑会话）；导出/下载 `audit.accessed` 留痕；`audit_reader` 授权支持整轮导出与任务范围导出。
+  - `backend/app/api/README.md`：路由表与口径、未做前端入口的已知限制。
+  - E2E 3 例（`backend/app/api/test_app.py`）：`app/api app/audit` **114 passed**、后端全量 **1188 passed**、模拟银行 **14 passed**（证据 `evidence/2026-10-21/pytest-*.txt`）。
+  - 可复验产物：`evidence/2026-10-21/run_f35_evidence.py`（整轮/任务两个冻结证据包 + `summary.json`：包内 manifest 哈希逐条复算、验证码不落包、冻结字节、导出/下载留痕、零模型调用）；`evidence/2026-10-21/check_real_demo_db.py`（旧导出表迁移保留行；真实演示库 3636 事件整轮导出 **5,563,231 B / sha256 `6dbced20…` / event 3637 / evidence 864 / 建包 11.49s / 下载 0.026s**，脚本对演示库只读拷贝、不动原件）。
+  - 已知限制：管理前端入口未做（PM 决定，已登记）；历史轮次导出与既有 F33/F34 一致只允许当前管理员轮次；`evals/security/coverage_readiness.py` 仍把 F35 记为缺提供方，归安全线同步。
+  - 审查：独立子代理双轴审查结果将回帖 PR（AI 审查、非真人）。
