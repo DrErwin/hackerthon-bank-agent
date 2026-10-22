@@ -5,6 +5,87 @@
  * and run json-schema-to-typescript to regenerate this file.
  */
 
+export type RequestId = string;
+export type SourceRevision = number;
+export type Action = "bill_details" | "bill_check" | "subscription_cancel";
+/**
+ * Bank flow categories (bank fields §3); bills display names map one to one.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "Category".
+ */
+export type Category = "dining" | "transport" | "medical" | "shopping" | "housing" | "transfer" | "other";
+export type SubscriptionId = string | null;
+export type AccountId = string;
+export type AccountType = "class_i" | "class_ii" | "class_iii";
+export type AccountMasked = string;
+export type AvailableBalanceFen = number;
+export type DisplayName = string;
+export type BankName = string;
+export type Accounts = AccountSummary[];
+export type PayeeId = string | null;
+export type NameMasked = string;
+export type AccountMasked1 = string;
+export type Remark = string | null;
+export type BankName1 = string;
+export type LastTransferAt = string | null;
+export type Payees = PayeeCandidate[];
+export type Action1 = "list" | "cancel";
+export type SubscriptionId1 = string;
+export type SourceType = "mandate" | "suspected_ledger";
+export type MandateId = string | null;
+export type MerchantId = string | null;
+export type MerchantName = string;
+export type ServiceName = string;
+export type AmountFen = number;
+export type Cycle = "monthly" | "yearly";
+export type AccountId1 = string;
+export type AccountMasked2 = string;
+export type LastBilledAt = string | null;
+export type NextBillingAt = string | null;
+export type Status = "active" | "cancelled" | "suspected";
+export type CanCancelInBank = boolean;
+export type DaysUntilRenewal = number | null;
+export type IsUpcomingRenewal = boolean;
+export type ExternalCancelGuide = string | null;
+export type BilledCount = number;
+export type BilledTotalFen = number;
+export type Channel = string | null;
+export type Items = SubscriptionItem[];
+export type UpcomingRenewals = SubscriptionItem[];
+export type ActiveCount = number;
+export type UpcomingTotalFen = number;
+export type AsOf = string;
+export type SuspectedScanStatus = "evaluated" | "insufficient_data";
+export type SuspectedScanReason = string | null;
+export type OperationId = string | null;
+export type OperationId1 = string;
+export type OperationType = string;
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "OperationStatus".
+ */
+export type OperationStatus = "succeeded" | "failed" | "processing";
+export type RecordedAt = string;
+export type UpdatedAt = string;
+export type MandateId1 = string;
+export type AccountId2 = string;
+export type AccountMasked3 = string;
+export type MerchantId1 = string;
+export type MerchantName1 = string;
+export type ServiceName1 = string;
+export type AmountFen1 = number;
+export type Cycle1 = "monthly" | "yearly";
+export type PreviousNextBillingAt = string;
+export type EffectiveStopAt = string;
+export type Status1 = "cancelled";
+export type CancelledAt = string;
+export type Code = string;
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "JsonValue".
+ */
+export type JsonValue = unknown;
 export type SessionId = string;
 export type UserDisplay = string;
 export type Role = "user" | "admin";
@@ -14,7 +95,7 @@ export type ExpiresAt = string;
 export type ThreadId = string;
 export type Title = string;
 export type CreatedAt1 = string;
-export type UpdatedAt = string;
+export type UpdatedAt1 = string;
 export type DemoRoundId1 = string;
 export type MessageId = string;
 export type ThreadId1 = string;
@@ -27,9 +108,9 @@ export type Text = string;
 export type CreatedAt2 = string;
 export type TaskIds = string[];
 export type ReportIds = string[];
-export type Items = ThreadView[];
+export type Items1 = ThreadView[];
 export type NextCursor = string | null;
-export type Items1 = MessageView[];
+export type Items2 = MessageView[];
 export type NextCursor1 = string | null;
 export type TaskId1 = string;
 export type RunId = string;
@@ -46,40 +127,29 @@ export type TaskStatus =
   | "failed"
   | "cancelled"
   | "needs_attention";
-export type OperationId = string | null;
+export type OperationId2 = string | null;
 export type PayerAccountId = string | null;
-export type PayeeId = string | null;
-export type NameMasked = string;
-export type AccountMasked = string;
-export type Remark = string | null;
-export type BankName = string;
-export type AmountFen = number | null;
-export type OperationId1 = string;
-export type OperationType = string;
-/**
- * This interface was referenced by `ContractSchema`'s JSON-Schema
- * via the `definition` "OperationStatus".
- */
-export type OperationStatus = "succeeded" | "failed" | "processing";
-export type RecordedAt = string;
-export type UpdatedAt1 = string;
+export type PayeeId1 = string | null;
+export type NameMasked1 = string;
+export type AccountMasked4 = string;
+export type Remark1 = string | null;
+export type BankName2 = string;
+export type AmountFen2 = number | null;
+export type OperationId3 = string;
+export type OperationType1 = string;
+export type RecordedAt1 = string;
+export type UpdatedAt2 = string;
 export type TransactionId = string;
 export type PayerAccountId1 = string;
-export type AmountFen1 = number;
+export type AmountFen3 = number;
 export type FeeFen = 0;
 export type ArrivalMode = "instant";
 export type CompletedAt = string;
-export type AccountId = string;
+export type AccountId3 = string;
 export type BookBalanceFen = number;
 export type FrozenBalanceFen = number;
-export type AvailableBalanceFen = number;
-export type AsOf = string;
-export type Code = string;
-/**
- * This interface was referenced by `ContractSchema`'s JSON-Schema
- * via the `definition` "JsonValue".
- */
-export type JsonValue = unknown;
+export type AvailableBalanceFen1 = number;
+export type AsOf1 = string;
 export type Message = string;
 export type InteractionId = string;
 export type Kind = "input" | "confirmation" | "verification";
@@ -103,7 +173,7 @@ export type DemoRoundId2 = string;
 export type SnapshotAt = string;
 export type TaskRevision = number;
 export type CancelRequested = boolean;
-export type Items2 = TaskViewTransferTaskView[];
+export type Items3 = TaskViewTransferTaskView[];
 export type NextCursor2 = string | null;
 export type TaskId2 = string;
 export type RunId1 = string;
@@ -135,12 +205,12 @@ export type Confirmations = ConfirmationView[];
 export type ChallengeId = string;
 export type TaskId5 = string;
 export type CreatedAt4 = string;
-export type OperationId2 = string;
+export type OperationId4 = string;
 export type ActionRevision = number;
 export type SourceConfirmationId = string;
 export type SourceConfirmationVersion = number;
 export type ActionName = string;
-export type AmountFen2 = number | null;
+export type AmountFen4 = number | null;
 /**
  * @minItems 1
  */
@@ -158,12 +228,6 @@ export type Kind1 = "verified" | "rejected" | "error";
 export type ChallengeId1 = string;
 export type Code2 = string;
 export type ExpiresAt2 = string;
-export type PayeeId1 = string | null;
-export type NameMasked1 = string;
-export type AccountMasked1 = string;
-export type Remark1 = string | null;
-export type BankName1 = string;
-export type LastTransferAt = string | null;
 export type DetailRef = string;
 export type DisplayFields2 = DisplayField[];
 export type Candidates = PayeeCandidate[] | null;
@@ -269,11 +333,11 @@ export type ToolName = string;
 export type ToolVersion = string;
 export type ArgumentsRef = string;
 export type DecisionId = string;
-export type OperationId3 = string | null;
+export type OperationId5 = string | null;
 export type ReleaseAuthorizationId = string | null;
 export type FreezeId = string | null;
 export type ToolCallId1 = string;
-export type OperationId4 = string | null;
+export type OperationId6 = string | null;
 export type ResultRef = string | null;
 export type DurationMs1 = number;
 export type ReleaseAuthorizationId1 = string | null;
@@ -283,7 +347,7 @@ export type TaskId11 = string;
 export type RunId5 = string;
 export type ActionName1 = string;
 export type ParametersRef = string;
-export type OperationId5 = string | null;
+export type OperationId7 = string | null;
 export type ActionRevision1 = number | null;
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
@@ -320,17 +384,17 @@ export type ConfirmationVersion1 = number;
 export type ActionRevision2 = number;
 export type Decision1 = string;
 export type DisplayRef = string;
-export type OperationId6 = string | null;
+export type OperationId8 = string | null;
 export type ChallengeId2 = string;
 export type Method = "code" | "mock_face";
 export type Result = string;
 export type Purpose = string;
-export type OperationId7 = string | null;
+export type OperationId9 = string | null;
 export type VerificationId = string | null;
 export type ConsecutiveCodeFailures1 = number;
 export type ExpiresAt3 = string;
 export type ReasonCode1 = string;
-export type OperationId8 = string;
+export type OperationId10 = string;
 export type Lookup = "found" | "not_found" | "error";
 export type OperationStatus1 = ("succeeded" | "failed" | "processing") | null;
 export type TransactionId1 = string | null;
@@ -344,13 +408,13 @@ export type OperationIds = string[];
 export type Result1 = "continue" | "wait" | "stop";
 export type ReasonCode2 = string;
 export type ManagementOperationId = string;
-export type Action = string;
+export type Action2 = string;
 export type TargetRef = string | null;
 export type SourceRoundId = string;
 export type ResultingRoundId = string | null;
 export type BeforeRef1 = string | null;
 export type AfterRef1 = string | null;
-export type Action1 = "list" | "read" | "export" | "download";
+export type Action3 = "list" | "read" | "export" | "download";
 export type FilterRef = string | null;
 export type TargetRefs = string[];
 export type ExportId = string | null;
@@ -359,16 +423,16 @@ export type ReasonCode3 = string;
 export type Evidence = string | null;
 export type EvidenceStatus = "available" | "missing" | "restricted";
 export type MissingReason = string | null;
-export type Items3 = AuditEventSummary[];
+export type Items4 = AuditEventSummary[];
 export type NextCursor3 = string | null;
-export type RequestId = string;
 export type RequestId1 = string;
-export type Text1 = string;
 export type RequestId2 = string;
+export type Text1 = string;
+export type RequestId3 = string;
 export type InteractionId1 = string;
 export type Text2 = string | null;
 export type SelectedOptionId = string | null;
-export type RequestId3 = string;
+export type RequestId4 = string;
 export type InteractionId2 = string;
 export type Kind2 = "payee" | "payee_search" | "delivery";
 export type Fields = PayeeDetailsFields | PayeeSearchFields | DeliveryDetailsFields;
@@ -379,13 +443,13 @@ export type Value = string;
 export type RecipientName = string;
 export type Phone = string;
 export type Address = string;
-export type RequestId4 = string;
+export type RequestId5 = string;
 export type ConfirmationVersion2 = number;
 export type Choice = "approve" | "cancel";
-export type RequestId5 = string;
+export type RequestId6 = string;
 export type SubmissionId = string;
 export type Code3 = string;
-export type RequestId6 = string;
+export type RequestId7 = string;
 export type SubmissionId1 = string;
 export type DemoRoundId6 = string;
 export type Result2 = "passed" | "failed";
@@ -395,9 +459,9 @@ export type Result2 = "passed" | "failed";
 export type AccountIds = [string, ...string[]];
 export type StartAt = string;
 export type EndAt = string;
-export type AsOf1 = string;
-export type AccountId1 = string;
 export type AsOf2 = string;
+export type AccountId4 = string;
+export type AsOf3 = string;
 export type SourceAsOf = AccountSourceAsOf[];
 export type TransactionCount = number;
 export type ConsumptionGrossFen = number;
@@ -405,39 +469,32 @@ export type ConsumptionRefundFen = number;
 export type ConsumptionNetFen = number;
 export type TransferOutFen = number;
 export type TransferInFen = number;
-/**
- * Bank flow categories (bank fields §3); bills display names map one to one.
- *
- * This interface was referenced by `ContractSchema`'s JSON-Schema
- * via the `definition` "Category".
- */
-export type Category = "dining" | "transport" | "medical" | "shopping" | "housing" | "transfer" | "other";
 export type OutflowFen = number;
 export type RefundFen = number;
 export type NetFen = number;
 export type ShareBps = number | null;
 export type Rank = number;
 export type Categories = CategoryTotal[];
-export type AsOf3 = string;
+export type AsOf4 = string;
 export type ConsumptionNetFen1 = number;
 export type DeltaFen = number;
 export type ChangeBps = number | null;
 export type TransactionId2 = string;
-export type AccountId2 = string;
+export type AccountId5 = string;
 export type OccurredAt1 = string;
-export type AmountFen3 = number;
+export type AmountFen5 = number;
 export type Nature = "consumption" | "transfer" | "refund" | "interest";
 export type Direction = "inflow" | "outflow";
 export type CounterpartyId = string | null;
 export type CounterpartyName = string;
 export type CounterpartyAccountMasked = string | null;
-export type Channel = string | null;
+export type Channel1 = string | null;
 export type Summary = string;
 export type OriginalTransactionId = string | null;
 export type OriginalOccurredAt = string | null;
 export type Transactions = Transaction[];
 export type SourceAsOf1 = AccountSourceAsOf[];
-export type AsOf4 = string;
+export type AsOf5 = string;
 export type TransactionIds = string[];
 export type RuleId = 1 | 2 | 3 | 4;
 export type Attention = "notice" | "high_attention";
@@ -445,13 +502,13 @@ export type Evidence1 = string;
 export type Suggestion = string;
 export type Findings = AnomalyFinding[];
 export type RuleId1 = 1 | 2 | 3 | 4;
-export type Status = "evaluated" | "insufficient_data";
+export type Status2 = "evaluated" | "insufficient_data";
 export type Reason2 = string | null;
 export type Checks = RuleCheck[];
-export type AsOf5 = string;
+export type AsOf6 = string;
 export type Candidates1 = Transaction[];
 export type SourceAsOf2 = AccountSourceAsOf[];
-export type AsOf6 = string;
+export type AsOf7 = string;
 export type ReportId1 = string;
 export type SpokenSummary = string;
 export type MonthlyAverageFen = number | null;
@@ -460,6 +517,10 @@ export type AverageBasis = string;
 export type GeneratedAt = string;
 
 export interface ContractSchema {
+  CardActionRequest: CardActionRequest;
+  AccountList: AccountList;
+  PayeeList: PayeeList;
+  SubscriptionTaskView: SubscriptionTaskView;
   SessionView: SessionView;
   ThreadView: ThreadView;
   MessageAccepted: MessageAccepted;
@@ -497,6 +558,153 @@ export interface ContractSchema {
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "CardActionRequest".
+ */
+export interface CardActionRequest {
+  request_id: RequestId;
+  source_revision: SourceRevision;
+  action: Action;
+  category?: Category | null;
+  subscription_id?: SubscriptionId;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "AccountList".
+ */
+export interface AccountList {
+  accounts: Accounts;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "AccountSummary".
+ */
+export interface AccountSummary {
+  account_id: AccountId;
+  account_type: AccountType;
+  account_masked: AccountMasked;
+  available_balance_fen: AvailableBalanceFen;
+  display_name: DisplayName;
+  bank_name: BankName;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "PayeeList".
+ */
+export interface PayeeList {
+  payees: Payees;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "PayeeCandidate".
+ */
+export interface PayeeCandidate {
+  payee_id: PayeeId;
+  name_masked: NameMasked;
+  account_masked: AccountMasked1;
+  remark: Remark;
+  bank_name: BankName1;
+  last_transfer_at: LastTransferAt;
+}
+/**
+ * The module's displayable result (§5.5); the platform puts it in TaskView.data.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "SubscriptionTaskView".
+ */
+export interface SubscriptionTaskView {
+  action: Action1;
+  list_result?: SubscriptionListResult | null;
+  selected_item?: SubscriptionItem | null;
+  operation_id?: OperationId;
+  operation?: OperationResultSubscriptionCancelReceipt | null;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "SubscriptionListResult".
+ */
+export interface SubscriptionListResult {
+  items: Items;
+  upcoming_renewals: UpcomingRenewals;
+  active_count: ActiveCount;
+  upcoming_total_fen: UpcomingTotalFen;
+  as_of: AsOf;
+  suspected_scan_status?: SuspectedScanStatus;
+  suspected_scan_reason?: SuspectedScanReason;
+}
+/**
+ * One displayable row: a bank mandate, or a flow-detected suspected debit series.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "SubscriptionItem".
+ */
+export interface SubscriptionItem {
+  subscription_id: SubscriptionId1;
+  source_type: SourceType;
+  mandate_id: MandateId;
+  merchant_id: MerchantId;
+  merchant_name: MerchantName;
+  service_name: ServiceName;
+  amount_fen: AmountFen;
+  cycle: Cycle;
+  account_id: AccountId1;
+  account_masked: AccountMasked2;
+  last_billed_at: LastBilledAt;
+  next_billing_at: NextBillingAt;
+  status: Status;
+  can_cancel_in_bank: CanCancelInBank;
+  days_until_renewal: DaysUntilRenewal;
+  is_upcoming_renewal: IsUpcomingRenewal;
+  external_cancel_guide: ExternalCancelGuide;
+  billed_count?: BilledCount;
+  billed_total_fen?: BilledTotalFen;
+  channel?: Channel;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "OperationResult_SubscriptionCancelReceipt_".
+ */
+export interface OperationResultSubscriptionCancelReceipt {
+  operation_id: OperationId1;
+  operation_type: OperationType;
+  operation_status: OperationStatus;
+  recorded_at: RecordedAt;
+  updated_at: UpdatedAt;
+  receipt: SubscriptionCancelReceipt | null;
+  failure: BankError | null;
+}
+/**
+ * What B30 returns for one cancelled mandate; it never promises merchant perks.
+ *
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "SubscriptionCancelReceipt".
+ */
+export interface SubscriptionCancelReceipt {
+  mandate_id: MandateId1;
+  account_id: AccountId2;
+  account_masked: AccountMasked3;
+  merchant_id: MerchantId1;
+  merchant_name: MerchantName1;
+  service_name: ServiceName1;
+  amount_fen: AmountFen1;
+  cycle: Cycle1;
+  previous_next_billing_at: PreviousNextBillingAt;
+  effective_stop_at: EffectiveStopAt;
+  status?: Status1;
+  cancelled_at: CancelledAt;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "BankError".
+ */
+export interface BankError {
+  code: Code;
+  details: Details;
+}
+export interface Details {
+  [k: string]: JsonValue;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
  * via the `definition` "SessionView".
  */
 export interface SessionView {
@@ -515,7 +723,7 @@ export interface ThreadView {
   thread_id: ThreadId;
   title: Title;
   created_at: CreatedAt1;
-  updated_at: UpdatedAt;
+  updated_at: UpdatedAt1;
   demo_round_id: DemoRoundId1;
 }
 /**
@@ -546,7 +754,7 @@ export interface MessageView {
  * via the `definition` "ThreadPage".
  */
 export interface ThreadPage {
-  items: Items;
+  items: Items1;
   next_cursor: NextCursor;
 }
 /**
@@ -554,7 +762,7 @@ export interface ThreadPage {
  * via the `definition` "MessagePage".
  */
 export interface MessagePage {
-  items: Items1;
+  items: Items2;
   next_cursor: NextCursor1;
 }
 /**
@@ -562,7 +770,7 @@ export interface MessagePage {
  * via the `definition` "TaskPage".
  */
 export interface TaskPage {
-  items: Items2;
+  items: Items3;
   next_cursor: NextCursor2;
 }
 /**
@@ -592,10 +800,10 @@ export interface TaskViewTransferTaskView {
  * via the `definition` "TransferTaskView".
  */
 export interface TransferTaskView {
-  operation_id: OperationId;
+  operation_id: OperationId2;
   payer_account_id: PayerAccountId;
   payee: PayeeDisplay | null;
-  amount_fen: AmountFen;
+  amount_fen: AmountFen2;
   operation: OperationResultTransferReceipt | null;
 }
 /**
@@ -603,22 +811,22 @@ export interface TransferTaskView {
  * via the `definition` "PayeeDisplay".
  */
 export interface PayeeDisplay {
-  payee_id: PayeeId;
-  name_masked: NameMasked;
-  account_masked: AccountMasked;
-  remark: Remark;
-  bank_name: BankName;
+  payee_id: PayeeId1;
+  name_masked: NameMasked1;
+  account_masked: AccountMasked4;
+  remark: Remark1;
+  bank_name: BankName2;
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
  * via the `definition` "OperationResult_TransferReceipt_".
  */
 export interface OperationResultTransferReceipt {
-  operation_id: OperationId1;
-  operation_type: OperationType;
+  operation_id: OperationId3;
+  operation_type: OperationType1;
   operation_status: OperationStatus;
-  recorded_at: RecordedAt;
-  updated_at: UpdatedAt1;
+  recorded_at: RecordedAt1;
+  updated_at: UpdatedAt2;
   receipt: TransferReceipt | null;
   failure: BankError | null;
 }
@@ -630,7 +838,7 @@ export interface TransferReceipt {
   transaction_id: TransactionId;
   payer_account_id: PayerAccountId1;
   payee: PayeeDisplay;
-  amount_fen: AmountFen1;
+  amount_fen: AmountFen3;
   fee_fen: FeeFen;
   arrival_mode: ArrivalMode;
   completed_at: CompletedAt;
@@ -641,22 +849,11 @@ export interface TransferReceipt {
  * via the `definition` "BalanceSnapshot".
  */
 export interface BalanceSnapshot {
-  account_id: AccountId;
+  account_id: AccountId3;
   book_balance_fen: BookBalanceFen;
   frozen_balance_fen: FrozenBalanceFen;
-  available_balance_fen: AvailableBalanceFen;
-  as_of: AsOf;
-}
-/**
- * This interface was referenced by `ContractSchema`'s JSON-Schema
- * via the `definition` "BankError".
- */
-export interface BankError {
-  code: Code;
-  details: Details;
-}
-export interface Details {
-  [k: string]: JsonValue;
+  available_balance_fen: AvailableBalanceFen1;
+  as_of: AsOf1;
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
@@ -767,12 +964,12 @@ export interface VerificationView {
  * via the `definition` "VerificationSummary".
  */
 export interface VerificationSummary {
-  operation_id: OperationId2;
+  operation_id: OperationId4;
   action_revision: ActionRevision;
   source_confirmation_id: SourceConfirmationId;
   source_confirmation_version: SourceConfirmationVersion;
   action_name: ActionName;
-  amount_fen: AmountFen2;
+  amount_fen: AmountFen4;
   payee: PayeeDisplay | null;
   display_fields: DisplayFields1;
 }
@@ -794,18 +991,6 @@ export interface DemoCodeView {
   challenge_id: ChallengeId1;
   code: Code2;
   expires_at: ExpiresAt2;
-}
-/**
- * This interface was referenced by `ContractSchema`'s JSON-Schema
- * via the `definition` "PayeeCandidate".
- */
-export interface PayeeCandidate {
-  payee_id: PayeeId1;
-  name_masked: NameMasked1;
-  account_masked: AccountMasked1;
-  remark: Remark1;
-  bank_name: BankName1;
-  last_transfer_at: LastTransferAt;
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
@@ -988,7 +1173,7 @@ export interface ToolStartedPayload {
   tool_version: ToolVersion;
   arguments_ref: ArgumentsRef;
   decision_id: DecisionId;
-  operation_id: OperationId3;
+  operation_id: OperationId5;
   release_authorization_id?: ReleaseAuthorizationId;
   freeze_id?: FreezeId;
 }
@@ -998,7 +1183,7 @@ export interface ToolStartedPayload {
  */
 export interface ToolFinishedPayload {
   tool_call_id: ToolCallId1;
-  operation_id: OperationId4;
+  operation_id: OperationId6;
   result_ref: ResultRef;
   duration_ms: DurationMs1;
   error: ModuleError | null;
@@ -1024,7 +1209,7 @@ export interface SecurityDecision {
   run_id: RunId5;
   action_name: ActionName1;
   parameters_ref: ParametersRef;
-  operation_id: OperationId5;
+  operation_id: OperationId7;
   action_revision: ActionRevision1;
   phase: Phase;
   operation_level: OperationLevel;
@@ -1049,7 +1234,7 @@ export interface ConfirmationChangedPayload {
   action_revision: ActionRevision2;
   decision: Decision1;
   display_ref: DisplayRef;
-  operation_id: OperationId6;
+  operation_id: OperationId8;
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
@@ -1060,7 +1245,7 @@ export interface VerificationChangedPayload {
   method: Method;
   result: Result;
   purpose: Purpose;
-  operation_id: OperationId7;
+  operation_id: OperationId9;
   verification_id: VerificationId;
   consecutive_code_failures: ConsecutiveCodeFailures1;
   expires_at: ExpiresAt3;
@@ -1071,7 +1256,7 @@ export interface VerificationChangedPayload {
  * via the `definition` "BankObservedPayload".
  */
 export interface BankObservedPayload {
-  operation_id: OperationId8;
+  operation_id: OperationId10;
   lookup: Lookup;
   operation_status: OperationStatus1;
   transaction_id: TransactionId1;
@@ -1098,7 +1283,7 @@ export interface RecoveryCheckedPayload {
  */
 export interface AdminChangedPayload {
   management_operation_id: ManagementOperationId;
-  action: Action;
+  action: Action2;
   target_ref: TargetRef;
   source_round_id: SourceRoundId;
   resulting_round_id: ResultingRoundId;
@@ -1111,7 +1296,7 @@ export interface AdminChangedPayload {
  * via the `definition` "AuditAccessedPayload".
  */
 export interface AuditAccessedPayload {
-  action: Action1;
+  action: Action3;
   filter_ref: FilterRef;
   target_refs: TargetRefs;
   export_id: ExportId;
@@ -1123,7 +1308,7 @@ export interface AuditAccessedPayload {
  * via the `definition` "AuditEventPage".
  */
 export interface AuditEventPage {
-  items: Items3;
+  items: Items4;
   next_cursor: NextCursor3;
 }
 /**
@@ -1131,14 +1316,14 @@ export interface AuditEventPage {
  * via the `definition` "RequestIdOnly".
  */
 export interface RequestIdOnly {
-  request_id: RequestId;
+  request_id: RequestId1;
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
  * via the `definition` "SendMessageRequest".
  */
 export interface SendMessageRequest {
-  request_id: RequestId1;
+  request_id: RequestId2;
   text: Text1;
 }
 /**
@@ -1146,7 +1331,7 @@ export interface SendMessageRequest {
  * via the `definition` "ProvideInputRequest".
  */
 export interface ProvideInputRequest {
-  request_id: RequestId2;
+  request_id: RequestId3;
   interaction_id: InteractionId1;
   text?: Text2;
   selected_option_id?: SelectedOptionId;
@@ -1156,7 +1341,7 @@ export interface ProvideInputRequest {
  * via the `definition` "SubmitDetailsRequest".
  */
 export interface SubmitDetailsRequest {
-  request_id: RequestId3;
+  request_id: RequestId4;
   interaction_id: InteractionId2;
   kind: Kind2;
   fields: Fields;
@@ -1191,7 +1376,7 @@ export interface DeliveryDetailsFields {
  * via the `definition` "ConfirmationAnswerRequest".
  */
 export interface ConfirmationAnswerRequest {
-  request_id: RequestId4;
+  request_id: RequestId5;
   confirmation_version: ConfirmationVersion2;
   choice: Choice;
 }
@@ -1200,7 +1385,7 @@ export interface ConfirmationAnswerRequest {
  * via the `definition` "VerificationCodeRequest".
  */
 export interface VerificationCodeRequest {
-  request_id: RequestId5;
+  request_id: RequestId6;
   submission_id: SubmissionId;
   code: Code3;
 }
@@ -1209,7 +1394,7 @@ export interface VerificationCodeRequest {
  * via the `definition` "FaceAnswer".
  */
 export interface FaceAnswer {
-  request_id: RequestId6;
+  request_id: RequestId7;
   submission_id: SubmissionId1;
   demo_round_id: DemoRoundId6;
   result: Result2;
@@ -1220,7 +1405,7 @@ export interface FaceAnswer {
  */
 export interface SpendingSummary {
   scope: BillScope;
-  as_of: AsOf1;
+  as_of: AsOf2;
   source_as_of: SourceAsOf;
   transaction_count: TransactionCount;
   consumption_gross_fen: ConsumptionGrossFen;
@@ -1249,8 +1434,8 @@ export interface BillScope {
  * via the `definition` "AccountSourceAsOf".
  */
 export interface AccountSourceAsOf {
-  account_id: AccountId1;
-  as_of: AsOf2;
+  account_id: AccountId4;
+  as_of: AsOf3;
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
@@ -1270,7 +1455,7 @@ export interface CategoryTotal {
  */
 export interface SpendingComparison {
   scope: BillScope;
-  as_of: AsOf3;
+  as_of: AsOf4;
   consumption_net_fen: ConsumptionNetFen1;
   delta_fen: DeltaFen;
   change_bps: ChangeBps;
@@ -1285,7 +1470,7 @@ export interface BillDetails {
   category: Category | null;
   transactions: Transactions;
   source_as_of: SourceAsOf1;
-  as_of: AsOf4;
+  as_of: AsOf5;
 }
 /**
  * One bank-recorded flow row as B08 returns it (bank fields §3).
@@ -1295,16 +1480,16 @@ export interface BillDetails {
  */
 export interface Transaction {
   transaction_id: TransactionId2;
-  account_id: AccountId2;
+  account_id: AccountId5;
   occurred_at: OccurredAt1;
-  amount_fen: AmountFen3;
+  amount_fen: AmountFen5;
   nature: Nature;
   category: Category;
   direction: Direction;
   counterparty_id: CounterpartyId;
   counterparty_name: CounterpartyName;
   counterparty_account_masked: CounterpartyAccountMasked;
-  channel: Channel;
+  channel: Channel1;
   summary: Summary;
   original_transaction_id: OriginalTransactionId;
   original_occurred_at: OriginalOccurredAt;
@@ -1319,7 +1504,7 @@ export interface AnomalyResult {
   transaction: Transaction | null;
   findings: Findings;
   checks: Checks;
-  as_of: AsOf5;
+  as_of: AsOf6;
 }
 /**
  * A suspected-anomaly notice; attention is a bill hint, not a security verdict.
@@ -1342,7 +1527,7 @@ export interface AnomalyFinding {
  */
 export interface RuleCheck {
   rule_id: RuleId1;
-  status: Status;
+  status: Status2;
   reason: Reason2;
 }
 /**
@@ -1355,7 +1540,7 @@ export interface TransactionCandidates {
   scope: BillScope;
   candidates: Candidates1;
   source_as_of: SourceAsOf2;
-  as_of: AsOf6;
+  as_of: AsOf7;
 }
 /**
  * L03 result and the controlled report an F21 card reads (§5.3); no raw detail list.
@@ -1378,6 +1563,10 @@ export interface BillReport {
  * via the `definition` "PublicContract".
  */
 export interface PublicContract {
+  CardActionRequest: CardActionRequest;
+  AccountList: AccountList;
+  PayeeList: PayeeList;
+  SubscriptionTaskView: SubscriptionTaskView;
   SessionView: SessionView;
   ThreadView: ThreadView;
   MessageAccepted: MessageAccepted;

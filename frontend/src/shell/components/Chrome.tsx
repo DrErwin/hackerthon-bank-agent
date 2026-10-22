@@ -38,11 +38,13 @@ export function TopBar({ title, connected, expired, origin, userDisplay }: {
   );
 }
 
-export function MessageBubble({ message }: { message: MessageView }) {
+export function MessageBubble({ message, cardSummary }: { message: MessageView; cardSummary?: string }) {
   return (
     <article className={"sh-msg sh-msg-" + message.role}>
       <span className="sr-only">{message.role === "user" ? "您说：" : "助手说："}</span>
-      <p className="sh-bubble">{message.text}</p>
+      {cardSummary ? <div className="sh-bubble"><p>{cardSummary}</p>
+        <details><summary>查看完整说明</summary><p>{message.text}</p></details>
+      </div> : <p className="sh-bubble">{message.text}</p>}
       <time className="sh-time" dateTime={message.created_at}>{clockTime(message.created_at)}</time>
     </article>
   );

@@ -9,7 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
-from app.api.app import FaceAnswer  # noqa: E402
+from app.api.app import CardActionRequest, FaceAnswer  # noqa: E402
 from app.contracts.api import (  # noqa: E402
     ConfirmationAnswerRequest,
     DemoCodeView,
@@ -31,7 +31,8 @@ from app.contracts.api import (  # noqa: E402
     VerificationResponse,
 )
 from app.contracts.audit import AuditEventDetail, AuditEventSummary  # noqa: E402
-from app.contracts.bank import PayeeCandidate  # noqa: E402
+from app.contracts.bank import AccountList, PayeeList, PayeeCandidate  # noqa: E402
+from app.contracts.subscription import SubscriptionTaskView  # noqa: E402
 from app.contracts.bills import (  # noqa: E402
     AnomalyResult,
     BillDetails,
@@ -43,6 +44,10 @@ from app.contracts.security import ConfirmationView, VerificationView  # noqa: E
 from app.contracts.tasks import TaskView, TransferTaskView  # noqa: E402
 
 PUBLIC_MODELS = {
+    "CardActionRequest": CardActionRequest,
+    "AccountList": AccountList,
+    "PayeeList": PayeeList,
+    "SubscriptionTaskView": SubscriptionTaskView,
     "SessionView": SessionView,
     "ThreadView": ThreadView,
     "MessageAccepted": MessageAccepted,

@@ -1,4 +1,5 @@
 import type {
+  CardActionRequest,
   ConfirmationView,
   DemoCodeView,
   DisplayField,
@@ -19,6 +20,7 @@ import type {
 // The generated TaskView is specialised to TransferTaskView; the shell only reads the
 // module-independent envelope and leaves `data` to the business slot.
 export type ShellTask<D = unknown> = Omit<TaskView, "data"> & { data: D | null };
+export type CardSelection = Omit<CardActionRequest, "request_id" | "source_revision">;
 
 export interface TaskEnvelope<D = unknown> {
   task: ShellTask<D>;
@@ -57,6 +59,7 @@ export interface ShellDataSource {
   resumeTask(taskId: string, body: { request_id: string }): Promise<ShellTask>;
   cancelTask(taskId: string, body: { request_id: string }): Promise<ShellTask>;
   queryResult(taskId: string, body: { request_id: string }): Promise<ShellTask>;
+  cardAction?(taskId: string, body: CardActionRequest): Promise<ShellTask>;
   getConfirmation(confirmationId: string): Promise<ConfirmationView>;
   answerConfirmation(
     confirmationId: string,
