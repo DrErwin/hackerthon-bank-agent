@@ -48,10 +48,12 @@ class Planner:
         return self.proposal
 
 
-def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1", prepare=None):
+def make_app(path, *, proposal=None, risk=RiskLevel.LOW, user="U1", prepare=None,
+             active_round=None):
     application = ApplicationStore(path / "application.sqlite")
     runtime = TransferRuntime(
-        application, MemoryAdapter(application, active_round=lambda: "D1"),
+        application, MemoryAdapter(application,
+                                   active_round=active_round or (lambda: "D1")),
         AuditJournal(application.path),
         MockBankService(MockBankStore(path / "bank.sqlite"), demo_secret=b"s" * 32),
         Planner(proposal), authorize_capability=lambda *_: True,

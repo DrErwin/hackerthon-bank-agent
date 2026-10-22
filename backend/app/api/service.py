@@ -26,6 +26,7 @@ from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
 from app.contracts.subscription import SubscriptionTaskView
 from app.contracts.tasks import InteractionRequest, ModuleError, ModuleResult, TaskView, TransferTaskView
+from app.memory.adapter import MemoryContext
 
 from .store import ApiProblem, ApiStore, dump
 
@@ -513,6 +514,24 @@ class ApiService:
         if not rows:
             raise ApiProblem(404, "NOT_FOUND")
         return BillReport.model_validate(json.loads(rows[0]["report_json"]))
+
+    def memory_context(self, identity):
+        """§7.6: the same controlled adapter the harness uses, scoped to this session."""
+        return MemoryContext(identity.user_id, identity.session_id, identity.demo_round_id)
+
+    def memories(self, identity):
+        """F37: only the caller's current-round memories, through the controlled adapter."""
+        return {"items": [{"memory_id": item.memory_id, "version": item.version,
+                           "content": item.content, "updated_at": item.updated_at}
+                          for item in self.runtime.memory.list(self.memory_context(identity))],
+                "demo_round_id": identity.demo_round_id}
+
+    def delete_memories(self, identity, request_id, memory_ids, expected_versions):
+        """F38: explicit, whole-batch, versioned deletion; the adapter keeps tombstones."""
+        result = self.runtime.memory.delete(
+            self.memory_context(identity), str(request_id), memory_ids, expected_versions)
+        return {"deleted_ids": result.deleted_ids, "deleted_at": result.deleted_at,
+                "demo_round_id": result.demo_round_id}
 
     def create_export(self, identity, report_id, kind):
         """F22: card exports render at once; details exports open a verified platform task."""
