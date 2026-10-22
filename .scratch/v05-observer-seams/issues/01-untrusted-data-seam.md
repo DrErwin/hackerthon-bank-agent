@@ -7,7 +7,7 @@ Core scenarios: S1、S2、S3
 Type: 开发
 Owner: Erwin（AI 代行实施与审查，非真人审查）
 Directory: `backend/app/agent_platform/`
-Status: Todo
+Status: Done
 Blocked by: None
 Source issue: Issue #216
 
@@ -54,3 +54,7 @@ def render_block(items: Sequence[UntrustedData]) -> str | None
 - 不改 `app/security/`；不为本票新增审计事件类型（复用冻结的 `context.changed` / `chat.message`）。
 - 不实现 #160 的检测器装配；风险解释由模型输出、确定性门决定是否发起业务。
 - 创建/修改的代码文件如为 CRLF 历史文件，提交前 `git diff --check` 必须为空。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #219](https://github.com/DrErwin/hackerthon-bank-agent/pull/219) squash `83ff583` 已合入。改动 5 文件仅 `backend/app/agent_platform/`；新增 `untrusted_data.py`、`select(untrusted_data=...)`、`handle_message(untrusted_content=...)`、工具返回数据块、资料在场时确定性丢弃提案、`context.changed` 留痕。验证：`backend/app/agent_platform/` 167 passed（新增 8）；全量 backend 1199 passed；CI 绿。审查：AI 代行实施与审查，非真人审查。

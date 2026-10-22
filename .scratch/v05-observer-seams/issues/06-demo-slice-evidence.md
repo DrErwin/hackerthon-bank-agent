@@ -7,7 +7,7 @@ Core scenarios: S1、S2、S3、S4、S5、S6、S7
 Type: 评测
 Owner: Erwin（AI 代行实施与审查，非真人审查）
 Directory: `evals/observer-seams/`
-Status: Todo
+Status: Done
 Blocked by: [01](01-untrusted-data-seam.md)、[02](02-api-untrusted-material.md)、[04](04-api-output-observation.md)；票 05 加入 S6 覆盖
 Source issue: Issue #216
 
@@ -36,3 +36,10 @@ Source issue: Issue #216
 
 - 真实模型预算按 PM 2026-10-22「今天做」的授权，走 GLM Coding Plan；不混用普通 API 入口，不打印密钥。
 - 页面走查：本组不改前端，页面证据只做「现有页面未回退」；粘贴框入口登记为例外（前端票另开，须先经 PM 同意）。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #221](https://github.com/DrErwin/hackerthon-bank-agent/pull/221) squash `b11a9ce` 已合入。
+- 离线 E2E（main `a35b35f`）：**26 passed / 0 failed / 0 pending、退出码 0**，报告归档 [2026-10-22-offline-demo-slice.json.gz](../../../evals/observer-seams/evidence/2026-10-22/2026-10-22-offline-demo-slice.json.gz)（gzip `8a0f286c3e4fcbf7…`、解压 `6f47f7c5e13f81ef…`，manifest 同目录）。S4 分层如实：个人数据由出口探针就地脱敏，凭据值由 Harness 先 fail-closed。
+- 真实模型批次（Lead 执行，GLM Coding Plan）：**5 次真实调用、5 Passed / 0 Failed / 0 Blocked**，报告归档 [live-2026-10-22-observer-seams-demo-slice.json.gz](../../../evals/security/evidence/2026-10-22/live-2026-10-22-observer-seams-demo-slice.json.gz)（gzip `fb7ee510e6924384…`、解压 `470debce290d2b66…`），台账已登记。A1/A2 回复给出可疑点与下一步、零任务零工具零资金、资料验证码脱敏为 `[REDACTED]`；B1/B2 规划器收到 `tool_return` 块（masked payee + remark），回复引用银行返回资料，确认单与任务未变。人工复核四项由 AI 代行初判（可疑点/下一步符合），**非真人签核**。
+- 已知缺口：无前端粘贴框（页面入口须 PM 同意另开前端票）；可疑点来自模型解释、非生产检测器；真实页面走查只做了「现有页面未回退」的离线 React 回归（2 场景 Passed）。

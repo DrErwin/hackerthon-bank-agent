@@ -1,8 +1,8 @@
 # v0.5 可信观察接缝与四项体验能力（v05-observer-seams）
 
-> Status: Confirmed — 2026-10-22 PM Erwin 决定「必须做、今天做」，来源 [Issue #216](https://github.com/DrErwin/hackerthon-bank-agent/issues/216)
+> Status: **Delivered（2026-10-22）** — 九张实施票已合入 main（`b11a9ce` 起）；票 10（记忆真实载入会话证据）同日收尾。确认记录：2026-10-22 PM Erwin 决定「必须做、今天做」，来源 [Issue #216](https://github.com/DrErwin/hackerthon-bank-agent/issues/216)
 > Owner：Erwin（平台 / 底座）；安全规则由 Ringo 侧定，本组按 PM 决定「AI 代行实施与审查、非 Ringo 本人审查」留痕
-> 版本：v0.5.0；对应 [v0.5 需求](../../docs/versions/v0.5.0/requirements.md)；补 v0.4 收口登记例外 E7
+> 版本：v0.5.0；对应 [v0.5 需求](../../docs/versions/v0.5.0/requirements.md)；v0.4 例外 E7 已**部分解除**（见 [观察接缝交付记录](../../evals/security/observers-2026-10-22.md)）
 > 交接：`C:\Users\57652\AppData\Local\Temp\handoff-2026-10-22-observer-seams.md`
 
 ## 1. 目的
@@ -31,6 +31,9 @@ v0.4 收口把四项缺失登记为例外 E7：模型看不到工具返回、收
 | [05](issues/05-api-memory-endpoints.md) | `backend/app/api/` | F37 `GET /api/v1/memories`、F38 `POST /api/v1/memories/delete`（契约 §7.6），越权 403 / 版本冲突 409 / 旧轮次 409，删除留墓碑 | None（复用 `memory/` 已有能力） |
 | [06](issues/06-demo-slice-evidence.md) | `evals/observer-seams/` | Demo 切片 E2E + 证据：可疑短信 → 哪里可疑 + 下一步 → 零工具/零资金；离线可复现报告 + 真实模型批次报告（预算按 PM 当日授权，小批量） | 01、02、04、07 |
 | [07](issues/07-reply-credential-gate.md) | `backend/app/agent_platform/` | 回复话术门槛收窄：可提醒「验证码别给人」，但不得含凭据值（票 06 实施中发现的 v0.4 既有门缺陷） | 01 |
+| [08](issues/08-probe-precision.md) | `backend/app/audit/` | 输出探针凭据口径收紧：机器载荷（审计包 JSON、UUID、duration_ms）不误报，真凭据仍拦（修 main 红） | 03 |
+| [09](issues/09-output-observation-test-layering.md) | `backend/app/api/` | 输出观察用例分层：回复凭据由 Harness 先拦，出口探针改用任务消息验证（解票 07 引入的用例冲突） | 04、07 |
+| [10](issues/10-memory-live-load.md) | `evals/observer-seams/` | 记忆真实载入会话：真实模型 system prompt 含预置记忆 + 回复复述（1 次真实调用，补第 3 项验收） | 05、06 |
 
 不在本组范围：生产检测器装配（#160）、#215 语义选型、前端页面入口（粘贴框 / 记忆管理页，用户可见版式改动须先经 PM 同意，另开前端票）、公共契约字段的新增（本组用兼容扩展的可选字段并在契约 §8 登记）、跨场景联动、账单评测补量。
 

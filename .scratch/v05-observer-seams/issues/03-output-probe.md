@@ -7,7 +7,7 @@ Core scenarios: S4、S5
 Type: 开发
 Owner: Erwin（AI 代行实施与审查，非 Ringo 本人审查）
 Directory: `backend/app/audit/`
-Status: Todo
+Status: Done
 Blocked by: None
 Source issue: Issue #216
 
@@ -54,3 +54,7 @@ def probe_secrets(text: str) -> tuple[bool, str]   # 只查认证秘密（导出
 
 - 本票只提供探针；出口接线在票 04（`backend/app/api/`）。不改 `journal.py` 既有 `redact` 行为。
 - 不新增审计事件类型；命中留痕由票 04 用既有 `chat.message` / `audit.accessed` 事件表达。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #218](https://github.com/DrErwin/hackerthon-bank-agent/pull/218) squash `23f6d42` 已合入。`probe_output` / `probe_secrets` 四类命中 + 审计口径一致的脱敏文本；验证 C01-C05（探针结果写入真实 AuditJournal 后回放，脱敏逐字节一致）。已知边界：无分隔符 6 位码只报告不掩码（票 04/07 按命中拦截）；机器载荷误报由票 08 修复。审查：AI 代行，非 Ringo 本人审查。

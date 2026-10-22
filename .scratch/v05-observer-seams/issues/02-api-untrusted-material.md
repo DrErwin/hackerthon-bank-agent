@@ -7,7 +7,7 @@ Core scenarios: S1、S2
 Type: 开发
 Owner: Erwin（AI 代行实施与审查，非真人审查）
 Directory: `backend/app/api/`
-Status: Todo
+Status: Done
 Blocked by: [v05-observer-seams/01 不可信数据接缝](01-untrusted-data-seam.md)
 Source issue: Issue #216
 
@@ -43,3 +43,7 @@ class MessageRequest(SendMessageRequest):
 
 - 前端入口不在本票：粘贴框属于用户可见页面改动，须先经 PM 同意并另开前端票；本票只交 API 能力并如实登记。
 - 不打印、不提交 `.env.local-demo.json`。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #220](https://github.com/DrErwin/hackerthon-bank-agent/pull/220) squash `ad2d4f7` 已合入（Depends on PR #219）。`MessageRequest.untrusted_content`（≤8000）+ 独立脱敏路径 + `api_message_jobs` 加列（旧库 ALTER）+ Harness 条件传参；契约 §8 追加一条兼容扩展。验证：B01-B05 6 passed（无 skip）；api 目录 117 passed；CI 绿。已知限制：资料只走消息 job 新请求路径；用户消息气泡只回显 `text`。

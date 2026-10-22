@@ -7,7 +7,7 @@ Core scenarios: S4、S5
 Type: 开发
 Owner: Erwin（AI 代行实施与审查，非 Ringo 本人审查）
 Directory: `backend/app/api/`
-Status: Todo
+Status: Done
 Blocked by: [v05-observer-seams/03 输出侧观察最小探针](03-output-probe.md)；回复路径另依赖 [v05-observer-seams/02](02-api-untrusted-material.md)
 Source issue: Issue #216
 
@@ -36,3 +36,7 @@ Source issue: Issue #216
 
 - 导出探针只查认证秘密，不把「他人账单数据」当作泄漏（账单明细本来就是导出内容）；个人数据脱敏仍由导出生成器与审计 `redact` 负责。
 - 命中留痕不得包含原文；证据只放类别与处置。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #222](https://github.com/DrErwin/hackerthon-bank-agent/pull/222) squash `3f8d71d` 已合入。assistant 回复出口 credential 整条拦截 / 个人数据就地脱敏 / 命中写 `chat.message` denied；导出 `probe_secrets` 只做布尔拦截 + `audit.accessed(permitted=false)`；F37 内容脱敏。验证 D01-D05（api 123 passed）。已知限制：`task_updated` 载荷按 §6.5 保留模块 TaskView，探针作用于消息视图 / `message_completed` SSE / 导出。合并后暴露的探针误报（main CI 红）由票 08 修复；用例分层由票 09 适配。

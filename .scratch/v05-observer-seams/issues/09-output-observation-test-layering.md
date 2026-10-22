@@ -7,7 +7,7 @@ Core scenarios: S4（输出侧观察）
 Type: 开发（用例适配）
 Owner: Erwin（AI 代行实施与审查，非真人审查）
 Directory: `backend/app/api/`
-Status: Todo
+Status: Done
 Blocked by: [v05-observer-seams/04](04-api-output-observation.md)、[v05-observer-seams/07](07-reply-credential-gate.md)
 Source issue: Issue #216
 
@@ -33,3 +33,7 @@ Source issue: Issue #216
 
 - 冻结点：本票只改测试；若发现生产路径缺陷回到对应实施票。
 - 与票 07 的合并顺序：本票可在票 07 之前或之后合入（用例对两层都成立），用于解除 #223 的 CI 阻塞。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #225](https://github.com/DrErwin/hackerthon-bank-agent/pull/225) squash `4ee336a` 已合入（只改测试）。D01 改为分层无关（交付面无原文即可），新增 D01b 用任务结果消息独立验证 API 出口探针（`OUTPUT_BLOCKED_REPLY` + `OUTPUT_PROBE_BLOCKED`）。验证：api 124 passed、全量 1223 passed、在票 07 head 上前后都成立；合并后 main CI 绿。

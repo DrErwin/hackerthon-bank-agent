@@ -7,7 +7,7 @@ Core scenarios: S5（导出不得因机器数据被误拦）
 Type: 开发（缺陷修复）
 Owner: Erwin（AI 代行实施与审查，非 Ringo 本人审查）
 Directory: `backend/app/audit/`
-Status: Todo
+Status: Done
 Blocked by: [v05-observer-seams/03](03-output-probe.md)（探针已合入）
 Source issue: Issue #216
 
@@ -39,3 +39,7 @@ Source issue: Issue #216
 
 - 只改 `backend/app/audit/`；不改票 04 的接线（`probe_secrets` 仍是布尔门）。
 - 修复后 `probe_secrets` 对审计/账单导出不再误拦，真凭据（标签 + 值）仍拦截。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #224](https://github.com/DrErwin/hackerthon-bank-agent/pull/224) squash `86e3752` 已合入（修 main CI 红）。6 位码凭据改为短语相邻判定（中文标签紧邻 / 数字在前中文短语 / 英文独立词），机器载荷零误报；真凭据仍拦截。验证：`backend/app/audit/` 19 passed（新增 H01/H04）+ F35 审计导出用例恢复通过；合并后 main CI 恢复绿。

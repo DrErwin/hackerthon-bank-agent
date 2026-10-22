@@ -7,7 +7,7 @@ Core scenarios: S6
 Type: 开发
 Owner: Erwin（AI 代行实施与审查，非 Ringo 本人审查）
 Directory: `backend/app/api/`
-Status: Todo
+Status: Done
 Blocked by: None（复用 `backend/app/memory/` 已有 `MemoryAdapter.list/delete`）
 Source issue: Issue #216
 
@@ -34,3 +34,7 @@ Source issue: Issue #216
 
 - 已知限制：契约 §7.6 期望的「工具开始/结果记录所删编号与版本」审计事件受冻结事件类型限制，本票不改契约，登记为缺口；删除的幂等记录与墓碑已可回查。
 - 前端记忆管理页不在本票（用户可见页面改动须先经 PM 同意，另开前端票）。
+
+## Comments
+
+- **2026-10-22 交付**：[PR #217](https://github.com/DrErwin/hackerthon-bank-agent/pull/217) squash `c637342` 已合入。F37 `GET /api/v1/memories`、F38 `POST /api/v1/memories/delete`，复用 `MemoryAdapter.list/delete`、`mutation()` 收据幂等、错误映射 403/409/400。验证 E01-E05（5 个 HTTP E2E，含墓碑阻止回灌）。已知限制：契约 §7.6 期望的删除工具审计事件受冻结事件类型限制，本票不改契约。

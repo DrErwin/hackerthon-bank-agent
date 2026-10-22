@@ -7,7 +7,7 @@ Core scenarios: S1（写清可疑点与下一步）、S4（输出不得带凭据
 Type: 开发
 Owner: Erwin（AI 代行实施与审查，非真人审查）
 Directory: `backend/app/agent_platform/`
-Status: Todo
+Status: Done
 Blocked by: [v05-observer-seams/01](01-untrusted-data-seam.md)（同一目录的接缝已合入）
 Source issue: Issue #216
 
@@ -44,3 +44,4 @@ Source issue: Issue #216
 - **2026-10-22 实施取舍（Lead 裁定，A 方案）**：票 03 探针的 credential 口径复用 `journal.SECRET_LABEL`，不含英文 `password / passwd` 标签后的值（实测 `probe_output("password: SECRET789").findings == []`，`redact` 也原样保留）。若严格只按探针判定，既有安全用例 `test_harness.py::test_reply_model_secrets_never_persist_in_checkpoints_or_audit[password: SECRET789]` 会从「拒绝」变成「放行并写进审计证据」，属真实安全回退。因此在回复门加一条**窄补充规则**：`(?i)(?:password|passwd|pwd)\s*(?:[:：=]|是|为)\s*[A-Za-z0-9!@#$%^&*()_\-]{4,}` 命中即 fail-closed（值必须是 ASCII 且 ≥4 位，纯中文提醒不受影响）。`backend/app/audit/` 既有口径不变，英文标签盲区作为后续项登记（不在本票改 `backend/app/audit/`）。
 - 验收补充：G02 增英文标签用例（`password: SECRET789` 仍拒绝且不落盘）；新增「请不要把 password 或密码告诉别人」放行用例。
 - **2026-10-22 票 06 发现（同源证据）**：收窄前「登录码 135790」这类无标签 6 位码既能穿过旧回复门，又不会被 `redact` 掩码，会留在 `model.finished` 审计证据里；票 07 用探针 credential 判定后该回复在 Harness 层即 fail-closed，不再产生带原文的响应证据（票 06 的 S4 断言据此转绿）。
+- **2026-10-22 交付**：[PR #223](https://github.com/DrErwin/hackerthon-bank-agent/pull/223) squash `a35b35f` 已合入（rebase 到含票 08/09 的 main）。模型回复门改用 `probe_output` credential 判定 + 英文 password/passwd/pwd 窄补充；用户输入词门不变。验证 G01-G05 8 项 E2E，全量 backend 1233 passed。与票 04 的分层冲突按 Lead 裁定 A 保留 harness fail-closed，票 09 已适配用例。
