@@ -5,6 +5,7 @@ Directory: `backend/app/api/`
 Owner: Erwin / Codex 按用户授权代行
 Status: ready-for-agent
 Priority: P1
+Blocked by: bank-e2e-remediation/09b
 Source issue: [#227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
 
 在消息受理时固定同一用户、轮次、会话、聊天中最近的已完成账单任务，随消息工作项持久化。处理中重新检查归属，不从其他聊天或旧会话继承。来源仅供只读续查，不授权转账或审批。

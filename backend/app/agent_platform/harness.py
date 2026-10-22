@@ -24,6 +24,8 @@ from app.contracts.audit import (
     ModelUsage, RecoveryCheckedPayload, TaskTransitionPayload,
 )
 from app.contracts.common import TaskStatus
+from app.contracts.bills import AnomalyResult, BillDetails, BillReport, BillScope, SpendingSummary
+from pydantic import ValidationError
 from app.contracts.platform import CapabilityDefinition, StartTransferInput, TrustedContext
 from app.contracts.tasks import ModuleError, ModuleResult, TransferTaskView
 from app.memory.adapter import MemoryAdapter, MemoryContext
@@ -557,6 +559,33 @@ class AgentHarness:
         )
         return outcome
 
+    def _inherited_bill_scope(self, trusted, capability):
+        if (not trusted.parent_task_id or capability not in
+                {"bills.summarize", "bills.generate_report", "bills.detect_anomalies"}):
+            return None
+        source = self.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.parent_task_id)
+        if source is None or source.session_id != trusted.session_id or source.status != TaskStatus.SUCCEEDED:
+            return None
+        kind = source.snapshot.get("capability_name")
+        data = (source.snapshot.get("result") or {}).get("data")
+        if not isinstance(data, dict):
+            return None
+        try:
+            if kind == "bills.generate_report":
+                result = BillReport.model_validate(data)
+            elif kind == "bills.summarize":
+                result = (BillDetails if "transactions" in data else SpendingSummary).model_validate(data)
+            elif kind == "bills.detect_anomalies" and source.snapshot.get("completed_bill_scope") is not None:
+                AnomalyResult.model_validate(data)
+                # The module reports the actual completed range after any date
+                # or account changes; the initial inherited range is not a result.
+                return BillScope.model_validate(source.snapshot["completed_bill_scope"]).model_dump(mode="json")
+            else:
+                return None
+        except ValidationError:
+            return None
+        return result.scope.model_dump(mode="json")
+
     def start(self, trusted: TrustedContext, request_id: UUID,
               intent_text: str) -> ModuleResult:
         result = self.handle_message(trusted, request_id, intent_text)
@@ -616,6 +645,8 @@ class AgentHarness:
                     trusted.demo_round_id, trusted.run_id, TaskStatus.RUNNING,
                     {"request_id": str(request_id), "intent_text": intent_text,
                      "config_version": self.planner.config_version,
+                     "bill_source_task_id": trusted.parent_task_id,
+                     "bill_scope": self._inherited_bill_scope(trusted, outcome.capability_name),
                      "trace_id": trace_id},
                 )
             else:
@@ -683,14 +714,21 @@ class AgentHarness:
             registration = self.registry.get(proposal.capability_name)
             saver = self.memory.checkpointer(context, trusted.task_id)
             entry = registration.factory(trusted, saver, trace)
+            bill_options = {}
+            if (proposal.capability_name in {"bills.summarize", "bills.generate_report", "bills.detect_anomalies"}
+                    and snapshot.get("bill_scope") is not None):
+                bill_options["inherited_scope"] = BillScope.model_validate(snapshot["bill_scope"])
             result = entry.start(trusted, StartTransferInput(
                 request_id=request_id, intent_text=intent_text,
                 payer_account_id=proposal.payer_account_id,
                 payee_hint=proposal.payee_hint, amount_fen=proposal.amount_fen,
-            ), thread_id=task.checkpoint_thread_id)
+            ), thread_id=task.checkpoint_thread_id, **bill_options)
             self._check_result_scope(result, trusted)
             updated = {**snapshot, "capability_name": proposal.capability_name,
                        "result": result.model_dump(mode="json")}
+            if proposal.capability_name == "bills.detect_anomalies" and result.status == TaskStatus.SUCCEEDED:
+                completed = entry.completed_scope(trusted, thread_id=task.checkpoint_thread_id)
+                updated["completed_bill_scope"] = completed.model_dump(mode="json") if completed else None
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 task.revision, trusted.run_id, result.status,
@@ -930,10 +968,14 @@ class AgentHarness:
             saver = self.memory.checkpointer(context, trusted.task_id)
             entry = registration.factory(trusted, saver, trace)
             result = None
+            completed_scope = None
             try:
                 result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
                 self._check_result_scope(result, trusted)
                 checkpoint_id = self._checkpoint_id(context, task)
+                if task.snapshot["capability_name"] == "bills.detect_anomalies" and result.status == TaskStatus.SUCCEEDED:
+                    completed = entry.completed_scope(trusted, thread_id=task.checkpoint_thread_id)
+                    completed_scope = completed.model_dump(mode="json") if completed else None
             except (RuntimeError, OSError, DatabaseError):
                 # The trusted task was checked before entering the capability.
                 # Bookkeeping remains possible if its session expires inside it;
@@ -981,7 +1023,8 @@ class AgentHarness:
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 task.revision, trusted.run_id, result.status, checkpoint_id,
-                {**task.snapshot, "result": result.model_dump(mode="json")},
+                {**task.snapshot, "result": result.model_dump(mode="json"),
+                 "completed_bill_scope": completed_scope},
             )
             trace.record(
                 "recovery.checked",

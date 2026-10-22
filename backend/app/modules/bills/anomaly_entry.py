@@ -24,7 +24,7 @@ from app.contracts.platform import StartTransferInput, TrustedContext
 from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
 from ._anomalies import BEIJING
 from .anomaly_service import BillsAnomalyService, minus_months
-from .entry import _SECRET, _actor, month_range, parse_month
+from .entry import _SECRET, _actor, inherit_scope, month_range, parse_month
 from .service import BillsError, fail, money
 
 _CHANNEL = "bills_anomaly_state"
@@ -247,7 +247,8 @@ class BillsAnomalyEntry:
         return self._wait(context, state, "找到多笔候选流水，请选择要核对的一笔（时间为北京时间）。",
                           choices, "candidates", data=result.data)
 
-    def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None):
+    def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None,
+              inherited_scope: BillScope | None = None):
         if not isinstance(request, StartTransferInput) or _SECRET.search(request.intent_text):
             return fail(trusted, BillsError("INVALID_ARGUMENT"))
         _, state = self._load(trusted, thread_id)
@@ -264,7 +265,7 @@ class BillsAnomalyEntry:
             clues, ambiguous = _clues(text)
             constraints = _intent_constraints(text)
             scan = any(word in constraints for word in ("周期扣款", "重复扣款", "每月扣款"))
-            single = bool(clues) or any(word in constraints for word in ("这笔", "那笔", "单笔", "核对交易", "异常交易"))
+            single = bool(clues) or any(word in constraints for word in ("这笔", "那笔", "单笔", "核对交易", "异常交易", "陌生扣款", "不认识的扣款"))
             state = {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
                 "request_id": str(request.request_id), "intent_digest": digest,
                 "mode": None if scan and single else "scan" if scan else "locate" if single else None,
@@ -272,6 +273,7 @@ class BillsAnomalyEntry:
                 "clues_need_confirmation": ambiguous,
                 "all_accounts": any(word in constraints for word in ("所有账户", "全部账户", "所有本人账户")),
                 "account_ids": None, "selected": None, "choices": {}, "wait_reason": None}
+            inherit_scope(state, constraints, inherited_scope)
             self._save(trusted, thread_id, state)
         result = self._advance(trusted, state)
         state["result"] = result.model_dump(mode="json")
@@ -318,6 +320,17 @@ class BillsAnomalyEntry:
         state["result"] = result.model_dump(mode="json")
         self._save(trusted, thread_id, state)
         return result
+
+    def completed_scope(self, trusted: TrustedContext, *, thread_id=None) -> BillScope | None:
+        """Actual successful query bounds, including explicit changes after inheritance."""
+        _, state = self._load(trusted, thread_id)
+        if state is None:
+            return None
+        if state["session_id"] != trusted.session_id:
+            raise PermissionError("ACCESS_DENIED")
+        if state.get("result", {}).get("status") != "succeeded":
+            return None
+        return BillScope(account_ids=state["account_ids"], start_at=state["period"][0], end_at=state["period"][1])
 
     def checkpoint_context(self, trusted: TrustedContext, *, thread_id=None):
         _, state = self._load(trusted, thread_id)

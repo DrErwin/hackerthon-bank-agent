@@ -35,6 +35,36 @@ def payload(result, model=AnomalyResult):
     return model.model_validate(result.data.model_dump() if hasattr(result.data, "model_dump") else result.data)
 
 
+def test_unknown_charge_followup_reuses_scope_and_existing_locate_flow():
+    from app.contracts.bills import BillScope
+    reads, saver = Reads([transaction()], accounts=("a1",)), Saver()
+    result = entry(reads, saver).start(CTX,
+        StartTransferInput(request_id=uuid4(), intent_text="核对陌生扣款"), thread_id="thread1",
+        inherited_scope=BillScope(account_ids=["a1"], start_at=START, end_at=END))
+    assert result.status == "succeeded"
+    assert payload(result).transaction.transaction_id == "p"
+    assert any(call[0] == "transactions" for call in reads.calls)
+
+
+def test_completed_scope_reports_actual_changed_month_and_account():
+    from app.contracts.bills import BillScope
+    august = START.replace(month=8)
+    reads, saver = Reads([transaction(at=august)], accounts=("a1",)), Saver()
+    module = entry(reads, saver)
+    original = BillScope(account_ids=["old-account"], start_at=START, end_at=END)
+    result = module.start(CTX, StartTransferInput(request_id=uuid4(),
+        intent_text="核对2026年8月陌生扣款，换张卡"), thread_id="thread1", inherited_scope=original)
+    assert result.status == "waiting_input"
+    assert module.completed_scope(CTX, thread_id="thread1") is None
+    result = choose(reads, saver, result, index=0)
+    assert result.status == "succeeded"
+    scope = entry(reads, saver).completed_scope(CTX, thread_id="thread1")
+    assert scope.account_ids == ["a1"] and scope.start_at == august
+    assert scope.end_at == START
+    with pytest.raises(PermissionError):
+        module.completed_scope(CTX.model_copy(update={"session_id": "OTHER"}), thread_id="thread1")
+
+
 def test_separate_registered_l02_keeps_the_frozen_l01_definition():
     before = MANIFEST.model_dump(mode="json")
     registry = CapabilityRegistry()
