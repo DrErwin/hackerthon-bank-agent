@@ -321,6 +321,17 @@ class BillsAnomalyEntry:
         self._save(trusted, thread_id, state)
         return result
 
+    def completed_scope(self, trusted: TrustedContext, *, thread_id=None) -> BillScope | None:
+        """Actual successful query bounds, including explicit changes after inheritance."""
+        _, state = self._load(trusted, thread_id)
+        if state is None:
+            return None
+        if state["session_id"] != trusted.session_id:
+            raise PermissionError("ACCESS_DENIED")
+        if state.get("result", {}).get("status") != "succeeded":
+            return None
+        return BillScope(account_ids=state["account_ids"], start_at=state["period"][0], end_at=state["period"][1])
+
     def checkpoint_context(self, trusted: TrustedContext, *, thread_id=None):
         _, state = self._load(trusted, thread_id)
         return None if state is None else trusted.model_copy(update={"session_id": state["session_id"]})

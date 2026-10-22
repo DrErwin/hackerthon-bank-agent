@@ -5,7 +5,7 @@ Directory: `backend/app/agent_platform/`
 Owner: Erwin / Codex 按用户授权代行
 Status: ready-for-agent
 Priority: P1
-Blocked by: bank-e2e-remediation/09
+Blocked by: bank-e2e-remediation/09, bank-e2e-remediation/09c
 Source issue: [#227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
 
 只对账单汇总、报告和异常核对，将服务器已保存的成功账单范围传给新查询。重新核对来源用户、轮次、会话和公共结果类型，保存来源引用；不接受模型生成的范围。原报告保持不变，新查询仍过银行读取权限门。
