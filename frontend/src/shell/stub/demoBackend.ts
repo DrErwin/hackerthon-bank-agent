@@ -583,6 +583,25 @@ export function createDemoBackend(options: StubOptions = {}) {
       });
     }),
 
+    reviseDraft: (taskId, { request_id, task_revision, ...fields }) => mutate((state) => {
+      requireUser(state);
+      return once(state, request_id, () => {
+        const record = getRecord(state, taskId);
+        if (record.phase !== "confirm" || record.task.task_revision !== task_revision) {
+          throw new ApiError(409, "TASK_REVISION_STALE", "请刷新当前确认单。");
+        }
+        const old = state.confirmations[record.task.interaction!.record_ref!];
+        const { payee_hint, ...transferFields } = fields;
+        const payee = payee_hint ? Object.values(PAYEES).find((item) => item.remark === payee_hint || item.name_masked === payee_hint) : undefined;
+        if (payee_hint && !payee) throw new ApiError(400, "INVALID_OPTION", "此演示只支持列出的收款人。");
+        if (fields.payer_account_id && fields.payer_account_id !== "demo-acct-1234") throw new ApiError(400, "INVALID_OPTION", "此演示只有当前付款账户。");
+        old.decision = "superseded";
+        record.task.data = { ...record.task.data!, ...transferFields, ...(payee ? { payee } : {}) };
+        newConfirmation(state, record, old.confirmation_version + 1);
+        return record.task as ShellTask;
+      });
+    }),
+
     resumeTask: (taskId, { request_id }) => mutate((state) => {
       requireUser(state);
       return once(state, request_id, () => {

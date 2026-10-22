@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../api";
 import type { ConfirmationView, DemoCodeView, MessageView, SessionView, TaskRecordsView, ThreadView, VerificationView } from "../contracts";
 import { isTerminal, newRequestId } from "./format";
-import type { HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
+import type { DraftChanges, HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
 
 const ENTERED_KEY = "fe-shell-entered";
 const historyKey = (threadId: string) => "fe-shell-history:" + threadId;
@@ -27,7 +27,7 @@ function writeHistory(threadId: string, history: Record<string, HistoryEntry[]>)
 }
 
 export function restoreServerRecordHistory(existing: HistoryEntry[], records: TaskRecordsView): HistoryEntry[] {
-  const inputEntries = existing.filter((entry) => entry.kind === "input");
+  const inputEntries = existing.filter((entry) => entry.kind === "input" || entry.kind === "confirmation" && entry.snapshot);
   const recordEntries = [
     ...records.confirmations.map((item) => ({
       kind: "confirmation" as const,
@@ -232,7 +232,9 @@ export function useConversation(source: ShellDataSource) {
         } else if (event.event_type === "session_expired") {
           expire();
         } else if (event.event_type === "stream_error") {
-          setPageError("连接有点不稳定，页面会自动补齐最新状态。");
+          setAwaitingReply(false);
+          const error = event.payload as { reason?: string };
+          setPageError(error.reason || "这条消息处理失败，请查看当前任务状态后再试。");
         }
       },
       (isConnected) => {
@@ -244,12 +246,6 @@ export function useConversation(source: ShellDataSource) {
     );
     return unsubscribe;
   }, [expire, expired, loadThread, source, threadId, upsertTask]);
-
-  useEffect(() => {
-    if (!awaitingReply) return;
-    const timer = window.setTimeout(() => setAwaitingReply(false), 15_000);
-    return () => window.clearTimeout(timer);
-  }, [awaitingReply]);
 
   // Every interaction the server shows becomes a history entry that stays visible read-only.
   useEffect(() => {
@@ -283,7 +279,7 @@ export function useConversation(source: ShellDataSource) {
       const task = tasks.get(taskId)?.task;
       if (!task) continue;
       for (const entry of entries) {
-        if (entry.kind === "input") continue;
+        if (entry.kind === "input" || entry.kind === "confirmation" && entry.snapshot) continue;
         const isCurrent = task.interaction?.record_ref === entry.id;
         const key = entry.id + ":" + (isCurrent ? task.task_revision : "final");
         if (fetched.current.has(key)) continue;
@@ -360,6 +356,42 @@ export function useConversation(source: ShellDataSource) {
       source.answerConfirmation(view.confirmation_id, { request_id, confirmation_version: view.confirmation_version, choice }));
     if (!result) return false;
     setConfirmations((current) => ({ ...current, [view.confirmation_id]: { ...view, decision: choice === "approve" ? "approved" : "cancelled" } }));
+    upsertTask(result);
+    return true;
+  }
+
+  async function provideText(task: ShellTask, text: string): Promise<boolean> {
+    const interaction = task.interaction;
+    if (!interaction || interaction.kind !== "input" || !task.allowed_actions.includes("provide_input")
+        || task.recovery_required || bootRecovery.has(task.task_id)) return false;
+    const option = interaction.options.find((item) => item.id === text.trim() || item.label === text.trim());
+    const answer = option ? { selected_option_id: option.id } : { text: text.trim() };
+    const result = await act(task.task_id, "input:" + interaction.interaction_id + ":" + JSON.stringify(answer), (request_id) =>
+      source.provideInput(task.task_id, { request_id, interaction_id: interaction.interaction_id, ...answer }));
+    if (!result) return false;
+    // Do not persist arbitrary user text in local history.
+    setHistory((current) => ({ ...current, [task.task_id]: (current[task.task_id] ?? []).map((entry) =>
+      entry.kind === "input" && entry.id === interaction.interaction_id ? { ...entry, selectedLabel: option?.label ?? "已补充信息" } : entry) }));
+    upsertTask(result);
+    return true;
+  }
+
+  async function reviseDraft(task: ShellTask, view: ConfirmationView, changes: DraftChanges): Promise<boolean> {
+    const result = await act(task.task_id, "draft:" + task.task_id + ":" + task.task_revision + ":" + JSON.stringify(changes), (request_id) =>
+      source.reviseDraft(task.task_id, { request_id, task_revision: task.task_revision, ...changes }));
+    if (!result) return false;
+    // Keep the replaced masked confirmation visibly read-only, even when the
+    // backend reuses its record id with an incremented confirmation version.
+    setHistory((current) => ({ ...current, [task.task_id]: (current[task.task_id] ?? []).map((entry) =>
+      entry.kind === "confirmation" && entry.id === view.confirmation_id
+        ? { kind: "confirmation", id: view.confirmation_id + ":v" + view.confirmation_version,
+            snapshot: { ...view, decision: "superseded" } }
+        : entry) }));
+    setConfirmations((current) => {
+      const next = { ...current };
+      delete next[view.confirmation_id];
+      return next;
+    });
     upsertTask(result);
     return true;
   }
@@ -463,18 +495,20 @@ export function useConversation(source: ShellDataSource) {
   }
 
   async function send(text: string): Promise<boolean> {
-    if (!thread || sending || expired) return false;
+    if (!thread || sending || awaitingReply || expired || inflight.current.has("message")) return false;
     const pending = pendingMessage ?? { id: newRequestId(), text: text.trim() };
     if (!pending.text) return false;
     setPendingMessage(pending);
     setSending(true);
+    inflight.current.add("message");
+    setAwaitingReply(true);
     setPageError("");
     try {
       await source.sendMessage(thread.thread_id, { request_id: pending.id, text: pending.text });
       setPendingMessage(null);
-      setAwaitingReply(true);
       return true;
     } catch (error) {
+      setAwaitingReply(false);
       if (error instanceof ApiError && error.status === 401) {
         setPendingMessage(null);
         expire();
@@ -487,6 +521,7 @@ export function useConversation(source: ShellDataSource) {
       }
       return false;
     } finally {
+      inflight.current.delete("message");
       setSending(false);
     }
   }
@@ -519,7 +554,7 @@ export function useConversation(source: ShellDataSource) {
     pendingMessage,
     sending,
     awaitingReply,
-    actions: { send, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask },
+    actions: { send, provideText, reviseDraft, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask },
   };
 }
 

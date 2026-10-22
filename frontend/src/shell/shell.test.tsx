@@ -101,42 +101,45 @@ describe("v0.4 shell with stub data", () => {
     expect(answer).toHaveBeenCalledTimes(1);
   });
 
-  it("cancels the old confirmation and prepares an editable modification without auto-submitting", async () => {
+  it("edits the original draft and shows a fresh confirmation without cancelling or sending a prompt", async () => {
     const backend = makeBackend();
     const answer = vi.spyOn(backend.user, "answerConfirmation");
     const send = vi.spyOn(backend.user, "sendMessage");
+    const revise = vi.spyOn(backend.user, "reviseDraft");
     renderPage(backend);
     await sendText("转给妈妈500块");
     fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
 
     fireEvent.click(await screen.findByRole("button", { name: "修改" }));
-    fireEvent.change(screen.getByLabelText("要调整的内容"), { target: { value: "金额改为 300 元" } });
-    fireEvent.click(screen.getByRole("button", { name: "取消旧确认并准备修改" }));
+    fireEvent.change(screen.getByLabelText("新的金额（元）"), { target: { value: "300" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存修改并重新核对" }));
 
     const composer = await screen.findByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
-    await waitFor(() => expect(composer.value).toContain("金额改为 300 元"));
-    expect(await screen.findByText("已取消 · 只读")).toBeTruthy();
-    expect(answer).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ choice: "cancel" }));
+    expect(composer.value).toBe("");
+    expect(await screen.findByText("已被新确认单替代 · 只读")).toBeTruthy();
+    await screen.findByRole("button", { name: "确认办理" });
+    expect(revise).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ amount_fen: 30000 }));
+    expect(answer).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it("does not prepare a replacement draft when cancelling the old confirmation is rejected", async () => {
+  it("keeps the editable form and original confirmation when the draft update fails", async () => {
     const backend = makeBackend();
     renderPage(backend);
     await sendText("转给妈妈500块");
     fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
-    vi.spyOn(backend.user, "answerConfirmation").mockRejectedValue(
+    vi.spyOn(backend.user, "reviseDraft").mockRejectedValue(
       new ApiError(409, "CONFIRMATION_STALE", "这张确认单已经失效，请以最新状态为准。"),
     );
 
     fireEvent.click(await screen.findByRole("button", { name: "修改" }));
-    fireEvent.change(screen.getByLabelText("要调整的内容"), { target: { value: "金额改为 300 元" } });
-    fireEvent.click(screen.getByRole("button", { name: "取消旧确认并准备修改" }));
+    fireEvent.change(screen.getByLabelText("新的金额（元）"), { target: { value: "300" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存修改并重新核对" }));
 
     expect(await screen.findByText("这张确认单已经失效，请以最新状态为准。")).toBeTruthy();
     const composer = screen.getByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
     expect(composer.value).toBe("");
-    expect(screen.getByLabelText("要调整的内容")).toBeTruthy();
+    expect((screen.getByLabelText("新的金额（元）") as HTMLInputElement).value).toBe("300");
   });
 
   it.each([

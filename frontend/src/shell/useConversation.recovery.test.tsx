@@ -102,6 +102,7 @@ function sourceHarness() {
     },
     sendMessage: async () => Promise.reject(new ApiError(500, "UNUSED", "unused")),
     provideInput: async () => Promise.reject(new ApiError(500, "UNUSED", "unused")),
+    reviseDraft: async () => Promise.reject(new ApiError(500, "UNUSED", "unused")),
     resumeTask: async () => Promise.reject(new ApiError(500, "UNUSED", "unused")),
     cancelTask: async () => Promise.reject(new ApiError(500, "UNUSED", "unused")),
     queryResult: async () => Promise.reject(new ApiError(500, "UNUSED", "unused")),

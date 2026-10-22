@@ -33,10 +33,18 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const bodyRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
-  const [preparedDraft, setPreparedDraft] = useState<string | null>(null);
+  const [replyChoice, setReplyChoice] = useState<string | null>(null);
   const timeline = useMemo(() => buildTimeline(messages, tasks), [messages, tasks]);
   const primarySlot = slots.slots[0];
   const exampleHints = slots.slots.flatMap((slot) => slot.exampleHints ?? []);
+  const inputTasks = [...tasks.values()].filter(({ task }) =>
+    task.status === "waiting_input" && task.interaction?.kind === "input"
+    && task.allowed_actions.includes("provide_input") && !task.recovery_required
+    && !conversation.bootRecovery.has(task.task_id));
+  const choice = replyChoice === "chat" ? "chat"
+    : inputTasks.some(({ task }) => task.task_id === replyChoice) ? replyChoice!
+    : inputTasks.length === 1 ? inputTasks[0].task.task_id : inputTasks.length > 1 ? "" : "chat";
+  const replyTask = inputTasks.find(({ task }) => task.task_id === choice)?.task;
 
   // Cards load asynchronously, so follow content growth while the reader is at the bottom.
   useEffect(() => {
@@ -73,6 +81,9 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
 
   async function send(text: string) {
     pinned.current = true;
+    if (pendingMessage) return actions.send(text);
+    if (replyTask) return actions.provideText(replyTask, text);
+    if (!choice) return false;
     return actions.send(text);
   }
 
@@ -101,7 +112,6 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
                   slot={slots.resolve(item.envelope.module)}
                   origin={source.origin}
                   conversation={conversation}
-                  onPrepareModification={setPreparedDraft}
                 />
               ))}
             {awaitingReply && <TypingBubble />}
@@ -111,14 +121,24 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         <SafetyRail />
         </div>
       </div>
+      {inputTasks.length > 0 && (
+        <div className="sh-reply-target">
+          <label htmlFor="sh-reply-task">这条消息用于</label>
+          <select id="sh-reply-task" value={choice}
+            disabled={sending || awaitingReply || Boolean(replyTask && conversation.busy[replyTask.task_id]) || Boolean(pendingMessage)}
+            onChange={(event) => setReplyChoice(event.target.value)}>
+            {!choice && <option value="">请先选择要继续的任务</option>}
+            {inputTasks.map(({ task }, index) => <option key={task.task_id} value={task.task_id}>办理 {index + 1}：{task.interaction!.prompt}</option>)}
+            <option value="chat">发起新问题</option>
+          </select>
+        </div>
+      )}
       <Composer
-        disabled={expired || booting || !conversation.thread}
-        sending={sending}
+        disabled={expired || booting || !conversation.thread || !choice || awaitingReply}
+        sending={sending || Boolean(replyTask && conversation.busy[replyTask.task_id])}
         pendingText={pendingMessage?.text ?? null}
         voiceDemoText={primarySlot?.voiceDemoText}
         onSend={send}
-        preparedDraft={preparedDraft}
-        onPreparedDraftUsed={() => setPreparedDraft(null)}
       />
     </div>
   );

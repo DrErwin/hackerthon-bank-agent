@@ -112,6 +112,9 @@
 .sh-modify label { font-weight: 800; }
 .sh-modify textarea { width: 100%; min-height: 76px; resize: vertical; padding: 12px; border: 1px solid var(--line); border-radius: 12px; font: inherit; color: var(--ink); background: #fff; }
 .sh-modify textarea:focus { outline: 3px solid var(--ink); outline-offset: 2px; }
+.sh-modify input, .sh-modify select, .sh-reply-target select { min-width: 0; width: 100%; min-height: 48px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; color: var(--ink); background: #fff; }
+.sh-modify input:focus, .sh-modify select:focus, .sh-reply-target select:focus { outline: 3px solid var(--ink); outline-offset: 2px; }
+.sh-reply-target { display: grid; gap: 6px; padding: 8px 12px; background: var(--card); }
 .sh-btn { width: 100%; min-height: 56px; padding: 10px 16px; font-size: 18px; font-weight: 700; border: none; border-radius: 12px; cursor: pointer; transition: background-color .15s, border-color .15s; }
 .sh-btn-primary { color: var(--ink); background: var(--brand); }
 .sh-btn-primary:hover:not(:disabled) { background: var(--brand-press); }
