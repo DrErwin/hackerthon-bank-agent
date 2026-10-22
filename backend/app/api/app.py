@@ -21,7 +21,7 @@ from app.contracts.api import (
     SendMessageRequest, SessionExpired, StreamEvent, SubmitDetailsRequest, VerificationCodeRequest,
 )
 from app.contracts.bank import ManualPayee, QueryFailure
-from app.contracts.common import DisplayField, PositiveInt, PositiveMoney, TaskStatus
+from app.contracts.common import Category, DisplayField, PositiveInt, PositiveMoney, TaskStatus
 from app.contracts.security import ConfirmationAnswer
 from app.contracts.tasks import ModuleError, TransferTaskView
 from app.services.mock_bank.verification import AdminContext
@@ -81,6 +81,13 @@ class ReviseDraftRequest(RequestIdOnly):
 class AuditExportRequest(RequestIdOnly):
     demo_round_id: str
     task_id: str | None = None
+
+
+class CardActionRequest(RequestIdOnly):
+    source_revision: PositiveInt
+    action: Literal["bill_details", "bill_check", "subscription_cancel"]
+    category: Category | None = None
+    subscription_id: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class MemoriesDeleteRequest(RequestIdOnly):
@@ -206,6 +213,14 @@ def create_app(runtime=None, config=None):
     @application.get("/api/v1/session")
     def session(who=Depends(identity), service=Depends(api)):
         return success(service.session_view(who))
+
+    @application.post("/api/v1/tasks/{task_id}/actions")
+    def card_action(request: Request, task_id: str, body: CardActionRequest,
+                    who=Depends(identity), service=Depends(api)):
+        # Recheck source ownership/session even when replaying a saved receipt.
+        service.card_source(who, task_id, body.source_revision)
+        return mutation(service, who, request, body,
+            lambda: service.card_action(who, task_id, body), retry_interrupted=True)
 
     @application.post("/api/v1/threads")
     def new_thread(request: Request, body: RequestIdOnly, who=Depends(identity), service=Depends(api)):

@@ -132,8 +132,8 @@ class ApiStore:
                     # An interrupted request is never automatically replayed.
                     raise ApiProblem(409, "REQUEST_IN_PROGRESS")
                 saved = json.loads(row["response_json"])
-                if recover_verification and saved["status"] == 503:
-                    # Same fingerprint and bank submission identity recover an unknown outcome.
+                if (recover_verification or retry_interrupted) and saved["status"] == 503:
+                    # Only callers with a durable work identity opt into recovery.
                     return None
                 return saved
             c.execute("INSERT INTO api_requests VALUES (?, ?, ?, ?, ?, NULL)", (*key, digest))
