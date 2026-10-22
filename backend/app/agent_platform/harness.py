@@ -30,7 +30,8 @@ from app.memory.adapter import MemoryAdapter, MemoryContext
 from app.storage.application import ApplicationStore, TaskRecord
 from app.storage.database import transaction
 
-from .model import Planner, ReplyOnly, TransferProposal
+from .model import ContinueProposal, Planner, ReplyOnly, TransferProposal
+from .input_privacy import has_chat_secret
 from .registry import CapabilityRegistry
 from .untrusted_data import MAX_ITEMS, UntrustedData, tool_observation, user_material
 
@@ -38,10 +39,6 @@ from .untrusted_data import MAX_ITEMS, UntrustedData, tool_observation, user_mat
 _LOCK_GUARD = Lock()
 _TASK_LOCKS: dict[str, RLock] = {}
 _HELD_LOCKS = local()
-_CREDENTIAL_IN_REQUEST = re.compile(
-    r"(?:验证码|短信码|动态码|一次性密码|otp|password|密码|口令)",
-    re.IGNORECASE,
-)
 # A request that carries outside material may only be analysed. The refusal is
 # fixed here, never taken from the model or the material itself (S2 / A03).
 _UNTRUSTED_MATERIAL_REFUSAL = (
@@ -215,7 +212,7 @@ class AgentHarness:
 
     @staticmethod
     def _check_intent_text(intent_text: str) -> None:
-        if _CREDENTIAL_IN_REQUEST.search(intent_text):
+        if has_chat_secret(intent_text):
             raise ValueError("CREDENTIAL_IN_REQUEST")
 
     @staticmethod
@@ -271,7 +268,7 @@ class AgentHarness:
         return saved.config["configurable"]["checkpoint_id"] if saved else None
 
     def understand(self, trusted: TrustedContext,
-                   intent_text: str) -> TransferProposal | ReplyOnly:
+                   intent_text: str) -> TransferProposal | ReplyOnly | ContinueProposal:
         """Classify one message without creating a business task or invoking a capability."""
         context = self._scope(trusted)
         self._check_intent_text(intent_text)
@@ -282,7 +279,7 @@ class AgentHarness:
     def _select_outcome(self, trusted: TrustedContext, intent_text: str,
                         thread_id: str,
                         untrusted_data: Sequence[UntrustedData] = (),
-                        ) -> TransferProposal | ReplyOnly:
+                        ) -> TransferProposal | ReplyOnly | ContinueProposal:
         context = self._scope(trusted)
         summary = self._session_context_summary(trusted)
         # Only pass a keyword when it carries content: injected planners with the
@@ -296,19 +293,54 @@ class AgentHarness:
             intent_text, trusted, self.registry.public_catalog(), self.memory, thread_id,
             **planning_options,
         )
-        if not isinstance(outcome, (TransferProposal, ReplyOnly)):
+        if not isinstance(outcome, (TransferProposal, ContinueProposal, ReplyOnly)):
             raise ValueError("MODEL_OUTCOME_INVALID")
+        if isinstance(outcome, ContinueProposal):
+            outcome = self._validate_continuation(trusted, outcome)
         if isinstance(outcome, ReplyOnly) and not outcome.message.strip():
             raise ValueError("MODEL_OUTCOME_INVALID")
         if isinstance(outcome, ReplyOnly):
             # A reply may explain "验证码不要告诉别人" (S1); only a credential value
-            # stays fail-closed. The user request keeps the stricter word check.
+            # stays fail-closed. User input also checks secret values before planning.
             findings = probe_output(outcome.message).findings
             if (any(finding.kind == "credential" for finding in findings)
                     or _ENGLISH_SECRET_LABEL.search(outcome.message)):
                 raise ValueError("CREDENTIAL_IN_REQUEST")
             outcome = ReplyOnly.model_validate(redact(outcome.model_dump(mode="json")))
         return outcome
+
+    def _validate_continuation(self, trusted: TrustedContext, proposal: ContinueProposal):
+        tasks = [task for task in self.application.list_session_tasks(
+            trusted.user_id, trusted.demo_round_id, trusted.session_id)
+            if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}]
+        # With several unfinished tasks, the UI must select one explicitly via F10.
+        if len(tasks) != 1 or tasks[0].task_id != proposal.task_id:
+            return ReplyOnly(message="请先在卡片中选择要继续的那项业务，避免办错。")
+        task = tasks[0]
+        result = task.snapshot.get("result") or {}
+        interaction = result.get("interaction") or {}
+        allowed = result.get("allowed_actions") or []
+        read_unknown = proposal.action == "query" and result.get("recovery_reason") == "OPERATION_UNKNOWN"
+        valid = (not result.get("recovery_required") or read_unknown) and task.revision == proposal.task_revision
+        if proposal.action == "revise":
+            valid = (valid and task.snapshot.get("capability_name") == "transfer.start_transfer"
+                     and task.status == TaskStatus.WAITING_APPROVAL
+                     and interaction.get("kind") == "confirmation")
+        else:
+            valid = valid and proposal.action in allowed
+            if proposal.action == "provide_input":
+                valid = valid and task.status == TaskStatus.WAITING_INPUT and interaction.get("kind") == "input"
+                if proposal.selected_option_id is not None:
+                    valid = valid and proposal.selected_option_id in {
+                        item.get("id") for item in interaction.get("options", [])}
+        if not valid:
+            return ReplyOnly(message="任务状态已变化，请查看当前卡片后继续；确认和验证码必须使用专用入口。")
+        for field in ("text", "payee_hint", "payer_account_id"):
+            value = getattr(proposal, field)
+            if value and has_chat_secret(value, numeric_field=field == "text" and interaction.get("required_fields") == ["amount_fen"]):
+                raise ValueError("CREDENTIAL_IN_REQUEST")
+        self._authorize(trusted, task.snapshot["capability_name"])
+        return proposal
 
     def _accepts_untrusted_data(self) -> bool:
         """Old stand-ins that never declared the keyword must keep working (#84).
@@ -382,7 +414,7 @@ class AgentHarness:
         )
 
     def _deny_untrusted_material(self, trace: RunTrace,
-                                 proposal: TransferProposal) -> ReplyOnly:
+                                 proposal: TransferProposal | ContinueProposal) -> ReplyOnly:
         """A material-bearing request may only be analysed: drop its proposal (S2)."""
         refusal = ReplyOnly(message=_UNTRUSTED_MATERIAL_REFUSAL)
         content_ref = str(uuid4())
@@ -398,12 +430,7 @@ class AgentHarness:
             evidence={
                 "message": refusal.message,
                 "reason_code": "UNTRUSTED_MATERIAL_BLOCKED_ACTION",
-                "dropped_proposal": {
-                    "capability_name": proposal.capability_name,
-                    "payee_hint": proposal.payee_hint,
-                    "amount_fen": proposal.amount_fen,
-                    "payer_account_id": proposal.payer_account_id,
-                },
+                "dropped_proposal": proposal.model_dump(mode="json"),
             },
         )
         return refusal
@@ -422,13 +449,21 @@ class AgentHarness:
             phrase = self._pending_phrase(task)
             if phrase is None:
                 continue
-            intent = str(task.snapshot.get("intent_text") or "").strip()
-            lines.append(f"- {phrase}：{intent}" if intent else f"- {phrase}")
+            intent = str(redact(str(task.snapshot.get("intent_text") or "").strip(), free_text=True))
+            result = task.snapshot.get("result") or {}
+            interaction = result.get("interaction") or {}
+            options = [{"id": item.get("id"), "label": redact(item.get("label", ""), free_text=True)}
+                       for item in interaction.get("options", [])]
+            meta = (f"task_id={task.task_id}, task_revision={task.revision}, "
+                    f"capability={task.snapshot.get('capability_name')}, "
+                    f"allowed_actions={result.get('allowed_actions', [])}, "
+                    f"required_fields={interaction.get('required_fields', [])}, options={options}")
+            lines.append(f"- {meta}；{phrase}：{intent}")
             if len(lines) >= self._SUMMARY_TASK_LIMIT:
                 break
         if not lines:
             return None
-        summary = str(redact("\n".join(lines), free_text=True))
+        summary = "\n".join(lines)
         return summary or None
 
     @staticmethod
@@ -450,7 +485,7 @@ class AgentHarness:
     def _understand_with_trace(self, trusted: TrustedContext, intent_text: str,
                                trace: RunTrace,
                                material: UntrustedData | None = None,
-                               ) -> TransferProposal | ReplyOnly:
+                               ) -> TransferProposal | ReplyOnly | ContinueProposal:
         blocks = self._untrusted_blocks(trusted, material)
         self._record_resource_load(trace, blocks)
         model_call_id = str(uuid4())
@@ -490,6 +525,8 @@ class AgentHarness:
                 "outcome": outcome.kind,
                 "response": {"message": outcome.message},
             }
+        elif isinstance(outcome, ContinueProposal):
+            evidence = {"outcome": outcome.kind, "proposal": outcome.model_dump(mode="json")}
         else:
             evidence = {
                 "proposal": {
@@ -520,7 +557,8 @@ class AgentHarness:
     def handle_message(self, trusted: TrustedContext, request_id: UUID,
                        intent_text: str,
                        untrusted_content: str | None = None,
-                       ) -> ModuleResult | ReplyOnly:
+                       *, allow_continuation: bool = False,
+                       ) -> ModuleResult | ReplyOnly | ContinueProposal:
         """Return a controlled chat reply or continue the existing transfer path."""
         with _task_lock(self.application.path, trusted.task_id):
             context = self._scope(trusted)
@@ -533,12 +571,15 @@ class AgentHarness:
                 trace = RunTrace(self.audit, trusted, thread_id, trace_id)
                 material = user_material(untrusted_content) if untrusted_content else None
                 outcome = self._understand_with_trace(trusted, intent_text, trace, material)
-                if material is not None and isinstance(outcome, TransferProposal):
+                if material is not None and isinstance(outcome, (TransferProposal, ContinueProposal)):
                     # Deterministic gate: outside material may be read and explained,
                     # never turned into a task, a tool call or a funds action (S2).
                     return self._deny_untrusted_material(trace, outcome)
                 if isinstance(outcome, ReplyOnly):
                     return outcome
+                if isinstance(outcome, ContinueProposal):
+                    return outcome if allow_continuation else ReplyOnly(
+                        message="请通过当前任务卡片补充或修改信息，确认与验证必须使用专用入口。")
                 self._authorize(trusted, outcome.capability_name)
                 if outcome.amount_fen is not None and outcome.amount_fen <= 0:
                     refusal = ReplyOnly(message="转账金额必须大于零，请重新输入有效金额。")

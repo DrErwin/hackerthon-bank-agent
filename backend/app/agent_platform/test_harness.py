@@ -435,7 +435,7 @@ def test_deep_agent_receives_only_declared_chat_and_transfer_tools(tmp_path):
     )
     assert proposal == TransferProposal(payee_hint="妈妈", amount_fen=50_000,
                                         payer_account_id="A1")
-    assert model.offered_tools == ["propose_transfer", "reply_only"]
+    assert model.offered_tools == ["propose_transfer", "propose_continuation", "reply_only"]
 
 
 @pytest.mark.parametrize("intent", [
@@ -463,7 +463,7 @@ def test_deep_agent_can_return_reply_without_a_business_task(tmp_path, intent):
         ),
     )
     assert outcome == ReplyOnly(message="您好，我可以帮您了解银行服务。")
-    assert model.offered_tools == ["propose_transfer", "reply_only"]
+    assert model.offered_tools == ["propose_transfer", "propose_continuation", "reply_only"]
     assert application.get_task("U1", "D1", "T1") is None
 
 
@@ -762,7 +762,7 @@ def test_amount_refusal_audit_failure_stops_before_task_or_bank(tmp_path):
     "给妈妈转 500 元，验证码123456",
     "给妈妈转 500 元，短信码是 123456",
     "给妈妈转500元，短信发来的 123456 是验证码",
-    "转 500 元，password 在后面",
+    "转 500 元，password: SECRET789",
 ])
 def test_credentials_never_enter_model_task_or_audit(tmp_path, intent):
     path = tmp_path / "app.sqlite"
@@ -820,7 +820,7 @@ def test_deep_agent_and_transfer_share_task_storage_without_crossing_checkpoints
     pending = harness.start(trusted(), uuid4(), "给妈妈转 500 元")
     assert pending.status == TaskStatus.WAITING_APPROVAL
     assert ports.submissions == 0
-    assert model.offered_tools == ["propose_transfer", "reply_only"]
+    assert model.offered_tools == ["propose_transfer", "propose_continuation", "reply_only"]
     ports.approved = True
     assert runtime(path, ports, planner).resume(trusted(), {"choice": "approve"}).status == TaskStatus.SUCCEEDED
     assert ports.submissions == 1

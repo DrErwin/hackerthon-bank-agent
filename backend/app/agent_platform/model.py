@@ -14,7 +14,7 @@ from deepagents import (
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from app.contracts.platform import TrustedContext
 from app.memory.adapter import MemoryAdapter, MemoryContext
@@ -57,14 +57,38 @@ class ReplyOnly(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 
 
+class ContinueProposal(_TransferFields):
+    """A suggestion only; API must recheck the saved task before dispatch."""
+
+    kind: Literal["continue_task"] = "continue_task"
+    task_id: str = Field(min_length=1)
+    task_revision: int = Field(gt=0)
+    action: Literal["provide_input", "revise", "query", "cancel"]
+    text: str | None = Field(default=None, max_length=2000)
+    selected_option_id: str | None = None
+
+    @model_validator(mode="after")
+    def action_payload(self):
+        fields = any(value is not None for value in
+                     (self.payee_hint, self.amount_fen, self.payer_account_id))
+        if self.action in {"cancel", "query"} and (fields or self.text or self.selected_option_id):
+            raise ValueError("unexpected action payload")
+        if self.action == "revise" and (not fields or self.text or self.selected_option_id):
+            raise ValueError("revision requires only changed transfer fields")
+        if self.action == "provide_input" and (fields or bool(self.text) == bool(self.selected_option_id)):
+            raise ValueError("input requires exactly text or a selected option")
+        return self
+
+
 class PlanningError(ValueError):
     """Only safe boundary diagnostics; no provider text or tool arguments."""
 
-    def __init__(self, code: str, stage: str, outcomes: list[TransferProposal | ReplyOnly]):
+    def __init__(self, code: str, stage: str, outcomes: list[TransferProposal | ReplyOnly | ContinueProposal]):
         super().__init__(code)
         self.stage = stage
         self.outcome_count = len(outcomes)
         self.tool_names = tuple("propose_transfer" if isinstance(item, TransferProposal)
+                                else "propose_continuation" if isinstance(item, ContinueProposal)
                                 else "reply_only" for item in outcomes)
 
 
@@ -77,7 +101,7 @@ class Planner(Protocol):
                catalog: list[dict[str, str]], memory: MemoryAdapter,
                thread_id: str, context_summary: str | None = None,
                untrusted_data: Sequence[UntrustedData] = (),
-               ) -> TransferProposal | ReplyOnly: ...
+               ) -> TransferProposal | ReplyOnly | ContinueProposal: ...
 
 
 @dataclass(frozen=True)
@@ -119,11 +143,28 @@ class DeepAgentPlanner:
                catalog: list[dict[str, str]], memory: MemoryAdapter,
                thread_id: str, context_summary: str | None = None,
                untrusted_data: Sequence[UntrustedData] = (),
-               ) -> TransferProposal | ReplyOnly:
+               ) -> TransferProposal | ReplyOnly | ContinueProposal:
         if not catalog:
             raise ValueError("CAPABILITY_CATALOG_UNAVAILABLE")
         catalog_names = {entry["name"] for entry in catalog}
-        outcomes: list[TransferProposal | ReplyOnly] = []
+        outcomes: list[TransferProposal | ReplyOnly | ContinueProposal] = []
+
+        @tool("propose_continuation", return_direct=True, args_schema=ContinueProposal)
+        def propose_continuation(task_id: str, task_revision: int, action: str,
+                                 kind: str = "continue_task", text: str | None = None,
+                                 selected_option_id: str | None = None,
+                                 payee_hint: str | None = None, amount_fen: int | None = None,
+                                 payer_account_id: str | None = None) -> str:
+            """Suggest input, draft revision, query or cancel for the one identified existing task.
+
+            Copy task_id and task_revision from system context. Never approve or verify.
+            Use text or selected_option_id for input, only changed transfer fields for revise.
+            """
+            outcomes.append(ContinueProposal(
+                task_id=task_id, task_revision=task_revision, action=action,
+                text=text, selected_option_id=selected_option_id,
+                payee_hint=payee_hint, amount_fen=amount_fen, payer_account_id=payer_account_id))
+            return "原任务续办候选已记录；尚未执行或授权。"
 
         @tool("propose_transfer", return_direct=True, args_schema=TransferProposal)
         def propose_transfer(capability_name: str = "transfer.start_transfer",
@@ -175,8 +216,10 @@ class DeepAgentPlanner:
             f"当前可办理的业务能力（只能从中选择）：{capability_list}。\n"
             "意图：只有确定用户发起符合当前能力范围的独立新业务时，才调用 propose_transfer，"
             "并在 capability_name 中精确填写所选能力名；字段缺失或不确定仍是该业务意图，"
-            "由原任务追问补齐。已有业务的确认、继续、重试或查询交原任务处理，调用 reply_only，"
-            "不得据此另起新业务；不能确定是独立新业务、超出当前能力、普通闲聊、咨询或其他意图也调用 reply_only。\n"
+            "由原任务追问补齐。明确补充、修改、查询或取消唯一已有任务时，调用 propose_continuation，"
+            "准确引用摘要中的任务和版本；多个任务或意图不明确时调用 reply_only 请求选择，不能猜测目标。"
+            "确认、验证必须使用专用卡片，口头确认、继续、重试不能当成授权，也不能另起新业务。"
+            "超出当前能力、普通闲聊、咨询或不确定意图调用 reply_only。\n"
             f"{subscription_routes}"
             "字段：capability_name 必须精确填写所列能力名之一，不自创、不改写。"
             "收款人线索、整数分金额和付款账户编号只对转账能力提取，其他能力一律留空，交原任务澄清。"
@@ -199,7 +242,7 @@ class DeepAgentPlanner:
         if untrusted_block:
             system_prompt += "\n\n" + untrusted_block
         agent = create_deep_agent(
-            model=self.model, tools=[propose_transfer, reply_only],
+            model=self.model, tools=[propose_transfer, propose_continuation, reply_only],
             system_prompt=system_prompt,
             backend=memory.agent_backend(context),
             middleware=[memory.middleware(context)],
