@@ -53,3 +53,31 @@ def test_old_session_or_changed_owner_cannot_supply_parent(tmp_path):
             app.state.api.store.write("UPDATE api_tasks SET user_id='OTHER' WHERE task_id=?", (bill["task_id"],))
             post(client, f"/threads/{thread}/messages", text="看看餐饮明细")
             assert seen[-1] is None
+
+
+def test_http_followup_uses_actual_scope_after_changed_month_and_card(tmp_path):
+    app = app_for(configuration(tmp_path))
+    harness = app.state.api.runtime.harness
+    with TestClient(app) as client, patch.object(harness.planner, "select", return_value=TransferProposal(
+            capability_name="bills.summarize")):
+        thread, _ = start(client, "2026年9月所有账户账单")
+        def ask(text):
+            request_id = str(uuid4())
+            post(client, f"/threads/{thread}/messages", text=text, request_id=request_id)
+            job = app.state.api.store.rows("SELECT task_id FROM api_message_jobs WHERE request_id=?", (request_id,))[0]
+            return client.get("/api/v1/tasks/" + job["task_id"]).json()["data"]
+        with patch.object(harness.planner, "select", return_value=TransferProposal(capability_name="bills.detect_anomalies")):
+            task = ask("核对2026年8月陌生扣款，换张卡")
+        for _ in range(3):
+            if task["status"] == "succeeded":
+                break
+            interaction = task["interaction"]
+            response = post(client, f"/tasks/{task['task_id']}/inputs", interaction_id=interaction["interaction_id"],
+                            selected_option_id=interaction["options"][0]["id"])
+            assert response.status_code == 200, response.text
+            task = response.json()["data"]
+        assert task["status"] == "succeeded"
+        details = ask("再看餐饮明细")
+        assert details["status"] == "succeeded"
+        assert details["data"]["scope"]["start_at"].startswith("2026-08-")
+        assert len(details["data"]["scope"]["account_ids"]) == 1
