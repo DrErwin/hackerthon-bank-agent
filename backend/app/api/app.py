@@ -63,6 +63,13 @@ class AuditExportRequest(RequestIdOnly):
     task_id: str | None = None
 
 
+class MemoriesDeleteRequest(RequestIdOnly):
+    # §7.6 F38; a duplicate id or a non-positive version is rejected by the adapter
+    # as INVALID_ARGUMENT, so the local model only names the controlled inputs.
+    memory_ids: list[str]
+    expected_versions: dict[str, int]
+
+
 def problem(exc):
     if isinstance(exc, ApiProblem):
         status, code = exc.status, exc.code
@@ -73,7 +80,8 @@ def problem(exc):
         code = {"VERIFICATION_SUBMISSION_CONFLICT": "REQUEST_CONFLICT"}.get(code, code)
         status = {"ACCESS_DENIED": 403, "AUTH_REQUIRED": 401, "TASK_NOT_FOUND": 404,
                   "INVALID_ARGUMENT": 400, "TASK_TERMINATED": 409, "MODEL_CONFIG_CHANGED": 409,
-                  "TASK_BUSY": 409, "STALE_ROUND": 409}.get(code, 409 if code.startswith(("CONFIRMATION_", "CHALLENGE_", "SUBMISSION_", "REQUEST_")) else 503)
+                  "TASK_BUSY": 409, "STALE_ROUND": 409, "MEMORY_VERSION_CONFLICT": 409}.get(
+                      code, 409 if code.startswith(("CONFIRMATION_", "CHALLENGE_", "SUBMISSION_", "REQUEST_")) else 503)
         if status == 503:
             code = "DEPENDENCY_UNAVAILABLE"
     reasons = {401: "演示登录已过期，请重新进入。", 403: "没有操作或查看权限。",
@@ -219,6 +227,18 @@ def create_app(runtime=None, config=None):
         service.thread(who, thread_id)
         rows = service.store.rows("SELECT * FROM api_messages WHERE thread_id=? ORDER BY created_at, message_id", (thread_id,))
         return success(service.store.page([((r["created_at"], r["message_id"]), json.loads(r["view_json"])) for r in rows], who, f"messages:{thread_id}", cursor, limit))
+
+    @application.get("/api/v1/memories")
+    def memories(who=Depends(identity), service=Depends(api)):
+        return success(service.memories(who))
+
+    @application.post("/api/v1/memories/delete")
+    def delete_memories(request: Request, body: MemoriesDeleteRequest,
+                        who=Depends(identity), service=Depends(api)):
+        def action():
+            return service.delete_memories(who, body.request_id, body.memory_ids,
+                                           body.expected_versions)
+        return mutation(service, who, request, body, action)
 
     @application.get("/api/v1/tasks")
     def tasks(thread_id: str | None = None, recovery_required: bool | None = None, cursor: str | None = None,
