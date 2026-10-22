@@ -14,7 +14,8 @@ from uuid import UUID, uuid4
 from app.audit.journal import AuditReader, AuditViewer, redact
 from app.audit.output_guard import probe_output, probe_secrets
 from app.agent_platform.bills_stub import register_bills_stub
-from app.agent_platform.model import ReplyOnly
+from app.agent_platform.model import ContinueProposal, ReplyOnly
+from app.agent_platform.input_privacy import has_chat_secret
 from app.contracts.audit import (
     AuditAccessedPayload, AuditEvent, ChatMessagePayload, TaskTransitionPayload,
     VerificationChangedPayload,
@@ -62,7 +63,7 @@ class Identity:
 
 def safe_text(text: str, *, numeric_field: bool = False) -> str:
     # Reject recognizable credentials before persistence, model input or SSE.
-    if re.search(r"验证码|短信码|动态码|一次性密码|otp|password|密码|口令|token|bearer|api[_ -]?key", text, re.I) or not numeric_field and re.fullmatch(r"\s*[A-Za-z0-9]{4,8}\s*", text) and re.search(r"\d", text):
+    if has_chat_secret(text, numeric_field=numeric_field):
         raise ApiProblem(400, "USE_VERIFICATION_ENDPOINT")
     if not text.strip():
         raise ApiProblem(400, "INVALID_ARGUMENT")
@@ -367,11 +368,17 @@ class ApiService:
 
     def schedule_message_job(self, job_id, background, identity):
         job = self.store.message_job(job_id)
-        if job["status"] not in {"queued", "running", "interrupted", "task_linked", "reply_ready"}:
+        if job["status"] not in {"queued", "running", "interrupted", "task_linked", "reply_ready", "continuation_ready"}:
             return
         if job_id in self.active_message_jobs:
             return
         if job["session_id"] != identity.session_id:
+            if job.get("continuation_json"):
+                # A saved candidate is tied to the old session; never rebind its authority.
+                self.store.save_message_reply(job_id, "会话已变化，请先查看并恢复原任务，再重新补充信息。")
+                self.active_message_jobs.add(job_id)
+                background.add_task(self.process_message_job, job_id)
+                return
             task = self.runtime.application.get_task(
                 identity.user_id, identity.demo_round_id, job["candidate_task_id"],
             )
@@ -389,15 +396,16 @@ class ApiService:
         background.add_task(self.process_message_job, job_id)
 
     def link_message_job_task(self, job, identity, outcome):
+        task_id = outcome.task_id
         user_rows = self.store.rows("SELECT view_json FROM api_messages WHERE message_id=?",
                                     (job["user_message_id"],))
         message = MessageView.model_validate(json.loads(user_rows[0]["view_json"]))
-        if job["candidate_task_id"] not in message.task_ids:
-            message = message.model_copy(update={"task_ids": [job["candidate_task_id"]]})
+        if task_id not in message.task_ids:
+            message = message.model_copy(update={"task_ids": [task_id]})
         event = self.stream_event(identity, job["thread_id"], "message_completed", message,
                                   event_id=job["user_task_event_id"])
         self.store.link_message_job_task(job["job_id"], {
-            "task_id": job["candidate_task_id"], "thread_id": job["thread_id"],
+            "task_id": task_id, "thread_id": job["thread_id"],
             "user_id": job["user_id"], "session_id": job["session_id"],
             "demo_round_id": job["demo_round_id"], "run_id": outcome.run_id,
             "created_at": job["created_at"], "request_id": job["request_id"],
@@ -443,6 +451,61 @@ class ApiService:
             [(event.event_id, dump(event)) for event in events],
         )
 
+    def dispatch_continuation(self, job, identity):
+        """Persist before dispatch; an interrupted reservation is read back, never rerun."""
+        proposal = ContinueProposal.model_validate_json(job["continuation_json"])
+        self.identity(self.cookie(identity.session_id))
+        link = self.link(identity, proposal.task_id, mutate=True)
+        if link["thread_id"] != job["thread_id"]:
+            raise ApiProblem(409, "TASK_THREAD_MISMATCH")
+        endpoint = "/message-continuation/" + job["job_id"]
+        try:
+            previous = self.store.receipt(identity, endpoint, job["request_id"], proposal)
+        except ApiProblem as error:
+            if error.code != "REQUEST_IN_PROGRESS":
+                raise
+            # We cannot tell whether the prior attempt changed state. Show the original
+            # task and require a fresh user action instead of replaying a mutation.
+            previous = {"interrupted": True}
+        if previous is None:
+            task = self.task_view(identity, proposal.task_id)
+            try:
+                if task.task_revision != proposal.task_revision:
+                    raise ApiProblem(409, "TASK_REVISION_STALE")
+                read_unknown = proposal.action == "query" and task.recovery_reason == "OPERATION_UNKNOWN"
+                if task.recovery_required and not read_unknown:
+                    raise ApiProblem(409, "SESSION_RECONFIRMATION_REQUIRED")
+                if proposal.action == "revise":
+                    if proposal.amount_fen is not None and proposal.amount_fen <= 0:
+                        raise ApiProblem(400, "INVALID_AMOUNT")
+                    fields = proposal.model_dump(include={"amount_fen", "payee_hint", "payer_account_id"}, exclude_none=True)
+                    self.revise_draft(identity, task.task_id, proposal.task_revision, fields, publish=False)
+                else:
+                    if proposal.action not in task.allowed_actions:
+                        raise ApiProblem(409, "ACTION_UNAVAILABLE")
+                    if proposal.action == "provide_input":
+                        if not task.interaction or task.interaction.kind != "input":
+                            raise ApiProblem(409, "INTERACTION_STALE")
+                        response = self.input_response(task, proposal)
+                    elif proposal.action == "cancel":
+                        response = {"query": True} if "query" in task.allowed_actions else {"cancel": True}
+                    else:
+                        response = {"query": True}
+                    self.continue_task(identity, task.task_id, response, publish=False)
+            except ApiProblem:
+                self.store.finish(identity, endpoint, job["request_id"], {"rejected": True})
+                self.store.save_message_reply(job["job_id"], "当前任务已变化或补充内容不适用，请查看原任务卡片后继续。")
+                self.publish_message_reply(job)
+                return
+            self.store.finish(identity, endpoint, job["request_id"], {"completed": True})
+        elif previous.get("rejected"):
+            self.store.save_message_reply(job["job_id"], "当前任务已变化，请查看原任务卡片后继续。")
+            self.publish_message_reply(job)
+            return
+        current = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, proposal.task_id)
+        self.link_message_job_task(job, identity, current)
+        self.publish_message_job_task(job["job_id"])
+
     def process_message_job(self, job_id):
         try:
             with self.mutation_lock:
@@ -454,6 +517,10 @@ class ApiService:
                     return
                 if job["status"] == "reply_ready":
                     self.publish_message_reply(job)
+                    return
+                if job.get("continuation_json"):
+                    identity = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
+                    self.dispatch_continuation(job, identity)
                     return
                 if job["status"] in {"running", "interrupted"}:
                     task = self.runtime.application.get_task(
@@ -479,12 +546,17 @@ class ApiService:
                 # for plain messages (same rule as the harness' context_summary).
                 options = ({"untrusted_content": job["untrusted_content"]}
                            if job["untrusted_content"] else {})
+                options["allow_continuation"] = True
                 outcome = self.runtime.harness.handle_message(
                     trusted, UUID(job["request_id"]), job["intent_text"], **options,
                 )
                 if isinstance(outcome, ReplyOnly):
                     self.store.save_message_reply(job_id, cast(str, redact(outcome.message, free_text=True)))
                     self.publish_message_reply(job)
+                    return
+                if isinstance(outcome, ContinueProposal):
+                    self.store.save_continuation(job_id, outcome)
+                    self.dispatch_continuation(self.store.message_job(job_id), identity)
                     return
                 if outcome.error and outcome.error.code == "MODEL_PROPOSAL_FAILED":
                     self.emit(identity, job["thread_id"], "stream_error", outcome.error,
@@ -510,15 +582,15 @@ class ApiService:
                         # publishing is interrupted after Harness created a task.
                         job = self.store.message_job(job_id)
                 if job["status"] not in {"task_linked", "reply_ready", "reply_completed", "task_completed", "error_completed"}:
-                    self.store.set_message_job_status(job_id, "interrupted")
+                    self.store.set_message_job_status(job_id, "continuation_ready" if job.get("continuation_json") else "interrupted")
                 if job["status"] not in {"reply_completed", "task_completed", "error_completed"}:
                     from app.contracts.tasks import ModuleError
                     self.emit(identity, job["thread_id"], "stream_error", ModuleError(
                         code="DEPENDENCY_UNAVAILABLE", source="platform", field=None,
-                        reason="消息处理中断，请重试以恢复原请求。" if platform_task is not None or job["status"] in {"reply_ready", "task_linked"}
+                        reason="消息处理中断，请重试以恢复原请求。" if platform_task is not None or job.get("continuation_json") or job["status"] in {"reply_ready", "task_linked"}
                             else "无法确定原消息处理结果，请重新发起并核对信息。", upstream_code=None,
                     ), event_id=job["error_event_id"])
-                    if platform_task is None and job["status"] not in {"reply_ready", "task_linked"}:
+                    if platform_task is None and not job.get("continuation_json") and job["status"] not in {"reply_ready", "task_linked"}:
                         self.store.set_message_job_status(job_id, "error_completed")
         finally:
             with self.mutation_lock:
@@ -1152,7 +1224,7 @@ class ApiService:
             reason_code=outcome.reason_code or "VERIFICATION_METHOD_PASSED",
         ), "succeeded" if outcome.kind == "verified" else "denied")
 
-    def continue_task(self, identity, task_id, response, *, recover_session=False, verification_retry=False):
+    def continue_task(self, identity, task_id, response, *, recover_session=False, verification_retry=False, publish=True):
         export = self.export_for_task(identity, task_id)
         if export is not None:
             return self.continue_export_task(identity, export, response)
@@ -1210,7 +1282,7 @@ class ApiService:
                 snapshot = {key: value for key, value in current.snapshot.items() if key != "pending_verification"}
                 self.runtime.application.update_task(identity.user_id, identity.demo_round_id, task_id,
                     current.revision, current.run_id, current.status, current.checkpoint_id, snapshot)
-        return self.publish_task(identity, task_id)
+        return self.publish_task(identity, task_id) if publish else self.task_view(identity, task_id)
 
     def continue_export_task(self, identity, export, response):
         """§6.7: a sensitive export pauses and resumes along its own platform task."""
@@ -1239,7 +1311,7 @@ class ApiService:
             raise ApiProblem(409, "INTERACTION_STALE")
         return task
 
-    def revise_draft(self, identity, task_id, revision, fields):
+    def revise_draft(self, identity, task_id, revision, fields, *, publish=True):
         """Edit only the currently owned, unsubmitted ordinary-transfer draft."""
         self.link(identity, task_id, mutate=True)
         task = self.task_view(identity, task_id)
@@ -1261,7 +1333,7 @@ class ApiService:
         }
         # The module generates a new action revision and confirmation. Cancelling
         # the old confirmation would terminate this task, so never answer it here.
-        return self.continue_task(identity, task_id, {"fields": fields})
+        return self.continue_task(identity, task_id, {"fields": fields}, publish=publish)
 
     def input_response(self, task, request):
         """F10: turn one answer into the response the task's own module expects (§5.6)."""
