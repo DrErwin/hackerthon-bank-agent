@@ -24,7 +24,7 @@ from app.contracts.audit import (
     ModelUsage, RecoveryCheckedPayload, TaskTransitionPayload,
 )
 from app.contracts.common import TaskStatus
-from app.contracts.bills import BillDetails, BillReport, BillScope, SpendingSummary
+from app.contracts.bills import AnomalyResult, BillDetails, BillReport, BillScope, SpendingSummary
 from pydantic import ValidationError
 from app.contracts.platform import CapabilityDefinition, StartTransferInput, TrustedContext
 from app.contracts.tasks import ModuleError, ModuleResult, TransferTaskView
@@ -575,6 +575,11 @@ class AgentHarness:
                 result = BillReport.model_validate(data)
             elif kind == "bills.summarize":
                 result = (BillDetails if "transactions" in data else SpendingSummary).model_validate(data)
+            elif kind == "bills.detect_anomalies" and source.snapshot.get("bill_scope") is not None:
+                AnomalyResult.model_validate(data)
+                # This source itself inherited a checked scope at task creation;
+                # the anomaly result carries no scope field of its own.
+                return BillScope.model_validate(source.snapshot["bill_scope"]).model_dump(mode="json")
             else:
                 return None
         except ValidationError:

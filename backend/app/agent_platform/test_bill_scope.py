@@ -32,11 +32,20 @@ def test_completed_bill_followups_keep_scope_and_original_result(tmp_path):
         assert submitted_ledger_count(app) == 0
         details_task = harness.application.get_task("U1", "D1", details.task_id)
         with patch.object(harness.planner, "select", return_value=TransferProposal(capability_name="bills.detect_anomalies")):
-            unknown = harness.handle_message(child_context(details_task), uuid4(), "核对陌生扣款")
+            unknown_context = child_context(details_task)
+            unknown = harness.handle_message(unknown_context, uuid4(), "核对陌生扣款")
             assert unknown.status in {"succeeded", "waiting_input"}
             if unknown.interaction:
                 assert "月份" not in unknown.interaction.prompt
                 assert unknown.model_dump(mode="json")["data"]["scope"] == data["scope"]
+                unknown = harness.resume(unknown_context.model_copy(update={"run_id": str(uuid4())}),
+                    {"interaction_id": unknown.interaction.interaction_id,
+                     "selected_option_id": unknown.interaction.options[0].id})
+            assert unknown.status == "succeeded"
+        unknown_task = harness.application.get_task("U1", "D1", unknown.task_id)
+        again = harness.handle_message(child_context(unknown_task), uuid4(), "再看餐饮明细")
+        assert again.status == "succeeded"
+        assert again.model_dump(mode="json")["data"]["scope"] == data["scope"]
 
 
 @pytest.mark.parametrize("changed", ["session", "missing", "data"])
