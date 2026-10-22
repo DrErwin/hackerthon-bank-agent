@@ -24,7 +24,7 @@ Package: [bank-e2e-remediation/packages/01-demo-remediation](packages/01-demo-re
 
 ## Implementation Decisions
 - 复用原任务 fields 更新、确认版本和操作编号，不通过取消后重发 prompt 模拟修改。
-- 新草稿入口为兼容扩展，绑定 task_revision；范围限未提交的普通转账，新增权限不由前端决定。
+- 新草稿入口为兼容扩展，绑定 task_revision；仅允许未提交且等待确认的普通转账。等待输入阶段使用 F10，新增权限不由前端决定。
 - 自然语言只提出续办候选，由 API/业务模块检查归属、版本、等待动作；确认与验证码专用入口不变。
 - 风险检测是证据，不是执行权；普通 demo 参数范围须有明确服务端事实，固定场景不能覆盖文本危险线索。
 - 用户允许必要时尝试 TypeSafe AI/Jev；不预设选型，不复制密钥。先利用现有 56 条样例，不重复建数据集。

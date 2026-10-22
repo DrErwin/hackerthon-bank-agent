@@ -7,7 +7,7 @@ Type: 开发
 Owner: Erwin 协调 / Codex 按用户授权代行
 Directory: `frontend/`
 Priority: P0
-Status: ready-for-agent
+Status: in_progress
 Blocked by: bank-e2e-remediation/01
 Core scenarios: S01 S02 S03 S07 S08
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
@@ -24,3 +24,5 @@ Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issu
 
 ## Comments
 2026-10-22：用户授权范围内拆票。开发、运行验证、合入、验收分别记录。
+
+2026-10-23：代码已开发，Draft PR [#229](https://github.com/DrErwin/hackerthon-bank-agent/pull/229)，head 346c439，Depends on PR #228。47 tests passed，build PASS；两轴 AI 审查发现的异步确认版本与会话失效问题已修复。未合入，完整验收与专业安全批准未完成。[首批真实页面证据](../verification-2026-10-23.md)。
