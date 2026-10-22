@@ -5,6 +5,8 @@ import type { SubscriptionTaskView } from "../contracts";
 import { BusinessCards, BillCardActions } from "./components/BusinessCards";
 import { TaskBlock } from "./components/TaskBlock";
 import { genericSlot } from "./slots";
+import { cardMessageSummary } from "./AssistantPage";
+import { MessageBubble } from "./components/Chrome";
 import { createDemoBackend } from "./stub/demoBackend";
 import { createRealDataSource } from "./api/realDataSource";
 import { useConversation } from "./useConversation";
@@ -32,6 +34,16 @@ const subscription: SubscriptionTaskView = { action: "list", list_result: {
 } };
 beforeEach(() => localStorage.clear());
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it("keeps the full subscription explanation available without duplicating it above the cards", () => {
+  const message = { message_id: "m", thread_id: "thread", role: "assistant" as const,
+    text: "完整查询说明", created_at: task.snapshot_at, task_ids: [task.task_id], report_ids: [] };
+  const tasks = new Map([[task.task_id, { task: { ...task, data: subscription }, module: "subscription" }]]);
+  render(<MessageBubble message={message} cardSummary={cardMessageSummary(message, tasks)} />);
+  expect(screen.getByText("完整查询说明").closest("details")?.open).toBe(false);
+  expect(cardMessageSummary({ ...message, task_ids: [] }, tasks)).toBeUndefined();
+  expect(cardMessageSummary({ ...message, role: "user" }, tasks)).toBeUndefined();
+});
 
 it("groups subscriptions and binds the clicked row, with no action on suspected or cancelled rows", async () => {
   const onAction = vi.fn().mockResolvedValue("child");

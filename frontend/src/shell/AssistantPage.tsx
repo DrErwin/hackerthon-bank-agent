@@ -3,11 +3,21 @@ import type { MessageView } from "../contracts";
 import { Composer, ExpiredBanner, MessageBubble, SafetyRail, TopBar, TypingBubble } from "./components/Chrome";
 import { Notice } from "./components/Primitives";
 import { TaskBlock } from "./components/TaskBlock";
+import { businessPayload } from "./components/BusinessCards";
 import type { SlotRegistry } from "./slots";
 import type { ShellDataSource, TaskEnvelope } from "./types";
 import { useConversation } from "./useConversation";
 
 type TimelineItem = { type: "message"; message: MessageView } | { type: "task"; envelope: TaskEnvelope };
+
+export function cardMessageSummary(message: MessageView, tasks: Map<string, TaskEnvelope>): string | undefined {
+  if (message.role !== "assistant" || message.task_ids.length !== 1) return undefined;
+  const task = tasks.get(message.task_ids[0])?.task;
+  const data = task && businessPayload(task);
+  if (data && "action" in data && data.action === "list" && data.list_result)
+    return "已整理订阅与自动扣款。请在卡片中查看签约、疑似扣款和已退订项目，选择需要办理的一项。";
+  return undefined;
+}
 
 // A task block sits after the last message that references it, so its newest card is the
 // thing closest to the composer.
@@ -104,7 +114,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
             </article>
             {booting && <p className="sh-hint" role="status">正在读取对话记录…</p>}
             {timeline.map((item) => item.type === "message"
-              ? <MessageBubble key={item.message.message_id} message={item.message} />
+              ? <MessageBubble key={item.message.message_id} message={item.message} cardSummary={cardMessageSummary(item.message, tasks)} />
               : (
                 <TaskBlock
                   key={item.envelope.task.task_id}
