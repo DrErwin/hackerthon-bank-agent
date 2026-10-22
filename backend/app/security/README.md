@@ -69,3 +69,9 @@ Issue #191 将公开退订能力及私有银行退订工具统一按 `SENSITIVE`
 - 验证：`app/security/test_bills_report_policy.py` 17 项（合法放行、九个声明字段〔不含 name〕逐一漂移拒绝 + name 改名经未知能力用例拒绝、冻结副本与模块对象独立、未知能力默认拒绝、用户/轮次越界拒绝）；`app/security` 全量 117 passed。另有真实 `DemoSecurityPolicy` + 已注册 L03 运行时的切换证据：改动前 `authorize_capability(...) == False`（`v04-local-demo-read-1`），改动后 `True`（`v04-local-demo-read-2`），同轮次 L01 仍为 `True`，越界用户/轮次仍为 `False`。真实 local-demo HTTP 栈实测：改动前 L03 能力被安全门拒绝、不建任务；改动后任务 `succeeded`、`module=bills` 并产出 `report_id`。
 
 **记录边界**：本单因 [#164](https://github.com/DrErwin/hackerthon-bank-agent/issues/164) 在途、由 PM 指派的其它会话代做，属 **PM 代行、非 Ringo 本人审查**；AI 复核不等于真人专业签核，Ringo 本人的安全签核仍缺，不得据此记作已获安全签核。**合并决定与范围**：PM（Erwin）2026-10-20 决定由其它会话代做并按「只改 `backend/app/security/`、一票一目录一 PR」范围合入（[PR #184](https://github.com/DrErwin/hackerthon-bank-agent/pull/184) squash `3f9996c`）；该条是 PM 的代行/豁免记录，不改变安全专业审查由 Ringo 把关的长期规则。
+
+## Demo 文本兜底（bank-e2e-remediation/06）
+
+`demo_text_risk` 把实际请求证据叠加到已绑定参数的服务端演示事实。共享屏幕、远程控制、保密与催促转账等正向危险线索优先停止；只有有限的普通转账和补充语句可以保留演示事实。其余文字保持未知，检测器异常交给既有安全门暂停，不能默认为低风险。纯安全求助仍由平台的普通回复路径回答；误分成支付也不得执行。
+
+这是有限语言范围的本地 demo 规则，不是通用中文反诈识别率证明。原有56条样本及长输入模型失败证据不被替代；本票不接运行时，后续票07负责当前对话与动作绑定。确认、专用验证和执行权限不变。
