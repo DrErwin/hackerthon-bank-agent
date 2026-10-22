@@ -108,7 +108,7 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
 
   return (
     <Card
-      title={live ? "为了安全，请完成两项验证" : "安全验证记录"}
+      title={live ? needsCode && needsFace ? "为了安全，请完成两项验证" : "为了安全，请完成验证" : "安全验证记录"}
       labelledBy={id}
       readOnly={!live}
       highlight={live}

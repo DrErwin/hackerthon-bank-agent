@@ -7,7 +7,7 @@ Type: 开发
 Owner: Erwin 协调 / Codex 按用户授权代行
 Directory: `backend/app/api/`
 Priority: P0
-Status: in_progress
+Status: implemented
 Blocked by: 无
 Core scenarios: S01 S02 S07
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
@@ -26,3 +26,5 @@ F10 补付款账户；新增绑定任务版本的草稿修改入口，复用原�
 2026-10-22：用户授权范围内拆票。开发、运行验证、合入、验收分别记录。
 
 2026-10-23：代码已开发，PR [#228](https://github.com/DrErwin/hackerthon-bank-agent/pull/228)，head a986dcd；初版 API 全目录 136 passed，审查修复后定向 13 passed。两轴 AI 审查问题已修复；未合入，专业安全批准未记录。首批真实页面证据见[验证记录](../verification-2026-10-23.md)。
+
+2026-10-23 00:14：用户明确授权 GPT-6.1-sol 代审，两轴无阻塞、CI通过；#228 已合入 main，提交 b10e4f9。不是 Ringo 本人签核；完整场景验收仍由票11汇总。

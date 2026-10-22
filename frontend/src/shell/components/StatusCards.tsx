@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { InteractionRequest } from "../../contracts";
 import type { DataOrigin, DisplayField, ReportView, ResultView } from "../types";
 import { Card, FieldList, OriginTag, ReadOnlyStamp, Spinner, StatusBadge } from "./Primitives";
@@ -16,21 +17,29 @@ export function WaitingCard({ message, facts, id }: { message: string; facts: Di
   );
 }
 
-export function InputCard({ interaction, active, busy, selectedLabel, onSelect, id }: {
+export function InputCard({ interaction, active, busy, selectedLabel, onSelect, onSubmitText, id }: {
   interaction: InteractionRequest;
   active: boolean;
   busy: boolean;
   selectedLabel: string | null;
   onSelect: (optionId: string, label: string) => void;
+  onSubmitText?: (text: string) => Promise<boolean>;
   id: string;
 }) {
+  const [text, setText] = useState("");
+  const field = interaction.required_fields.length === 1 ? interaction.required_fields[0] : "";
+  const labels: Record<string, string> = {
+    amount_fen: "转账金额（元）", payee_hint: "收款人姓名或备注",
+    payer_account_id: "付款账户编号", merchant_hint: "商户名称",
+  };
+  const inputLabel = labels[field];
   return (
     <Card
       title={interaction.prompt}
       labelledBy={id}
       readOnly={!active}
       highlight={active}
-      badge={active ? <StatusBadge tone="pending" icon="✎" text="等您选择" /> : <ReadOnlyStamp text={selectedLabel ? "已选择" : "已结束"} />}
+      badge={active ? <StatusBadge tone="pending" icon="✎" text={inputLabel ? "等您补充" : "等您选择"} /> : <ReadOnlyStamp text={selectedLabel ? "已选择" : "已结束"} />}
     >
       {active ? (
         <div className="sh-choices">
@@ -40,7 +49,19 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
               <span aria-hidden="true">›</span>
             </button>
           ))}
-          <p className="sh-hint">请自己点选，系统不会替您默认选择。</p>
+          {inputLabel && onSubmitText && (
+            <form className="sh-modify" onSubmit={async (event) => {
+              event.preventDefault();
+              if (!text.trim() || busy) return;
+              if (await onSubmitText(text)) setText("");
+            }}>
+              <label htmlFor={id + "-input"}>{inputLabel}</label>
+              <input id={id + "-input"} value={text} onChange={(event) => setText(event.target.value)}
+                inputMode={field === "amount_fen" ? "decimal" : "text"} autoComplete="off" disabled={busy} required />
+              <button className="sh-btn sh-btn-primary" disabled={busy || !text.trim()}>补充并继续</button>
+            </form>
+          )}
+          <p className="sh-hint">{inputLabel ? "填写后继续这项办理，不会另起一笔。" : "请自己点选，系统不会替您默认选择。"}</p>
         </div>
       ) : (
         <p className="sh-readonly-line">{selectedLabel ? "您选择了：" + selectedLabel : "这一步已经结束。"}</p>

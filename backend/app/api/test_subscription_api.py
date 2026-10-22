@@ -319,7 +319,7 @@ def test_sf04_a_flow_only_clue_is_guided_outside_the_bank(tmp_path):
         item = task["data"]["selected_item"]
         assert item["merchant_name"] == "绿洲健身"
         assert (item["source_type"], item["can_cancel_in_bank"]) == ("suspected_ledger", False)
-        assert "微信支付/支付宝" in task["message"]
+        assert "在本行退不了" in task["message"]
         assert mandate_status(bank, "sub_001") == "active"
 
 
