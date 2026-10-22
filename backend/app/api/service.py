@@ -1239,6 +1239,30 @@ class ApiService:
             raise ApiProblem(409, "INTERACTION_STALE")
         return task
 
+    def revise_draft(self, identity, task_id, revision, fields):
+        """Edit only the currently owned, unsubmitted ordinary-transfer draft."""
+        self.link(identity, task_id, mutate=True)
+        task = self.task_view(identity, task_id)
+        if task.task_revision != revision:
+            raise ApiProblem(409, "TASK_REVISION_STALE")
+        if (task.module != "transfer" or task.recovery_required
+                or task.status not in {TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL}
+                or not task.interaction
+                or task.interaction.kind not in {"input", "confirmation"}
+                or not isinstance(task.data, TransferTaskView)
+                or task.data.operation is not None):
+            raise ApiProblem(409, "DRAFT_NOT_EDITABLE")
+        if not fields:
+            raise ApiProblem(400, "INVALID_ARGUMENT")
+        fields = {
+            name: safe_text(value, numeric_field=name == "payer_account_id").strip()
+            if isinstance(value, str) else value
+            for name, value in fields.items()
+        }
+        # The module generates a new action revision and confirmation. Cancelling
+        # the old confirmation would terminate this task, so never answer it here.
+        return self.continue_task(identity, task_id, {"fields": fields})
+
     def input_response(self, task, request):
         """F10: turn one answer into the response the task's own module expects (§5.6)."""
 
@@ -1281,6 +1305,10 @@ class ApiService:
             return {"fields": {"amount_fen": int(amount)}}
         if fields == ["payee_hint"]:
             return {"fields": {"payee_hint": text}}
+        if fields == ["payer_account_id"]:
+            if text.strip() not in {item.id for item in interaction.options}:
+                raise ApiProblem(400, "INVALID_OPTION")
+            return {"fields": {"payer_account_id": text.strip()}}
         raise ApiProblem(400, "USE_CURRENT_INPUT_FIELDS")
 
     def audit_reader(self, identity):
