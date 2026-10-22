@@ -348,7 +348,7 @@ def test_sf04_flow_only_clue_is_guided_outside_without_gate_or_bank_call(tmp_pat
     item = result.data.selected_item
     assert (item.source_type, item.merchant_name, item.can_cancel_in_bank) == (
         "suspected_ledger", "绿洲健身", False)
-    assert "微信支付/支付宝" in result.message
+    assert "在本行退不了" in result.message
     assert "绿洲健身" in result.message
     assert security_confirmations(app, "T1") == 0
     assert bank_operations(bank) == 0
