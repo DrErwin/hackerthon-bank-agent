@@ -13,7 +13,7 @@ Core scenarios: S01 S02 S07
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
 
 ## What to build
-F10 补付款账户；新增绑定任务版本的草稿修改入口，复用原转账续办；只允许未提交且等待输入/确认的转账。
+F10 补付款账户；新增绑定任务版本的草稿修改入口，复用原转账续办；只允许未提交且等待确认的转账。等待输入阶段统一沿用 F10，不开放草稿修改入口。
 
 ## Acceptance criteria
 - [ ] 同一 task_id 补字段；改金额/账户/收款人保留其他字段；旧确认不可批准；重放不重复修改；越权、过期交互、已提交任务拒绝。
@@ -24,3 +24,5 @@ F10 补付款账户；新增绑定任务版本的草稿修改入口，复用原�
 
 ## Comments
 2026-10-22：用户授权范围内拆票。开发、运行验证、合入、验收分别记录。
+
+2026-10-23：代码已开发，PR [#228](https://github.com/DrErwin/hackerthon-bank-agent/pull/228)，head a986dcd；初版 API 全目录 136 passed，审查修复后定向 13 passed。两轴 AI 审查问题已修复；未合入，专业安全批准未记录。首批真实页面证据见[验证记录](../verification-2026-10-23.md)。
