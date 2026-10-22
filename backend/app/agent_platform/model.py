@@ -83,7 +83,7 @@ class ContinueProposal(_TransferFields):
 class PlanningError(ValueError):
     """Only safe boundary diagnostics; no provider text or tool arguments."""
 
-    def __init__(self, code: str, stage: str, outcomes: list[TransferProposal | ReplyOnly]):
+    def __init__(self, code: str, stage: str, outcomes: list[TransferProposal | ReplyOnly | ContinueProposal]):
         super().__init__(code)
         self.stage = stage
         self.outcome_count = len(outcomes)
@@ -101,7 +101,7 @@ class Planner(Protocol):
                catalog: list[dict[str, str]], memory: MemoryAdapter,
                thread_id: str, context_summary: str | None = None,
                untrusted_data: Sequence[UntrustedData] = (),
-               ) -> TransferProposal | ReplyOnly: ...
+               ) -> TransferProposal | ReplyOnly | ContinueProposal: ...
 
 
 @dataclass(frozen=True)
@@ -143,7 +143,7 @@ class DeepAgentPlanner:
                catalog: list[dict[str, str]], memory: MemoryAdapter,
                thread_id: str, context_summary: str | None = None,
                untrusted_data: Sequence[UntrustedData] = (),
-               ) -> TransferProposal | ReplyOnly:
+               ) -> TransferProposal | ReplyOnly | ContinueProposal:
         if not catalog:
             raise ValueError("CAPABILITY_CATALOG_UNAVAILABLE")
         catalog_names = {entry["name"] for entry in catalog}

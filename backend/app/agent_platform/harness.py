@@ -39,10 +39,6 @@ from .untrusted_data import MAX_ITEMS, UntrustedData, tool_observation, user_mat
 _LOCK_GUARD = Lock()
 _TASK_LOCKS: dict[str, RLock] = {}
 _HELD_LOCKS = local()
-_CREDENTIAL_IN_REQUEST = re.compile(
-    r"(?:验证码|短信码|动态码|一次性密码|otp|password|密码|口令)",
-    re.IGNORECASE,
-)
 # A request that carries outside material may only be analysed. The refusal is
 # fixed here, never taken from the model or the material itself (S2 / A03).
 _UNTRUSTED_MATERIAL_REFUSAL = (
@@ -272,7 +268,7 @@ class AgentHarness:
         return saved.config["configurable"]["checkpoint_id"] if saved else None
 
     def understand(self, trusted: TrustedContext,
-                   intent_text: str) -> TransferProposal | ReplyOnly:
+                   intent_text: str) -> TransferProposal | ReplyOnly | ContinueProposal:
         """Classify one message without creating a business task or invoking a capability."""
         context = self._scope(trusted)
         self._check_intent_text(intent_text)
@@ -283,7 +279,7 @@ class AgentHarness:
     def _select_outcome(self, trusted: TrustedContext, intent_text: str,
                         thread_id: str,
                         untrusted_data: Sequence[UntrustedData] = (),
-                        ) -> TransferProposal | ReplyOnly:
+                        ) -> TransferProposal | ReplyOnly | ContinueProposal:
         context = self._scope(trusted)
         summary = self._session_context_summary(trusted)
         # Only pass a keyword when it carries content: injected planners with the
@@ -305,7 +301,7 @@ class AgentHarness:
             raise ValueError("MODEL_OUTCOME_INVALID")
         if isinstance(outcome, ReplyOnly):
             # A reply may explain "验证码不要告诉别人" (S1); only a credential value
-            # stays fail-closed. The user request keeps the stricter word check.
+            # stays fail-closed. User input also checks secret values before planning.
             findings = probe_output(outcome.message).findings
             if (any(finding.kind == "credential" for finding in findings)
                     or _ENGLISH_SECRET_LABEL.search(outcome.message)):
@@ -482,7 +478,7 @@ class AgentHarness:
     def _understand_with_trace(self, trusted: TrustedContext, intent_text: str,
                                trace: RunTrace,
                                material: UntrustedData | None = None,
-                               ) -> TransferProposal | ReplyOnly:
+                               ) -> TransferProposal | ReplyOnly | ContinueProposal:
         blocks = self._untrusted_blocks(trusted, material)
         self._record_resource_load(trace, blocks)
         model_call_id = str(uuid4())
