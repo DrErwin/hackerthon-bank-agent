@@ -15,6 +15,8 @@ Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issu
 ## What to build
 常用范围或明确可点替代；分类追问继承已选日期/账户，陌生扣款走已有核对能力。
 
+模块通过显式 `start_followup` 接收平台已核实的 BillScope；只在没有新日期/账户要求的追问中继承。API 来源绑定与平台传递分别由 09a、09b 实现，避免跨目录混票。
+
 ## Acceptance criteria
 - [ ] 日期/账户不丢失；超范围说明不引用不存在入口；只查本人事实。
 - [ ] 保留确认、专用验证、所有权和重复执行保护。
