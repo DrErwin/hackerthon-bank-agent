@@ -225,3 +225,9 @@
 .sh-toggle input { flex: 0 0 auto; width: 24px; height: 24px; margin-top: 3px; accent-color: var(--brand); }
 .sh-gallery-section h2 { margin: 8px 0 12px; font-size: 20px; }
 .sh-gallery-stack { display: flex; flex-direction: column; gap: 14px; }
+.sh-business-row { padding-block: 16px; border-top: 1px solid var(--sh-border, #d9dfe5); }
+.sh-business-row h4, .sh-business-row h5 { font-size: 1.1em; margin: 0 0 12px; }
+.sh-business-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.sh-business-action { margin-block: 8px; }
+.sh-business-action .sh-btn { white-space: normal; overflow-wrap: anywhere; min-height: 48px; }
+.sh-task { scroll-margin-top: 100px; }

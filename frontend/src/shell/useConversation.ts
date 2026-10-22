@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../api";
 import type { ConfirmationView, DemoCodeView, MessageView, SessionView, TaskRecordsView, ThreadView, VerificationView } from "../contracts";
 import { isTerminal, newRequestId } from "./format";
-import type { DraftChanges, HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
+import type { CardSelection, DraftChanges, HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
 
 const ENTERED_KEY = "fe-shell-entered";
 const historyKey = (threadId: string) => "fe-shell-history:" + threadId;
@@ -85,6 +85,7 @@ export function useConversation(source: ShellDataSource) {
 
   const inflight = useRef(new Set<string>());
   const pendingIds = useRef(new Map<string, string>());
+  const completedCards = useRef(new Map<string, string>());
   const fetched = useRef(new Set<string>());
   const didBoot = useRef(false);
   const loadFlight = useRef<Promise<void> | null>(null);
@@ -482,6 +483,19 @@ export function useConversation(source: ShellDataSource) {
     if (result) upsertTask(result);
   }
 
+  async function cardAction(task: ShellTask, selection: CardSelection): Promise<string | null> {
+    if (!source.cardAction || expired || task.status !== "succeeded" || task.recovery_required) return null;
+    const key = "card:" + task.task_id + ":" + task.task_revision + ":" + JSON.stringify(selection);
+    const previous = completedCards.current.get(key);
+    if (previous) return previous;
+    const result = await act(task.task_id, key, (request_id) => source.cardAction!(task.task_id,
+      { ...selection, request_id, source_revision: task.task_revision }));
+    if (!result) return null;
+    completedCards.current.set(key, result.task_id);
+    upsertTask(result, result.module);
+    return result.task_id;
+  }
+
   function settleRecovery(taskId: string, outcome: RecoveryOutcome) {
     setBootRecovery((current) => {
       const next = new Set(current);
@@ -573,7 +587,8 @@ export function useConversation(source: ShellDataSource) {
     pendingMessage,
     sending,
     awaitingReply,
-    actions: { send, provideText, reviseDraft, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask },
+    supportsCardActions: Boolean(source.cardAction),
+    actions: { cardAction, send, provideText, reviseDraft, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask },
   };
 }
 

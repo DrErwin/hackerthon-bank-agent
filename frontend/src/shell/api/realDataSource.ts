@@ -65,6 +65,9 @@ export function createRealDataSource(): ShellDataSource {
     queryResult: (taskId, body) =>
       post<ShellTask>("/tasks/" + encodeURIComponent(taskId) + "/query-result", body),
 
+    cardAction: (taskId, body) =>
+      post<ShellTask>("/tasks/" + encodeURIComponent(taskId) + "/actions", { ...body }),
+
     getConfirmation: (confirmationId) =>
       get<ConfirmationView>("/confirmations/" + encodeURIComponent(confirmationId)),
 

@@ -1,4 +1,8 @@
 import type { PublicContract } from "./api.generated";
+export type CardActionRequest = PublicContract["CardActionRequest"];
+export type AccountList = PublicContract["AccountList"];
+export type PayeeList = PublicContract["PayeeList"];
+export type SubscriptionTaskView = PublicContract["SubscriptionTaskView"];
 
 // Contract types are generated from backend/app/contracts with npm run generate:contracts.
 export type SessionView = PublicContract["SessionView"];
