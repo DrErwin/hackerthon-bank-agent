@@ -24,6 +24,7 @@ from app.contracts.api import (
     ExportView, MessageView, ReportReady, StreamEvent, TaskRecordsView, VerificationResponse,
 )
 from app.contracts.bills import BillReport
+from app.contracts.bank import AccountList, PayeeList
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
@@ -47,9 +48,14 @@ SERVED_MODULE = "transfer"
 MODULE_TASK_VIEWS = {"transfer": TransferTaskView, "subscription": SubscriptionTaskView}
 
 
-def task_view_model(module: str | None):
+def task_view_model(module: str | None, capability: str | None = None):
     """The typed task view for one module, or None when its payload stays generic."""
 
+    if module == "transfer":
+        if capability == "transfer.list_accounts":
+            return AccountList
+        if capability == "transfer.list_payees":
+            return PayeeList
     return MODULE_TASK_VIEWS.get(module)
 
 
@@ -227,7 +233,7 @@ class ApiService:
         module = self._task_module(task)
         # A second module's payload is its own displayable result (§6.5); transfer and
         # subscription keep their typed views so existing consumers stay typed.
-        model = task_view_model(module)
+        model = task_view_model(module, task.snapshot.get("capability_name") if task else None)
         if task and "result" in task.snapshot:
             result = (ModuleResult[model] if model is not None else ModuleResult) \
                 .model_validate(task.snapshot["result"])
