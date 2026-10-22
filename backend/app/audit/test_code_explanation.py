@@ -2,6 +2,7 @@
 import pytest
 from app.audit.journal import redact
 from app.audit.output_guard import probe_output
+from app.agent_platform.input_privacy import has_chat_secret
 from app.audit.test_output_guard import store_and_replay
 import json
 
@@ -26,11 +27,17 @@ def test_explanation_keeps_meaning_in_output_and_persisted_audit(tmp_path, text)
     ("短信码为654321", "654321"),
     ("验证码是 **123456**", "123456"),
     ("验证码是１２３４５６", "１２３４５６"),
+    ("验证码是（123456）", "123456"),
+    ("验证码：【123456】", "123456"),
+    ("验证码是：123456，请保密", "123456"),
+    ("短信码为:654321", "654321"),
+    ("验证码是数字123456", "123456"),
     ("密码是春暖花开", "春暖花开"),
     ("口令为abc123", "abc123"),
     ("token: secretValue", "secretValue"),
 ])
 def test_actual_values_still_gate_and_redact(tmp_path, text, secret):
+    assert has_chat_secret(text)
     assert any(f.kind == "credential" for f in probe_output(text).findings)
     assert secret not in str(redact(text, free_text=True))
     detail, _ = store_and_replay(tmp_path / "audit.sqlite", text)

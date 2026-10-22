@@ -32,7 +32,7 @@ ACCOUNT_FIELD = {"account_number", "card_number"}
 ADDRESS_FIELD = {"address", "recipient_address"}
 # Code labels are also used in safety explanations. Require an actual opaque
 # code token after these two labels; password/other-secret labels remain broad.
-_CODE_VALUE_AHEAD = r"(?=\s*(?:是|为|[:：=]|\s)\s*[\"'`*]*(?:[A-Za-z0-9]{4,}|\d{4,}|\[REDACTED\]))"
+_CODE_VALUE_AHEAD = r"(?=\s*(?:是|为|[:：=]|\s)\s*[^\s,，;；]*?(?:[A-Za-z0-9]{4,}|\d{4,}|\[REDACTED\]))"
 SECRET_LABEL = re.compile(
     rf"((?:(?:验证码|短信码){_CODE_VALUE_AHEAD}|密码|口令|登录凭据|credential|secret|cookie|api[_ -]?key|otp|token|authorization|bearer)\s*(?:是|为|[:：=]|\s)\s*)"
     r"([^\s,，;；]+)", re.I,
