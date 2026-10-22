@@ -6,7 +6,7 @@ from app.audit.output_guard import probe_output
 
 
 _ENGLISH_PASSWORD = re.compile(
-    r"\b(?:password|passwd|pwd)(?:\s*(?:[:：=]|是|为)\s*\S+|\s+[A-Za-z0-9_!@#$%^&*.-]+)", re.I)
+    r"\b(?:password|passwd|pwd)(?:\s*(?:[:：=]|是|为)\s*\S+|\s+(?=[A-Za-z0-9_!@#$%^&*.-]*[0-9_!@#$%^&*])[A-Za-z0-9_!@#$%^&*.-]+)", re.I)
 _TOKEN_VALUE = re.compile(r"\botp\s*[:：=]?\s*\d{4,8}\b|\bapikey_[A-Za-z0-9_]{16,}", re.I)
 _BARE_CODE = re.compile(r"\s*[A-Za-z0-9]{4,8}\s*")
 
