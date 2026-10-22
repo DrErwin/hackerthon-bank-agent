@@ -32,6 +32,8 @@ def test_explanation_keeps_meaning_in_output_and_persisted_audit(tmp_path, text)
     ("验证码是：123456，请保密", "123456"),
     ("短信码为:654321", "654321"),
     ("验证码是数字123456", "123456"),
+    ("验证码是（ 123456 ）", "123456"),
+    ("验证码：【 123456 】", "123456"),
     ("密码是春暖花开", "春暖花开"),
     ("口令为abc123", "abc123"),
     ("token: secretValue", "secretValue"),
