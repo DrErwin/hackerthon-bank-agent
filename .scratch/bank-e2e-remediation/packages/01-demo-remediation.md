@@ -1,6 +1,6 @@
 # bank-e2e-remediation/packages/01-demo-remediation：Demo 修复
 
-Status: in_progress
+Status: implementation-complete-awaiting-acceptance
 Owner: Erwin（协调；AI 按票实施）
 Activation: 2026-10-22 用户直接指派
 Start when: 读取交接、核对最新代码与已有票
@@ -12,3 +12,5 @@ Work spec: [bank-e2e-remediation](../spec.md)
 范围：连续办理、卡片交互、安全兜底，按单目录依次实现。依赖及验收见规格 S01～S08。验收由项目负责人决定。
 
 2026-10-23 用户明确授权：“用6.1sol模型代审，通过后依次合并继续往后做”。本轮使用 GPT-6.1-sol 双轴代审，发现项修复并复核、相关检查通过后依次合并，再继续后续票。本记录属于用户对本轮合并审查安排的明确例外，不是 Ringo 本人批准，也不改变长期目录归属或运行时安全门。
+
+2026-10-23：24个单目录PR #228～#251已依次合入。三条真实路径、银行计数与安全复验见[分层证据](../../../evals/demo-remediation/README.md)。实现与运行验证完成；票10专项UI检查、用户最终验收仍待。

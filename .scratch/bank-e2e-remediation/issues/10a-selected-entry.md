@@ -3,7 +3,7 @@
 Ticket ID: bank-e2e-remediation/10a
 Directory: `backend/app/agent_platform/`
 Owner: Erwin / Codex 按用户授权代行
-Status: ready-for-agent
+Status: implemented-merged
 Priority: P1
 Blocked by: bank-e2e-remediation/09b
 Source issue: [#227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
@@ -13,3 +13,5 @@ Source issue: [#227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227
 验收：卡片进入准确能力；订阅仍暂停确认，不能通过此入口直接转账或审批；无伪造模型调用证据。
 
 规格：[修复规格](../spec.md) S03/S06；交付包：[01](../packages/01-demo-remediation.md)。
+
+2026-10-23：实现见 [PR #245](https://github.com/DrErwin/hackerthon-bank-agent/pull/245)；用户授权 GPT-6.1-sol 双轴代审通过，非专业安全批准。相关代码测试及CI、真实路径分层见[汇总进度](../progress.md)与[票11证据](../../../evals/demo-remediation/README.md)。票10的专项UI走查仍待，不影响已记录的功能路径结论。

@@ -1,6 +1,6 @@
 # 黑客松 Demo 连续办理与安全修复
 
-Status: in_progress
+Status: implementation-complete-awaiting-acceptance
 Owner: Erwin（用户授权 AI 按票代行，长期目录归属不变）
 Accepted at: 2026-10-22
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
