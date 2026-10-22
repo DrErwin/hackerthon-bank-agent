@@ -103,6 +103,8 @@ class ApiStore:
                 c.execute("ALTER TABLE api_message_jobs ADD COLUMN untrusted_content TEXT")
             if "continuation_json" not in job_columns:
                 c.execute("ALTER TABLE api_message_jobs ADD COLUMN continuation_json TEXT")
+            if "parent_task_id" not in job_columns:
+                c.execute("ALTER TABLE api_message_jobs ADD COLUMN parent_task_id TEXT")
 
     def rows(self, sql, parameters=()):
         with closing(connect(self.path)) as c:
@@ -237,15 +239,15 @@ class ApiStore:
                 job_id, candidate_task_id, user_message_id, assistant_message_id, thread_id,
                 user_id, session_id, demo_round_id, run_id, request_id, intent_text, status,
                 task_id, created_at, user_event_id, assistant_event_id, user_task_event_id,
-                task_updated_event_id, interaction_event_id, error_event_id, untrusted_content)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                task_updated_event_id, interaction_event_id, error_event_id, untrusted_content, parent_task_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (job["job_id"], job["candidate_task_id"], job["user_message_id"],
                  job["assistant_message_id"], job["thread_id"], job["user_id"],
                  job["session_id"], job["demo_round_id"], job["run_id"], job["request_id"],
                  job["intent_text"], "queued", job["created_at"], job["user_event_id"],
                  job["assistant_event_id"], job["user_task_event_id"],
                  job["task_updated_event_id"], job["interaction_event_id"],
-                 job["error_event_id"], job["untrusted_content"]))
+                 job["error_event_id"], job["untrusted_content"], job.get("parent_task_id")))
             row = c.execute("SELECT * FROM api_message_jobs WHERE job_id=?", (job["job_id"],)).fetchone()
             return dict(row), True
 
