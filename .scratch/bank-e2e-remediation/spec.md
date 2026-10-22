@@ -36,6 +36,8 @@ Package: [bank-e2e-remediation/packages/01-demo-remediation](packages/01-demo-re
 ## Out of Scope
 生产银行、部署、完整多用户产品、全部赛事场景、全新语音服务、视觉重设计、无依据的模型选型和专业安全认证。原诊断中的长诈骗 MODEL_UNDERSTANDING_FAILED 保留，不能用离线样例覆盖。
 
+2026-10-23用户实测后的范围追加：授权票14完整调整前端卡片版式，明确“原地展开为主，长明细用抽屉”。保留既有品牌，重构对话排序、信息分层与前端可控短话术；票14优先于以上旧版式排除项。后端模型自由回复与订阅运行环境问题另记，不混入前端PR。
+
 ## Further Notes
 2026-10-22 已读本机 to-spec/to-tickets/implement/code-review；前三项带 disable-model-invocation，未声称通过不存在的命令调用，按仓库授权的同名流程手工执行。方案来自用户已明确范围与既有报告。仅代码审查按 code-review 使用两轴独立审查。不得触碰主工作区 showcase 未跟踪内容。未同步飞书。
 
@@ -54,3 +56,4 @@ Package: [bank-e2e-remediation/packages/01-demo-remediation](packages/01-demo-re
 | [09](issues/09-bills-followup.md) | P1 | 账单范围与明细续查 | `backend/app/modules/bills/` | 04 |
 | [10](issues/10-business-cards.md) | P1 | 账户与订阅逐项卡片和账单明细操作 | `frontend/` | 02,03,05,08,09 |
 | [11](issues/11-acceptance.md) | P0/P1 | 三条真实用户路径联调与安全复验 | `evals/demo-remediation/` | 01,02,03,04,05,06,07,08,09,10 |
+| [14](issues/14-conversation-layout.md) | P0 | 稳定阅读顺序、原地展开、长明细抽屉与前端短话术 | `frontend/` | 02,10 |

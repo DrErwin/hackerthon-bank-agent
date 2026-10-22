@@ -1,6 +1,6 @@
 # bank-e2e-remediation/14：对话顺序、卡片分级与适老话术重构
 
-Status: in_progress
+Status: implementation-complete-awaiting-user-acceptance
 Type: 开发
 Owner: Erwin协调 / Codex按用户直接授权实施
 Directory: `frontend/`
@@ -27,3 +27,10 @@ Accepted at: 2026-10-23
 定向渲染/事件顺序/刷新关系与安全交互回归、前端build；真实已有长会话只读复验布局、新分类动作复验原地展示。不得为了界面验证重置用户演示库。
 
 本票沿用用户授权GPT-6.1-sol双轴代审后合并；AI代审不代表专业安全签核。
+
+## 交付记录
+
+- [PR #252](https://github.com/DrErwin/hackerthon-bank-agent/pull/252) 已合入，squash `a3d1b576e7b8332e95256778dbc0ba0c99fc2602`。
+- 59项前端测试、build、diff检查及Repository checks通过；GPT-6.1-sol Standards/Spec最终头 `9869ddf` 均通过。
+- [真实页面证据与截图](../evidence/layout-2026-10-23/README.md)：既有长会话、分类原地展开、刷新同子任务、抽屉Escape/焦点返回、展开不跳底与390px iframe视口检查通过。
+- 尚待用户体验验收；真实200%缩放、专业屏幕阅读器与手机软键盘未验证。前端可控文案已缩短，模型自由回复未改写；旧会话订阅服务不可用另记。
