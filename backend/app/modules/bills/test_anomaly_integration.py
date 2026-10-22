@@ -160,7 +160,8 @@ def test_production_policy_l02_admission_follows_frozen_policy_version():
     if policy.policy_version == "v04-local-demo-read-2":
         assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is False
     elif policy.policy_version in {
-            "v04-local-demo-read-3", "v04-local-demo-read-4", "v04-local-demo-read-5"}:
+            "v04-local-demo-read-3", "v04-local-demo-read-4", "v04-local-demo-read-5",
+            "v04-local-demo-read-6"}:
         assert policy.authorize_capability(trusted(), ANOMALY_MANIFEST.capabilities[0]) is True
     else:
         pytest.fail("unreviewed demo policy version: " + policy.policy_version)
