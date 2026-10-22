@@ -330,10 +330,14 @@ class AgentHarness:
             valid = valid and proposal.action in allowed
             if proposal.action == "provide_input":
                 valid = valid and task.status == TaskStatus.WAITING_INPUT and interaction.get("kind") == "input"
+                if proposal.selected_option_id is not None:
+                    valid = valid and proposal.selected_option_id in {
+                        item.get("id") for item in interaction.get("options", [])}
         if not valid:
             return ReplyOnly(message="任务状态已变化，请查看当前卡片后继续；确认和验证码必须使用专用入口。")
-        for value in (proposal.text, proposal.payee_hint, proposal.payer_account_id):
-            if value and has_chat_secret(value, numeric_field=interaction.get("required_fields") == ["amount_fen"]):
+        for field in ("text", "payee_hint", "payer_account_id"):
+            value = getattr(proposal, field)
+            if value and has_chat_secret(value, numeric_field=field == "text" and interaction.get("required_fields") == ["amount_fen"]):
                 raise ValueError("CREDENTIAL_IN_REQUEST")
         self._authorize(trusted, task.snapshot["capability_name"])
         return proposal
