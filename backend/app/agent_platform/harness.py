@@ -231,7 +231,7 @@ class AgentHarness:
         # platform hands back as-is instead of forcing the transfer view (Issue #122).
         # The prefix names the module, not the payload type: a later transfer.*
         # capability returning another view (§5.2 T03/T04) must revisit this dispatch.
-        if task.snapshot.get("capability_name", "transfer.start_transfer").startswith("transfer."):
+        if task.snapshot.get("capability_name", "transfer.start_transfer") == "transfer.start_transfer":
             return ModuleResult[TransferTaskView].model_validate(task.snapshot["result"])
         return ModuleResult.model_validate(task.snapshot["result"])
 
@@ -377,6 +377,14 @@ class AgentHarness:
         ):
             result = task.snapshot.get("result")
             data = result.get("data") if isinstance(result, dict) else None
+            if isinstance(data, dict) and task.snapshot.get("capability_name") in {
+                    "transfer.list_accounts", "transfer.list_payees"}:
+                block = tool_observation(f"mock-bank.own-query:{task.task_id[:8]}", data)
+                if block is not None:
+                    blocks.append(block)
+                if len(blocks) >= limit:
+                    break
+                continue
             # Only bank-returned payee display fields are a tool return; other
             # modules' payloads never become prompt data this way.
             payee = data.get("payee") if isinstance(data, dict) else None
