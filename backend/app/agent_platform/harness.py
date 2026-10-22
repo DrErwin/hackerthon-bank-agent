@@ -575,11 +575,11 @@ class AgentHarness:
                 result = BillReport.model_validate(data)
             elif kind == "bills.summarize":
                 result = (BillDetails if "transactions" in data else SpendingSummary).model_validate(data)
-            elif kind == "bills.detect_anomalies" and source.snapshot.get("bill_scope") is not None:
+            elif kind == "bills.detect_anomalies" and source.snapshot.get("completed_bill_scope") is not None:
                 AnomalyResult.model_validate(data)
-                # This source itself inherited a checked scope at task creation;
-                # the anomaly result carries no scope field of its own.
-                return BillScope.model_validate(source.snapshot["bill_scope"]).model_dump(mode="json")
+                # The module reports the actual completed range after any date
+                # or account changes; the initial inherited range is not a result.
+                return BillScope.model_validate(source.snapshot["completed_bill_scope"]).model_dump(mode="json")
             else:
                 return None
         except ValidationError:
@@ -726,6 +726,9 @@ class AgentHarness:
             self._check_result_scope(result, trusted)
             updated = {**snapshot, "capability_name": proposal.capability_name,
                        "result": result.model_dump(mode="json")}
+            if proposal.capability_name == "bills.detect_anomalies" and result.status == TaskStatus.SUCCEEDED:
+                completed = entry.completed_scope(trusted, thread_id=task.checkpoint_thread_id)
+                updated["completed_bill_scope"] = completed.model_dump(mode="json") if completed else None
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 task.revision, trusted.run_id, result.status,
@@ -965,10 +968,14 @@ class AgentHarness:
             saver = self.memory.checkpointer(context, trusted.task_id)
             entry = registration.factory(trusted, saver, trace)
             result = None
+            completed_scope = None
             try:
                 result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
                 self._check_result_scope(result, trusted)
                 checkpoint_id = self._checkpoint_id(context, task)
+                if task.snapshot["capability_name"] == "bills.detect_anomalies" and result.status == TaskStatus.SUCCEEDED:
+                    completed = entry.completed_scope(trusted, thread_id=task.checkpoint_thread_id)
+                    completed_scope = completed.model_dump(mode="json") if completed else None
             except (RuntimeError, OSError, DatabaseError):
                 # The trusted task was checked before entering the capability.
                 # Bookkeeping remains possible if its session expires inside it;
@@ -1016,7 +1023,8 @@ class AgentHarness:
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 task.revision, trusted.run_id, result.status, checkpoint_id,
-                {**task.snapshot, "result": result.model_dump(mode="json")},
+                {**task.snapshot, "result": result.model_dump(mode="json"),
+                 "completed_bill_scope": completed_scope},
             )
             trace.record(
                 "recovery.checked",

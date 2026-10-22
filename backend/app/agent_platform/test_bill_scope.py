@@ -17,7 +17,8 @@ def child_context(task):
         demo_round_id=task.demo_round_id, task_id=str(uuid4()), run_id=str(uuid4()), parent_task_id=task.task_id)
 
 
-def test_completed_bill_followups_keep_scope_and_original_result(tmp_path):
+@pytest.mark.parametrize("unknown_text,month", [("核对陌生扣款", 9), ("核对2026年8月陌生扣款，换张卡", 8)])
+def test_completed_bill_followups_keep_scope_and_original_result(tmp_path, unknown_text, month):
     app = app_for(configuration(tmp_path))
     harness = app.state.api.runtime.harness
     with TestClient(app) as client, patch.object(harness.planner, "select",
@@ -33,11 +34,13 @@ def test_completed_bill_followups_keep_scope_and_original_result(tmp_path):
         details_task = harness.application.get_task("U1", "D1", details.task_id)
         with patch.object(harness.planner, "select", return_value=TransferProposal(capability_name="bills.detect_anomalies")):
             unknown_context = child_context(details_task)
-            unknown = harness.handle_message(unknown_context, uuid4(), "核对陌生扣款")
+            unknown = harness.handle_message(unknown_context, uuid4(), unknown_text)
             assert unknown.status in {"succeeded", "waiting_input"}
-            if unknown.interaction:
+            for _ in range(3):
+                if unknown.status == "succeeded":
+                    break
+                assert unknown.interaction
                 assert "月份" not in unknown.interaction.prompt
-                assert unknown.model_dump(mode="json")["data"]["scope"] == data["scope"]
                 unknown = harness.resume(unknown_context.model_copy(update={"run_id": str(uuid4())}),
                     {"interaction_id": unknown.interaction.interaction_id,
                      "selected_option_id": unknown.interaction.options[0].id})
@@ -45,7 +48,11 @@ def test_completed_bill_followups_keep_scope_and_original_result(tmp_path):
         unknown_task = harness.application.get_task("U1", "D1", unknown.task_id)
         again = harness.handle_message(child_context(unknown_task), uuid4(), "再看餐饮明细")
         assert again.status == "succeeded"
-        assert again.model_dump(mode="json")["data"]["scope"] == data["scope"]
+        final_scope = again.model_dump(mode="json")["data"]["scope"]
+        assert final_scope == unknown_task.snapshot["completed_bill_scope"]
+        assert int(final_scope["start_at"][5:7]) == month
+        if month == 8:
+            assert len(final_scope["account_ids"]) == 1
 
 
 @pytest.mark.parametrize("changed", ["session", "missing", "data"])
