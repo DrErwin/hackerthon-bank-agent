@@ -452,10 +452,12 @@ class AgentHarness:
             intent = str(redact(str(task.snapshot.get("intent_text") or "").strip(), free_text=True))
             result = task.snapshot.get("result") or {}
             interaction = result.get("interaction") or {}
+            options = [{"id": item.get("id"), "label": redact(item.get("label", ""), free_text=True)}
+                       for item in interaction.get("options", [])]
             meta = (f"task_id={task.task_id}, task_revision={task.revision}, "
                     f"capability={task.snapshot.get('capability_name')}, "
                     f"allowed_actions={result.get('allowed_actions', [])}, "
-                    f"required_fields={interaction.get('required_fields', [])}")
+                    f"required_fields={interaction.get('required_fields', [])}, options={options}")
             lines.append(f"- {meta}；{phrase}：{intent}")
             if len(lines) >= self._SUMMARY_TASK_LIMIT:
                 break
