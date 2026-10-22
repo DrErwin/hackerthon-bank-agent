@@ -353,6 +353,24 @@ class ApiService:
                                           task.thread_id, now().isoformat())
         return [report.report_id] if inserted else []
 
+    def bill_parent(self, identity, thread_id, task_id=None):
+        """Bind the latest completed bill in this chat, never another chat's scope."""
+        self.thread(identity, thread_id)
+        rows = self.store.rows("""SELECT * FROM api_tasks WHERE thread_id=?
+            AND user_id=? AND demo_round_id=? ORDER BY created_at DESC, rowid DESC""",
+            (thread_id, identity.user_id, identity.demo_round_id)) if task_id is None else self.store.rows(
+            """SELECT * FROM api_tasks WHERE task_id=? AND thread_id=?
+            AND user_id=? AND demo_round_id=?""", (task_id, thread_id, identity.user_id, identity.demo_round_id))
+        for row in rows:
+            if row["session_id"] != identity.session_id:
+                continue
+            task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, row["task_id"])
+            if (task is not None and task.session_id == identity.session_id and task.status == TaskStatus.SUCCEEDED
+                    and task.snapshot.get("capability_name") in {"bills.summarize", "bills.generate_report",
+                                                                 "bills.detect_anomalies"}):
+                return task.task_id
+        return None
+
     def accept_message_job(self, identity, thread_id, request_id, text, untrusted_content=None):
         message = self.message_view(thread_id, text, "user", identity=identity)
         job = {
@@ -362,6 +380,7 @@ class ApiService:
             "session_id": identity.session_id, "demo_round_id": identity.demo_round_id,
             "run_id": str(uuid4()), "request_id": str(request_id), "intent_text": text,
             "untrusted_content": untrusted_content,
+            "parent_task_id": self.bill_parent(identity, thread_id),
             "created_at": message.created_at.isoformat(), "user_event_id": str(uuid4()),
             "assistant_event_id": str(uuid4()), "user_task_event_id": str(uuid4()),
             "task_updated_event_id": str(uuid4()), "interaction_event_id": str(uuid4()),
@@ -545,7 +564,8 @@ class ApiService:
                 trusted = TrustedContext(
                     user_id=job["user_id"], session_id=job["session_id"],
                     demo_round_id=job["demo_round_id"], task_id=job["candidate_task_id"],
-                    run_id=job["run_id"], parent_task_id=None,
+                    run_id=job["run_id"], parent_task_id=(self.bill_parent(identity, job["thread_id"],
+                        job["parent_task_id"]) if job.get("parent_task_id") else None),
                 )
                 # The datablock keyword is only passed when a sanitized material exists,
                 # so an injected harness stand-in with the older signature keeps working
