@@ -21,7 +21,7 @@ from app.contracts.api import (
     SendMessageRequest, SessionExpired, StreamEvent, SubmitDetailsRequest, VerificationCodeRequest,
 )
 from app.contracts.bank import ManualPayee, QueryFailure
-from app.contracts.common import DisplayField, TaskStatus
+from app.contracts.common import DisplayField, PositiveInt, PositiveMoney, TaskStatus
 from app.contracts.security import ConfirmationAnswer
 from app.contracts.tasks import ModuleError, TransferTaskView
 from app.services.mock_bank.verification import AdminContext
@@ -72,8 +72,8 @@ class ExportRequest(RequestIdOnly):
 class ReviseDraftRequest(RequestIdOnly):
     """Compatible task draft extension; never carries approval or credentials."""
 
-    task_revision: int = Field(gt=0, strict=True)
-    amount_fen: int | None = Field(default=None, gt=0, strict=True)
+    task_revision: PositiveInt
+    amount_fen: PositiveMoney | None = None
     payer_account_id: str | None = Field(default=None, min_length=1, max_length=100)
     payee_hint: str | None = Field(default=None, min_length=1, max_length=100)
 

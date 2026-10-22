@@ -108,3 +108,16 @@ def test_draft_rejects_other_owner_and_changed_session(tmp_path):
         enter(client)
         assert post(client, endpoint, task_revision=task["task_revision"],
                     amount_fen=60000).status_code == 409
+
+
+def test_draft_does_not_claim_to_edit_a_payee_selection(tmp_path):
+    app = make_app(tmp_path, proposal=TransferProposal(payee_hint="张伟", amount_fen=50000, payer_account_id="A1"))
+    with TestClient(app) as client:
+        _, task = start(client, "给张伟转500元")
+        assert task["status"] == "waiting_input"
+        assert len(task["interaction"]["options"]) > 1
+        response = post(client, f"/tasks/{task['task_id']}/draft",
+                        task_revision=task["task_revision"], amount_fen=60000)
+        assert response.status_code == 409
+        actual = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert actual["task_revision"] == task["task_revision"]

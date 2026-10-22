@@ -1246,9 +1246,9 @@ class ApiService:
         if task.task_revision != revision:
             raise ApiProblem(409, "TASK_REVISION_STALE")
         if (task.module != "transfer" or task.recovery_required
-                or task.status not in {TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL}
+                or task.status != TaskStatus.WAITING_APPROVAL
                 or not task.interaction
-                or task.interaction.kind not in {"input", "confirmation"}
+                or task.interaction.kind != "confirmation"
                 or not isinstance(task.data, TransferTaskView)
                 or task.data.operation is not None):
             raise ApiProblem(409, "DRAFT_NOT_EDITABLE")

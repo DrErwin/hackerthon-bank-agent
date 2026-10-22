@@ -8,7 +8,7 @@
 
 ### Demo 草稿修改兼容扩展（Issue #227）
 
-`POST /api/v1/tasks/{task_id}/draft` 接收 `request_id`、`task_revision` 和至少一项 `amount_fen`（正整数分）、`payer_account_id`、`payee_hint`。只允许本人当前会话的未提交普通转账，在等待输入或确认且无需恢复时更新；验证中、已执行、版本过期及空修改拒绝。沿原任务续办并重新生成确认，未改字段保留；旧确认版本不能授权新参数。重复请求按原 receipt 返回，修改不包含批准、验证码或银行提交。
+`POST /api/v1/tasks/{task_id}/draft` 接收 `request_id`、`task_revision` 和至少一项 `amount_fen`（正整数分）、`payer_account_id`、`payee_hint`。只允许本人当前会话的未提交普通转账，只在等待确认且无需恢复时更新（补充缺字段继续使用 F10）；验证中、已执行、版本过期及空修改拒绝。沿原任务续办并重新生成确认，未改字段保留；旧确认版本不能授权新参数。重复请求按原 receipt 返回，修改不包含批准、验证码或银行提交。
 
 现有 F10 的 `payer_account_id` 可填写当前选项中的账户编号；不允许文字绕过候选归属。凭据字段仍经隐私前置检查。本票 [bank-e2e-remediation/01](../../../.scratch/bank-e2e-remediation/issues/01-draft-api.md) 的 HTTP 回归连接真实安全门与隔离模拟银行，模型使用替身；不代表真实模型或专业安全验收。
 
