@@ -320,7 +320,8 @@ class AgentHarness:
         result = task.snapshot.get("result") or {}
         interaction = result.get("interaction") or {}
         allowed = result.get("allowed_actions") or []
-        valid = not result.get("recovery_required") and task.revision == proposal.task_revision
+        read_unknown = proposal.action == "query" and result.get("recovery_reason") == "OPERATION_UNKNOWN"
+        valid = (not result.get("recovery_required") or read_unknown) and task.revision == proposal.task_revision
         if proposal.action == "revise":
             valid = (valid and task.snapshot.get("capability_name") == "transfer.start_transfer"
                      and task.status == TaskStatus.WAITING_APPROVAL

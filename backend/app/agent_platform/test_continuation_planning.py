@@ -88,6 +88,8 @@ def test_only_current_non_authorizing_actions_are_proposed(tmp_path, action, sta
     snapshot = task.snapshot
     snapshot["result"].update(status=status.value, allowed_actions=allowed,
                               interaction={"kind": kind, "required_fields": ["amount_fen"]} if kind else None)
+    if action == "query":
+        snapshot["result"].update(recovery_required=True, recovery_reason="OPERATION_UNKNOWN")
     harness.application.update_task("U1", "D1", "T9", 1, "R9", status, None, snapshot)
     planner.outcome = ContinueProposal(task_id="T9", task_revision=2, action=action, text=text)
     outcome = harness.handle_message(chat_context(), uuid4(), text or action, allow_continuation=True)
