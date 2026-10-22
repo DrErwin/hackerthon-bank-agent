@@ -11,7 +11,7 @@
 | 卡片补充、修改与等待 | 346c439 / [PR #229](https://github.com/DrErwin/hackerthon-bank-agent/pull/229) | 47 tests passed；build PASS |
 | AI 双轴审查 | code-review 技能 | API等待输入阶段无效修改、类型复用、确认单异步竞态及会话过期待机问题已修复 |
 
-API测试接真实转账图、安全门和隔离模拟银行，使用模型替身，不作为真实模型证据。CI状态以各PR当前记录为准；未合入，不代表专业安全批准。
+API测试接真实转账图、安全门和隔离模拟银行，使用模型替身，不作为真实模型证据。首批两项 Repository checks 已通过：[API a986dcd](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39810048946)、[前端 346c439](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/39810130175)。仍未合入，不代表专业安全批准。
 
 ## 真实运行
 
