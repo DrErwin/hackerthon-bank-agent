@@ -14,6 +14,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from pydantic import Field
 
 from app.contracts.api import (
     ConfirmationAnswerRequest, MessageAccepted, PayeeDetailsFields, PayeeSearchFields, ProvideInputRequest, RequestIdOnly,
@@ -25,7 +26,7 @@ from app.contracts.security import ConfirmationAnswer
 from app.contracts.tasks import ModuleError, TransferTaskView
 from app.services.mock_bank.verification import AdminContext
 
-from .service import ApiService, now, safe_text
+from .service import ApiService, now, safe_text, untrusted_material
 from .store import ApiProblem, dump
 
 
@@ -52,6 +53,16 @@ class FaceAnswer(RequestIdOnly):
     submission_id: UUID
     demo_round_id: str
     result: Literal["passed", "failed"]
+
+
+class MessageRequest(SendMessageRequest):
+    """F11 compatible extension (contract §8): a pasted external datablock.
+
+    It travels with the user's own question, is sanitized before storage or model
+    input, and is always data — never an instruction or an authorization.
+    """
+
+    untrusted_content: str | None = Field(default=None, max_length=8000)
 
 
 class ExportRequest(RequestIdOnly):
@@ -204,12 +215,13 @@ def create_app(runtime=None, config=None):
         return success(service.store.page([((r["created_at"], r["thread_id"]), json.loads(r["view_json"])) for r in rows], who, "threads", cursor, limit))
 
     @application.post("/api/v1/threads/{thread_id}/messages", status_code=202)
-    def send(request: Request, thread_id: str, body: SendMessageRequest, background: BackgroundTasks,
+    def send(request: Request, thread_id: str, body: MessageRequest, background: BackgroundTasks,
              who=Depends(identity), service=Depends(api)):
         service.thread(who, thread_id)
         text = safe_text(body.text)
+        material = untrusted_material(body.untrusted_content)
         def action():
-            job = service.accept_message_job(who, thread_id, body.request_id, text)
+            job = service.accept_message_job(who, thread_id, body.request_id, text, material)
             service.schedule_message_job(job["job_id"], background, who)
             return MessageAccepted(
                 message_id=job["user_message_id"], thread_id=thread_id,

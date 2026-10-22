@@ -67,6 +67,19 @@ def safe_text(text: str, *, numeric_field: bool = False) -> str:
     return cast(str, redact(text, free_text=not numeric_field))
 
 
+def untrusted_material(text: str | None) -> str | None:
+    """Sanitize a pasted external datablock (v05-observer-seams/02 compatible extension).
+
+    Unlike `safe_text`, credential-looking words are allowed here: the user may be
+    asking about a suspicious message. Only the secret and personal values are
+    replaced, and the material is always data, never an instruction.
+    """
+
+    if text is None or not text.strip():
+        return None
+    return cast(str, redact(text, free_text=True))
+
+
 # Contract §6.7: the exporter owns CSV cell safety. Quoting only protects the syntax —
 # a cell opening with a formula character would still be evaluated by a spreadsheet, so
 # text cells get the literal apostrophe prefix. Non-strings (amounts) keep their type.
@@ -277,7 +290,7 @@ class ApiService:
                                           task.thread_id, now().isoformat())
         return [report.report_id] if inserted else []
 
-    def accept_message_job(self, identity, thread_id, request_id, text):
+    def accept_message_job(self, identity, thread_id, request_id, text, untrusted_content=None):
         message = self.message_view(thread_id, text, "user")
         job = {
             "job_id": str(uuid4()), "candidate_task_id": str(uuid4()),
@@ -285,6 +298,7 @@ class ApiService:
             "thread_id": thread_id, "user_id": identity.user_id,
             "session_id": identity.session_id, "demo_round_id": identity.demo_round_id,
             "run_id": str(uuid4()), "request_id": str(request_id), "intent_text": text,
+            "untrusted_content": untrusted_content,
             "created_at": message.created_at.isoformat(), "user_event_id": str(uuid4()),
             "assistant_event_id": str(uuid4()), "user_task_event_id": str(uuid4()),
             "task_updated_event_id": str(uuid4()), "interaction_event_id": str(uuid4()),
@@ -403,8 +417,13 @@ class ApiService:
                     demo_round_id=job["demo_round_id"], task_id=job["candidate_task_id"],
                     run_id=job["run_id"], parent_task_id=None,
                 )
+                # The datablock keyword is only passed when a sanitized material exists,
+                # so an injected harness stand-in with the older signature keeps working
+                # for plain messages (same rule as the harness' context_summary).
+                options = ({"untrusted_content": job["untrusted_content"]}
+                           if job["untrusted_content"] else {})
                 outcome = self.runtime.harness.handle_message(
-                    trusted, UUID(job["request_id"]), job["intent_text"],
+                    trusted, UUID(job["request_id"]), job["intent_text"], **options,
                 )
                 if isinstance(outcome, ReplyOnly):
                     self.store.save_message_reply(job_id, cast(str, redact(outcome.message, free_text=True)))
