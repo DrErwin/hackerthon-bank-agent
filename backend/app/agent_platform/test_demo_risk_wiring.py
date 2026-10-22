@@ -1,12 +1,13 @@
 """Real local policy, HTTP and mock bank; only model proposals are scripted."""
 
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.test_app import approve, post, start
-from .model import ReplyOnly, TransferProposal
+from .model import ContinueProposal, ReplyOnly, TransferProposal
 from .test_local_demo import app_for, configuration, submitted_ledger_count
 
 
@@ -56,3 +57,27 @@ def test_detector_failure_is_pause_not_low_or_bank_submission(tmp_path):
         _, task = start(client, "给妈妈转500元")
         assert task["status"] == "needs_attention"
         assert submitted_ledger_count(app) == 0
+
+
+def test_normal_chat_continuation_still_completes_once_under_real_demo_policy(tmp_path):
+    app = app_for(configuration(tmp_path))
+    planner = app.state.api.runtime.harness.planner
+    with TestClient(app) as client:
+        with patch.object(planner, "select", return_value=TransferProposal(payee_hint="妈妈")):
+            thread, task = start(client, "我要给妈妈转账")
+        for text, action, fields in [
+            ("500元", "provide_input", {"text": "500元"}),
+            ("选择第一个账户", "provide_input", {"selected_option_id": "A1"}),
+            ("改成600元", "revise", {"amount_fen": 60000}),
+        ]:
+            candidate = ContinueProposal(task_id=task["task_id"], task_revision=task["task_revision"], action=action, **fields)
+            with patch.object(planner, "select", return_value=candidate):
+                assert post(client, f"/threads/{thread}/messages", text=text).status_code == 202
+            task = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert task["data"]["amount_fen"] == 60000
+        waiting = approve(client, task)
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        result = post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code)
+        assert result.json()["data"]["task"]["status"] == "succeeded"
+        assert submitted_ledger_count(app) == 1
