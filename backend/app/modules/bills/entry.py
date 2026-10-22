@@ -14,7 +14,7 @@ import re
 from typing import Callable
 from uuid import uuid4
 
-from app.contracts.bills import BillReport, BillSummarizeInput
+from app.contracts.bills import BillReport, BillScope, BillSummarizeInput
 from pydantic import ValidationError
 from app.contracts.common import Category, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
@@ -117,6 +117,21 @@ def _actor(context: TrustedContext) -> tuple[str, str, str]:
     return context.user_id, context.demo_round_id, context.task_id
 
 
+def inherit_scope(state, text: str, scope: BillScope | None):
+    """A server-checked prior query is context, never a replacement for new intent."""
+    if scope is None:
+        return
+    scope = BillScope.model_validate(scope)
+    if not any(word in text for word in (*_CATEGORIES, "明细", "这笔", "那笔", "陌生", "核对", "扣款", "继续")):
+        return
+    # Unsupported new dates must be clarified instead of silently reusing old dates.
+    if state["period"] is None and not re.search(r"年|月|日|号|天|周|星期|礼拜|旬|期|最近|至|到|之前|之后|之间|截至|截止|\d{4}[-/]", text):
+        state["period"] = (scope.start_at.isoformat(), scope.end_at.isoformat())
+    # Account changes always use the existing own-account chooser.
+    if not re.search(r"账户|账号|帐号|卡|存折|A\d+", text, re.I):
+        state["account_ids"] = list(scope.account_ids)
+
+
 class BillsEntry:
     """Implements the existing TransferEntry protocol without transfer semantics.
 
@@ -182,7 +197,7 @@ class BillsEntry:
                 index = now.year * 12 + now.month - 1 - offset
                 choices.append((label, {"period": month_range(index // 12, index % 12 + 1)}))
             return self._wait(context, state,
-                "请明确查询月份。可选择下列月份；自定义范围和对比请通过结构化 L01 入口提交。",
+                "当前支持按完整月份查询。请选择下列月份，或重新输入具体年月，例如2026年9月。",
                 choices, "period")
         if self.capability_name == "bills.generate_report" and state.get("report_filter_unresolved"):
             return self._wait(context, state,
@@ -239,7 +254,8 @@ class BillsEntry:
                               [("重新查询原范围", {"retry": True})], "retry")
         return result
 
-    def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None) -> ModuleResult:
+    def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None,
+              inherited_scope: BillScope | None = None) -> ModuleResult:
         if not isinstance(request, StartTransferInput) or _SECRET.search(request.intent_text):
             return fail(trusted, BillsError("INVALID_ARGUMENT"))
         saved, state = self._load(trusted, thread_id)
@@ -271,6 +287,7 @@ class BillsEntry:
                                    else "self_view"),
                 "all_accounts": any(word in request.intent_text for word in ("所有账户", "全部账户", "所有本人账户")),
                 "account_ids": None, "choices": {}, "wait_reason": None}
+            inherit_scope(state, request.intent_text, inherited_scope)
             self._save(trusted, thread_id, state)
         result = self._advance(trusted, state)
         state["result"] = result.model_dump(mode="json")

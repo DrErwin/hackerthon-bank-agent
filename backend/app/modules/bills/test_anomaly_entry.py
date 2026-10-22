@@ -35,6 +35,17 @@ def payload(result, model=AnomalyResult):
     return model.model_validate(result.data.model_dump() if hasattr(result.data, "model_dump") else result.data)
 
 
+def test_unknown_charge_followup_reuses_scope_and_existing_locate_flow():
+    from app.contracts.bills import BillScope
+    reads, saver = Reads([transaction()], accounts=("a1",)), Saver()
+    result = entry(reads, saver).start(CTX,
+        StartTransferInput(request_id=uuid4(), intent_text="核对陌生扣款"), thread_id="thread1",
+        inherited_scope=BillScope(account_ids=["a1"], start_at=START, end_at=END))
+    assert result.status == "succeeded"
+    assert payload(result).transaction.transaction_id == "p"
+    assert any(call[0] == "transactions" for call in reads.calls)
+
+
 def test_separate_registered_l02_keeps_the_frozen_l01_definition():
     before = MANIFEST.model_dump(mode="json")
     registry = CapabilityRegistry()
