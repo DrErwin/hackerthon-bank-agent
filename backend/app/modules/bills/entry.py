@@ -125,10 +125,10 @@ def inherit_scope(state, text: str, scope: BillScope | None):
     if not any(word in text for word in (*_CATEGORIES, "明细", "这笔", "那笔", "陌生", "核对", "扣款", "继续")):
         return
     # Unsupported new dates must be clarified instead of silently reusing old dates.
-    if state["period"] is None and not re.search(r"年|月|日|号|天|周|季度|最近|至|到|之前|之后|之间|截至|截止|\d{4}[-/]", text):
+    if state["period"] is None and not re.search(r"年|月|日|号|天|周|星期|礼拜|旬|期|最近|至|到|之前|之后|之间|截至|截止|\d{4}[-/]", text):
         state["period"] = (scope.start_at.isoformat(), scope.end_at.isoformat())
     # Account changes always use the existing own-account chooser.
-    if not re.search(r"账户|银行卡|主卡|储蓄卡|A\d+", text, re.I):
+    if not re.search(r"账户|账号|帐号|卡|存折|A\d+", text, re.I):
         state["account_ids"] = list(scope.account_ids)
 
 
