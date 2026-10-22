@@ -29,7 +29,8 @@ v0.4 收口把四项缺失登记为例外 E7：模型看不到工具返回、收
 | [03](issues/03-output-probe.md) | `backend/app/audit/` | 输出侧观察最小探针：验证码/密码、完整账号、未脱敏姓名与手机号三类，返回命中类别与已脱敏文本 | None |
 | [04](issues/04-api-output-observation.md) | `backend/app/api/` | 输出观察接线：助手回复（含 SSE）、导出下载、记忆查看出口调用探针；命中脱敏/拦截并留痕 | 03（回复路径另依赖 02） |
 | [05](issues/05-api-memory-endpoints.md) | `backend/app/api/` | F37 `GET /api/v1/memories`、F38 `POST /api/v1/memories/delete`（契约 §7.6），越权 403 / 版本冲突 409 / 旧轮次 409，删除留墓碑 | None（复用 `memory/` 已有能力） |
-| [06](issues/06-demo-slice-evidence.md) | `evals/observer-seams/` | Demo 切片 E2E + 证据：可疑短信 → 哪里可疑 + 下一步 → 零工具/零资金；离线可复现报告 + 真实模型批次报告（预算按 PM 当日授权，小批量） | 01、02、04 |
+| [06](issues/06-demo-slice-evidence.md) | `evals/observer-seams/` | Demo 切片 E2E + 证据：可疑短信 → 哪里可疑 + 下一步 → 零工具/零资金；离线可复现报告 + 真实模型批次报告（预算按 PM 当日授权，小批量） | 01、02、04、07 |
+| [07](issues/07-reply-credential-gate.md) | `backend/app/agent_platform/` | 回复话术门槛收窄：可提醒「验证码别给人」，但不得含凭据值（票 06 实施中发现的 v0.4 既有门缺陷） | 01 |
 
 不在本组范围：生产检测器装配（#160）、#215 语义选型、前端页面入口（粘贴框 / 记忆管理页，用户可见版式改动须先经 PM 同意，另开前端票）、公共契约字段的新增（本组用兼容扩展的可选字段并在契约 §8 登记）、跨场景联动、账单评测补量。
 
