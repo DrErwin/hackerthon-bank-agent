@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import errno
 from hashlib import sha256
+from inspect import Parameter, signature
 import os
 from pathlib import Path
 import re
@@ -17,8 +19,8 @@ from uuid import UUID, uuid4
 
 from app.audit.journal import AuditJournal, redact, run_key
 from app.contracts.audit import (
-    AuditEvent, ChatMessagePayload, ModelFinishedPayload, ModelStartedPayload, ModelUsage,
-    RecoveryCheckedPayload, TaskTransitionPayload,
+    AuditEvent, ChatMessagePayload, ContextChangedPayload, ModelFinishedPayload, ModelStartedPayload,
+    ModelUsage, RecoveryCheckedPayload, TaskTransitionPayload,
 )
 from app.contracts.common import TaskStatus
 from app.contracts.platform import CapabilityDefinition, StartTransferInput, TrustedContext
@@ -29,6 +31,7 @@ from app.storage.database import transaction
 
 from .model import Planner, ReplyOnly, TransferProposal
 from .registry import CapabilityRegistry
+from .untrusted_data import MAX_ITEMS, UntrustedData, tool_observation, user_material
 
 
 _LOCK_GUARD = Lock()
@@ -37,6 +40,12 @@ _HELD_LOCKS = local()
 _CREDENTIAL_IN_REQUEST = re.compile(
     r"(?:验证码|短信码|动态码|一次性密码|otp|password|密码|口令)",
     re.IGNORECASE,
+)
+# A request that carries outside material may only be analysed. The refusal is
+# fixed here, never taken from the model or the material itself (S2 / A03).
+_UNTRUSTED_MATERIAL_REFUSAL = (
+    "这段资料我只当作线索来分析，不会据此替您发起任何转账或业务办理。"
+    "请先通过银行官方渠道核实来源，不要向陌生账户汇款，也不要向他人透露验证码。"
 )
 
 
@@ -261,12 +270,18 @@ class AgentHarness:
         return self._understand_with_trace(trusted, intent_text, trace)
 
     def _select_outcome(self, trusted: TrustedContext, intent_text: str,
-                        thread_id: str) -> TransferProposal | ReplyOnly:
+                        thread_id: str,
+                        untrusted_data: Sequence[UntrustedData] = (),
+                        ) -> TransferProposal | ReplyOnly:
         context = self._scope(trusted)
         summary = self._session_context_summary(trusted)
-        # Only pass the keyword when there is a summary: injected planners with
-        # the older five-argument signature keep working for plain messages.
-        planning_options = {"context_summary": summary} if summary is not None else {}
+        # Only pass a keyword when it carries content: injected planners with the
+        # older five/six-argument signature keep working (evaluation seam, #84).
+        planning_options: dict[str, object] = {}
+        if summary is not None:
+            planning_options["context_summary"] = summary
+        if untrusted_data and self._accepts_untrusted_data():
+            planning_options["untrusted_data"] = untrusted_data
         outcome = self.planner.select(
             intent_text, trusted, self.registry.public_catalog(), self.memory, thread_id,
             **planning_options,
@@ -279,6 +294,104 @@ class AgentHarness:
             self._check_intent_text(outcome.message)
             outcome = ReplyOnly.model_validate(redact(outcome.model_dump(mode="json")))
         return outcome
+
+    def _accepts_untrusted_data(self) -> bool:
+        """Old stand-ins that never declared the keyword must keep working (#84).
+
+        Tool returns exist on ordinary follow-ups too, so data presence alone cannot
+        decide compatibility; the planner's own signature says whether it can read
+        the blocks. Without the keyword the planner simply never sees them.
+        """
+        try:
+            parameters = signature(self.planner.select).parameters
+        except (TypeError, ValueError):
+            return False
+        return "untrusted_data" in parameters or any(
+            parameter.kind is Parameter.VAR_KEYWORD for parameter in parameters.values()
+        )
+
+    def _untrusted_blocks(self, trusted: TrustedContext,
+                          material: UntrustedData | None = None) -> list[UntrustedData]:
+        """The blocks the planner may read this turn; user material keeps the first slot."""
+        blocks = [material] if material is not None else []
+        blocks.extend(self._tool_return_blocks(trusted, MAX_ITEMS - len(blocks)))
+        return blocks
+
+    def _tool_return_blocks(self, trusted: TrustedContext,
+                            limit: int) -> list[UntrustedData]:
+        """Bank display facts this session's tasks already received, as data (S3)."""
+        if limit <= 0:
+            return []
+        blocks: list[UntrustedData] = []
+        for task in self.application.list_session_tasks(
+            trusted.user_id, trusted.demo_round_id, trusted.session_id,
+        ):
+            result = task.snapshot.get("result")
+            data = result.get("data") if isinstance(result, dict) else None
+            # Only bank-returned payee display fields are a tool return; other
+            # modules' payloads never become prompt data this way.
+            payee = data.get("payee") if isinstance(data, dict) else None
+            if not isinstance(payee, dict):
+                continue
+            value = {name: payee[name] for name in
+                     ("name_masked", "account_masked", "bank_name", "remark")
+                     if payee.get(name)}
+            block = tool_observation(f"mock-bank.payee-display:{task.task_id[:8]}", value)
+            if block is None:
+                continue
+            blocks.append(block)
+            if len(blocks) >= limit:
+                break
+        return blocks
+
+    @staticmethod
+    def _record_resource_load(trace: RunTrace, blocks: list[UntrustedData]) -> None:
+        """Audit what external data entered this prompt before the model sees it."""
+        if not blocks:
+            return
+        after_ref = str(uuid4())
+        trace.record(
+            "context.changed",
+            ContextChangedPayload(
+                change="resource_load", before_ref=None, after_ref=after_ref,
+                source_refs=[block.source for block in blocks],
+            ),
+            "succeeded",
+            evidence=[{"source": block.source, "kind": block.kind,
+                       "content": block.content} for block in blocks],
+            evidence_id=after_ref,
+            # Source references are auditable IDs of the frozen event; keeping one
+            # small snapshot per source lets a replay resolve every reference.
+            snapshots={block.source: {"source": block.source, "kind": block.kind}
+                       for block in blocks},
+        )
+
+    def _deny_untrusted_material(self, trace: RunTrace,
+                                 proposal: TransferProposal) -> ReplyOnly:
+        """A material-bearing request may only be analysed: drop its proposal (S2)."""
+        refusal = ReplyOnly(message=_UNTRUSTED_MATERIAL_REFUSAL)
+        content_ref = str(uuid4())
+        trace.record(
+            "chat.message",
+            ChatMessagePayload(
+                message_id=str(uuid4()), role="assistant",
+                content_ref=content_ref, related_task_ids=[],
+            ),
+            "denied", evidence_id=content_ref,
+            # Evidence carries the dropped proposal only; the material text itself
+            # stays out of this event.
+            evidence={
+                "message": refusal.message,
+                "reason_code": "UNTRUSTED_MATERIAL_BLOCKED_ACTION",
+                "dropped_proposal": {
+                    "capability_name": proposal.capability_name,
+                    "payee_hint": proposal.payee_hint,
+                    "amount_fen": proposal.amount_fen,
+                    "payer_account_id": proposal.payer_account_id,
+                },
+            },
+        )
+        return refusal
 
     _SUMMARY_TASK_LIMIT = 3
 
@@ -320,7 +433,11 @@ class AgentHarness:
         return None
 
     def _understand_with_trace(self, trusted: TrustedContext, intent_text: str,
-                               trace: RunTrace) -> TransferProposal | ReplyOnly:
+                               trace: RunTrace,
+                               material: UntrustedData | None = None,
+                               ) -> TransferProposal | ReplyOnly:
+        blocks = self._untrusted_blocks(trusted, material)
+        self._record_resource_load(trace, blocks)
         model_call_id = str(uuid4())
         model_started = trace.record(
             "model.started",
@@ -336,7 +453,7 @@ class AgentHarness:
         )
         started = monotonic()
         try:
-            outcome = self._select_outcome(trusted, intent_text, trace.thread_id)
+            outcome = self._select_outcome(trusted, intent_text, trace.thread_id, blocks)
         except Exception:
             model_error = ModuleError(
                 code="MODEL_UNDERSTANDING_FAILED", source="platform", field=None,
@@ -386,7 +503,9 @@ class AgentHarness:
         return result
 
     def handle_message(self, trusted: TrustedContext, request_id: UUID,
-                       intent_text: str) -> ModuleResult | ReplyOnly:
+                       intent_text: str,
+                       untrusted_content: str | None = None,
+                       ) -> ModuleResult | ReplyOnly:
         """Return a controlled chat reply or continue the existing transfer path."""
         with _task_lock(self.application.path, trusted.task_id):
             context = self._scope(trusted)
@@ -397,7 +516,12 @@ class AgentHarness:
                 trace_id = str(uuid4())
                 thread_id = self.memory.conversation_thread_id(context)
                 trace = RunTrace(self.audit, trusted, thread_id, trace_id)
-                outcome = self._understand_with_trace(trusted, intent_text, trace)
+                material = user_material(untrusted_content) if untrusted_content else None
+                outcome = self._understand_with_trace(trusted, intent_text, trace, material)
+                if material is not None and isinstance(outcome, TransferProposal):
+                    # Deterministic gate: outside material may be read and explained,
+                    # never turned into a task, a tool call or a funds action (S2).
+                    return self._deny_untrusted_material(trace, outcome)
                 if isinstance(outcome, ReplyOnly):
                     return outcome
                 self._authorize(trusted, outcome.capability_name)
