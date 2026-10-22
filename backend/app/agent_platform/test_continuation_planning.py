@@ -145,11 +145,12 @@ def test_only_current_option_can_be_persisted_as_a_candidate(tmp_path, option, a
     task = harness.application.get_task("U1", "D1", "T9")
     snapshot = task.snapshot
     snapshot["result"].update(allowed_actions=["provide_input"], interaction={
-        "kind": "input", "required_fields": ["payer_account_id"], "options": [{"id": "A1"}]})
+        "kind": "input", "required_fields": ["payer_account_id"], "options": [{"id": "A1", "label": "日常账户 · 尾号1001"}]})
     harness.application.update_task("U1", "D1", "T9", 1, "R9", TaskStatus.WAITING_INPUT, None, snapshot)
     planner.outcome = ContinueProposal(task_id="T9", task_revision=2, action="provide_input", selected_option_id=option)
     result = harness.handle_message(chat_context(), uuid4(), "选第一个账户", allow_continuation=True)
     assert isinstance(result, ContinueProposal if accepted else ReplyOnly)
+    assert "日常账户" in planner.summary and "'id': 'A1'" in planner.summary
     assert harness.application.get_task("U1", "D1", "T9").revision == 2
 
 
