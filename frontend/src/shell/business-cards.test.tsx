@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ApiError } from "../api";
 import type { SubscriptionTaskView } from "../contracts";
 import { BusinessCards, BillCardActions } from "./components/BusinessCards";
+import { TaskBlock } from "./components/TaskBlock";
+import { genericSlot } from "./slots";
 import { createDemoBackend } from "./stub/demoBackend";
 import { createRealDataSource } from "./api/realDataSource";
 import { useConversation } from "./useConversation";
@@ -70,7 +72,7 @@ it("passes the chosen bill category without generating a chat prompt", async () 
 
 it("retries a lost card response with the same id, adds the child module and deduplicates subsequent clicks", async () => {
   const backend = createDemoBackend({ replyDelayMs: 0 });
-  const child = { ...task, task_id: "child", module: "bills" };
+  const child = { ...task, task_id: "child", module: "bills", recovery_required: true };
   const cardAction = vi.fn().mockRejectedValueOnce(new ApiError(503, "DEPENDENCY_UNAVAILABLE", "暂未收到结果"))
     .mockResolvedValue(child);
   backend.user.cardAction = cardAction;
@@ -85,6 +87,9 @@ it("retries a lost card response with the same id, adds the child module and ded
   expect(cardAction.mock.calls[0]).toEqual(cardAction.mock.calls[1]);
   expect(cardAction.mock.calls[0][1].source_revision).toBe(3);
   expect(result.current.tasks.get("child")?.module).toBe("bills");
+  render(<TaskBlock envelope={result.current.tasks.get("child")!} slot={genericSlot}
+    origin="real-api" conversation={result.current} />);
+  expect(document.getElementById("task-child")?.querySelector("button")).toBeTruthy();
   expect(send).not.toHaveBeenCalled();
 });
 

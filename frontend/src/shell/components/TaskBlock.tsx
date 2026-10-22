@@ -43,7 +43,7 @@ export function TaskBlock({ envelope, slot, origin, conversation }: {
 
   if (gated) {
     return (
-      <div className="sh-task" data-task-id={task.task_id}>
+      <div className="sh-task" id={base} data-task-id={task.task_id}>
         {/* recovery_reason is an internal code; show the backend's user-facing copy instead. */}
         <RecoveryCard
           id={base + "-recovery"}
