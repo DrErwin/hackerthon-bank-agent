@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { administratorUrl } from "../../api";
 import { isTerminal, taskStatusLabel } from "../format";
 import type { BusinessSlot } from "../slots";
@@ -8,7 +8,8 @@ import { ConfirmationCard } from "./ConfirmationCard";
 import { Notice } from "./Primitives";
 import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, WaitingCard } from "./StatusCards";
 import { VerificationCard } from "./VerificationCard";
-import { BillCardActions, BusinessCards, businessPayload } from "./BusinessCards";
+import { BillCardActions, BusinessCards, businessPayload, billSummary } from "./BusinessCards";
+import { inputPrompt } from "../presentation";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
   if (origin === "real-api") return administratorUrl({ taskId, challengeId, demoRoundId: roundId });
@@ -20,11 +21,12 @@ export function verificationAdminLabel(origin: DataOrigin): string {
   return origin === "real-api" ? "打开独立管理员会话处理模拟人脸" : "演示用：在新窗口打开管理员演示入口";
 }
 
-export function TaskBlock({ envelope, slot, origin, conversation }: {
+export function TaskBlock({ envelope, slot, origin, conversation, renderChild }: {
   envelope: TaskEnvelope;
   slot: BusinessSlot;
   origin: DataOrigin;
   conversation: Conversation;
+  renderChild?: (id: string) => ReactNode;
 }) {
   const [modifying, setModifying] = useState(false);
   const [modifyText, setModifyText] = useState("");
@@ -40,6 +42,12 @@ export function TaskBlock({ envelope, slot, origin, conversation }: {
   const outcome = recovered.get(task.task_id);
   const entries = history[task.task_id] ?? [];
   const base = "task-" + task.task_id;
+  const links = (conversation.cardLinks ?? []).filter((link) => link.parentId === task.task_id
+    && conversation.tasks.has(link.childId));
+  const activeChildren = links.filter((link) => {
+    const child = conversation.tasks.get(link.childId)?.task;
+    return child && (!isTerminal(child) || child.status === "failed" || child.recovery_required);
+  }).map((link) => link.childId);
 
   if (gated) {
     return (
@@ -85,13 +93,17 @@ export function TaskBlock({ envelope, slot, origin, conversation }: {
         />
       )}
       {entries.map((entry) => {
+        const isActive = entry.kind === "input"
+          ? !expired && task.status === "waiting_input" && task.allowed_actions.includes("provide_input") && task.interaction?.interaction_id === entry.id
+          : interactionActive && task.interaction?.record_ref === entry.id;
+        const content = (() => {
         const id = base + "-" + entry.id;
         if (entry.kind === "input") {
           return (
             <InputCard
               key={entry.id}
               id={id}
-              interaction={entry.interaction}
+              interaction={isActive ? { ...entry.interaction, prompt: inputPrompt(task) } : entry.interaction}
               active={!expired && task.status === "waiting_input" && task.allowed_actions.includes("provide_input") && task.interaction?.interaction_id === entry.id}
               busy={busy}
               selectedLabel={entry.selectedLabel}
@@ -181,6 +193,9 @@ export function TaskBlock({ envelope, slot, origin, conversation }: {
             onShowDemoCode={() => actions.showDemoCode(view)}
           />
         );
+        })();
+        return isActive ? <div key={entry.id}>{content}</div> :
+          <details key={entry.id} className="sh-disclosure sh-past-step"><summary>{entry.kind === "confirmation" ? "查看之前的确认内容" : entry.kind === "verification" ? "查看之前的验证记录" : "查看之前补充的信息"}</summary>{content}</details>;
       })}
 
       {task.status === "running" && <WaitingCard id={base + "-waiting"} message={task.message} facts={facts} />}
@@ -194,19 +209,21 @@ export function TaskBlock({ envelope, slot, origin, conversation }: {
           onQuery={() => void actions.queryResult(task)}
         />
       )}
-      {report && <ReportCard id={base + "-report"} view={report} origin={origin} />}
-      {result && !businessPayload(task) && <ResultCard id={base + "-result"} view={result} origin={origin} />}
+      {report && !billSummary(task) && <ReportCard id={base + "-report"} view={report} origin={origin} />}
+      {result && !businessPayload(task) && !billSummary(task) && <ResultCard id={base + "-result"} view={result} origin={origin} />}
       <BusinessCards task={task} busy={busy} enabled={conversation.supportsCardActions}
+        links={links} renderChild={renderChild} activeChildren={activeChildren} onAction={(selection) => actions.cardAction(task, selection)} />
+      <BillCardActions task={task} busy={busy} enabled={conversation.supportsCardActions} demo={origin !== "real-api"}
+        links={links} renderChild={renderChild} activeChildren={activeChildren}
+        details={report ? <ReportCard id={base + "-report"} view={report} origin={origin} /> : result ? <ResultCard id={base + "-result"} view={result} origin={origin} /> : null}
         onAction={(selection) => actions.cardAction(task, selection)} />
-      {conversation.supportsCardActions && <BillCardActions task={task} busy={busy}
-        onAction={(selection) => actions.cardAction(task, selection)} />}
-      {task.error && (
+      {task.error && (task.error.reason !== result?.note || slot.errorHint?.(task.error, task)) && (
         <Notice tone="danger" title={isTerminal(task) ? "原因说明" : "需要注意"}>
           <p>{task.error.reason}</p>
           {slot.errorHint?.(task.error, task)}
         </Notice>
       )}
-      {task.cancel_requested && <Notice tone="warning" title="已收到停止请求">已经提交的操作仍以银行结果为准，我会继续显示原操作的状态。</Notice>}
+      {task.cancel_requested && !isTerminal(task) && <Notice tone="warning" title="已收到停止请求">已经提交的操作仍以银行结果为准，我会继续显示原操作的状态。</Notice>}
       {conversation.taskErrors[task.task_id] && (
         <Notice
           tone="warning"

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { InteractionRequest } from "../../contracts";
 import type { DataOrigin, DisplayField, ReportView, ResultView } from "../types";
 import { Card, FieldList, OriginTag, ReadOnlyStamp, Spinner, StatusBadge } from "./Primitives";
+import { DetailsDrawer } from "./DetailsDrawer";
 
 const RESULT_ICON: Record<ResultView["tone"], string> = { success: "✓", danger: "✕", warning: "!", pending: "…", neutral: "−" };
 
@@ -71,10 +72,14 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
 }
 
 export function ResultCard({ view, origin, id }: { view: ResultView; origin: DataOrigin; id: string }) {
+  const important = view.tone === "warning" || view.tone === "danger";
+  const primary = important ? view.fields.filter((field) => !field.name.endsWith("-ids")) : view.fields.slice(0, 3);
   return (
     <Card title="办理结果" labelledBy={id} badge={<StatusBadge tone={view.tone} icon={RESULT_ICON[view.tone]} text={view.title} />}>
       {view.headline && <p className="sh-headline">{view.headline}</p>}
-      <FieldList fields={view.fields} />
+      <FieldList fields={primary} />
+      {primary.length < view.fields.length &&
+        <DetailsDrawer title={"查看全部明细（" + view.fields.length + "项）"}><FieldList fields={view.fields} /></DetailsDrawer>}
       {view.note && <p className="sh-hint">{view.note}</p>}
       {origin !== "real-api" && <p className="sh-demo-note"><OriginTag origin={origin} /> 演示结果，不代表真实银行交易。</p>}
     </Card>
@@ -107,8 +112,8 @@ export function NeedsAttentionCard({ facts, message, canQuery, busy, onQuery, id
   id: string;
 }) {
   return (
-    <Card title="结果还在核实" labelledBy={id} highlight badge={<StatusBadge tone="warning" icon="!" text="结果待核实" />}>
-      <p className="sh-lead">这笔办理的结果我暂时没查到，我没有再提交一次。</p>
+    <Card title={canQuery ? "结果还在核实" : "这项办理暂时停下了"} labelledBy={id} highlight badge={<StatusBadge tone="warning" icon="!" text="请留意" />}>
+      {canQuery && <p className="sh-lead">结果还没查清，请先查看原来那笔。</p>}
       {message && <p className="sh-hint">{message}</p>}
       <FieldList fields={facts} />
       {canQuery ? (
@@ -116,9 +121,9 @@ export function NeedsAttentionCard({ facts, message, canQuery, busy, onQuery, id
           {busy ? "正在查询…" : "查询原操作"}
         </button>
       ) : (
-        <p className="sh-hint">暂时不能查询，请稍后刷新状态。</p>
+        <p className="sh-hint">请按上面的提示处理。</p>
       )}
-      <p className="sh-hint">查询只看原来那笔的结果，不会重新提交。</p>
+      {canQuery && <p className="sh-hint">查询不会再办一次。</p>}
     </Card>
   );
 }
@@ -137,7 +142,7 @@ export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText
 }) {
   return (
     <Card
-      title={resolved ? "刷新前的任务" : "有一项没办完的任务"}
+      title={resolved ? "已找回这项办理" : "这项还没办完"}
       labelledBy={id}
       readOnly={resolved}
       highlight={!resolved}
@@ -147,7 +152,7 @@ export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText
         <p className="sh-readonly-line">{resolvedText ?? "已恢复原任务，没有创建新任务，也没有重新提交。"}</p>
       ) : (
         <>
-          <p className="sh-lead">页面刷新或重新进入前，这项任务还没办完。为避免重复操作，我不会自动继续。</p>
+          <p className="sh-lead">要接着办吗？先查看上次的内容，再由您决定。</p>
           <FieldList fields={[...facts, { name: "status", label: "当时状态", value_text: statusText }]} />
           {reason && <p className="sh-hint">{reason}</p>}
           <div className="sh-actions">

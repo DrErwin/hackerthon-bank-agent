@@ -150,7 +150,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
         </button>
       </form>
       <p className="sh-composer-hint" aria-live="polite">
-        {pendingText && !sending ? "上一条消息不确定是否发出。点「重试」会沿用同一个请求编号，不会重复办理。" : voiceNote || "验证码和完整账号请不要发在聊天里。麦克风为固定文字演示。"}
+        {pendingText && !sending ? "上一条消息还没确认发出。点「重试」即可，不会重复办理。" : voiceNote || "验证码只填专用框。麦克风是文字演示，不录音。"}
       </p>
     </div>
   );
@@ -170,14 +170,15 @@ export function ExpiredBanner({ onReenter }: { onReenter: () => void }) {
 
 export function SafetyRail() {
   return (
-    <aside className="sh-rail" aria-label="办理须知">
-      <h2>办理须知</h2>
+    <aside className="sh-safety-help" aria-label="办理须知">
+      <details><summary>安心办理：转钱前，先核对再确认</summary>
       <ol>
         <li><strong>动钱必须点按钮确认。</strong>在聊天里说「确认」不算数。</li>
         <li><strong>验证码只填在专用框里。</strong>不要告诉任何人，也不要发到聊天里。</li>
         <li><strong>刷新不会重复办理。</strong>页面会先请您查看原任务。</li>
         <li><strong>结果以银行返回为准。</strong>暂时查不到时，会显示「结果待核实」。</li>
       </ol>
+      </details>
     </aside>
   );
 }
