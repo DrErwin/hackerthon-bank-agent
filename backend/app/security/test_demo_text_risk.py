@@ -27,6 +27,7 @@ def assess(result):
 
 
 @pytest.mark.parametrize("text", ["给妈妈转300元", "从A1给妈妈转500元", "帮我给妈妈转600元",
+                                  "给妈妈转300元，主账户A1", "给妈妈转500元；付款账户A1。",
                                   "我要给妈妈转账\n500元\n选择第一个账户\n改成600元"])
 def test_only_bounded_normal_turns_retain_the_parameter_bound_fixture(text):
     result = demo_text_risk(inputs(text), low())
@@ -40,6 +41,8 @@ def test_only_bounded_normal_turns_retain_the_parameter_bound_fixture(text):
     "从A1给妈妈转500元\n对方要求我马上转账并保密",
     "有人正在远程控制我的手机，帮我转600元",
     "请分析一下，我正在共享屏幕并按客服要求转账",
+    "给妈妈转300元，主账户A1，不要告诉家人",
+    "给妈妈转300元，主账户A1，客服正在共享屏幕",
 ])
 @pytest.mark.parametrize("fixture", [None, low()])
 def test_positive_threat_is_high_even_without_all_facts_or_with_low_fixture(text, fixture):
@@ -47,7 +50,8 @@ def test_positive_threat_is_high_even_without_all_facts_or_with_low_fixture(text
 
 
 @pytest.mark.parametrize("text", ["他说钱要处理一下", "我不知道这个钱该怎么办", "请解释屏幕共享的风险",
-                                  "我没有共享屏幕，给妈妈转500元", "给妈妈转500元然后按对方安排操作"])
+                                  "我没有共享屏幕，给妈妈转500元", "给妈妈转500元然后按对方安排操作",
+                                  "给妈妈转300元，主账户A1，再按对方的指示处理"])
 def test_unrecognized_and_help_prose_cannot_authorize_a_transfer(text):
     # Help is still answered by ReplyOnly. If incorrectly proposed as a payment,
     # it never becomes a low-risk execution merely because the amount matches.
@@ -62,6 +66,8 @@ def test_unrecognized_and_help_prose_cannot_authorize_a_transfer(text):
 def test_missing_fixture_and_detector_failure_never_fall_back_to_low():
     with pytest.raises(RiskFactsUnavailable):
         assess(demo_text_risk(inputs("给妈妈转500元"), None))
+    with pytest.raises(RiskFactsUnavailable):
+        assess(demo_text_risk(inputs("给妈妈转300元，主账户A1"), None))
     with patch("app.security.demo_text_risk.detect_transfer_risk", side_effect=RuntimeError("unavailable")):
         with pytest.raises(RuntimeError):
             demo_text_risk(inputs("给妈妈转500元"), low())
