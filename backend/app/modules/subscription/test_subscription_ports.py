@@ -379,6 +379,7 @@ def drive_to_bank_execution(harness, entry_task):
     verifying = entry_task.resume(context(), {"choice": "approve"})
     assert verifying.status == TaskStatus.WAITING_APPROVAL, verifying.error
     assert verifying.interaction.kind == "verification"
+    assert verifying.allowed_actions == ["verify", "cancel"]
     harness.pass_session_verification()
 
 

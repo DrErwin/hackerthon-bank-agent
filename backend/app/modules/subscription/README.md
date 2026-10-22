@@ -30,7 +30,9 @@
 
 1. **签约事实**：B29 返回的本行签约协议（`source_type="mandate"`，`active` 才可在线退订）；
 2. **扣款事实**：B08 流水按 `merchant_id == counterparty_id` 归集出的 `billed_count` / `billed_total_fen`；
-3. **疑似线索**：按公共契约 §5.9 第 4/5 条扫描流水得出的 `source_type="suspected_ledger"`（连续 ≥3 个自然月、同商户同额、锚点 ±3 天、月末对齐），**不能在线退订**，只给外部关闭引导；流水覆盖不足 3 个月时整表标 `insufficient_data`，不报「未发现异常」。
+3. **疑似线索**：按公共契约 §5.9 第 4/5 条扫描流水得出的 `source_type="suspected_ledger"`（连续 ≥3 个自然月、同商户同额、锚点 ±3 天、月末对齐），**不代表已签约，不能在线退订**；未知实际渠道时只建议向商户核实，不编造外部关闭路径。流水覆盖不足 3 个月时整表标 `insufficient_data`，不报「未发现异常」。
+
+确认阶段声明 `confirm/cancel`，专用验证阶段声明 `verify/cancel`，由前端展示对应入口；本模块不接收或验证聊天中的验证码。
 
 ## 状态机（SOP-2）
 
