@@ -26,3 +26,5 @@ Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issu
 2026-10-22：用户授权范围内拆票。开发、运行验证、合入、验收分别记录。
 
 2026-10-23：823d8aa / [PR #230](https://github.com/DrErwin/hackerthon-bank-agent/pull/230) 已开发；原回归4失败，修复后全模块48通过；GPT-6.1-sol双轴代审无阻塞。等待CI与合入，完整真实订阅路径仍待票11。
+
+CI发现API和底座两处测试将“微信支付/支付宝”当成必须事实，1244通过/2失败。新增本票前置 [03a API断言](03a-api-expectation.md)、[03b底座断言](03b-platform-expectation.md)，各单目录提交；顺序合入后本票同步main重跑。修复不恢复虚构渠道。
