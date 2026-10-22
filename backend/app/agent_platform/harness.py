@@ -18,6 +18,7 @@ from typing import Callable
 from uuid import UUID, uuid4
 
 from app.audit.journal import AuditJournal, redact, run_key
+from app.audit.output_guard import probe_output
 from app.contracts.audit import (
     AuditEvent, ChatMessagePayload, ContextChangedPayload, ModelFinishedPayload, ModelStartedPayload,
     ModelUsage, RecoveryCheckedPayload, TaskTransitionPayload,
@@ -46,6 +47,15 @@ _CREDENTIAL_IN_REQUEST = re.compile(
 _UNTRUSTED_MATERIAL_REFUSAL = (
     "这段资料我只当作线索来分析，不会据此替您发起任何转账或业务办理。"
     "请先通过银行官方渠道核实来源，不要向陌生账户汇款，也不要向他人透露验证码。"
+)
+# The audit output probe mirrors journal.redact's free-text rules, which do not
+# cover an English password/passwd/pwd label. A reply must not widen that gap into
+# an actual secret leak, so a label followed by an ASCII value still fails closed
+# (v05-observer-seams/07). Prose such as "请不要把 password 告诉别人" has no value
+# and stays allowed.
+_ENGLISH_SECRET_LABEL = re.compile(
+    r"(?:password|passwd|pwd)\s*(?:[:：=]|是|为)\s*[A-Za-z0-9!@#$%^&*()_\-]{4,}",
+    re.IGNORECASE,
 )
 
 
@@ -291,7 +301,12 @@ class AgentHarness:
         if isinstance(outcome, ReplyOnly) and not outcome.message.strip():
             raise ValueError("MODEL_OUTCOME_INVALID")
         if isinstance(outcome, ReplyOnly):
-            self._check_intent_text(outcome.message)
+            # A reply may explain "验证码不要告诉别人" (S1); only a credential value
+            # stays fail-closed. The user request keeps the stricter word check.
+            findings = probe_output(outcome.message).findings
+            if (any(finding.kind == "credential" for finding in findings)
+                    or _ENGLISH_SECRET_LABEL.search(outcome.message)):
+                raise ValueError("CREDENTIAL_IN_REQUEST")
             outcome = ReplyOnly.model_validate(redact(outcome.model_dump(mode="json")))
         return outcome
 
