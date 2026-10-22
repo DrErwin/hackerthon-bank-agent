@@ -36,9 +36,9 @@ UPCOMING_TAG_DAYS = 7
 # The only promise the bank can keep: future debits stop, past money stays.
 NOTICE_TEMPLATE = "从下一期（{date}）起不再自动扣费，之前已经扣掉的钱不退。"
 GUIDE_TEMPLATE = (
-    "银行那边没有「{merchant}」的签约代扣记录，只能看到账单上{channel}每月扣 {amount} 元、"
-    "连扣 {count} 次；这笔在本行退不了，请到微信支付/支付宝的「支付设置-自动扣费」里，"
-    "或者打开「{merchant}」App 关闭。"
+    "「{merchant}」是疑似周期消费：账单上{channel}每月有 {amount} 元支出，连续 {count} 次。"
+    "本行没有该商户的签约代扣记录，不能据此确认开通了自动续费。"
+    "这笔在本行退不了；实际签约渠道尚未确认，请先向该商户核实是否签约及关闭方式。"
 )
 BATCH_REFUSAL = "为保障您的账户安全，每次只能退订一项自动扣费，请先选择要退订的项目。"
 INSUFFICIENT_SCAN = (
@@ -222,7 +222,7 @@ class SubscriptionService:
         return SubscriptionItem(
             subscription_id=found.subscription_id, source_type="suspected_ledger", mandate_id=None,
             merchant_id=found.merchant_key, merchant_name=found.merchant_name,
-            service_name=f"{found.merchant_name}周期扣费（流水识别）", amount_fen=found.amount_fen,
+            service_name=f"{found.merchant_name}疑似周期消费（流水线索）", amount_fen=found.amount_fen,
             cycle="monthly", account_id=found.account_id, account_masked=found.account_masked,
             last_billed_at=found.last_at, next_billing_at=None, status="suspected",
             can_cancel_in_bank=False, days_until_renewal=None, is_upcoming_renewal=False,
@@ -252,7 +252,7 @@ class SubscriptionService:
         for item in clues:
             parts.append("另外看到 " + (item.external_cancel_guide or item.merchant_name))
         if closed:
-            parts.append("已经退订过、不会再扣的有：" + "、".join(
+            parts.append("已取消的本行签约（该签约不再自动扣费）：" + "、".join(
                 f"「{item.merchant_name}」" for item in closed) + "。")
         if not actives and not clues:
             # Never claim "nothing found" when the flow history cannot support that claim.
@@ -269,7 +269,7 @@ class SubscriptionService:
             parts.append(result.suspected_scan_reason or INSUFFICIENT_SCAN.format(months=0))
         if actives:
             parts.append("请问需要帮您退订其中某一项吗？")
-        return "".join(parts)
+        return "\n".join(parts)
 
     # ---------------------------------------------------------------- cancel side
 
@@ -430,10 +430,11 @@ class SubscriptionService:
             allowed_actions=["provide_input", "cancel"], recovery_required=False, recovery_reason=None)
 
     def waiting_approval(self, context: TrustedContext, answer: GateAnswer, message: str) -> ModuleResult:
+        action = "verify" if answer.interaction.kind == "verification" else "confirm"
         return ModuleResult(
             task_id=context.task_id, run_id=context.run_id, status=TaskStatus.WAITING_APPROVAL,
             data=None, message=message, interaction=answer.interaction, error=None,
-            allowed_actions=["confirm", "cancel"], recovery_required=False, recovery_reason=None)
+            allowed_actions=[action, "cancel"], recovery_required=False, recovery_reason=None)
 
     def cancelled(self, context: TrustedContext) -> ModuleResult:
         return ModuleResult(
