@@ -38,3 +38,9 @@ Source issue: Issue #216
 
 - 本票是票 06 真实模型批次的前置：不修则「贴可疑短信问真假」永远拿不到解释。
 - 安全侧留痕：AI 代行实施与审查、非真人审查；该门收窄只针对「文字提及」，凭据值仍 fail-closed。
+
+## Comments
+
+- **2026-10-22 实施取舍（Lead 裁定，A 方案）**：票 03 探针的 credential 口径复用 `journal.SECRET_LABEL`，不含英文 `password / passwd` 标签后的值（实测 `probe_output("password: SECRET789").findings == []`，`redact` 也原样保留）。若严格只按探针判定，既有安全用例 `test_harness.py::test_reply_model_secrets_never_persist_in_checkpoints_or_audit[password: SECRET789]` 会从「拒绝」变成「放行并写进审计证据」，属真实安全回退。因此在回复门加一条**窄补充规则**：`(?i)(?:password|passwd|pwd)\s*(?:[:：=]|是|为)\s*[A-Za-z0-9!@#$%^&*()_\-]{4,}` 命中即 fail-closed（值必须是 ASCII 且 ≥4 位，纯中文提醒不受影响）。`backend/app/audit/` 既有口径不变，英文标签盲区作为后续项登记（不在本票改 `backend/app/audit/`）。
+- 验收补充：G02 增英文标签用例（`password: SECRET789` 仍拒绝且不落盘）；新增「请不要把 password 或密码告诉别人」放行用例。
+- **2026-10-22 票 06 发现（同源证据）**：收窄前「登录码 135790」这类无标签 6 位码既能穿过旧回复门，又不会被 `redact` 掩码，会留在 `model.finished` 审计证据里；票 07 用探针 credential 判定后该回复在 Harness 层即 fail-closed，不再产生带原文的响应证据（票 06 的 S4 断言据此转绿）。
