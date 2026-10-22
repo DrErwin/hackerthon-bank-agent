@@ -27,6 +27,7 @@ from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
 from app.modules.transfer.tools import TransferSnapshots
 from app.services.bank_gateway.gateway import BankGateway
 from app.storage.application import ApplicationStore, TaskRecord
+from .risk_conversation import RiskConversation
 
 if TYPE_CHECKING:  # The detector lives in app.security; importing it here would cycle.
     from app.security.demo_policy import DemoRiskEvidence
@@ -165,6 +166,7 @@ class TrustedRiskInputs:
         self.amount_multiple = amount_multiple
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.policy_version = policy_version
+        self.conversation = RiskConversation(application.path)
 
     def resolve(
         self,
@@ -213,7 +215,7 @@ class TrustedRiskInputs:
             or not isinstance(request_text, str) or not request_text.strip()
         ):
             self._unavailable(REQUEST_BINDING_REQUIRED)
-        return request_id, request_text
+        return request_id, "\n".join([request_text, *self.conversation.texts(task)])
 
     def _action_facts(
         self, context: ExecutionSecurityContext, action: ActionDescriptor,
