@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.test_app import approve, post, start
+from app.security.demo_text_risk import VERSION as DEMO_TEXT_RISK_VERSION
 from .model import ContinueProposal, ReplyOnly, TransferProposal
 from .test_local_demo import app_for, configuration, submitted_ledger_count
 
@@ -32,7 +33,7 @@ def test_coercion_overrides_the_same_low_fixture(tmp_path, text):
         assert submitted_ledger_count(app) == 0
         decisions = [event.payload.decision for event in app.state.api.runtime.audit._events(
             "D1", task["task_id"]) if event.event_type == "security.decided"]
-        assert any("bounded-demo-text:demo-text-risk-1" in ref for ref in decisions[-1].evidence_refs)
+        assert any(f"bounded-demo-text:{DEMO_TEXT_RISK_VERSION}" in ref for ref in decisions[-1].evidence_refs)
 
 
 @pytest.mark.parametrize("model_fails", [False, True])
