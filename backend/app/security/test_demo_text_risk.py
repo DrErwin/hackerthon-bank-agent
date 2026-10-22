@@ -1,6 +1,7 @@
 """Ordinary, coercion and unknown pairs through the real policy, not a model score."""
 
 from unittest.mock import patch
+from dataclasses import replace
 
 import pytest
 
@@ -11,6 +12,7 @@ from .demo_text_risk import demo_text_risk
 from .test_demo_policy import action_for, evidence, execution_context, make_policy
 from .test_risk_detector import inputs
 from .gate import RiskFactsUnavailable
+from app.agent_platform.risk_inputs import RiskFact
 
 
 def low():
@@ -63,3 +65,13 @@ def test_missing_fixture_and_detector_failure_never_fall_back_to_low():
     with patch("app.security.demo_text_risk.detect_transfer_risk", side_effect=RuntimeError("unavailable")):
         with pytest.raises(RuntimeError):
             demo_text_risk(inputs("给妈妈转500元"), low())
+
+
+def test_actual_new_payee_overrides_fictional_familiar_payee():
+    original = inputs("给妈妈转500元")
+    history = RiskFact("payee_history", "known", "mock-bank:b04+b08", "bank history",
+                       {"saved": True, "prior_outflows": 0})
+    result = demo_text_risk(replace(original, facts=(history, *original.facts[1:])), low())
+    assert Signal.NEW_PAYEE in result.signals
+    assert Signal.FAMILIAR_PAYEE not in result.signals
+    assert assess(result).risk_level == RiskLevel.MEDIUM

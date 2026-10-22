@@ -55,7 +55,10 @@ def demo_text_risk(inputs, fixture: DemoRiskEvidence | None) -> DemoRiskEvidence
                                 frozenset(threats), frozenset(threats))
     turns = [re.sub(r"\s+", "", line).strip("，,。.!！") for line in text.splitlines() if line.strip()]
     if fixture is not None and turns and all(_NORMAL_TURN.fullmatch(turn) for turn in turns):
+        # Real checked bank facts replace the fictional value in those dimensions.
+        # In particular NEW_PAYEE must not disappear behind a familiar-payee fixture.
+        signals = (fixture.signals - detected.checked_signals) | detected.signals
         return DemoRiskEvidence("bounded-demo-text", VERSION, reference,
-                                fixture.signals, fixture.checked_signals)
+                                signals, fixture.checked_signals | detected.checked_signals)
     return DemoRiskEvidence("bounded-demo-text", VERSION, reference,
                             frozenset(), frozenset())
