@@ -54,4 +54,3 @@ Package: [bank-e2e-remediation/packages/01-demo-remediation](packages/01-demo-re
 | [09](issues/09-bills-followup.md) | P1 | 账单范围与明细续查 | `backend/app/modules/bills/` | 04 |
 | [10](issues/10-business-cards.md) | P1 | 账户与订阅逐项卡片和账单明细操作 | `frontend/` | 02,03,05,08,09 |
 | [11](issues/11-acceptance.md) | P0/P1 | 三条真实用户路径联调与安全复验 | `evals/demo-remediation/` | 01,02,03,04,05,06,07,08,09,10 |
-

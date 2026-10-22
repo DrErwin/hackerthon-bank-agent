@@ -10,4 +10,3 @@ Spec: [共享规格](../spec.md)
 Work spec: [bank-e2e-remediation](../spec.md)
 
 范围：连续办理、卡片交互、安全兜底，按单目录依次实现。依赖及验收见规格 S01～S08。验收由项目负责人决定；AI 审查不替代 Ringo 本人安全审查。
-
