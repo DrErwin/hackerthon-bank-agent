@@ -140,7 +140,7 @@ def _bills_reads_factory(runtime: TransferRuntime):
 
         def security_context(context):
             return ExecutionSecurityContext(**context.model_dump(exclude={"parent_task_id"}),
-                source_task_id=None, operation_id=None, action_revision=None,
+                source_task_id=context.parent_task_id, operation_id=None, action_revision=None,
                 confirmation_id=None, confirmation_version=None, verification_ids=[],
                 release_authorization_id=None)
 
