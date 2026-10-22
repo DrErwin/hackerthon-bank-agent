@@ -7,7 +7,7 @@ Type: 开发
 Owner: Erwin 协调 / Codex 按用户授权代行
 Directory: `backend/app/api/`
 Priority: P0
-Status: ready-for-agent
+Status: implemented-awaiting-merge
 Blocked by: bank-e2e-remediation/04
 Core scenarios: S01 S02 S04 S07
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
@@ -24,3 +24,5 @@ Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issu
 
 ## Comments
 2026-10-22：用户授权范围内拆票。开发、运行验证、合入、验收分别记录。
+
+2026-10-23：[PR #234](https://github.com/DrErwin/hackerthon-bank-agent/pull/234) 依赖 #233；730ed86 API 全目录145通过，新HTTP8项包括最终单笔银行流水及旧会话拒绝。GPT-6.1-sol 双轴代审通过；d597802 仅同步已代审的04选项上下文。真实模型/React组合验收仍待票11。
