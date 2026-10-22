@@ -9,7 +9,7 @@ import json
 import re
 from threading import RLock
 from typing import cast
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from app.audit.journal import AuditReader, AuditViewer, redact
 from app.audit.output_guard import probe_output, probe_secrets
@@ -23,7 +23,7 @@ from app.contracts.audit import (
 from app.contracts.api import (
     ExportView, MessageView, ReportReady, StreamEvent, TaskRecordsView, VerificationResponse,
 )
-from app.contracts.bills import BillReport
+from app.contracts.bills import BillDetails, BillReport, SpendingSummary
 from app.contracts.bank import AccountList, PayeeList
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
@@ -226,6 +226,69 @@ class ApiService:
             return SERVED_MODULE
         capability = task.snapshot.get("capability_name")
         return capability.split(".", 1)[0] if capability else SERVED_MODULE
+
+    def card_source(self, identity, task_id, revision):
+        self.link(identity, task_id, mutate=True)
+        task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+        if (task is None or task.session_id != identity.session_id or task.revision != revision
+                or task.status != TaskStatus.SUCCEEDED):
+            raise ApiProblem(409, "REQUEST_CONFLICT")
+        return task
+
+    def card_action(self, identity, source_id, body):
+        source = self.card_source(identity, source_id, body.source_revision)
+        link = self.link(identity, source_id, mutate=True)
+        kind = source.snapshot.get("capability_name")
+        data = (source.snapshot.get("result") or {}).get("data")
+        if body.action == "subscription_cancel":
+            if body.category is not None or kind != "subscription.list_subscriptions":
+                raise ApiProblem(400, "INVALID_ARGUMENT")
+            inventory = SubscriptionTaskView.model_validate(data)
+            item = next((row for row in inventory.list_result.items
+                         if row.subscription_id == body.subscription_id), None) if inventory.list_result else None
+            if (item is None or not item.can_cancel_in_bank or item.source_type != "mandate"
+                    or item.status != "active" or not re.fullmatch(r"sub_[A-Za-z0-9_]+", item.mandate_id or "")):
+                raise ApiProblem(400, "INVALID_ARGUMENT")
+            capability, intent = "subscription.cancel_subscription", "取消 " + item.mandate_id
+            parent_id = None
+        else:
+            if body.subscription_id is not None or (body.action == "bill_check" and body.category is not None):
+                raise ApiProblem(400, "INVALID_ARGUMENT")
+            if kind == "bills.generate_report":
+                BillReport.model_validate(data)
+            elif kind == "bills.summarize" and isinstance(data, dict):
+                (BillDetails if "transactions" in data else SpendingSummary).model_validate(data)
+            else:
+                raise ApiProblem(400, "INVALID_ARGUMENT")
+            labels = {"dining": "餐饮", "transport": "交通", "medical": "医疗", "shopping": "购物",
+                      "housing": "居住", "transfer": "转账", "other": "其他"}
+            capability = "bills.summarize" if body.action == "bill_details" else "bills.detect_anomalies"
+            intent = "查看" + labels.get(body.category, "账单") + "明细" if body.action == "bill_details" else "核对陌生扣款"
+            parent_id = source_id
+        task_id = str(uuid5(NAMESPACE_URL, json.dumps([identity.user_id, identity.demo_round_id,
+                                                     source_id, str(body.request_id), "card-action"])))
+        run_id = str(uuid5(UUID(task_id), "run"))
+        self.store.write("""INSERT OR IGNORE INTO api_tasks (
+            task_id,thread_id,user_id,session_id,demo_round_id,run_id,created_at,request_id,intent_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", (task_id, link["thread_id"], identity.user_id,
+                identity.session_id, identity.demo_round_id, run_id, now().isoformat(), str(body.request_id), intent))
+        existing = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+        if existing is None:
+            trusted = TrustedContext(user_id=identity.user_id, session_id=identity.session_id,
+                demo_round_id=identity.demo_round_id, task_id=task_id, run_id=run_id, parent_task_id=parent_id)
+            self.runtime.harness.start_selected(trusted, body.request_id, intent, capability)
+        task = self.task_view(identity, task_id)
+        if task.interaction and task.interaction.record_ref:
+            self.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
+                (task.interaction.kind, task.interaction.record_ref, task_id))
+        self.emit(identity, task.thread_id, "task_updated", task, task,
+                  event_id=str(uuid5(UUID(task_id), "card-updated")))
+        if task.interaction:
+            from app.contracts.api import InteractionRequired
+            self.emit(identity, task.thread_id, "interaction_required",
+                InteractionRequired(task_id=task_id, interaction=task.interaction), task,
+                event_id=str(uuid5(UUID(task_id), "card-interaction")))
+        return task
 
     def task_view(self, identity, task_id):
         link = self.link(identity, task_id)
