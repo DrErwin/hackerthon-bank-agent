@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { AccountList, BillDetails, BillReport, PayeeList, SpendingSummary, SubscriptionTaskView } from "../../contracts";
 import { yuan } from "../format";
 import type { CardSelection, ShellTask } from "../types";
@@ -36,16 +36,26 @@ function ActionButton({ label, busy, selection, onAction, links = [], renderChil
 } & InlineActions) {
   const [child, setChild] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  const panelId = useId();
   const [expanded, setOpen] = useState(false);
   const childId = child ?? links.find((link) => selectionKey(link.selection) === selectionKey(selection))?.childId;
   const open = expanded || Boolean(childId && activeChildren.includes(childId));
+  useEffect(() => {
+    if (!pending && !busy && restoreFocus.current) {
+      if (document.activeElement === document.body) trigger.current?.focus();
+      restoreFocus.current = false;
+    }
+  }, [pending, busy]);
   return <div className="sh-business-action">
-      <button type="button" className="sh-btn sh-btn-secondary" aria-label={label} aria-expanded={open} disabled={busy || pending} onClick={async () => {
+      <button type="button" ref={trigger} className="sh-btn sh-btn-secondary" aria-label={label} aria-expanded={open} aria-controls={open ? panelId : undefined} disabled={busy || pending} onClick={async () => {
         if (childId) { setOpen(!open); return; }
+        restoreFocus.current = document.activeElement === trigger.current;
         setPending(true);
         try { const id = await onAction(selection); setChild(id); if (id) setOpen(true); } finally { setPending(false); }
       }}><span>{pending ? "正在打开…" : open ? "收起 · " + label : label}</span>{amount && <strong>{amount}</strong>}</button>
-      {open && childId && <div className="sh-inline-result">{renderChild?.(childId) ?? <p>已打开这项办理。</p>}</div>}
+      {open && childId && <div id={panelId} className="sh-inline-result">{renderChild?.(childId) ?? <p>已打开这项办理。</p>}</div>}
   </div>;
 }
 
@@ -125,6 +135,7 @@ function TransactionRows({ items }: { items: BillDetails["transactions"] }) {
   return <div className="sh-transaction-list">{items.map((item) => <details className="sh-disclosure sh-transaction" key={item.transaction_id}>
     <summary><span>{item.counterparty_name}<small>{natures[item.nature]} · {item.direction === "inflow" ? "收入" : "支出"}</small></span><strong>{yuan(item.amount_fen)}</strong></summary>
     <p>{new Date(item.occurred_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false })}</p>
+    <p>分类：{CATEGORY_LABEL[item.category]}</p>
     {item.summary && <p>{item.summary}</p>}
     {item.counterparty_account_masked && <p>对方账户：{item.counterparty_account_masked}</p>}
   </details>)}</div>;

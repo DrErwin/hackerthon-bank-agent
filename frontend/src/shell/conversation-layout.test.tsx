@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { MessageView } from "../contracts";
 import { buildTimeline, type CardLink } from "./presentation";
 import type { ShellTask, TaskEnvelope } from "./types";
-import { BusinessCards } from "./components/BusinessCards";
+import { BillDetailsCard, BusinessCards } from "./components/BusinessCards";
 import { DetailsDrawer } from "./components/DetailsDrawer";
 import { TaskRecord } from "./components/TaskRecord";
 import { createDemoBackend } from "./stub/demoBackend";
@@ -85,4 +85,24 @@ it("opens long details in a dialog and returns focus to the same trigger after c
   fireEvent.click(screen.getByRole("button", { name: "关闭详情" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(document.activeElement).toBe(trigger);
+});
+
+it("keeps category, direction and bank amount available in an unfiltered transaction list", () => {
+  const common = { account_id: "A1", occurred_at: task.snapshot_at, nature: "consumption", direction: "outflow",
+    counterparty_account_masked: "****1234", summary: "银行返回的说明" };
+  render(<BillDetailsCard demo={false} task={{ ...task, data: { scope: {}, category: null, as_of: task.snapshot_at, transactions: [
+    { ...common, transaction_id: "a", counterparty_name: "社区食堂", amount_fen: 3200, category: "dining" },
+    { ...common, transaction_id: "b", counterparty_name: "社区药房", amount_fen: 11300, category: "medical" },
+  ] } }} />);
+  expect(screen.getByText("¥32.00")).toBeTruthy();
+  expect(screen.getByText("¥113.00")).toBeTruthy();
+  expect(screen.getAllByText("消费 · 支出")).toHaveLength(2);
+  const dining = screen.getByText("分类：餐饮").closest("details")!;
+  const medical = screen.getByText("分类：医疗").closest("details")!;
+  expect(dining.open).toBe(false);
+  expect(medical.open).toBe(false);
+  fireEvent.click(dining.querySelector("summary")!);
+  expect(dining.open).toBe(true);
+  expect(dining.textContent).toContain("银行返回的说明");
+  expect(dining.textContent).toContain("****1234");
 });
