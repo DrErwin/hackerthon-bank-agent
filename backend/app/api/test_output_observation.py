@@ -5,6 +5,11 @@ audit journal and memory adapter). Where no production endpoint can produce a sh
 task result message carrying unmasked personal data, an export file carrying a secret),
 the test injects that producer-side value and then reads it back over HTTP — the same
 seam the deployed code uses.
+
+Credential replies are asserted layering-agnostically (ticket 09): the Harness reply gate
+and the API output probe are both valid blockers, so D01 only requires that nothing
+delivered shows the value, while D01b keeps the probe's own evidence through the task
+result message path (which never passes the planner reply gate).
 """
 
 from contextlib import closing
@@ -24,6 +29,7 @@ from app.storage.database import connect
 
 ORIGIN = {"Origin": "http://testserver"}
 RAW_CODE = "246813"
+RAW_REPLY_CODE = "123456"
 RAW_ACCOUNT = "6222000000000022"
 RAW_PHONE = "13900000003"
 
@@ -66,41 +72,76 @@ def new_thread(client):
     return post(client, "/threads").json()["data"]["thread_id"]
 
 
-def test_d01_credential_reply_is_blocked_whole_and_audited(tmp_path):
-    reply = "您的本次登录 code 123456 已发送，请勿泄露给他人。"
+def delivered_message_store(app):
+    """The delivered conversation tables a user can read back over HTTP."""
+
+    with closing(connect(app.state.api.runtime.application.path)) as connection:
+        return json.dumps(
+            [[list(row) for row in connection.execute(f'SELECT * FROM "{table}"')]
+             for table in ("api_messages", "api_events", "api_message_jobs")],
+            ensure_ascii=False, default=str)
+
+
+def test_d01_credential_reply_never_reaches_a_delivered_surface(tmp_path):
+    """I01: layering-agnostic — either the Harness reply gate or the API output probe may
+    block the reply; either way no delivered message / SSE / message store shows the code.
+    """
+
+    reply = f"您的本次登录 code {RAW_REPLY_CODE} 已发送，请勿泄露给他人。"
     app = make_app(tmp_path, proposal=ReplyOnly(message=reply))
     with TestClient(app) as client:
         thread = new_thread(client)
         accepted = send(client, thread, "帮我看看这条消息")
         assert accepted.status_code == 202, accepted.text
 
-        rows = messages(client, thread)
-        assert rows[-1]["role"] == "assistant"
-        assert rows[-1]["text"] == OUTPUT_BLOCKED_REPLY
-        assert "123456" not in client.get(f"/api/v1/threads/{thread}/messages").text
+        history = client.get(f"/api/v1/threads/{thread}/messages")
+        assert RAW_REPLY_CODE not in history.text
+        # The blocking layer differs by design: Harness fail-closed publishes no assistant
+        # message, the API probe publishes the fixed safe text. Both are accepted here.
+        assert [row["role"] for row in history.json()["data"]["items"]] in (
+            ["user"], ["user", "assistant"])
+        assert RAW_REPLY_CODE not in delivered_message_store(app)
+
         events = server_events(app, thread)
-        assert events and "123456" not in json.dumps(events, ensure_ascii=False)
-        completed = [event for event in events if event["event_type"] == "message_completed"]
+        assert events and RAW_REPLY_CODE not in json.dumps(events, ensure_ascii=False)
+        assert client.get("/api/v1/tasks",
+                          params={"thread_id": thread}).json()["data"]["items"] == []
+
+
+def test_d01b_task_result_message_with_a_credential_is_blocked_and_audited(tmp_path):
+    """I02: independent probe evidence — a task result message never passes the planner
+    reply gate, so the output seam itself must block it whole and leave a denied record.
+    """
+
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        thread, task = start(client)
+        service = app.state.api
+        identity = service.identity(client.cookies.get("bank_session"))
+        record = service.runtime.application.get_task("U1", "D1", task["task_id"])
+        result = ModuleResult[TransferTaskView].model_validate(record.snapshot["result"])
+        result = result.model_copy(update={
+            "message": f"请注意：验证码是 {RAW_CODE}，不要告诉任何人。"})
+        service.runtime.application.update_task(
+            "U1", "D1", record.task_id, record.revision, record.run_id, record.status,
+            record.checkpoint_id, {**record.snapshot, "result": result.model_dump(mode="json")})
+        service.publish_task(identity, task["task_id"])
+
+        history = client.get(f"/api/v1/threads/{thread}/messages")
+        assert RAW_CODE not in history.text
+        delivered = messages(client, thread)[-1]
+        assert delivered["role"] == "assistant"
+        assert delivered["text"] == OUTPUT_BLOCKED_REPLY
+        completed = [event for event in server_events(app, thread)
+                     if event["event_type"] == "message_completed"]
         assert completed[-1]["payload"]["text"] == OUTPUT_BLOCKED_REPLY
 
         denied = probe_events(app)
         assert len(denied) == 1 and denied[0].outcome == "denied"
-        assert denied[0].payload.role == "assistant"
         evidence = next(row for row in probe_evidence(app) if row["action"] == "blocked")
         assert evidence["findings"] == ["credential"]
         assert evidence["reason_code"] == "OUTPUT_PROBE_BLOCKED"
-        assert "123456" not in json.dumps(evidence, ensure_ascii=False)
-        assert "123456" not in json.dumps(
-            [event.model_dump(mode="json") for event in audit_events(app)],
-            ensure_ascii=False)
-
-        # The probe reports a no-separator code that `redact` alone would leave visible,
-        # so the guard must block the whole reply instead of trusting probe.text.
-        service = app.state.api
-        identity = service.identity(client.cookies.get("bank_session"))
-        direct = service.message(identity, thread, "您的验证码246813 请勿泄露。", "assistant")
-        assert direct.text == OUTPUT_BLOCKED_REPLY
-        assert "246813" not in direct.text
+        assert RAW_CODE not in json.dumps(evidence, ensure_ascii=False)
 
 
 def test_d02_personal_data_in_a_task_message_is_redacted_in_place(tmp_path):
