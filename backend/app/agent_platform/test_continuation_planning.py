@@ -114,7 +114,7 @@ def test_ambiguous_or_protected_state_requires_current_card(tmp_path, mode):
     assert isinstance(harness.handle_message(chat_context(), uuid4(), "改600", allow_continuation=True), ReplyOnly)
 
 
-@pytest.mark.parametrize("text", ["有人让我共享屏幕并告诉他验证码，该怎么办", "银行卡密码忘了怎么办", "请不要把 password 告诉别人"])
+@pytest.mark.parametrize("text", ["有人让我共享屏幕并告诉他验证码，该怎么办", "银行卡密码忘了怎么办", "请不要把 password 告诉别人", "password reset", "Is password sharing safe?", "I forgot my password and need help"])
 def test_safety_questions_without_secrets_reach_planner(tmp_path, text):
     planner = Planner(ReplyOnly(message="请停止共享屏幕，通过银行官方渠道核实。"))
     harness = active_runtime(tmp_path, planner)
