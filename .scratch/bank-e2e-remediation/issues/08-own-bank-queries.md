@@ -8,7 +8,7 @@ Owner: Erwin 协调 / Codex 按用户授权代行
 Directory: `backend/app/agent_platform/`
 Priority: P1
 Status: ready-for-agent
-Blocked by: 无
+Blocked by: bank-e2e-remediation/08a
 Core scenarios: S01 S06
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
 
@@ -24,3 +24,5 @@ Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issu
 
 ## Comments
 2026-10-22：用户授权范围内拆票。开发、运行验证、合入、验收分别记录。
+
+2026-10-23：安全策略逐字段冻结公开能力，不能由平台自行开放。新增前置 [08a 查询声明准入](08a-query-policy.md)，保持安全与平台各自单目录审查。
