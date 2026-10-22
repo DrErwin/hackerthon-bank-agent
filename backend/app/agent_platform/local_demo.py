@@ -34,6 +34,7 @@ from app.storage.mock_bank.repository import MockBankStore
 from . import subscription_runtime
 from .model import DeepAgentPlanner, ModelSettings
 from .transfer_runtime import TransferRuntime
+from .own_bank_queries import register_own_bank_queries
 
 
 class RiskFixture(BaseModel):
@@ -240,6 +241,7 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     # Scenario 05 rides the same confirmation service, audit journal and bank gateway;
     # its one write is authorized by a live claim from the shared executor.
     subscription_runtime.register_subscription(runtime, bank.clock)
+    register_own_bank_queries(runtime)
     return runtime
 
 
