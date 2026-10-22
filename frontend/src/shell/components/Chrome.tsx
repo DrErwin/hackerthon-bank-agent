@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import type { MessageView } from "../../contracts";
 import type { DataOrigin } from "../types";
@@ -56,14 +56,12 @@ export function TypingBubble() {
   );
 }
 
-export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend, preparedDraft, onPreparedDraftUsed }: {
+export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend }: {
   disabled: boolean;
   sending: boolean;
   pendingText: string | null;
   voiceDemoText?: string;
   onSend: (text: string) => Promise<boolean>;
-  preparedDraft?: string | null;
-  onPreparedDraftUsed?: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
@@ -71,14 +69,6 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
   const inputRef = useRef<HTMLInputElement>(null);
   const value = pendingText ?? draft;
   const canSend = !disabled && !sending && value.trim().length > 0;
-
-  useEffect(() => {
-    if (!preparedDraft) return;
-    setDraft(preparedDraft);
-    setVoiceNote("原确认单已取消。请检查修改内容，再点击发送生成新的确认单。");
-    inputRef.current?.focus();
-    onPreparedDraftUsed?.();
-  }, [onPreparedDraftUsed, preparedDraft]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -101,10 +91,10 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
     setListening(false);
     if (voiceDemoText) {
       setDraft(voiceDemoText);
-      setVoiceNote("演示转写：已填入输入框，可以点输入框修改后再发送。");
+      setVoiceNote("已填入固定语音示例，没有录音或识别声音。请修改后再发送。");
       inputRef.current?.focus();
     } else {
-      setVoiceNote("没听清，您再说一遍，或者直接打字也行。");
+      setVoiceNote("本页尚未接入真实语音识别，请打字或填写卡片。");
     }
   }
 
@@ -120,14 +110,14 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
       {listening && (
         <div className="sh-listening" role="status">
           <span className="sh-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span>
-          正在听，您请说…
+          语音交互演示：松开后填入固定示例，不会录音
         </div>
       )}
       <form className="sh-composer" onSubmit={(event) => void submit(event)}>
         <button
           type="button"
           className={"sh-mic" + (listening ? " sh-mic-on" : "")}
-          aria-label="按住说话，松开结束（演示转写）"
+          aria-label="语音示例（固定文字，不录音）"
           aria-pressed={listening}
           disabled={disabled || Boolean(pendingText)}
           onPointerDown={(event) => { event.preventDefault(); startListening(); }}
@@ -158,7 +148,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
         </button>
       </form>
       <p className="sh-composer-hint" aria-live="polite">
-        {pendingText && !sending ? "上一条消息不确定是否发出。点「重试」会沿用同一个请求编号，不会重复办理。" : voiceNote || "验证码和完整账号请不要发在聊天里。"}
+        {pendingText && !sending ? "上一条消息不确定是否发出。点「重试」会沿用同一个请求编号，不会重复办理。" : voiceNote || "验证码和完整账号请不要发在聊天里。麦克风为固定文字演示。"}
       </p>
     </div>
   );

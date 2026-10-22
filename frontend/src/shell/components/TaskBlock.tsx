@@ -2,7 +2,7 @@ import { useState } from "react";
 import { administratorUrl } from "../../api";
 import { isTerminal, taskStatusLabel } from "../format";
 import type { BusinessSlot } from "../slots";
-import type { DataOrigin, ResultView, TaskEnvelope } from "../types";
+import type { DataOrigin, DraftChanges, ResultView, TaskEnvelope } from "../types";
 import type { Conversation } from "../useConversation";
 import { ConfirmationCard } from "./ConfirmationCard";
 import { Notice } from "./Primitives";
@@ -19,15 +19,16 @@ export function verificationAdminLabel(origin: DataOrigin): string {
   return origin === "real-api" ? "打开独立管理员会话处理模拟人脸" : "演示用：在新窗口打开管理员演示入口";
 }
 
-export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModification }: {
+export function TaskBlock({ envelope, slot, origin, conversation }: {
   envelope: TaskEnvelope;
   slot: BusinessSlot;
   origin: DataOrigin;
   conversation: Conversation;
-  onPrepareModification?: (text: string) => void;
 }) {
   const [modifying, setModifying] = useState(false);
   const [modifyText, setModifyText] = useState("");
+  const [modifyField, setModifyField] = useState<"amount_fen" | "payer_account_id" | "payee_hint">("amount_fen");
+  const [modifyError, setModifyError] = useState("");
   const { task } = envelope;
   const { actions, history, confirmations, verifications, bootRecovery, recovered, expired } = conversation;
   const busyKey = conversation.busy[task.task_id] ?? "";
@@ -90,16 +91,17 @@ export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModif
               key={entry.id}
               id={id}
               interaction={entry.interaction}
-              active={!expired && task.status === "waiting_input" && task.interaction?.interaction_id === entry.id}
+              active={!expired && task.status === "waiting_input" && task.allowed_actions.includes("provide_input") && task.interaction?.interaction_id === entry.id}
               busy={busy}
               selectedLabel={entry.selectedLabel}
               onSelect={(optionId, label) => void actions.selectOption(task, optionId, label)}
+              onSubmitText={(text) => actions.provideText(task, text)}
             />
           );
         }
         const isCurrent = interactionActive && task.interaction?.record_ref === entry.id;
         if (entry.kind === "confirmation") {
-          const view = confirmations[entry.id];
+          const view = entry.snapshot ?? confirmations[entry.id];
           if (!view) return <p key={entry.id} className="sh-hint">正在读取确认单…</p>;
           const canModify = isCurrent && Boolean(slot.canModifyConfirmation)
             && task.allowed_actions.includes("confirm") && task.allowed_actions.includes("cancel");
@@ -125,16 +127,36 @@ export function TaskBlock({ envelope, slot, origin, conversation, onPrepareModif
                   event.preventDefault();
                   const requested = modifyText.trim();
                   if (!requested) return;
-                  const cancelled = await actions.answerConfirmation(task, view, "cancel");
-                  if (!cancelled) return;
-                  onPrepareModification?.("请将当前转账调整为：" + requested + "。原确认单已取消，请重新核对新的确认单。");
+                  let changes: DraftChanges;
+                  if (modifyField === "amount_fen") {
+                    const amount = Number(requested) * 100;
+                    if (!/^\d+(?:\.\d{1,2})?$/.test(requested) || !Number.isSafeInteger(Math.round(amount)) || amount <= 0) {
+                      setModifyError("请填写大于零的金额，最多两位小数。");
+                      return;
+                    }
+                    changes = { amount_fen: Math.round(amount) };
+                  } else {
+                    changes = { [modifyField]: requested };
+                  }
+                  setModifyError("");
+                  if (!await actions.reviseDraft(task, view, changes)) return;
                   setModifying(false);
                   setModifyText("");
                 }}>
-                  <label htmlFor={id + "-modify"}>要调整的内容</label>
-                  <textarea id={id + "-modify"} value={modifyText} onChange={(event) => setModifyText(event.target.value)} rows={2} placeholder="例如：金额改为 300 元" required />
-                  <p className="sh-hint">会先取消旧确认单，再把修改要求放进输入框。请检查后另行发送。</p>
-                  <button type="submit" className="sh-btn sh-btn-primary" disabled={busy}>取消旧确认并准备修改</button>
+                  <label htmlFor={id + "-field"}>修改项目</label>
+                  <select id={id + "-field"} value={modifyField} disabled={busy}
+                    onChange={(event) => { setModifyField(event.target.value as typeof modifyField); setModifyText(""); setModifyError(""); }}>
+                    <option value="amount_fen">金额</option>
+                    <option value="payer_account_id">付款账户</option>
+                    <option value="payee_hint">收款人</option>
+                  </select>
+                  <label htmlFor={id + "-modify"}>{modifyField === "amount_fen" ? "新的金额（元）" : modifyField === "payer_account_id" ? "新的付款账户编号" : "新的收款人姓名或备注"}</label>
+                  <input id={id + "-modify"} value={modifyText} onChange={(event) => setModifyText(event.target.value)}
+                    inputMode={modifyField === "amount_fen" ? "decimal" : "text"} autoComplete="off" disabled={busy} required />
+                  {modifyError && <p role="alert" className="sh-inline-error">{modifyError}</p>}
+                  <p className="sh-hint">其他信息保持不变。修改后旧确认单失效，请核对新的确认内容。</p>
+                  <button type="submit" className="sh-btn sh-btn-primary" disabled={busy || !modifyText.trim()}>保存修改并重新核对</button>
+                  <button type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={() => setModifying(false)}>暂不修改</button>
                 </form>
               )}
             </div>

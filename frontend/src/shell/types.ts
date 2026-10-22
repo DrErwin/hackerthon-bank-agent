@@ -9,6 +9,7 @@ import type {
   SessionView,
   StreamEvent,
   TaskView,
+  TransferTaskView,
   TaskRecordsView,
   ThreadView,
   VerificationResponse,
@@ -27,12 +28,14 @@ export interface TaskEnvelope<D = unknown> {
 
 export type ShellVerificationResponse = Omit<VerificationResponse, "task"> & { task: ShellTask };
 
+export type DraftChanges = Partial<Pick<TransferTaskView, "amount_fen" | "payer_account_id">> & { payee_hint?: string };
+
 export type DataOrigin = "stub" | "contract-demo" | "real-api";
 
 export type ShellEvent = Omit<StreamEvent, "payload"> & { payload: unknown };
 
 export type HistoryEntry =
-  | { kind: "confirmation"; id: string }
+  | { kind: "confirmation"; id: string; snapshot?: ConfirmationView }
   | { kind: "verification"; id: string }
   | { kind: "input"; id: string; interaction: InteractionRequest; selectedLabel: string | null };
 
@@ -50,6 +53,7 @@ export interface ShellDataSource {
     taskId: string,
     body: { request_id: string; interaction_id: string; selected_option_id?: string; text?: string },
   ): Promise<ShellTask>;
+  reviseDraft(taskId: string, body: DraftChanges & { request_id: string; task_revision: number }): Promise<ShellTask>;
   resumeTask(taskId: string, body: { request_id: string }): Promise<ShellTask>;
   cancelTask(taskId: string, body: { request_id: string }): Promise<ShellTask>;
   queryResult(taskId: string, body: { request_id: string }): Promise<ShellTask>;
