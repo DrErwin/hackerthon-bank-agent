@@ -8,7 +8,7 @@ Owner: Erwin 协调 / Codex 按用户授权代行
 Directory: `frontend/`
 Priority: P1
 Status: ready-for-agent
-Blocked by: bank-e2e-remediation/02, bank-e2e-remediation/03, bank-e2e-remediation/05, bank-e2e-remediation/08, bank-e2e-remediation/09
+Blocked by: bank-e2e-remediation/02, bank-e2e-remediation/03, bank-e2e-remediation/05, bank-e2e-remediation/08, bank-e2e-remediation/09, bank-e2e-remediation/10b
 Core scenarios: S03 S06
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
 
