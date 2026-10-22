@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.agent_platform.model import ContinueProposal, ReplyOnly, TransferProposal
-from .test_app import make_app, post, start
+from .test_app import approve, enter, make_app, post, start
 
 
 def say(client, app, thread, task, action, **fields):
@@ -39,6 +39,14 @@ def test_chat_supplies_amount_account_then_revises_same_task(tmp_path):
         items = client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]
         assert len(items) == 1
         assert app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1") == []
+        waiting = approve(client, revised)
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        completed = post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code)
+        assert completed.json()["data"]["task"]["status"] == "succeeded"
+        assert post(client, f"/threads/{thread}/messages", **body).status_code == 202
+        ledger = app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1")
+        assert len(ledger) == 1
 
 
 def test_interrupted_after_mutation_reads_original_without_replanning_or_reapplying(tmp_path, monkeypatch):
@@ -114,3 +122,26 @@ def test_invalid_chat_revision_does_not_change_task(tmp_path, amount):
         thread, task = start(client)
         _, current = say(client, app, thread, task, "revise", amount_fen=amount)
         assert current["task_revision"] == task["task_revision"]
+
+
+def test_saved_continuation_cannot_carry_authority_into_a_new_session(tmp_path, monkeypatch):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        thread, task = start(client)
+        service = app.state.api
+        dispatch = service.dispatch_continuation
+        def interrupted(*args):
+            raise OSError("before dispatch")
+        monkeypatch.setattr(service, "dispatch_continuation", interrupted)
+        body, unchanged = say(client, app, thread, task, "revise", amount_fen=60000)
+        assert unchanged["task_revision"] == task["task_revision"]
+        monkeypatch.setattr(service, "dispatch_continuation", dispatch)
+        calls = service.runtime.harness.planner.calls
+        service.store.write("UPDATE sessions SET expires_at=?", ("2000-01-01T00:00:00+00:00",))
+        enter(client)
+        assert post(client, f"/threads/{thread}/messages", **body).status_code == 202
+        current = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
+        assert current["data"]["amount_fen"] == 50000
+        assert current["recovery_required"] is True
+        assert service.runtime.harness.planner.calls == calls
+        assert service.runtime.gateway._bank.store.list_ledger("U1", "A1") == []
