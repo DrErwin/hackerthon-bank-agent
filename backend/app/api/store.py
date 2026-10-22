@@ -74,7 +74,7 @@ class ApiStore:
                     created_at TEXT NOT NULL, user_event_id TEXT NOT NULL,
                     assistant_event_id TEXT NOT NULL, user_task_event_id TEXT NOT NULL,
                     task_updated_event_id TEXT NOT NULL, interaction_event_id TEXT NOT NULL,
-                    error_event_id TEXT NOT NULL,
+                    error_event_id TEXT NOT NULL, untrusted_content TEXT,
                     UNIQUE(user_id, demo_round_id, thread_id, request_id))""",
                 """CREATE TABLE IF NOT EXISTS api_message_replies (
                     job_id TEXT PRIMARY KEY, reply_text TEXT NOT NULL)""",
@@ -95,6 +95,12 @@ class ApiStore:
                 c.execute(EXPORTS_DDL.format(clause=""))
                 c.execute("INSERT INTO api_exports SELECT * FROM api_exports_before_f35")
                 c.execute("DROP TABLE api_exports_before_f35")
+            # F11 compatible extension (v05-observer-seams/02): demo databases created
+            # before the ticket keep working; the optional datablock column is added in
+            # place and old jobs stay NULL.
+            job_columns = {row["name"] for row in c.execute("PRAGMA table_info(api_message_jobs)")}
+            if "untrusted_content" not in job_columns:
+                c.execute("ALTER TABLE api_message_jobs ADD COLUMN untrusted_content TEXT")
 
     def rows(self, sql, parameters=()):
         with closing(connect(self.path)) as c:
@@ -225,14 +231,19 @@ class ApiStore:
                       (job["user_message_id"], job["thread_id"], job["created_at"], message_json))
             c.execute("INSERT OR IGNORE INTO api_events(event_id, thread_id, event_json) VALUES (?, ?, ?)",
                       (job["user_event_id"], job["thread_id"], event_json))
-            c.execute("""INSERT INTO api_message_jobs VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)""",
+            c.execute("""INSERT INTO api_message_jobs (
+                job_id, candidate_task_id, user_message_id, assistant_message_id, thread_id,
+                user_id, session_id, demo_round_id, run_id, request_id, intent_text, status,
+                task_id, created_at, user_event_id, assistant_event_id, user_task_event_id,
+                task_updated_event_id, interaction_event_id, error_event_id, untrusted_content)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (job["job_id"], job["candidate_task_id"], job["user_message_id"],
                  job["assistant_message_id"], job["thread_id"], job["user_id"],
                  job["session_id"], job["demo_round_id"], job["run_id"], job["request_id"],
                  job["intent_text"], "queued", job["created_at"], job["user_event_id"],
                  job["assistant_event_id"], job["user_task_event_id"],
-                 job["task_updated_event_id"], job["interaction_event_id"], job["error_event_id"]))
+                 job["task_updated_event_id"], job["interaction_event_id"],
+                 job["error_event_id"], job["untrusted_content"]))
             row = c.execute("SELECT * FROM api_message_jobs WHERE job_id=?", (job["job_id"],)).fetchone()
             return dict(row), True
 
