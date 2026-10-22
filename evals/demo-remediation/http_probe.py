@@ -37,6 +37,7 @@ def main():
     parser.add_argument("--base-url", default="http://127.0.0.1:8007")
     parser.add_argument("--data-directory", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--case", action="append", choices=[name for name, _ in CASES])
     args = parser.parse_args()
     target = urlparse(args.base_url)
     if target.scheme != "http" or target.hostname != "127.0.0.1" or target.username or target.password or target.path:
@@ -49,6 +50,8 @@ def main():
         parser.error("matching local-demo databases required")
     results = []
     for name, text in CASES:
+        if args.case and name not in args.case:
+            continue
         with httpx.Client(base_url=args.base_url + "/api/v1", headers={"Origin": "http://127.0.0.1:5177"}, timeout=90) as client:
             def post(path, **body):
                 return client.post(path, json={"request_id": str(uuid4()), **body})
