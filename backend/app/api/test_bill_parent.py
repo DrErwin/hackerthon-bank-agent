@@ -16,6 +16,9 @@ def test_parent_is_persisted_and_never_taken_from_another_chat(tmp_path):
             capability_name="bills.summarize")):
         thread, bill = start(client, "2026年9月所有账户账单")
         assert bill["status"] == "succeeded"
+        with patch.object(harness.planner, "select", return_value=TransferProposal(
+                capability_name="transfer.list_accounts")):
+            post(client, f"/threads/{thread}/messages", text="查询我的账户")
         seen = []
         def reply(text, trusted, *args, **kwargs):
             seen.append(trusted.parent_task_id)

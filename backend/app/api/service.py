@@ -354,21 +354,22 @@ class ApiService:
         return [report.report_id] if inserted else []
 
     def bill_parent(self, identity, thread_id, task_id=None):
-        """Only the last task in this chat may supply a completed bill scope."""
+        """Bind the latest completed bill in this chat, never another chat's scope."""
         self.thread(identity, thread_id)
         rows = self.store.rows("""SELECT * FROM api_tasks WHERE thread_id=?
-            AND user_id=? AND demo_round_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+            AND user_id=? AND demo_round_id=? ORDER BY created_at DESC, rowid DESC""",
             (thread_id, identity.user_id, identity.demo_round_id)) if task_id is None else self.store.rows(
             """SELECT * FROM api_tasks WHERE task_id=? AND thread_id=?
             AND user_id=? AND demo_round_id=?""", (task_id, thread_id, identity.user_id, identity.demo_round_id))
-        if not rows or rows[0]["session_id"] != identity.session_id:
-            return None
-        task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, rows[0]["task_id"])
-        if (task is None or task.session_id != identity.session_id or task.status != TaskStatus.SUCCEEDED
-                or task.snapshot.get("capability_name") not in {"bills.summarize", "bills.generate_report",
-                                                               "bills.detect_anomalies"}):
-            return None
-        return task.task_id
+        for row in rows:
+            if row["session_id"] != identity.session_id:
+                continue
+            task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, row["task_id"])
+            if (task is not None and task.session_id == identity.session_id and task.status == TaskStatus.SUCCEEDED
+                    and task.snapshot.get("capability_name") in {"bills.summarize", "bills.generate_report",
+                                                                 "bills.detect_anomalies"}):
+                return task.task_id
+        return None
 
     def accept_message_job(self, identity, thread_id, request_id, text, untrusted_content=None):
         message = self.message_view(thread_id, text, "user", identity=identity)
