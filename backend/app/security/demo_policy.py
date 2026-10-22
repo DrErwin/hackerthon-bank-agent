@@ -102,6 +102,15 @@ _TRANSFER_CAPABILITIES = (
         operation_level=OperationLevel.MODIFY, side_effect=False, confirmation_policy="none",
         timeout_ms=30_000, retry_policy="none", handler_ref="transfer.workflow.start",
     ),
+    *(CapabilityDefinition(
+        name="transfer." + name, input_schema_ref="StartTransferInput",
+        output_schema_ref=output_ref, required_permissions=["transfer.read"],
+        operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
+        timeout_ms=4_000, retry_policy="read_only", handler_ref="agent_platform.own_bank_queries." + name,
+    ) for name, output_ref in (
+        ("list_accounts", "ModuleResult[AccountList]"),
+        ("list_payees", "ModuleResult[PayeeList]"),
+    )),
 )
 _TRANSFER_PRIVATE_TOOLS = (
     *(CapabilityDefinition(
@@ -195,7 +204,7 @@ _SUBSCRIPTION_PRIVATE_TOOLS = (
 class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
-    policy_version = "v04-local-demo-read-5"
+    policy_version = "v04-local-demo-read-6"
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.

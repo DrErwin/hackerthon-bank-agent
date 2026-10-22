@@ -30,7 +30,7 @@ def test_l02_admission_preserves_l01_and_l03_without_new_permissions():
     policy, _ = make_policy(unavailable_facts)
     for declaration in (MANIFEST.capabilities[0], REPORT_MANIFEST.capabilities[0], DECLARATION):
         assert policy.authorize_capability(policy_context(), declaration)
-    assert policy.policy_version == "v04-local-demo-read-5"
+    assert policy.policy_version == "v04-local-demo-read-6"
 
 
 @pytest.mark.parametrize("change", [
