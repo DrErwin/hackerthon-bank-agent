@@ -123,7 +123,7 @@ def test_safety_questions_without_secrets_reach_planner(tmp_path, text):
     assert harness.application.get_task("U1", "D1", "T2") is None
 
 
-@pytest.mark.parametrize("text", ["验证码123456", "password: SECRET789", "123456", "密码是我的生日"])
+@pytest.mark.parametrize("text", ["验证码123456", "password: SECRET789", "password hunter2", "otp123456", "apikey_0123456789abcdef0123456789abcdef", "123456", "密码是我的生日"])
 def test_secret_values_stop_before_planning(tmp_path, text):
     planner = Planner(ReplyOnly(message="不会看到"))
     harness = active_runtime(tmp_path, planner)
@@ -137,6 +137,20 @@ def test_secret_values_stop_before_planning(tmp_path, text):
 def test_proposal_schema_has_no_authorizing_action(action):
     with pytest.raises(ValidationError):
         ContinueProposal(task_id="T9", task_revision=1, action=action)
+
+
+@pytest.mark.parametrize("option,accepted", [("A1", True), ("password: SECRET789", False), ("A2", False)])
+def test_only_current_option_can_be_persisted_as_a_candidate(tmp_path, option, accepted):
+    harness, planner = setup(tmp_path)
+    task = harness.application.get_task("U1", "D1", "T9")
+    snapshot = task.snapshot
+    snapshot["result"].update(allowed_actions=["provide_input"], interaction={
+        "kind": "input", "required_fields": ["payer_account_id"], "options": [{"id": "A1"}]})
+    harness.application.update_task("U1", "D1", "T9", 1, "R9", TaskStatus.WAITING_INPUT, None, snapshot)
+    planner.outcome = ContinueProposal(task_id="T9", task_revision=2, action="provide_input", selected_option_id=option)
+    result = harness.handle_message(chat_context(), uuid4(), "选第一个账户", allow_continuation=True)
+    assert isinstance(result, ContinueProposal if accepted else ReplyOnly)
+    assert harness.application.get_task("U1", "D1", "T9").revision == 2
 
 
 class ContinuationModel(ScriptedChatModel):
