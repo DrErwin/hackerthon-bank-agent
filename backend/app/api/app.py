@@ -21,7 +21,7 @@ from app.contracts.api import (
     SendMessageRequest, SessionExpired, StreamEvent, SubmitDetailsRequest, VerificationCodeRequest,
 )
 from app.contracts.bank import ManualPayee, QueryFailure
-from app.contracts.common import DisplayField, TaskStatus
+from app.contracts.common import DisplayField, PositiveInt, PositiveMoney, TaskStatus
 from app.contracts.security import ConfirmationAnswer
 from app.contracts.tasks import ModuleError, TransferTaskView
 from app.services.mock_bank.verification import AdminContext
@@ -67,6 +67,15 @@ class MessageRequest(SendMessageRequest):
 
 class ExportRequest(RequestIdOnly):
     kind: Literal["card", "details"]
+
+
+class ReviseDraftRequest(RequestIdOnly):
+    """Compatible task draft extension; never carries approval or credentials."""
+
+    task_revision: PositiveInt
+    amount_fen: PositiveMoney | None = None
+    payer_account_id: str | None = Field(default=None, min_length=1, max_length=100)
+    payee_hint: str | None = Field(default=None, min_length=1, max_length=100)
 
 
 class AuditExportRequest(RequestIdOnly):
@@ -301,6 +310,15 @@ def create_app(runtime=None, config=None):
         def action():
             task = service.current_input_task(who, task_id, body.interaction_id)
             return service.continue_task(who, task_id, service.input_response(task, body))
+        return mutation(service, who, request, body, action)
+
+    @application.post("/api/v1/tasks/{task_id}/draft")
+    def revise_draft(request: Request, task_id: str, body: ReviseDraftRequest,
+                     who=Depends(identity), service=Depends(api)):
+        service.link(who, task_id, mutate=True)
+        def action():
+            fields = body.model_dump(exclude={"request_id", "task_revision"}, exclude_none=True)
+            return service.revise_draft(who, task_id, body.task_revision, fields)
         return mutation(service, who, request, body, action)
 
     @application.post("/api/v1/tasks/{task_id}/resume")
