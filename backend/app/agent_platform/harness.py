@@ -42,6 +42,7 @@ from .untrusted_data import MAX_ITEMS, UntrustedData, tool_observation, user_mat
 _LOCK_GUARD = Lock()
 _TASK_LOCKS: dict[str, RLock] = {}
 _HELD_LOCKS = local()
+_SELECTED_CAPABILITIES = frozenset({"bills.summarize", "bills.detect_anomalies", "subscription.cancel_subscription"})
 # A request that carries outside material may only be analysed. The refusal is
 # fixed here, never taken from the model or the material itself (S2 / A03).
 _UNTRUSTED_MATERIAL_REFUSAL = (
@@ -593,10 +594,19 @@ class AgentHarness:
             raise ValueError("NO_TRANSFER_INTENT")
         return result
 
+    def start_selected(self, trusted: TrustedContext, request_id: UUID,
+                       intent_text: str, capability_name: str) -> ModuleResult:
+        """Server-validated result-card selection, with the ordinary execution gates."""
+        if capability_name not in _SELECTED_CAPABILITIES:
+            raise ValueError("INVALID_ARGUMENT")
+        return self.handle_message(trusted, request_id, intent_text,
+                                   selected_capability=capability_name)
+
     def handle_message(self, trusted: TrustedContext, request_id: UUID,
                        intent_text: str,
                        untrusted_content: str | None = None,
                        *, allow_continuation: bool = False,
+                       selected_capability: str | None = None,
                        ) -> ModuleResult | ReplyOnly | ContinueProposal:
         """Return a controlled chat reply or continue the existing transfer path."""
         with _task_lock(self.application.path, trusted.task_id):
@@ -618,7 +628,12 @@ class AgentHarness:
                 thread_id = self.memory.conversation_thread_id(context)
                 trace = RunTrace(self.audit, trusted, thread_id, trace_id)
                 material = user_material(untrusted_content) if untrusted_content else None
-                outcome = self._understand_with_trace(trusted, intent_text, trace, material)
+                if selected_capability is not None:
+                    if selected_capability not in _SELECTED_CAPABILITIES:
+                        raise ValueError("INVALID_ARGUMENT")
+                    outcome = TransferProposal(capability_name=selected_capability)
+                else:
+                    outcome = self._understand_with_trace(trusted, intent_text, trace, material)
                 if material is not None and isinstance(outcome, (TransferProposal, ContinueProposal)):
                     # Deterministic gate: outside material may be read and explained,
                     # never turned into a task, a tool call or a funds action (S2).
@@ -645,6 +660,7 @@ class AgentHarness:
                     trusted.demo_round_id, trusted.run_id, TaskStatus.RUNNING,
                     {"request_id": str(request_id), "intent_text": intent_text,
                      "config_version": self.planner.config_version,
+                     "selected_capability": selected_capability,
                      "bill_source_task_id": trusted.parent_task_id,
                      "bill_scope": self._inherited_bill_scope(trusted, outcome.capability_name),
                      "trace_id": trace_id},
@@ -656,6 +672,10 @@ class AgentHarness:
             if task.run_id != trusted.run_id:
                 raise ValueError("USE_RESUME_FOR_NEW_RUN")
             snapshot = task.snapshot
+            if selected_capability is not None and snapshot.get("selected_capability") != selected_capability:
+                raise ValueError("REQUEST_CONFLICT")
+            if outcome is None and snapshot.get("selected_capability") is not None:
+                outcome = TransferProposal(capability_name=snapshot["selected_capability"])
             if snapshot["request_id"] != str(request_id) or snapshot["intent_text"] != intent_text:
                 raise ValueError("REQUEST_CONFLICT")
             if snapshot["config_version"] != self.planner.config_version:
