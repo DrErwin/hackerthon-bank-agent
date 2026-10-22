@@ -8,7 +8,7 @@ import { ConfirmationCard } from "./ConfirmationCard";
 import { Notice } from "./Primitives";
 import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, WaitingCard } from "./StatusCards";
 import { VerificationCard } from "./VerificationCard";
-import { BillCardActions, BusinessCards, businessPayload, billSummary } from "./BusinessCards";
+import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
 import { inputPrompt } from "../presentation";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
@@ -210,7 +210,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         />
       )}
       {report && !billSummary(task) && <ReportCard id={base + "-report"} view={report} origin={origin} />}
-      {result && !businessPayload(task) && !billSummary(task) && <ResultCard id={base + "-result"} view={result} origin={origin} />}
+      {result && !businessPayload(task) && !billSummary(task) && !billDetails(task) && <ResultCard id={base + "-result"} view={result} origin={origin} />}
+      <BillDetailsCard task={task} demo={origin !== "real-api"} />
       <BusinessCards task={task} busy={busy} enabled={conversation.supportsCardActions}
         links={links} renderChild={renderChild} activeChildren={activeChildren} onAction={(selection) => actions.cardAction(task, selection)} />
       <BillCardActions task={task} busy={busy} enabled={conversation.supportsCardActions} demo={origin !== "real-api"}

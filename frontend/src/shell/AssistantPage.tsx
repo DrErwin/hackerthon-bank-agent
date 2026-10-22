@@ -40,6 +40,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
     : inputTasks.some(({ task }) => task.task_id === replyChoice) ? replyChoice!
     : inputTasks.length === 1 ? inputTasks[0].task.task_id : inputTasks.length > 1 ? "" : "chat";
   const replyTask = inputTasks.find(({ task }) => task.task_id === choice)?.task;
+  const pendingApproval = [...tasks.values()].filter(({ task }) => task.status === "waiting_approval").length;
+  const finished = [...tasks.values()].filter(({ task }) => isTerminal(task)).length;
 
   // Expanding a card never moves the reader. Only incoming chat messages follow
   // the bottom, and only while the reader has not scrolled back into history.
@@ -74,6 +76,9 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
       <a className="sh-skip" href="#sh-main">跳到对话内容</a>
       <TopBar title="AI 银行助手" connected={connected} expired={expired} origin={source.origin} userDisplay={session?.user_display ?? null} />
       {expired && <ExpiredBanner onReenter={() => void actions.reenter()} />}
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {!booting && `已有 ${messages.filter((message) => message.role === "assistant").length} 条助手回复。${inputTasks.length} 项等您补充，${pendingApproval} 项需要您确认或验证，${finished} 项已结束。请在对话中查看。`}
+      </p>
       <div className="sh-body" ref={bodyRef} onScroll={() => {
         const body = bodyRef.current;
         if (!body) return;

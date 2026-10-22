@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import type { AccountList, BillReport, PayeeList, SpendingSummary, SubscriptionTaskView } from "../../contracts";
+import type { AccountList, BillDetails, BillReport, PayeeList, SpendingSummary, SubscriptionTaskView } from "../../contracts";
 import { yuan } from "../format";
 import type { CardSelection, ShellTask } from "../types";
 import { Card, FieldList } from "./Primitives";
@@ -113,6 +113,37 @@ export function BusinessCards({ task, busy, enabled, onAction, links, renderChil
 const CATEGORY_LABEL: Record<SpendingSummary["categories"][number]["category"], string> = {
   dining: "餐饮", transport: "交通", medical: "医疗", shopping: "购物", housing: "居住", transfer: "转账", other: "其他",
 };
+
+export function billDetails(task: ShellTask): BillDetails | null {
+  const data = task.data;
+  return task.status === "succeeded" && data && typeof data === "object" && "transactions" in data
+    && Array.isArray(data.transactions) && "scope" in data ? data as BillDetails : null;
+}
+
+function TransactionRows({ items }: { items: BillDetails["transactions"] }) {
+  const natures = { consumption: "消费", refund: "退款", transfer: "转账", interest: "利息" };
+  return <div className="sh-transaction-list">{items.map((item) => <details className="sh-disclosure sh-transaction" key={item.transaction_id}>
+    <summary><span>{item.counterparty_name}<small>{natures[item.nature]} · {item.direction === "inflow" ? "收入" : "支出"}</small></span><strong>{yuan(item.amount_fen)}</strong></summary>
+    <p>{new Date(item.occurred_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false })}</p>
+    {item.summary && <p>{item.summary}</p>}
+    {item.counterparty_account_masked && <p>对方账户：{item.counterparty_account_masked}</p>}
+  </details>)}</div>;
+}
+
+export function BillDetailsCard({ task, demo }: { task: ShellTask; demo: boolean }) {
+  const data = billDetails(task);
+  if (!data) return null;
+  const title = (data.category ? CATEGORY_LABEL[data.category] : "账单") + "明细";
+  return <Card title={title} labelledBy={"task-" + task.task_id + "-details"}>
+    <p className="sh-hint">共 {data.transactions.length} 笔，点一笔查看说明。</p>
+    <TransactionRows items={data.transactions.slice(0, 3)} />
+    {data.transactions.length > 3 && <DetailsDrawer title={"查看全部 " + data.transactions.length + " 笔明细"}>
+      <TransactionRows items={data.transactions} />
+    </DetailsDrawer>}
+    <p className="sh-hint">查询日期：{dateLabel(data.as_of)}</p>
+    {demo && <p className="sh-demo-note">演示数据，不代表真实账单。</p>}
+  </Card>;
+}
 
 export function billSummary(task: ShellTask): SpendingSummary | null {
   if (task.status !== "succeeded" || !task.data || typeof task.data !== "object") return null;

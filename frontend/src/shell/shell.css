@@ -292,3 +292,10 @@
 }
 
 .sh-category-row .sh-business-action > button { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; }
+.sh-transaction { border-bottom: 1px solid var(--line-soft); }
+.sh-transaction > summary { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; color: var(--ink); padding: 12px 0; }
+.sh-transaction > summary::after { content: "＋"; color: #70401c; }
+.sh-transaction[open] > summary::after { content: "−"; }
+.sh-transaction > summary span { flex: 1; }
+.sh-transaction small { display: block; font-size: 16px; font-weight: 400; color: var(--ink2); }
+.sh-transaction strong { white-space: nowrap; }
