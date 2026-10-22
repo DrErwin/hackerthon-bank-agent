@@ -24,7 +24,10 @@ class OwnBankQuery:
 
     def _read(self, trusted):
         # Neither model arguments nor user text select another person's identity.
-        outcome = self.ports.read(trusted, "bank." + self.name, {})
+        # B03 defines absent search as all saved contacts; an empty search object
+        # is invalid at the bank and must not be manufactured as a filter.
+        outcome = self.ports.read(trusted, "bank." + self.name,
+                                  None if self.name == "list_payees" else {})
         bank_result = outcome.result
         ok = outcome.executed and bank_result is not None and not isinstance(bank_result, QueryFailure)
         return ModuleResult(task_id=trusted.task_id, run_id=trusted.run_id,
