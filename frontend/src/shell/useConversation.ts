@@ -89,10 +89,13 @@ export function useConversation(source: ShellDataSource) {
   const didBoot = useRef(false);
   const loadFlight = useRef<Promise<void> | null>(null);
   const loadAgain = useRef(false);
+  const awaitingMessageId = useRef<string | null>(null);
 
   const expire = useCallback(() => {
     setExpired(true);
     setConnected(false);
+    setAwaitingReply(false);
+    awaitingMessageId.current = null;
   }, []);
 
   const upsertTask = useCallback((task: ShellTask, module?: string | null) => {
@@ -129,6 +132,11 @@ export function useConversation(source: ShellDataSource) {
         const recordLists = recordResults.filter((records): records is TaskRecordsView => records !== null);
         setThread(current);
         setMessages((previous) => mergeMessages(recovery ? [] : previous, messageList));
+        const sentIndex = messageList.findIndex((message) => message.message_id === awaitingMessageId.current);
+        if (recovery || sentIndex >= 0 && messageList.slice(sentIndex + 1).some((message) => message.role === "assistant")) {
+          setAwaitingReply(false);
+          awaitingMessageId.current = null;
+        }
         setTasks((previous) => {
           const next = recovery ? new Map<string, TaskEnvelope>() : new Map(previous);
           for (const envelope of taskList) {
@@ -377,8 +385,12 @@ export function useConversation(source: ShellDataSource) {
   }
 
   async function reviseDraft(task: ShellTask, view: ConfirmationView, changes: DraftChanges): Promise<boolean> {
-    const result = await act(task.task_id, "draft:" + task.task_id + ":" + task.task_revision + ":" + JSON.stringify(changes), (request_id) =>
-      source.reviseDraft(task.task_id, { request_id, task_revision: task.task_revision, ...changes }));
+    const result = await act(task.task_id, "draft:" + task.task_id + ":" + task.task_revision + ":" + JSON.stringify(changes), async (request_id) => {
+      const revised = await source.reviseDraft(task.task_id, { request_id, task_revision: task.task_revision, ...changes });
+      const confirmation = revised.interaction?.kind === "confirmation" && revised.interaction.record_ref
+        ? await source.getConfirmation(revised.interaction.record_ref) : null;
+      return { task: revised, confirmation };
+    });
     if (!result) return false;
     // Keep the replaced masked confirmation visibly read-only, even when the
     // backend reuses its record id with an incremented confirmation version.
@@ -387,12 +399,12 @@ export function useConversation(source: ShellDataSource) {
         ? { kind: "confirmation", id: view.confirmation_id + ":v" + view.confirmation_version,
             snapshot: { ...view, decision: "superseded" } }
         : entry) }));
-    setConfirmations((current) => {
-      const next = { ...current };
-      delete next[view.confirmation_id];
-      return next;
-    });
-    upsertTask(result);
+    if (result.confirmation) {
+      const fresh = result.confirmation;
+      setConfirmations((current) => (current[fresh.confirmation_id]?.confirmation_version ?? 0) > fresh.confirmation_version
+        ? current : { ...current, [fresh.confirmation_id]: fresh });
+    }
+    upsertTask(result.task);
     return true;
   }
 
@@ -504,7 +516,8 @@ export function useConversation(source: ShellDataSource) {
     setAwaitingReply(true);
     setPageError("");
     try {
-      await source.sendMessage(thread.thread_id, { request_id: pending.id, text: pending.text });
+      const accepted = await source.sendMessage(thread.thread_id, { request_id: pending.id, text: pending.text });
+      awaitingMessageId.current = accepted.message_id;
       setPendingMessage(null);
       return true;
     } catch (error) {

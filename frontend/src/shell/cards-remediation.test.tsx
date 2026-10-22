@@ -68,3 +68,50 @@ it("retries a failed input with its original request id and never sends it as a 
   expect(provide.mock.calls[0][1]).toEqual(provide.mock.calls[1][1]);
   expect(send).not.toHaveBeenCalled();
 });
+
+it("ends the old pending wait when the session expires and can reenter", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  let receive!: (event: ShellEvent) => void;
+  vi.spyOn(backend.user, "subscribe").mockImplementation((_id, onEvent) => { receive = onEvent; return () => undefined; });
+  const { result } = renderHook(() => useConversation(backend.user));
+  await waitFor(() => expect(result.current.booting).toBe(false));
+  await act(async () => { await result.current.actions.send("你好"); });
+  expect(result.current.awaitingReply).toBe(true);
+  act(() => receive({ event_type: "session_expired", payload: {} } as ShellEvent));
+  expect(result.current.awaitingReply).toBe(false);
+  await act(async () => { await result.current.actions.reenter(); });
+  expect(result.current.expired).toBe(false);
+  expect(result.current.awaitingReply).toBe(false);
+});
+
+it("keeps a new confirmation received via SSE before the draft HTTP response", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0, tickMs: 10 });
+  const originalSubscribe = backend.user.subscribe.bind(backend.user);
+  let receive!: (event: ShellEvent) => void;
+  vi.spyOn(backend.user, "subscribe").mockImplementation((id, onEvent, onConnection) => {
+    receive = onEvent;
+    return originalSubscribe(id, onEvent, onConnection);
+  });
+  const { result } = renderHook(() => useConversation(backend.user));
+  await waitFor(() => expect(result.current.booting).toBe(false));
+  await act(async () => { await result.current.actions.send("给妈妈转500元"); });
+  await waitFor(() => expect(result.current.tasks.size).toBe(1));
+  const inputTask = [...result.current.tasks.values()][0].task;
+  const option = inputTask.interaction!.options[0];
+  await act(async () => { await result.current.actions.selectOption(inputTask, option.id, option.label); });
+  const task = [...result.current.tasks.values()][0].task;
+  const ref = task.interaction!.record_ref!;
+  await waitFor(() => expect(result.current.confirmations[ref]).toBeTruthy());
+  const old = result.current.confirmations[ref];
+  const fresh = { ...old, confirmation_version: old.confirmation_version + 1 };
+  const revised = { ...task, task_revision: task.task_revision + 1 };
+  let resolve!: (value: typeof task) => void;
+  vi.spyOn(backend.user, "reviseDraft").mockImplementation(() => new Promise((done) => { resolve = done; }));
+  vi.spyOn(backend.user, "getConfirmation").mockResolvedValue(fresh);
+  let changing!: Promise<boolean>;
+  act(() => { changing = result.current.actions.reviseDraft(task, old, { amount_fen: 60000 }); });
+  act(() => receive({ event_type: "task_updated", module: "transfer", payload: revised } as ShellEvent));
+  await waitFor(() => expect(result.current.confirmations[ref]?.confirmation_version).toBe(fresh.confirmation_version));
+  await act(async () => { resolve(revised); await changing; });
+  expect(result.current.confirmations[ref]?.confirmation_version).toBe(fresh.confirmation_version);
+});
