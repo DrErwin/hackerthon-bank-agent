@@ -101,6 +101,8 @@ class ApiStore:
             job_columns = {row["name"] for row in c.execute("PRAGMA table_info(api_message_jobs)")}
             if "untrusted_content" not in job_columns:
                 c.execute("ALTER TABLE api_message_jobs ADD COLUMN untrusted_content TEXT")
+            if "continuation_json" not in job_columns:
+                c.execute("ALTER TABLE api_message_jobs ADD COLUMN continuation_json TEXT")
 
     def rows(self, sql, parameters=()):
         with closing(connect(self.path)) as c:
@@ -254,6 +256,10 @@ class ApiStore:
         with transaction(self.path) as c:
             c.execute("INSERT OR IGNORE INTO api_message_replies VALUES (?, ?)", (job_id, text))
             c.execute("UPDATE api_message_jobs SET status='reply_ready' WHERE job_id=?", (job_id,))
+
+    def save_continuation(self, job_id, proposal):
+        self.write("UPDATE api_message_jobs SET continuation_json=?, status='continuation_ready' WHERE job_id=?",
+                   (dump(proposal), job_id))
 
     def complete_reply_job(self, job_id, created_at, message_json, event_json):
         with transaction(self.path) as c:
