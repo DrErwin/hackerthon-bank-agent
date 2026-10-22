@@ -8,6 +8,7 @@ import { ConfirmationCard } from "./ConfirmationCard";
 import { Notice } from "./Primitives";
 import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, WaitingCard } from "./StatusCards";
 import { VerificationCard } from "./VerificationCard";
+import { BillCardActions, BusinessCards, businessPayload } from "./BusinessCards";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
   if (origin === "real-api") return administratorUrl({ taskId, challengeId, demoRoundId: roundId });
@@ -68,7 +69,7 @@ export function TaskBlock({ envelope, slot, origin, conversation }: {
   const showTaskCancel = !expired && task.allowed_actions.includes("cancel") && task.interaction?.kind !== "confirmation";
 
   return (
-    <div className="sh-task" data-task-id={task.task_id}>
+    <div className="sh-task" id={base} data-task-id={task.task_id}>
       {outcome && (
         <RecoveryCard
           id={base + "-recovered"}
@@ -194,7 +195,11 @@ export function TaskBlock({ envelope, slot, origin, conversation }: {
         />
       )}
       {report && <ReportCard id={base + "-report"} view={report} origin={origin} />}
-      {result && <ResultCard id={base + "-result"} view={result} origin={origin} />}
+      {result && !businessPayload(task) && <ResultCard id={base + "-result"} view={result} origin={origin} />}
+      <BusinessCards task={task} busy={busy} enabled={conversation.supportsCardActions}
+        onAction={(selection) => actions.cardAction(task, selection)} />
+      {conversation.supportsCardActions && <BillCardActions task={task} busy={busy}
+        onAction={(selection) => actions.cardAction(task, selection)} />}
       {task.error && (
         <Notice tone="danger" title={isTerminal(task) ? "原因说明" : "需要注意"}>
           <p>{task.error.reason}</p>
