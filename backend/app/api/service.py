@@ -273,9 +273,10 @@ class ApiService:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", (task_id, link["thread_id"], identity.user_id,
                 identity.session_id, identity.demo_round_id, run_id, now().isoformat(), str(body.request_id), intent))
         existing = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
-        if existing is None:
+        if existing is None or "result" not in existing.snapshot:
             trusted = TrustedContext(user_id=identity.user_id, session_id=identity.session_id,
-                demo_round_id=identity.demo_round_id, task_id=task_id, run_id=run_id, parent_task_id=parent_id)
+                demo_round_id=identity.demo_round_id, task_id=task_id,
+                run_id=existing.run_id if existing else run_id, parent_task_id=parent_id)
             self.runtime.harness.start_selected(trusted, body.request_id, intent, capability)
         task = self.task_view(identity, task_id)
         if task.interaction and task.interaction.record_ref:

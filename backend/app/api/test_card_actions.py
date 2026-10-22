@@ -85,3 +85,20 @@ def test_unknown_card_result_retry_reads_same_task_without_restarting(tmp_path):
             retry = post(client, f"/tasks/{source['task_id']}/actions", **body)
         assert retry.status_code == 200 and retry.json()["data"]["status"] == "succeeded"
         assert len(client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]) == 2
+
+
+def test_card_interrupted_before_proposal_recovers_saved_selection(tmp_path):
+    app = app_for(configuration(tmp_path))
+    harness = app.state.api.runtime.harness
+    with TestClient(app) as client, patch.object(harness.planner, "select", return_value=TransferProposal(
+            capability_name="bills.summarize")):
+        thread, source = start(client, "2026年9月所有账户账单")
+        body = dict(request_id=str(uuid4()), source_revision=source["task_revision"], action="bill_details", category="dining")
+        with patch.object(harness.application, "update_task", side_effect=OSError("before proposal save")):
+            assert post(client, f"/tasks/{source['task_id']}/actions", **body).status_code == 503
+        with patch.object(harness.planner, "select", side_effect=AssertionError("no replanning")):
+            retry = post(client, f"/tasks/{source['task_id']}/actions", **body)
+        assert retry.status_code == 200, retry.text
+        assert retry.json()["data"]["status"] == "succeeded"
+        assert retry.json()["data"]["data"]["category"] == "dining"
+        assert len(client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"]) == 2
