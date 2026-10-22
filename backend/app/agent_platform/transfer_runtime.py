@@ -237,7 +237,7 @@ class AuditedTransferPorts:
     def clear_payee(self, trusted):
         self.payee_references.clear(trusted)
 
-    def read(self, trusted: TrustedContext, action_name: str, parameters: dict):
+    def read(self, trusted: TrustedContext, action_name: str, parameters: dict | None):
         registered = self.tools.gate.registry.get(action_name)
         if registered is None or registered.declaration.side_effect:
             raise ValueError("read tool is not registered")
