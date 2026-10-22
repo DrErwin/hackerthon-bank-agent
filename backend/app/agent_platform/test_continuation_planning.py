@@ -49,6 +49,19 @@ def test_proposal_binds_original_task_without_mutation_and_legacy_api_stays_safe
     assert isinstance(harness.handle_message(chat_context(), uuid4(), "改成600元"), ReplyOnly)
 
 
+def test_numeric_uuid_suffix_is_not_redacted_as_a_bank_account(tmp_path):
+    task_id = "123e4567-e89b-42d3-a456-123456789012"
+    planner = Planner(ContinueProposal(task_id=task_id, task_revision=1, action="revise", amount_fen=60000))
+    harness = active_runtime(tmp_path, planner)
+    task = harness.application.create_task(task_id, "U1", "S1", "D1", "R9", TaskStatus.WAITING_APPROVAL, {
+        "capability_name": "transfer.start_transfer", "intent_text": "转给账号6222000000000002",
+        "result": {"interaction": {"kind": "confirmation"}, "allowed_actions": ["confirm", "cancel"]}})
+    harness.application.update_task("U1", "D1", task_id, 0, "R9", task.status, None, task.snapshot)
+    assert harness.handle_message(chat_context(), uuid4(), "改600元", allow_continuation=True) == planner.outcome
+    assert task_id in planner.summary
+    assert "6222000000000002" not in planner.summary
+
+
 @pytest.mark.parametrize("changes", [{"task_id": "OTHER"}, {"task_revision": 2}, {"action": "query", "amount_fen": None}])
 def test_wrong_target_version_or_action_does_not_dispatch(tmp_path, changes):
     harness, _ = setup(tmp_path, **changes)

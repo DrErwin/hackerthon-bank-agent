@@ -444,7 +444,7 @@ class AgentHarness:
             phrase = self._pending_phrase(task)
             if phrase is None:
                 continue
-            intent = str(task.snapshot.get("intent_text") or "").strip()
+            intent = str(redact(str(task.snapshot.get("intent_text") or "").strip(), free_text=True))
             result = task.snapshot.get("result") or {}
             interaction = result.get("interaction") or {}
             meta = (f"task_id={task.task_id}, task_revision={task.revision}, "
@@ -456,7 +456,7 @@ class AgentHarness:
                 break
         if not lines:
             return None
-        summary = str(redact("\n".join(lines), free_text=True))
+        summary = "\n".join(lines)
         return summary or None
 
     @staticmethod
