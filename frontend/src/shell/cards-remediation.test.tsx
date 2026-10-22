@@ -114,4 +114,17 @@ it("keeps a new confirmation received via SSE before the draft HTTP response", a
   await waitFor(() => expect(result.current.confirmations[ref]?.confirmation_version).toBe(fresh.confirmation_version));
   await act(async () => { resolve(revised); await changing; });
   expect(result.current.confirmations[ref]?.confirmation_version).toBe(fresh.confirmation_version);
+
+  // A slow background read from the first edit must not replace the next edit.
+  let resolveOld!: (value: typeof fresh) => void;
+  vi.mocked(backend.user.getConfirmation).mockImplementationOnce(() => new Promise((done) => { resolveOld = done; }));
+  act(() => receive({ event_type: "task_updated", module: "transfer",
+    payload: { ...revised, task_revision: revised.task_revision + 1 } } as ShellEvent));
+  await waitFor(() => expect(resolveOld).toBeTruthy());
+  const newest = { ...fresh, confirmation_version: fresh.confirmation_version + 1 };
+  vi.mocked(backend.user.getConfirmation).mockResolvedValue(newest);
+  vi.mocked(backend.user.reviseDraft).mockResolvedValue({ ...revised, task_revision: revised.task_revision + 2 });
+  await act(async () => { await result.current.actions.reviseDraft(revised, fresh, { amount_fen: 70000 }); });
+  await act(async () => { resolveOld(fresh); });
+  expect(result.current.confirmations[ref]?.confirmation_version).toBe(newest.confirmation_version);
 });

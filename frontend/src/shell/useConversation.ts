@@ -148,7 +148,11 @@ export function useConversation(source: ShellDataSource) {
         setConfirmations((previous) => {
           const next = recovery ? {} : { ...previous };
           for (const records of recordLists) {
-            for (const confirmation of records.confirmations) next[confirmation.confirmation_id] = confirmation;
+            for (const confirmation of records.confirmations) {
+              const cached = previous[confirmation.confirmation_id];
+              next[confirmation.confirmation_id] = cached && cached.confirmation_version > confirmation.confirmation_version
+                ? cached : confirmation;
+            }
           }
           return next;
         });
@@ -293,7 +297,9 @@ export function useConversation(source: ShellDataSource) {
         if (fetched.current.has(key)) continue;
         fetched.current.add(key);
         const request = entry.kind === "confirmation"
-          ? source.getConfirmation(entry.id).then((view) => setConfirmations((current) => ({ ...current, [view.confirmation_id]: view })))
+          ? source.getConfirmation(entry.id).then((view) => setConfirmations((current) =>
+              (current[view.confirmation_id]?.confirmation_version ?? 0) > view.confirmation_version
+                ? current : { ...current, [view.confirmation_id]: view }))
           : source.getVerification(entry.id).then((view) => setVerifications((current) => ({ ...current, [view.challenge_id]: view })));
         request.catch((error: unknown) => {
           fetched.current.delete(key);
