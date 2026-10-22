@@ -32,6 +32,7 @@ from app.storage.database import transaction
 
 from .model import ContinueProposal, Planner, ReplyOnly, TransferProposal
 from .input_privacy import has_chat_secret
+from .risk_conversation import RiskConversation
 from .registry import CapabilityRegistry
 from .untrusted_data import MAX_ITEMS, UntrustedData, tool_observation, user_material
 
@@ -199,6 +200,7 @@ class AgentHarness:
         self.registry = registry
         self.planner = planner
         self.authorize_capability = authorize_capability
+        self.risk_conversation = RiskConversation(application.path)
 
     def _authorize(self, trusted: TrustedContext, name: str) -> None:
         definition = self.registry.get(name).definition
@@ -564,6 +566,15 @@ class AgentHarness:
             context = self._scope(trusted)
             self._check_intent_text(intent_text)
             task = self.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
+            if task is None:
+                pending = [item for item in self.application.list_session_tasks(
+                    trusted.user_id, trusted.demo_round_id, trusted.session_id)
+                    if item.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}
+                    and item.snapshot.get("capability_name") == "transfer.start_transfer"]
+                # Record before understanding, so a failed model call cannot hide
+                # newly disclosed coercion from the original task's next approval.
+                for item in pending:
+                    self.risk_conversation.append(trusted, item.task_id, request_id, intent_text)
             outcome: TransferProposal | ReplyOnly | None = None
             if task is None:
                 trace_id = str(uuid4())

@@ -137,6 +137,34 @@
         "unfamiliar_link",
         "unusual_device_or_counterparty"
       ]
+    },
+    {
+      "fixture_id": "mom-300-low",
+      "payer_account_id": "A1",
+      "payee_id": "A2",
+      "amount_fen": 30000,
+      "signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request"
+      ],
+      "checked_signals": [
+        "familiar_payee",
+        "familiar_device",
+        "usual_amount_range",
+        "clear_request",
+        "new_payee",
+        "unusual_amount",
+        "rapid_account_changes",
+        "hesitation_or_unclear_purpose",
+        "impersonation",
+        "secrecy_or_urgent_pressure",
+        "screen_sharing",
+        "credential_request",
+        "unfamiliar_link",
+        "unusual_device_or_counterparty"
+      ]
     }
   ]
 }
