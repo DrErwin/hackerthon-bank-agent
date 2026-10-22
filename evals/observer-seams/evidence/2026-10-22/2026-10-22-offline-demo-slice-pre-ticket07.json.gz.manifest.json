@@ -1,0 +1,18 @@
+{
+  "schema_version": "observer-seams-e2e-archive-v1",
+  "created_at": "2026-10-22T05:23:00.857338+00:00",
+  "report_file": "evals/observer-seams/evidence/2026-10-22/2026-10-22-offline-demo-slice-pre-ticket07.json.gz",
+  "report_schema_version": "observer-seams-e2e-v1",
+  "report_sha256": "57bd0448d66027498cad23f1f0f41f3288968fef7ea11f36ec509ba3685463a4",
+  "gzip_sha256": "b82096ac362d82e10d0c1ea50ab3c8e00a4f23f496f43a43533f1b2eff8e281a",
+  "uncompressed_sha256": "57bd0448d66027498cad23f1f0f41f3288968fef7ea11f36ec509ba3685463a4",
+  "uncompressed_bytes": 11778,
+  "gzip_bytes": 3993,
+  "code_revision": "7ac84d29629be90652f7d3050ff1b5bad0883207",
+  "status_counts": {
+    "passed": 25,
+    "failed": 1,
+    "pending": 0
+  },
+  "archive_rule": "gzip filename=\"\" and mtime=0; decompressed bytes identical to the external report written before archiving"
+}
