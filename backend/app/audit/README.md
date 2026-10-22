@@ -12,6 +12,6 @@
 
 `AuditReader` 只读取审计库，不持模型或业务执行入口；每次查看或导出先经服务端注入的授权判定，缺少判定时默认拒绝，并追加 `audit.accessed`。查看者身份由后端可信入口建立，不能取自请求体。JSON 证据包包含事件、外壳与 payload 的脱敏快照、哈希、缺失说明和未配对的开始事件；哈希只用于包内一致性检查，损坏的快照按缺失显示。
 
-`output_guard` 是只读输出探针：`probe_output` 报告 `credential` / `full_account` / `personal_name` / `personal_phone` 命中类别，并返回与 `journal.redact(..., free_text=True)` 一致的脱敏文本；`probe_secrets` 只对认证秘密做导出判定。探针不做放行或拒绝决定。无分隔符的 6 位验证码形状（如「验证码123456」）只报告、不脱敏，出口接线须按 `credential` 命中拦截。
+`output_guard` 是只读输出探针：`probe_output` 报告 `credential` / `full_account` / `personal_name` / `personal_phone` 命中类别，并返回与 `journal.redact(..., free_text=True)` 一致的脱敏文本；`probe_secrets` 只对认证秘密做导出判定。探针不做放行或拒绝决定。无分隔符的 6 位验证码形状（如「验证码123456」「code: 123456」「123456 是本次登录的验证码」）只报告、不脱敏，出口接线须按 `credential` 命中拦截。6 位数字的凭据形状按**短语相邻**判定，不做距离窗口：`reason_code`、`duration_ms`、UUID 里碰巧出现的 6 位数字等机器载荷不会误报，审计证据包可正常导出（v05-observer-seams/08）。
 
 从 `backend/` 验证：`python -m pytest -q app/audit/`。脱敏规则和查看范围属于安全侧规则，合入前仍需 Ringo 审查。

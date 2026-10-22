@@ -3,9 +3,14 @@
 The probe never allows or denies anything by itself; it only reports what it found and
 the text after ``journal.redact``. Detection reuses the audit regular expressions so the
 reported boundary stays aligned with what the audit journal would mask. One credential
-shape (a six-digit code with a nearby "码 / code" word but no separator, e.g.
-``验证码123456``) is reported but is not masked by the audit regex; callers must treat any
-``credential`` finding as a gate instead of relying on the returned text alone.
+shape (a six-digit code next to a "码 / code" word but without the separator
+``journal.redact`` requires, e.g. ``验证码123456`` or ``code: 123456``) is reported but is
+not masked by the audit regex; callers must treat any ``credential`` finding as a gate
+instead of relying on the returned text alone.
+
+The six-digit rule matches a *phrase*, not a proximity window: a machine payload such as
+``{"duration_ms": 123456, "reason_code": "..."}`` or a UUID that happens to contain six
+digits is not a verification code and must not block an export (v05-observer-seams/08).
 """
 
 from __future__ import annotations
@@ -24,12 +29,31 @@ _KINDS: tuple[OutputKind, ...] = (
 )
 _REDACTED = "[REDACTED]"
 # A six-digit code may appear without the separator SECRET_LABEL requires
-# ("验证码123456", "code: 123456", "123456 是本次登录的验证码"). The trailing
-# lookahead keeps a six-digit integer part of a decimal amount out of the code shape.
-_SIX_DIGITS = re.compile(r"(?<!\d)\d{6}(?!\d)(?![.,]\d)")
-_CODE_CONTEXT = re.compile(r"码|code", re.I)
-# How far around the digit run a code word may sit and still mark it as a code.
-_CODE_CONTEXT_WINDOW = 20
+# ("验证码123456", "code: 123456", "123456 是本次登录的验证码"). Each pattern keeps the
+# code word adjacent to its value, and the trailing lookahead keeps the integer part of
+# a decimal amount out of the code shape. Machine payloads therefore stay clean: a JSON
+# key like ``reason_code`` is not the standalone word ``code``, and a quoted value such
+# as ``"method": "code"`` is not followed by a bare digit run.
+_NOT_DECIMAL = r"(?![.,]\d)"
+_CODE_SEPARATORS = r"[\s：:\"']*"
+_SIX_DIGITS = r"(?<!\d)\d{6}(?!\d)"
+_CHINESE_CODE_LABELS = "验证码|短信码|动态码|登录码|校验码"
+_LABELED_CODE = re.compile(
+    rf"(?:{_CHINESE_CODE_LABELS}){_CODE_SEPARATORS}(?:是|为)?{_CODE_SEPARATORS}"
+    rf"{_SIX_DIGITS}{_NOT_DECIMAL}"
+)
+_DIGITS_THEN_LABEL = re.compile(
+    rf"{_SIX_DIGITS}{_NOT_DECIMAL}\s*(?:是|为)[^，,。;；\n:：]{{0,10}}"
+    rf"(?:{_CHINESE_CODE_LABELS})"
+)
+# The English word must be standalone (``reason_code`` / ``verification_code`` do not
+# count) and the quoted JSON value ``"code"`` never reaches a bare digit run.
+_ENGLISH_CODE = re.compile(
+    rf"(?<![A-Za-z0-9_])(?:code|otp)(?![A-Za-z0-9_]){_CODE_SEPARATORS}"
+    rf"{_SIX_DIGITS}{_NOT_DECIMAL}",
+    re.IGNORECASE,
+)
+_CODE_SHAPES = (_LABELED_CODE, _DIGITS_THEN_LABEL, _ENGLISH_CODE)
 
 
 @dataclass(frozen=True)
@@ -47,12 +71,7 @@ def _has_credential(text: str) -> bool:
     for match in SECRET_LABEL.finditer(text):
         if match.group(2).strip() != _REDACTED:
             return True
-    for match in _SIX_DIGITS.finditer(text):
-        start = max(0, match.start() - _CODE_CONTEXT_WINDOW)
-        end = min(len(text), match.end() + _CODE_CONTEXT_WINDOW)
-        if _CODE_CONTEXT.search(text[start:end]):
-            return True
-    return False
+    return any(shape.search(text) is not None for shape in _CODE_SHAPES)
 
 
 def probe_output(text: str) -> OutputProbe:

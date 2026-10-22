@@ -169,10 +169,47 @@ def test_code_shaped_digits_are_reported_even_without_an_audit_label_separator()
     """The audit regex only masks labelled secrets; the probe still flags code shapes."""
 
     for text in ("验证码123456，5 分钟内有效。", "123456 是本次登录的验证码。",
-                 "code: 123456"):
+                 "code: 123456", "本次登录 code 123456 已发送。", "登录码 135790 已发送。"):
         probe = probe_output(text)
         assert [finding.kind for finding in probe.findings] == ["credential"]
         assert probe.text == redact(text, free_text=True)
 
     # A six-digit run with no code word around it is not a credential.
     assert probe_output("订单号 123456，尾号 654321。").findings == ()
+
+
+def test_machine_payloads_do_not_look_like_verification_codes():
+    """H01/H04: audit packages carry `reason_code` keys, durations and UUID digit runs."""
+
+    payload = {
+        "duration_ms": 123456,
+        "reason_code": "CAPABILITY_SELECTED",
+        "expires_at": "2026-10-22T05:39:40.123456+00:00",
+        "payload": {"challenge_id": "c1", "consecutive_code_failures": 0,
+                    "method": "code",
+                    "operation_id": "123456aa-1111-2222-3333-4444aaaabbbb",
+                    "purpose": "basic_identity", "result": "passed"},
+    }
+    machine_texts = (
+        json.dumps(payload, ensure_ascii=False, sort_keys=True),
+        json.dumps({"events": [payload, {"duration_ms": 654321,
+                                         "reason_code": "TASK_RESUMED"}]},
+                   ensure_ascii=False),
+        "model_call_id=123456 trace_id=654321 status=passed",
+        '{"verification_code": 246813, "count": 1}',
+    )
+    for text in machine_texts:
+        probe = probe_output(text)
+        assert [finding.kind for finding in probe.findings] == [], text
+        assert probe_secrets(text)[0] is False, text
+        assert probe.text == text
+
+
+def test_phrase_shape_stays_stable_across_random_ids():
+    """H04: UUID/six-digit randomness elsewhere never changes the verdict."""
+
+    base = {"duration_ms": 987654, "reason_code": "VERIFICATION_METHOD_PASSED",
+            "operation_id": "ffffffff-999999-aaaa-bbbb-ccccaaaa0000"}
+    for index in range(25):
+        payload = {**base, "trace_id": f"{index:06d}a-1111-2222-3333-4444aaaabbbb"}
+        assert probe_output(json.dumps(payload)).findings == ()
