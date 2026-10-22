@@ -7,7 +7,7 @@ Type: 开发
 Owner: Erwin 协调 / Codex 按用户授权代行
 Directory: `backend/app/agent_platform/`
 Priority: P0
-Status: ready-for-agent
+Status: implemented-awaiting-merge
 Blocked by: 无
 Core scenarios: S01 S02 S04 S05
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
@@ -24,3 +24,5 @@ Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issu
 
 ## Comments
 2026-10-22：用户授权范围内拆票。开发、运行验证、合入、验收分别记录。
+
+2026-10-23： [PR #233](https://github.com/DrErwin/hackerthon-bank-agent/pull/233)，b89a2df 已完成原任务/版本/选项候选校验与秘密值拦截；定向32通过，GPT-6.1-sol 双轴代审通过。最终CI及合入待确认；真实模型联调由票11完成。
