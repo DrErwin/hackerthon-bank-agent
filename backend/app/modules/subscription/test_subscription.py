@@ -228,7 +228,9 @@ def test_inventory_ranks_mandates_evidence_and_clues():
     assert clue.source_type == "suspected_ledger" and clue.mandate_id is None
     assert clue.status == "suspected" and clue.can_cancel_in_bank is False
     assert clue.channel == "快捷支付" and clue.next_billing_at is None and clue.is_upcoming_renewal is False
-    assert "微信支付" in clue.external_cancel_guide
+    assert "疑似周期消费" in clue.external_cancel_guide
+    assert "微信支付" not in clue.external_cancel_guide and "支付宝" not in clue.external_cancel_guide
+    assert "尚未确认" in clue.external_cancel_guide
     closed = result.items[3]
     assert closed.status == "cancelled" and closed.is_upcoming_renewal is False
 
@@ -248,6 +250,7 @@ def test_inventory_message_carries_the_elder_friendly_reminder():
     assert "一共 64.00 元" in message
     assert "优酷视频" in message and "已经扣了 6 次共 150.00 元" in message
     assert "需要帮您退订其中某一项吗" in message
+    assert "疑似周期消费" in message and "已取消的本行签约" in message
     assert not any(phrase in message for phrase in FORBIDDEN)
 
 
@@ -330,6 +333,7 @@ def test_cancel_entry_full_flow_confirmation_then_verification():
     first = task.start(context(), start_request("把优酷视频的自动扣费退了"))
     assert first.status == TaskStatus.WAITING_APPROVAL
     assert first.interaction.kind == "confirmation" and first.interaction.record_ref == "conf-1"
+    assert first.allowed_actions == ["confirm", "cancel"]
     assert "从下一期起不再自动扣费" in first.message
     assert "2026-10-25" in first.message and "之前已经扣掉的钱不退" in first.message
     assert bank.cancel_calls == 0
@@ -341,6 +345,7 @@ def test_cancel_entry_full_flow_confirmation_then_verification():
     gate.confirmed = True
     second = task.resume(context(), {"choice": "approve"})
     assert second.status == TaskStatus.WAITING_APPROVAL and second.interaction.kind == "verification"
+    assert second.allowed_actions == ["verify", "cancel"]
     assert "验证码" in second.message
     gate.verified = True
     third = task.resume(context(), {"choice": "resume"})
@@ -435,7 +440,8 @@ def test_suspected_clue_never_opens_a_confirmation():
     result = entry(bank).start(context(), start_request("帮我把绿洲健身每个月扣的钱退订掉"))
     assert result.status == TaskStatus.SUCCEEDED
     assert result.data.selected_item.can_cancel_in_bank is False
-    assert "微信支付" in result.message and "在本行退不了" in result.message
+    assert "疑似周期消费" in result.message and "在本行退不了" in result.message
+    assert "微信支付" not in result.message and "支付宝" not in result.message
     assert bank.cancel_calls == 0
 
 
