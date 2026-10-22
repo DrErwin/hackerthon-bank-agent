@@ -12,10 +12,12 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from app.audit.journal import AuditReader, AuditViewer, redact
+from app.audit.output_guard import probe_output, probe_secrets
 from app.agent_platform.bills_stub import register_bills_stub
 from app.agent_platform.model import ReplyOnly
 from app.contracts.audit import (
-    AuditAccessedPayload, AuditEvent, TaskTransitionPayload, VerificationChangedPayload,
+    AuditAccessedPayload, AuditEvent, ChatMessagePayload, TaskTransitionPayload,
+    VerificationChangedPayload,
 )
 from app.contracts.api import (
     ExportView, MessageView, ReportReady, StreamEvent, TaskRecordsView, VerificationResponse,
@@ -78,6 +80,13 @@ def untrusted_material(text: str | None) -> str | None:
     if text is None or not text.strip():
         return None
     return cast(str, redact(text, free_text=True))
+
+
+# v05-observer-seams/04: a reply that carries a credential is replaced whole, not
+# partially masked — the probe reports six-digit codes the audit regex cannot remove
+# from `probe.text` alone (issue #216). Other personal data is redacted in place.
+OUTPUT_BLOCKED_REPLY = "这条回复包含敏感信息，已拦截，未展示原文。请通过银行官方渠道核实后再继续。"
+OUTPUT_BLOCKED_MEMORY = "这条记忆包含敏感信息，已隐藏。"
 
 
 # Contract §6.7: the exporter owns CSV cell safety. Quoting only protects the syntax —
@@ -262,14 +271,61 @@ class ApiService:
         self.store.event(event)
         return event
 
-    def message_view(self, thread_id, text, role, task_id=None, message_id=None):
-        return MessageView(message_id=message_id or str(uuid4()), thread_id=thread_id, role=role,
-            text=cast(str, redact(text, free_text=True)), created_at=now(),
-            task_ids=[task_id] if task_id else [], report_ids=[])
+    def message_view(self, thread_id, text, role, task_id=None, message_id=None,
+                     identity=None):
+        view_id = message_id or str(uuid4())
+        related_task_ids = [task_id] if task_id else []
+        if role == "assistant":
+            text = self._observed_reply(identity, thread_id, view_id, text, related_task_ids)
+        else:
+            text = cast(str, redact(text, free_text=True))
+        return MessageView(message_id=view_id, thread_id=thread_id, role=role,
+            text=text, created_at=now(), task_ids=related_task_ids, report_ids=[])
+
+    def _observed_reply(self, identity, thread_id, message_id, text, related_task_ids):
+        """§v05-observer-seams/04: the last output seam before a reply is stored or sent.
+
+        A credential hit replaces the whole reply with fixed safe text; the returned
+        `probe.text` is never trusted to hide a no-separator code. Other personal data
+        is redacted in place and the business facts stay untouched.
+        """
+
+        probe = probe_output(text)
+        kinds = [finding.kind for finding in probe.findings]
+        if "credential" in kinds:
+            self._record_output_probe(identity, thread_id, message_id, related_task_ids,
+                                      kinds, "blocked")
+            return OUTPUT_BLOCKED_REPLY
+        if kinds:
+            self._record_output_probe(identity, thread_id, message_id, related_task_ids,
+                                      kinds, "redacted")
+        return probe.text
+
+    def _record_output_probe(self, identity, thread_id, message_id, related_task_ids,
+                             kinds, action):
+        """Audit a hit with categories and action only — never the original text."""
+        evidence_ref = str(uuid4())
+        self.runtime.audit.append(AuditEvent(
+            event_id=str(uuid4()), trace_id=str(uuid4()), span_id=str(uuid4()),
+            sequence=0, parent_span_id=None, demo_round_id=identity.demo_round_id,
+            actor_id=identity.user_id, session_id=identity.session_id,
+            target_session_id=None, target_user_id=None, thread_id=thread_id,
+            task_id=related_task_ids[0] if len(related_task_ids) == 1 else None,
+            run_id=None, module="api", event_type="chat.message", timestamp=now(),
+            logical_at=None, outcome="denied",
+            evidence_ref=evidence_ref, evidence_status="available", missing_reason=None,
+            payload=ChatMessagePayload(message_id=message_id, role="assistant",
+                content_ref=evidence_ref, related_task_ids=list(related_task_ids)),
+        ), evidence={
+            "findings": kinds, "action": action,
+            "reason_code": ("OUTPUT_PROBE_BLOCKED" if action == "blocked"
+                            else "OUTPUT_PROBE_REDACTED"),
+        })
 
     def message(self, identity, thread_id, text, role, task_id=None, message_id=None,
                 report_ids=None):
-        message = self.message_view(thread_id, text, role, task_id, message_id)
+        message = self.message_view(thread_id, text, role, task_id, message_id,
+                                    identity=identity)
         if report_ids:
             message = message.model_copy(update={"report_ids": list(report_ids)})
         self.store.write("INSERT INTO api_messages VALUES (?, ?, ?, ?)",
@@ -291,7 +347,7 @@ class ApiService:
         return [report.report_id] if inserted else []
 
     def accept_message_job(self, identity, thread_id, request_id, text, untrusted_content=None):
-        message = self.message_view(thread_id, text, "user")
+        message = self.message_view(thread_id, text, "user", identity=identity)
         job = {
             "job_id": str(uuid4()), "candidate_task_id": str(uuid4()),
             "user_message_id": message.message_id, "assistant_message_id": str(uuid4()),
@@ -367,7 +423,8 @@ class ApiService:
                 event_id=job["interaction_event_id"],
             ))
         assistant = self.message_view(task.thread_id, task.message, "assistant",
-                                      task.task_id, job["assistant_message_id"])
+                                      task.task_id, job["assistant_message_id"],
+                                      identity=identity)
         reports = self._capture_task_reports(identity, task)
         if reports:
             assistant = assistant.model_copy(update={"report_ids": reports})
@@ -472,7 +529,8 @@ class ApiService:
                                (job["job_id"],))[0]["reply_text"]
         identity = Identity(job["user_id"], job["session_id"], job["demo_round_id"], "user")
         assistant = self.message_view(job["thread_id"], text, "assistant",
-                                      message_id=job["assistant_message_id"])
+                                      message_id=job["assistant_message_id"],
+                                      identity=identity)
         event = self.stream_event(identity, job["thread_id"], "message_completed", assistant,
                                   event_id=job["assistant_event_id"])
         self.store.complete_reply_job(job["job_id"], assistant.created_at.isoformat(),
@@ -539,11 +597,23 @@ class ApiService:
         return MemoryContext(identity.user_id, identity.session_id, identity.demo_round_id)
 
     def memories(self, identity):
-        """F37: only the caller's current-round memories, through the controlled adapter."""
-        return {"items": [{"memory_id": item.memory_id, "version": item.version,
-                           "content": item.content, "updated_at": item.updated_at}
-                          for item in self.runtime.memory.list(self.memory_context(identity))],
-                "demo_round_id": identity.demo_round_id}
+        """F37: only the caller's current-round memories, through the controlled adapter.
+
+        Contents pass the output probe as defence in depth; the memory vocabulary
+        already blocks credentials, so this normally changes nothing.
+        """
+
+        items = []
+        for item in self.runtime.memory.list(self.memory_context(identity)):
+            probe = probe_output(item.content)
+            content = item.content
+            if any(finding.kind == "credential" for finding in probe.findings):
+                content = OUTPUT_BLOCKED_MEMORY
+            elif probe.findings:
+                content = probe.text
+            items.append({"memory_id": item.memory_id, "version": item.version,
+                          "content": content, "updated_at": item.updated_at})
+        return {"items": items, "demo_round_id": identity.demo_round_id}
 
     def delete_memories(self, identity, request_id, memory_ids, expected_versions):
         """F38: explicit, whole-batch, versioned deletion; the adapter keeps tombstones."""
@@ -678,7 +748,6 @@ class ApiService:
                 self.record_audit_download(identity, row, permitted=False,
                                            reason_code="EXPORT_NOT_READY")
                 raise ApiProblem(409, "EXPORT_NOT_READY")
-            self.record_audit_download(identity, row)
         elif row["status"] != "ready":
             raise ApiProblem(409, "EXPORT_NOT_READY")
         elif row["kind"] == "details":
@@ -689,6 +758,16 @@ class ApiService:
                 self._export_trusted(row), row["challenge_id"])
             if challenge.challenge_status != "passed":
                 raise ApiProblem(409, "EXPORT_NOT_READY")
+        # §v05-observer-seams/04: a delivered file must not carry an authentication
+        # secret. Only the boolean gate is used here — the file's own personal data is
+        # the legitimate export content and stays byte-for-byte (issue #216).
+        blocked, _ = probe_secrets(row["content"] or "")
+        if blocked:
+            self.record_audit_download(identity, row, permitted=False,
+                                       reason_code="OUTPUT_PROBE_BLOCKED")
+            raise ApiProblem(503, "DEPENDENCY_UNAVAILABLE")
+        if row["kind"] == "audit":
+            self.record_audit_download(identity, row)
         return row["file_name"], row["media_type"], row["content"]
 
     def record_audit_download(self, identity, row, *, permitted=True, reason_code="ALLOWED"):
