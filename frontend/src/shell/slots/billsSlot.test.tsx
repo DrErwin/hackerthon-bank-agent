@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AnomalyResult, BillDetails, BillReport, SpendingSummary } from "../../contracts";
 import { TaskBlock } from "../components/TaskBlock";
 import type { ShellTask } from "../types";
@@ -89,6 +89,9 @@ const conversation = {
   actions: {},
 } as Conversation;
 
+beforeEach(() => { HTMLDialogElement.prototype.showModal = function () { this.open = true; }; });
+afterEach(cleanup);
+
 describe("bills slot", () => {
   it("shows a report from the returned summary and spoken text, without a transaction list", () => {
     const payload: BillReport = {
@@ -118,6 +121,8 @@ describe("bills slot", () => {
         conversation={conversation}
       />,
     );
+    expect(screen.queryByText("这个月餐饮花了五百元。")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "查看完整账单说明" }));
     expect(screen.getByText("这个月餐饮花了五百元。")).toBeTruthy();
     expect(screen.getByText("账单报告")).toBeTruthy();
     expect(screen.queryByText(/演示数据/)).toBeNull();
@@ -144,6 +149,7 @@ describe("bills slot", () => {
       />,
     );
     expect(screen.getByText(/演示数据，不代表真实账单/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "查看完整账单说明" }));
     expect(screen.getByText("¥100.00")).toBeTruthy();
   });
 

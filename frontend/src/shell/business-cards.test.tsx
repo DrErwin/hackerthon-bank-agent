@@ -54,7 +54,11 @@ it("groups subscriptions and binds the clicked row, with no action on suspected 
   button.focus();
   expect(document.activeElement).toBe(button);
   fireEvent.click(button);
-  await screen.findByRole("link", { name: "查看已打开的办理" });
+  await screen.findByText("已打开这项办理。");
+  expect(screen.queryByRole("link")).toBeNull();
+  fireEvent.click(button);
+  fireEvent.click(button);
+  expect(document.activeElement).toBe(button);
   expect(onAction).toHaveBeenCalledExactlyOnceWith({ action: "subscription_cancel", subscription_id: "second" });
   expect(screen.getByText("流水资料不足，疑似周期扣款尚未完整核对。")).toBeTruthy();
 });
@@ -71,12 +75,12 @@ it("disables stale-session or busy controls and renders only the bank balance an
     bank_name: "模拟银行", account_masked: "****6789", available_balance_fen: 12345, account_type: "class_i" }] } }}
     enabled busy={false} onAction={onAction} />);
   expect(screen.getByText("¥123.45")).toBeTruthy();
-  expect(screen.getByText("****6789")).toBeTruthy();
+  expect(screen.getByText(/\*\*\*\*6789/)).toBeTruthy();
 });
 
 it("passes the chosen bill category without generating a chat prompt", async () => {
   const onAction = vi.fn().mockResolvedValue("detail");
-  render(<BillCardActions task={{ ...task, data: { categories: [{ category: "dining" }, { category: "medical" }] } }}
+  render(<BillCardActions task={{ ...task, data: { scope: { start_at: task.snapshot_at, end_at: task.snapshot_at, account_ids: ["A1"] }, categories: [{ category: "dining", net_fen: 1200 }, { category: "medical", net_fen: 3500 }], transaction_count: 2, consumption_net_fen: 4700 } }}
     busy={false} onAction={onAction} />);
   fireEvent.click(screen.getByRole("button", { name: "查看医疗明细" }));
   await waitFor(() => expect(onAction).toHaveBeenCalledExactlyOnceWith({ action: "bill_details", category: "medical" }));

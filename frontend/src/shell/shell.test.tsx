@@ -54,6 +54,8 @@ async function adminAnswer(backend: DemoBackend, result: "passed" | "failed") {
 }
 
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new Event("close")); };
   localStorage.clear();
   window.history.replaceState({}, "", "/v04");
 });
@@ -82,7 +84,9 @@ describe("v0.4 shell with stub data", () => {
     expect(await screen.findByRole("heading", { name: "正在办理，请不要重复操作" })).toBeTruthy();
     expect(await screen.findByText("转账成功")).toBeTruthy();
     expect(screen.getByText(/演示结果，不代表真实银行交易/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /查看全部明细/ }));
     expect(screen.getByText(/^DEMO-/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "关闭详情" }));
     const verification = screen.getByRole("heading", { name: "安全验证记录" }).closest("section")!;
     expect(within(verification).getByText("验证已通过 · 只读")).toBeTruthy();
     expect(within(verification).queryByLabelText("请输入 6 位验证码")).toBeNull();
@@ -218,7 +222,7 @@ describe("v0.4 shell with stub data", () => {
     const provide = vi.spyOn(reloaded.user, "provideInput");
     const answer = vi.spyOn(reloaded.user, "answerConfirmation");
     renderPage(reloaded);
-    expect(await screen.findByRole("heading", { name: "有一项没办完的任务" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "这项还没办完" })).toBeTruthy();
     expect(screen.queryByLabelText("请输入 6 位验证码")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
@@ -241,7 +245,7 @@ describe("v0.4 shell with stub data", () => {
     const query = vi.spyOn(backend.user, "queryResult");
     await adminAnswer(backend, "passed");
 
-    expect(await screen.findByText("这笔办理的结果我暂时没查到，我没有再提交一次。")).toBeTruthy();
+    expect(await screen.findByText("结果还没查清，请先查看原来那笔。")).toBeTruthy();
     const button = screen.getByRole("button", { name: "查询原操作" });
     fireEvent.click(button);
     fireEvent.click(button);

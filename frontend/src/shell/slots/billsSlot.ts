@@ -222,7 +222,7 @@ function anomalyView(data: AnomalyResult): ResultView {
   data.findings.forEach((finding, index) => {
     fields.push({
       name: "finding-" + index + "-evidence",
-      label: ATTENTION_LABEL[finding.attention] + " · 规则 " + finding.rule_id,
+      label: ATTENTION_LABEL[finding.attention] + " · 请留意",
       value_text: finding.evidence,
     });
     fields.push({
@@ -242,7 +242,7 @@ function anomalyView(data: AnomalyResult): ResultView {
     if (check.status !== "insufficient_data") continue;
     fields.push({
       name: "check-" + check.rule_id,
-      label: "规则 " + check.rule_id + " 数据不足",
+      label: "这次没能核对",
       value_text: reasonLabel(check.reason),
     });
   }

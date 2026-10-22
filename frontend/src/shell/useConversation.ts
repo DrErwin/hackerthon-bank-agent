@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../api";
 import type { ConfirmationView, DemoCodeView, MessageView, SessionView, TaskRecordsView, ThreadView, VerificationView } from "../contracts";
 import { isTerminal, newRequestId } from "./format";
+import { readCardLinks, selectionKey, type CardLink } from "./presentation";
 import type { CardSelection, DraftChanges, HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
 
 const ENTERED_KEY = "fe-shell-entered";
@@ -71,6 +72,7 @@ export function useConversation(source: ShellDataSource) {
   const [connected, setConnected] = useState(false);
   const [messages, setMessages] = useState<MessageView[]>([]);
   const [tasks, setTasks] = useState<Map<string, TaskEnvelope>>(new Map());
+  const [cardLinks, setCardLinks] = useState<CardLink[]>([]);
   const [history, setHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [confirmations, setConfirmations] = useState<Record<string, ConfirmationView>>({});
   const [verifications, setVerifications] = useState<Record<string, VerificationView>>({});
@@ -104,7 +106,7 @@ export function useConversation(source: ShellDataSource) {
       const previous = current.get(task.task_id);
       if (previous && previous.task.task_revision > task.task_revision) return current;
       const next = new Map(current);
-      next.set(task.task_id, { task, module: module ?? previous?.module ?? null });
+      next.set(task.task_id, { task, module: module ?? previous?.module ?? null, timelineAt: previous?.timelineAt ?? task.snapshot_at });
       return next;
     });
   }, []);
@@ -132,6 +134,8 @@ export function useConversation(source: ShellDataSource) {
         }));
         const recordLists = recordResults.filter((records): records is TaskRecordsView => records !== null);
         setThread(current);
+        let positions: Record<string, string> = {};
+        try { positions = JSON.parse(localStorage.getItem("fe-task-positions:" + current.thread_id) ?? "{}") ?? {}; } catch { /* Display metadata only. */ }
         setMessages((previous) => mergeMessages(recovery ? [] : previous, messageList));
         const sentIndex = messageList.findIndex((message) => message.message_id === awaitingMessageId.current);
         if (recovery || sentIndex >= 0 && messageList.slice(sentIndex + 1).some((message) => message.role === "assistant")) {
@@ -142,7 +146,10 @@ export function useConversation(source: ShellDataSource) {
           const next = recovery ? new Map<string, TaskEnvelope>() : new Map(previous);
           for (const envelope of taskList) {
             const existing = next.get(envelope.task.task_id);
-            if (!existing || existing.task.task_revision <= envelope.task.task_revision) next.set(envelope.task.task_id, envelope);
+            if (!existing || existing.task.task_revision <= envelope.task.task_revision) next.set(envelope.task.task_id, {
+              ...envelope, timelineAt: existing?.timelineAt ?? (typeof positions[envelope.task.task_id] === "string"
+                ? positions[envelope.task.task_id] : envelope.task.snapshot_at),
+            });
           }
           return next;
         });
@@ -165,6 +172,13 @@ export function useConversation(source: ShellDataSource) {
           return next;
         });
         if (recovery) {
+          const links = readCardLinks(current.thread_id).filter((link) =>
+            taskList.some(({ task }) => task.task_id === link.parentId)
+            && taskList.some(({ task }) => task.task_id === link.childId));
+          setCardLinks(links);
+          completedCards.current.clear();
+          for (const link of links) completedCards.current.set(
+            "card:" + link.parentId + ":" + link.revision + ":" + selectionKey(link.selection), link.childId);
           const restored = readHistory(current.thread_id);
           for (const records of recordLists) {
             restored[records.task_id] = restoreServerRecordHistory(restored[records.task_id] ?? [], records);
@@ -228,6 +242,19 @@ export function useConversation(source: ShellDataSource) {
   }, [enter, expire, loadThread, source]);
 
   const threadId = thread?.thread_id ?? null;
+
+  useEffect(() => {
+    if (!threadId) return;
+    try { localStorage.setItem("fe-task-positions:" + threadId, JSON.stringify(Object.fromEntries(
+      [...tasks].map(([id, envelope]) => [id, envelope.timelineAt ?? envelope.task.snapshot_at])))); } catch { /* Optional display metadata. */ }
+  }, [threadId, tasks]);
+
+  useEffect(() => {
+    if (!threadId) return;
+    try { localStorage.setItem("fe-card-links:" + threadId, JSON.stringify(cardLinks)); } catch {
+      // Display grouping is optional; server permissions and task state remain authoritative.
+    }
+  }, [threadId, cardLinks]);
 
   useEffect(() => {
     if (!threadId || expired) return;
@@ -485,13 +512,15 @@ export function useConversation(source: ShellDataSource) {
 
   async function cardAction(task: ShellTask, selection: CardSelection): Promise<string | null> {
     if (!source.cardAction || expired || task.status !== "succeeded" || task.recovery_required) return null;
-    const key = "card:" + task.task_id + ":" + task.task_revision + ":" + JSON.stringify(selection);
+    const key = "card:" + task.task_id + ":" + task.task_revision + ":" + selectionKey(selection);
     const previous = completedCards.current.get(key);
     if (previous) return previous;
     const result = await act(task.task_id, key, (request_id) => source.cardAction!(task.task_id,
       { ...selection, request_id, source_revision: task.task_revision }));
     if (!result) return null;
     completedCards.current.set(key, result.task_id);
+    setCardLinks((current) => [...current.filter((link) => link.childId !== result.task_id),
+      { parentId: task.task_id, childId: result.task_id, selection, revision: task.task_revision }]);
     upsertTask(result, result.module);
     return result.task_id;
   }
@@ -576,6 +605,7 @@ export function useConversation(source: ShellDataSource) {
     connected,
     messages,
     tasks,
+    cardLinks,
     history,
     confirmations,
     verifications,

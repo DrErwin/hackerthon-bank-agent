@@ -157,7 +157,7 @@ describe("shell recovery from server records", () => {
 
     expect(await screen.findByText("给妈妈转五百")).toBeTruthy();
     expect(await screen.findByText("已确认办理 · 只读")).toBeTruthy();
-    expect(screen.getAllByText("已办结")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /已办结/ })).toHaveLength(2);
     const input = screen.getByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
     expect(input.disabled).toBe(false);
     expect(screen.queryByText(/银行暂时不可用/)).toBeNull();
@@ -175,14 +175,14 @@ describe("shell recovery from server records", () => {
     harness.reconnect();
 
     expect(await screen.findByText("已确认办理 · 只读")).toBeTruthy();
-    expect(screen.getByText("已办结")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /已办结/ })).toBeTruthy();
   });
 
   it("does not stack another history reload while one reconnect is still reading records", async () => {
     const harness = sourceHarness();
     harness.tasks.push({ task: task("task-1", "succeeded"), module: "transfer" });
     render(<AssistantPage source={harness.source} slots={slots} />);
-    await screen.findByText("已办结");
+    await screen.findByRole("button", { name: /已办结/ });
     const afterBoot = harness.recordCalls();
 
     harness.holdNextRecords();
@@ -235,7 +235,7 @@ describe("shell recovery from server records", () => {
 
     expect(await screen.findByText("验证结果待核实，请使用原提交重试；这不是验证未通过。")).toBeTruthy();
     expect(await screen.findByText("这笔转账已被安全规则终止，没有提交给银行。")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "有一项没办完的任务" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "这项还没办完" })).toBeTruthy();
     expect(document.body.textContent).not.toContain("DEPENDENCY_UNAVAILABLE");
     expect(document.body.textContent).not.toContain("HIGH_RISK");
   });

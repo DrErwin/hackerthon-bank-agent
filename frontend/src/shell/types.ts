@@ -23,6 +23,8 @@ export type ShellTask<D = unknown> = Omit<TaskView, "data"> & { data: D | null }
 export type CardSelection = Omit<CardActionRequest, "request_id" | "source_revision">;
 
 export interface TaskEnvelope<D = unknown> {
+  /** Client display position only. Never sent as bank or authorization data. */
+  timelineAt?: string;
   task: ShellTask<D>;
   // From StreamEvent.module; TaskView itself carries no module name.
   module: string | null;
