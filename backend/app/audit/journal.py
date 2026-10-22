@@ -21,7 +21,7 @@ from app.contracts.common import OperationLevel, Phase, SecurityDecisionCode
 from app.storage.database import connect, transaction
 
 
-REDACTION_VERSION = "v1"
+REDACTION_VERSION = "v2"
 SECRET_FIELD = re.compile(
     r"(?:password|passwd|secret|credential|cookie|api[_-]?key|otp|verification[_-]?code|demo[_-]?code|sms[_-]?code|验证码|密码|口令|(?:^|_)token$|authorization[_-]?header|^pin$)",
     re.I,
@@ -30,9 +30,13 @@ PERSON_NAME_FIELD = {"account_name", "recipient_name", "payee_name", "customer_n
 PHONE_FIELD = {"phone", "phone_number", "recipient_phone"}
 ACCOUNT_FIELD = {"account_number", "card_number"}
 ADDRESS_FIELD = {"address", "recipient_address"}
+# Code labels are also used in safety explanations. Require an actual opaque
+# code token after these two labels; password/other-secret labels remain broad.
+_VALUE_WRAPPER = r"[\s\"'`*（(【\[「『《<:：=]*"
+_CODE_VALUE_AHEAD = rf"(?=\s*(?:是|为|[:：=]|\s){_VALUE_WRAPPER}[^\s,，;；。!?！？]*?(?:[A-Za-z0-9]{{4,}}|\d{{4,}}|\[REDACTED\]))"
 SECRET_LABEL = re.compile(
-    r"((?:验证码|短信码|密码|口令|登录凭据|credential|secret|cookie|api[_ -]?key|otp|token|authorization|bearer)\s*(?:是|为|[:：=]|\s)\s*)"
-    r"([^\s,，;；]+)", re.I,
+    rf"((?:(?:验证码|短信码){_CODE_VALUE_AHEAD}|密码|口令|登录凭据|credential|secret|cookie|api[_ -]?key|otp|token|authorization|bearer)\s*(?:是|为|[:：=]|\s)\s*)"
+    rf"({_VALUE_WRAPPER}[^\s,，;；]+)", re.I,
 )
 PHONE = re.compile(r"(?<!\d)(1[3-9]\d)\d{4}(\d{4})(?!\d)")
 ACCOUNT = re.compile(r"(?<!\d)\d{12,19}(?!\d)")
