@@ -276,6 +276,7 @@
 .sh-drawer-panel { display: flex; flex-direction: column; height: 100%; }
 .sh-drawer-panel > header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
 .sh-drawer-panel h2 { font-size: 22px; margin: 0; }
+.sh-drawer-panel > header > .sh-btn { width: auto; flex: 0 0 auto; }
 .sh-drawer-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 24px 40px; }
 .sh-drawer-body .sh-card { border: 0; padding: 0; }
 @media (max-width: 600px) {
