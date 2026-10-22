@@ -25,7 +25,7 @@ from app.modules.bills.reads import GatewayBillsReads
 from app.modules.transfer.tools import TransferSnapshots
 from app.security import SecurityGate, ToolRegistry
 from app.security.demo_policy import DemoRiskEvidence, DemoRiskSignal, DemoSecurityPolicy
-from app.security.gate import RiskFactsUnavailable
+from app.security.demo_text_risk import demo_text_risk
 from app.services.mock_bank.core import MockBankService
 from app.storage.application import ApplicationStore
 from app.storage.database import StoragePaths
@@ -34,6 +34,7 @@ from app.storage.mock_bank.repository import MockBankStore
 from . import subscription_runtime
 from .model import DeepAgentPlanner, ModelSettings
 from .transfer_runtime import TransferRuntime
+from .risk_inputs import TrustedRiskInputs
 
 
 class RiskFixture(BaseModel):
@@ -194,18 +195,17 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
                 checked_signals=frozenset(config.read_fixture.checked_signals),
             )
         parameters = snapshots.resolve(context, action)
+        inputs = TrustedRiskInputs(application, snapshots, runtime.gateway).resolve(context, action, declaration)
         # These are operator-defined fictional scenarios, bound to the same
         # immutable parameters used for confirmation and eventual execution.
         for fixture in config.transfer_fixtures:
             if (parameters.get("payer_account_id") == fixture.payer_account_id
                     and parameters.get("payee") == SavedPayee(kind="saved", payee_id=fixture.payee_id).model_dump()
                     and parameters.get("amount_fen") == fixture.amount_fen):
-                return fixture.evidence(config.facts_version)
-        raise RiskFactsUnavailable(
-            "no server-owned fixture covers this transfer",
-            rule_id="local-demo-fixture-required",
-            policy_version=DemoSecurityPolicy.policy_version,
-        )
+                return demo_text_risk(inputs, fixture.evidence(config.facts_version))
+        # A text threat still blocks when no fixed parameter scenario is available.
+        # Ordinary unconfigured transfers remain unknown and pause at the gate.
+        return demo_text_risk(inputs, None)
 
     policy = DemoSecurityPolicy(
         demo_user_id=config.demo_user_id, admin_actor_id=config.admin_actor_id,
