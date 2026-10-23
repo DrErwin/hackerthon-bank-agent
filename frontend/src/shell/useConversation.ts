@@ -80,7 +80,9 @@ export function useConversation(source: ShellDataSource) {
   const [recovered, setRecovered] = useState<Map<string, RecoveryOutcome>>(new Map());
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [taskErrors, setTaskErrors] = useState<Record<string, string>>({});
+  const [taskNotices, setTaskNotices] = useState<Record<string, string>>({});
   const [pageError, setPageError] = useState("");
+  const [pageNotice, setPageNotice] = useState("");
   const [pendingMessage, setPendingMessage] = useState<{ id: string; text: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [awaitingReply, setAwaitingReply] = useState(false);
@@ -93,6 +95,7 @@ export function useConversation(source: ShellDataSource) {
   const loadFlight = useRef<Promise<void> | null>(null);
   const loadAgain = useRef(false);
   const awaitingMessageId = useRef<string | null>(null);
+  const refreshedCancellations = useRef(new Set<string>());
 
   const expire = useCallback(() => {
     setExpired(true);
@@ -279,7 +282,10 @@ export function useConversation(source: ShellDataSource) {
       },
       (isConnected) => {
         setConnected(isConnected);
-        if (isConnected && hadConnection && !wasConnected) void loadThread(false).catch(() => undefined);
+        if (isConnected && hadConnection && !wasConnected) void loadThread(false).catch((error: unknown) => {
+          if (error instanceof ApiError && error.status === 401) expire();
+          else setPageError("连接已恢复，但办理记录暂时没有更新，请重新读取。");
+        });
         if (isConnected) hadConnection = true;
         wasConnected = isConnected;
       },
@@ -332,16 +338,21 @@ export function useConversation(source: ShellDataSource) {
         request.catch((error: unknown) => {
           fetched.current.delete(key);
           if (error instanceof ApiError && error.status === 401) expire();
+          else setTaskErrors((current) => ({ ...current, [taskId]: "暂时没有读到确认或验证内容，请刷新这项任务的状态。" }));
         });
       }
     }
   }, [expire, expired, history, source, tasks]);
 
   const refreshTask = useCallback(async (taskId: string) => {
+    setTaskNotices((current) => ({ ...current, [taskId]: "正在查询最新状态…" }));
     try {
       const envelope = await source.getTask(taskId);
       upsertTask(envelope.task, envelope.module);
+      setTaskNotices((current) => ({ ...current, [taskId]: "已更新，请查看这项办理的最新状态。" }));
     } catch (error) {
+      setTaskNotices((current) => ({ ...current, [taskId]: "" }));
+      setTaskErrors((current) => ({ ...current, [taskId]: errorText(error) }));
       if (error instanceof ApiError && error.status === 401) expire();
     }
   }, [expire, source, upsertTask]);
@@ -418,7 +429,7 @@ export function useConversation(source: ShellDataSource) {
     return true;
   }
 
-  async function reviseDraft(task: ShellTask, view: ConfirmationView, changes: DraftChanges): Promise<boolean> {
+  async function reviseDraft(task: ShellTask, view: ConfirmationView | undefined, changes: DraftChanges): Promise<boolean> {
     const result = await act(task.task_id, "draft:" + task.task_id + ":" + task.task_revision + ":" + JSON.stringify(changes), async (request_id) => {
       const revised = await source.reviseDraft(task.task_id, { request_id, task_revision: task.task_revision, ...changes });
       const confirmation = revised.interaction?.kind === "confirmation" && revised.interaction.record_ref
@@ -429,7 +440,7 @@ export function useConversation(source: ShellDataSource) {
     // Keep the replaced masked confirmation visibly read-only, even when the
     // backend reuses its record id with an incremented confirmation version.
     setHistory((current) => ({ ...current, [task.task_id]: (current[task.task_id] ?? []).map((entry) =>
-      entry.kind === "confirmation" && entry.id === view.confirmation_id
+      view && entry.kind === "confirmation" && entry.id === view.confirmation_id
         ? { kind: "confirmation", id: view.confirmation_id + ":v" + view.confirmation_version,
             snapshot: { ...view, decision: "superseded" } }
         : entry) }));
@@ -439,6 +450,20 @@ export function useConversation(source: ShellDataSource) {
         ? current : { ...current, [fresh.confirmation_id]: fresh });
     }
     upsertTask(result.task);
+    setTaskNotices((current) => ({ ...current, [task.task_id]: "资料已更新。请核对当前内容，确认前不会转账。" }));
+    return true;
+  }
+
+  async function submitPayeeDetails(task: ShellTask, fields: { account_name: string; account_number: string }): Promise<boolean> {
+    if (!source.submitPayeeDetails || !task.interaction) return false;
+    // Raw bank details are sent only to the dedicated endpoint, never chat or local history.
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(fields)));
+    const fingerprint = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+    const result = await act(task.task_id, "payee-details:" + task.task_id + ":" + task.task_revision + ":" + fingerprint, (request_id) =>
+      source.submitPayeeDetails!(task.task_id, { request_id, interaction_id: task.interaction!.interaction_id, kind: "payee", fields }));
+    if (!result) return false;
+    upsertTask(result.task);
+    setTaskNotices((current) => ({ ...current, [task.task_id]: "已核对收款资料，请查看脱敏后的收款人信息。" }));
     return true;
   }
 
@@ -514,7 +539,7 @@ export function useConversation(source: ShellDataSource) {
     if (!source.cardAction || expired || task.status !== "succeeded" || task.recovery_required) return null;
     const key = "card:" + task.task_id + ":" + task.task_revision + ":" + selectionKey(selection);
     const previous = completedCards.current.get(key);
-    if (previous) return previous;
+    if (previous && selection.action !== "refresh_query") return previous;
     const result = await act(task.task_id, key, (request_id) => source.cardAction!(task.task_id,
       { ...selection, request_id, source_revision: task.task_revision }));
     if (!result) return null;
@@ -524,6 +549,23 @@ export function useConversation(source: ShellDataSource) {
     upsertTask(result, result.module);
     return result.task_id;
   }
+
+  useEffect(() => {
+    if (!source.cardAction || expired || booting) return;
+    for (const link of cardLinks) {
+      if (link.selection.action !== "subscription_cancel") continue;
+      const child = tasks.get(link.childId)?.task;
+      const parent = tasks.get(link.parentId)?.task;
+      if (!parent || child?.status !== "succeeded" || refreshedCancellations.current.has(child.task_id) || busy[parent.task_id]) continue;
+      const alreadyRefreshed = cardLinks.some((refresh) => {
+        if (refresh.parentId !== parent.task_id || refresh.selection.action !== "refresh_query") return false;
+        const result = tasks.get(refresh.childId)?.task.data as { list_result?: { items: { subscription_id: string; status: string }[] } } | null;
+        return result?.list_result?.items.some((item) => item.subscription_id === link.selection.subscription_id && item.status === "cancelled");
+      });
+      refreshedCancellations.current.add(child.task_id);
+      if (!alreadyRefreshed) void cardAction(parent, { action: "refresh_query" });
+    }
+  }, [tasks, cardLinks, busy, expired, booting, source]);
 
   function settleRecovery(taskId: string, outcome: RecoveryOutcome) {
     setBootRecovery((current) => {
@@ -597,6 +639,19 @@ export function useConversation(source: ShellDataSource) {
     }
   }
 
+  async function refreshConversation() {
+    setPageError("");
+    setPageNotice("正在重新读取办理记录…");
+    try {
+      await loadThread(false);
+      setPageNotice("办理记录已更新，请查看各项任务的状态。");
+    } catch (error) {
+      setPageNotice("");
+      if (error instanceof ApiError && error.status === 401) expire();
+      else setPageError("暂时无法更新办理记录，已有内容仍保留。" + errorText(error));
+    }
+  }
+
   return {
     session,
     thread,
@@ -613,12 +668,15 @@ export function useConversation(source: ShellDataSource) {
     recovered,
     busy,
     taskErrors,
+    taskNotices,
     pageError,
+    pageNotice,
     pendingMessage,
     sending,
     awaitingReply,
     supportsCardActions: Boolean(source.cardAction),
-    actions: { cardAction, send, provideText, reviseDraft, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask },
+    readTransferChoices: source.readTransferChoices,
+    actions: { cardAction, send, provideText, reviseDraft, submitPayeeDetails, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask, refreshConversation },
   };
 }
 

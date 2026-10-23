@@ -300,3 +300,22 @@
 .sh-transaction > summary span { flex: 1; }
 .sh-transaction small { display: block; font-size: 16px; font-weight: 400; color: var(--ink2); }
 .sh-transaction strong { white-space: nowrap; }
+
+/* Continuous guidance: saved facts and the next choice share one stable card. */
+.sh-guided { padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); margin-bottom: 12px; }
+.sh-guided h3 { margin: 0 0 8px; font-size: 22px; }
+.sh-draft-summary { margin: 16px 0; display: grid; gap: 10px; }
+.sh-draft-summary > div { background: var(--bg); padding: 12px; border-radius: 10px; }
+.sh-draft-summary dt { color: var(--ink2); font-size: 16px; }
+.sh-draft-summary dd { margin: 4px 0; font-weight: 650; }
+.sh-choice-list, .sh-guided-form { display: grid; gap: 10px; margin: 12px 0; }
+.sh-choice { display: grid; gap: 4px; text-align: left; min-height: 64px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: white; cursor: pointer; }
+.sh-choice span { font-size: 16px; color: var(--ink2); }
+.sh-choice[aria-pressed="true"] { border: 2px solid var(--brand-press); background: var(--brand-tint); }
+.sh-guided input, .sh-guided-form input { display: block; width: 100%; min-width: 0; min-height: 48px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.sh-quick-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.sh-pending-nav { display: flex; gap: 10px; align-items: center; overflow-x: auto; flex: 0 0 auto; padding: 6px 16px; background: var(--card); border-top: 1px solid var(--line); }
+.sh-pending-nav > * { flex-shrink: 0; }
+.sh-pending-nav button { min-height: 44px; }
+.sh-action-feedback { padding: 10px 12px; background: var(--brand-tint); border-radius: 8px; margin: 8px 0; }
+@media (max-width: 480px) { .sh-guided { padding: 14px; } .sh-quick-actions .sh-btn { flex: 1 1 40%; } }

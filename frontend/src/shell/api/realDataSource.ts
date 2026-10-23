@@ -56,6 +56,12 @@ export function createRealDataSource(): ShellDataSource {
     reviseDraft: (taskId, body) =>
       post<ShellTask>("/tasks/" + encodeURIComponent(taskId) + "/draft", body),
 
+    readTransferChoices: (taskId, kind) =>
+      get("/tasks/" + encodeURIComponent(taskId) + "/transfer-choices?kind=" + kind),
+
+    submitPayeeDetails: (taskId, body) =>
+      post("/tasks/" + encodeURIComponent(taskId) + "/details", body),
+
     resumeTask: (taskId, body) =>
       post<ShellTask>("/tasks/" + encodeURIComponent(taskId) + "/resume", body),
 

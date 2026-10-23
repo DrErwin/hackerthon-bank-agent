@@ -7,7 +7,7 @@
 
 export type RequestId = string;
 export type SourceRevision = number;
-export type Action = "bill_details" | "bill_check" | "subscription_cancel";
+export type Action = "bill_details" | "bill_check" | "bill_range" | "subscription_cancel" | "refresh_query";
 /**
  * Bank flow categories (bank fields §3); bills display names map one to one.
  *
@@ -16,7 +16,10 @@ export type Action = "bill_details" | "bill_check" | "subscription_cancel";
  */
 export type Category = "dining" | "transport" | "medical" | "shopping" | "housing" | "transfer" | "other";
 export type SubscriptionId = string | null;
-export type AccountId = string;
+export type TransactionId = string | null;
+export type AccountId = string | null;
+export type Month = string | null;
+export type AccountId1 = string;
 export type AccountType = "class_i" | "class_ii" | "class_iii";
 export type AccountMasked = string;
 export type AvailableBalanceFen = number;
@@ -39,7 +42,7 @@ export type MerchantName = string;
 export type ServiceName = string;
 export type AmountFen = number;
 export type Cycle = "monthly" | "yearly";
-export type AccountId1 = string;
+export type AccountId2 = string;
 export type AccountMasked2 = string;
 export type LastBilledAt = string | null;
 export type NextBillingAt = string | null;
@@ -69,7 +72,7 @@ export type OperationStatus = "succeeded" | "failed" | "processing";
 export type RecordedAt = string;
 export type UpdatedAt = string;
 export type MandateId1 = string;
-export type AccountId2 = string;
+export type AccountId3 = string;
 export type AccountMasked3 = string;
 export type MerchantId1 = string;
 export type MerchantName1 = string;
@@ -139,13 +142,13 @@ export type OperationId3 = string;
 export type OperationType1 = string;
 export type RecordedAt1 = string;
 export type UpdatedAt2 = string;
-export type TransactionId = string;
+export type TransactionId1 = string;
 export type PayerAccountId1 = string;
 export type AmountFen3 = number;
 export type FeeFen = 0;
 export type ArrivalMode = "instant";
 export type CompletedAt = string;
-export type AccountId3 = string;
+export type AccountId4 = string;
 export type BookBalanceFen = number;
 export type FrozenBalanceFen = number;
 export type AvailableBalanceFen1 = number;
@@ -397,7 +400,7 @@ export type ReasonCode1 = string;
 export type OperationId10 = string;
 export type Lookup = "found" | "not_found" | "error";
 export type OperationStatus1 = ("succeeded" | "failed" | "processing") | null;
-export type TransactionId1 = string | null;
+export type TransactionId2 = string | null;
 export type ReceiptRef = string | null;
 export type ReleaseAuthorizationId3 = string | null;
 export type FreezeId3 = string | null;
@@ -460,7 +463,7 @@ export type AccountIds = [string, ...string[]];
 export type StartAt = string;
 export type EndAt = string;
 export type AsOf2 = string;
-export type AccountId4 = string;
+export type AccountId5 = string;
 export type AsOf3 = string;
 export type SourceAsOf = AccountSourceAsOf[];
 export type TransactionCount = number;
@@ -479,8 +482,8 @@ export type AsOf4 = string;
 export type ConsumptionNetFen1 = number;
 export type DeltaFen = number;
 export type ChangeBps = number | null;
-export type TransactionId2 = string;
-export type AccountId5 = string;
+export type TransactionId3 = string;
+export type AccountId6 = string;
 export type OccurredAt1 = string;
 export type AmountFen5 = number;
 export type Nature = "consumption" | "transfer" | "refund" | "interest";
@@ -566,6 +569,9 @@ export interface CardActionRequest {
   action: Action;
   category?: Category | null;
   subscription_id?: SubscriptionId;
+  transaction_id?: TransactionId;
+  account_id?: AccountId;
+  month?: Month;
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
@@ -579,7 +585,7 @@ export interface AccountList {
  * via the `definition` "AccountSummary".
  */
 export interface AccountSummary {
-  account_id: AccountId;
+  account_id: AccountId1;
   account_type: AccountType;
   account_masked: AccountMasked;
   available_balance_fen: AvailableBalanceFen;
@@ -646,7 +652,7 @@ export interface SubscriptionItem {
   service_name: ServiceName;
   amount_fen: AmountFen;
   cycle: Cycle;
-  account_id: AccountId1;
+  account_id: AccountId2;
   account_masked: AccountMasked2;
   last_billed_at: LastBilledAt;
   next_billing_at: NextBillingAt;
@@ -680,7 +686,7 @@ export interface OperationResultSubscriptionCancelReceipt {
  */
 export interface SubscriptionCancelReceipt {
   mandate_id: MandateId1;
-  account_id: AccountId2;
+  account_id: AccountId3;
   account_masked: AccountMasked3;
   merchant_id: MerchantId1;
   merchant_name: MerchantName1;
@@ -835,7 +841,7 @@ export interface OperationResultTransferReceipt {
  * via the `definition` "TransferReceipt".
  */
 export interface TransferReceipt {
-  transaction_id: TransactionId;
+  transaction_id: TransactionId1;
   payer_account_id: PayerAccountId1;
   payee: PayeeDisplay;
   amount_fen: AmountFen3;
@@ -849,7 +855,7 @@ export interface TransferReceipt {
  * via the `definition` "BalanceSnapshot".
  */
 export interface BalanceSnapshot {
-  account_id: AccountId3;
+  account_id: AccountId4;
   book_balance_fen: BookBalanceFen;
   frozen_balance_fen: FrozenBalanceFen;
   available_balance_fen: AvailableBalanceFen1;
@@ -1259,7 +1265,7 @@ export interface BankObservedPayload {
   operation_id: OperationId10;
   lookup: Lookup;
   operation_status: OperationStatus1;
-  transaction_id: TransactionId1;
+  transaction_id: TransactionId2;
   receipt_ref: ReceiptRef;
   error: BankError | null;
   release_authorization_id?: ReleaseAuthorizationId3;
@@ -1434,7 +1440,7 @@ export interface BillScope {
  * via the `definition` "AccountSourceAsOf".
  */
 export interface AccountSourceAsOf {
-  account_id: AccountId4;
+  account_id: AccountId5;
   as_of: AsOf3;
 }
 /**
@@ -1479,8 +1485,8 @@ export interface BillDetails {
  * via the `definition` "Transaction".
  */
 export interface Transaction {
-  transaction_id: TransactionId2;
-  account_id: AccountId5;
+  transaction_id: TransactionId3;
+  account_id: AccountId6;
   occurred_at: OccurredAt1;
   amount_fen: AmountFen5;
   nature: Nature;

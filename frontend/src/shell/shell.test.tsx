@@ -114,9 +114,9 @@ describe("v0.4 shell with stub data", () => {
     await sendText("转给妈妈500块");
     fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
 
-    fireEvent.click(await screen.findByRole("button", { name: "修改" }));
-    fireEvent.change(screen.getByLabelText("新的金额（元）"), { target: { value: "300" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存修改并重新核对" }));
+    fireEvent.click(await screen.findByRole("button", { name: "修改转多少钱" }));
+    fireEvent.change(screen.getByLabelText("转账金额（元）"), { target: { value: "300" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存金额" }));
 
     const composer = await screen.findByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
     expect(composer.value).toBe("");
@@ -136,14 +136,14 @@ describe("v0.4 shell with stub data", () => {
       new ApiError(409, "CONFIRMATION_STALE", "这张确认单已经失效，请以最新状态为准。"),
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "修改" }));
-    fireEvent.change(screen.getByLabelText("新的金额（元）"), { target: { value: "300" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存修改并重新核对" }));
+    fireEvent.click(await screen.findByRole("button", { name: "修改转多少钱" }));
+    fireEvent.change(screen.getByLabelText("转账金额（元）"), { target: { value: "300" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存金额" }));
 
     expect(await screen.findByText("这张确认单已经失效，请以最新状态为准。")).toBeTruthy();
     const composer = screen.getByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
     expect(composer.value).toBe("");
-    expect((screen.getByLabelText("新的金额（元）") as HTMLInputElement).value).toBe("300");
+    expect((screen.getByLabelText("转账金额（元）") as HTMLInputElement).value).toBe("300");
   });
 
   it.each([
@@ -200,7 +200,7 @@ describe("v0.4 shell with stub data", () => {
     fireEvent.change(screen.getByLabelText("请输入 6 位验证码"), { target: { value: "000000" } });
     fireEvent.click(screen.getByRole("button", { name: "提交验证码" }));
     expect(await screen.findByText("验证码不正确。按安全规则本次办理已终止，没有提交给银行。")).toBeTruthy();
-    expect(screen.getByText("这笔钱没有转出去")).toBeTruthy();
+    expect(screen.getByText("这笔转账没有完成")).toBeTruthy();
     expect(screen.queryByText("转账成功")).toBeNull();
     expect(screen.queryByRole("button", { name: "开始模拟人脸验证" })).toBeNull();
   });

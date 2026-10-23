@@ -4,7 +4,9 @@ import type { CardSelection, ShellTask, TaskEnvelope } from "./types";
 export interface CardLink { parentId: string; childId: string; selection: CardSelection; revision: number }
 export const selectionKey = (selection: CardSelection) => selection.action === "subscription_cancel"
   ? selection.action + ":" + selection.subscription_id
-  : selection.action === "bill_details" ? selection.action + ":" + selection.category : selection.action;
+  : selection.action === "bill_details" ? selection.action + ":" + selection.category
+  : selection.action === "bill_range" ? selection.action + ":" + selection.month
+  : selection.action === "bill_check" ? selection.action + ":" + (selection.account_id ?? "") + ":" + (selection.transaction_id ?? "") : selection.action;
 
 export function readCardLinks(threadId: string): CardLink[] {
   try {
@@ -12,7 +14,7 @@ export function readCardLinks(threadId: string): CardLink[] {
     if (!Array.isArray(value)) return [];
     return value.filter((item): item is CardLink => typeof item?.parentId === "string"
       && typeof item.childId === "string" && item.parentId !== item.childId
-      && Number.isInteger(item.revision) && item.selection && ["bill_details", "bill_check", "subscription_cancel"].includes(item.selection.action));
+      && Number.isInteger(item.revision) && item.selection && ["bill_details", "bill_check", "bill_range", "subscription_cancel", "refresh_query"].includes(item.selection.action));
   } catch { return []; }
 }
 
@@ -29,7 +31,11 @@ export function taskTitle(task: ShellTask): string {
     if (Array.isArray(data?.transactions)) return (categories[String(data.category)] ?? "账单") + "明细";
     return "查看账单";
   }
-  if (task.module === "transfer") return "转账办理";
+  if (task.module === "transfer") {
+    const payee = data?.payee as { remark?: string; name_masked?: string } | undefined;
+    return (payee ? "转给" + (payee.remark || payee.name_masked) : "转账办理")
+      + (typeof data?.amount_fen === "number" ? " · " + (data.amount_fen / 100).toFixed(2) + " 元" : "");
+  }
   return "办理记录";
 }
 

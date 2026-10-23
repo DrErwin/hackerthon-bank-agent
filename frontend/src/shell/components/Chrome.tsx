@@ -116,7 +116,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
         </div>
       )}
       <form className="sh-composer" onSubmit={(event) => void submit(event)}>
-        <button
+        {voiceDemoText && <button
           type="button"
           className={"sh-mic" + (listening ? " sh-mic-on" : "")}
           aria-label="语音示例（固定文字，不录音）"
@@ -133,7 +133,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
             <rect x="9" y="3" width="6" height="11" rx="3" />
             <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" />
           </svg>
-        </button>
+        </button>}
         <label className="sr-only" htmlFor="sh-input">输入您想办的事</label>
         <input
           ref={inputRef}
@@ -150,7 +150,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
         </button>
       </form>
       <p className="sh-composer-hint" aria-live="polite">
-        {pendingText && !sending ? "上一条消息还没确认发出。点「重试」即可，不会重复办理。" : voiceNote || "验证码只填专用框。麦克风是文字演示，不录音。"}
+        {pendingText && !sending ? "上一条消息还没确认发出。点「重试」即可，不会重复办理。" : voiceNote || "随时提问，已填资料会保留。验证码只填专用框。"}
       </p>
     </div>
   );

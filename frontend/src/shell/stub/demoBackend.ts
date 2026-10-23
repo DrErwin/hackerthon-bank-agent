@@ -333,7 +333,7 @@ export function createDemoBackend(options: StubOptions = {}) {
   }
 
   function envelope(record: StubTask): TaskEnvelope {
-    return { task: record.task as ShellTask, module: MODULE };
+    return { task: { ...record.task, module: MODULE } as ShellTask, module: MODULE };
   }
 
   function makeVerificationResponse(verification: VerificationView, record: StubTask, error: ShellTask["error"]): ShellVerificationResponse {
@@ -582,6 +582,8 @@ export function createDemoBackend(options: StubOptions = {}) {
         return record.task as ShellTask;
       });
     }),
+
+    readTransferChoices: async (_taskId, kind) => kind === "payees" ? { payees: Object.values(PAYEES).map((item) => ({ ...item, last_transfer_at: null })) } : { accounts: [{ account_id: "demo-acct-1234", account_type: "class_i", display_name: "演示账户", account_masked: "****1234", bank_name: "模拟银行", available_balance_fen: 100000 }] },
 
     reviseDraft: (taskId, { request_id, task_revision, ...fields }) => mutate((state) => {
       requireUser(state);
