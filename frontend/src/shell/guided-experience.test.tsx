@@ -127,6 +127,16 @@ it("queries the new month instead of reopening the previous month's cached categ
     renderChild={(id) => <p>{id}</p>} />);
   fireEvent.click(screen.getByRole("button", { name: "查看餐饮明细" }));
   await waitFor(() => expect(cardAction).toHaveBeenLastCalledWith(aug, { action: "bill_details", category: "dining" }));
+  const pending = { ...task, task_id: "pending-check", module: "bills" as const };
+  view.rerender(<TaskBlock envelope={{ task: sept, module: "bills" }} slot={genericSlot} origin="real-api"
+    conversation={{ ...base, tasks: new Map([...base.tasks, [pending.task_id, { task: pending, module: "bills" }]]),
+      cardLinks: [
+        { parentId: sept.task_id, childId: aug.task_id, revision: 1, selection: { action: "bill_range", month: "2026-08" } },
+        { parentId: sept.task_id, childId: pending.task_id, revision: 1, selection: { action: "bill_check" } },
+      ] }}
+    renderChild={(id) => id === pending.task_id ? <button id={"task-" + id}>继续原来的核对</button> : <p>{id}</p>} />);
+  const continueButton = screen.getByRole("button", { name: "继续原来的核对" });
+  expect(continueButton.closest("details")?.open).toBe(true);
 });
 
 it("labels full-month ranges with their inclusive calendar dates", () => {

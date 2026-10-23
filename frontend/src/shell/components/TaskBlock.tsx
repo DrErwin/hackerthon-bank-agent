@@ -10,7 +10,7 @@ import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, Wa
 import { VerificationCard } from "./VerificationCard";
 import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
 import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
-import { inputPrompt, needsAttentionInTree } from "../presentation";
+import { inputPrompt, needsAttentionInTree, taskTitle } from "../presentation";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
   if (origin === "real-api") return administratorUrl({ taskId, challengeId, demoRoundId: roundId });
@@ -206,7 +206,12 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         onAction={(selection) => actions.cardAction(displayTask, selection)} />
       {displayTask.task_id !== task.task_id && <>
         <p className="sh-action-feedback" role="status">已显示重新查询的资料。</p>
-        {(conversation.cardLinks ?? []).filter((link) => seen.has(link.parentId) && link.parentId !== displayTask.task_id && link.selection.action === "subscription_cancel").map((link) => <div key={link.childId}>{renderChild?.(link.childId)}</div>)}
+        {(conversation.cardLinks ?? []).filter((link) => seen.has(link.parentId) && link.parentId !== displayTask.task_id && !seen.has(link.childId)).map((link) =>
+          <details className="sh-disclosure" key={link.childId}
+            open={needsAttentionInTree(link.childId, conversation.tasks, conversation.cardLinks ?? []) || link.selection.action === "subscription_cancel"}>
+            <summary>之前查询中的办理 · {conversation.tasks.get(link.childId) ? taskTitle(conversation.tasks.get(link.childId)!.task) : "办理记录"}</summary>
+            {renderChild?.(link.childId)}
+          </details>)}
         <details className="sh-disclosure"><summary>查看上次查询记录</summary>
           <BusinessCards task={task} busy={false} enabled={false} onAction={async () => null} />
           {billSummary(task) && <p>{task.message}</p>}
