@@ -1,13 +1,13 @@
 # 交付包 02：v0.4 联合验收与收口
 
-Status: in_progress（**2026-10-22 启动联合验收**：PM Erwin 决定不硬凑指标，按现有实跑证据 + 如实例外收口；证据汇总与逐项判定见[v0.4 联合验收记录](../../../docs/versions/v0.4.0/acceptance-evidence-2026-10-22.md)。版本状态翻转与飞书同步待 PM 确认）
+Status: done（**2026-10-22 联合验收完成；2026-10-24 PM Erwin 正式接受（含例外 E1—E10）**。证据汇总与逐项判定见[v0.4 联合验收记录](../../../docs/versions/v0.4.0/acceptance-evidence-2026-10-22.md)；版本状态已翻转，飞书同步因用户身份授权过期暂缓）
 Owner: Erwin 牵头；参与：周恩宇（账单）、梁爽/六水（前端）、Ringo 或 PM 代行（安全）、Erwin（平台/底座，[v04-platform/01](../v04-platform/packages/01-foundation-agent-mockbank.md)）
 Activation: 2026-10-11 建立（v0.4 启动同日）
 Start when: ① [包 01 账单业务能力与评测](01-bills-backend.md) 主体交付（BF01—BF06 通过、评测下限达标）；② [frontend-complete/01](../../frontend-complete/packages/01-v04-complete-frontend.md) 交付（FE-01—FE-06 通过、替换简易前端）；③ [v04-security/01](../../v04-security/packages/01-detector-and-coverage.md) 检测器与评测完整性完成；④ [v04-platform/01](../v04-platform/packages/01-foundation-agent-mockbank.md) 主体交付——F21—F24 报告与文件交付已合入 main，**真实账单模块接入（[票 05](../v04-platform/issues/05-real-bills-integration.md)）完成**后账单纵向链路才具备联调条件。任一线未齐时如实记录阻塞与提供方
 Spec: [v0.4 账单纵向场景规格](../spec.md) · [v0.4 需求](../../../docs/versions/v0.4.0/requirements.md)
 
-Accepted by: 未记录（PM Erwin 已决定收口口径；正式接受待确认）
-Accepted at: 未记录
+Accepted by: Erwin（PM，本人）
+Accepted at: 2026-10-24
 Work spec: 待启动时建立（Erwin 自拆）
 
 Source issue: [Issue #87](https://github.com/DrErwin/hackerthon-bank-agent/issues/87)（总索引；飞书同步按 [git-workflow §4](../../../docs/agents/git-workflow.md) 执行，#90 已于 2026-10-11 完成）

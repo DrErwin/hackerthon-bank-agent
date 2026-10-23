@@ -5,7 +5,7 @@ Package: 本轮用户直接授权的数据检查与补充（无另设交付包�
 Spec: [Demo 安全模型候选数据准备](../spec.md)
 Owner: AI 按用户授权代行；目录归属 Ringo，非本人审查
 Directory: evals/security/
-Status: Done — 数据准备与本地检查完成、首批已提交 main（2026-10-22），候选模型未运行
+Status: Done — 数据准备与本地检查完成、首批已提交 main（2026-10-22）。**2026-10-24 PM 决定：不做候选模型比较，只扩充样例**（见 #215）
 Blocked by: None
 Core scenarios: 赛程安全合规四方向，覆盖转账、账单及订阅相关表达；仅检测层样例，不新增业务功能
 Verification: 数据结构、编号、去重、分组隔离、标签与场景语义逐项核对；不跑模型或全量业务回归
