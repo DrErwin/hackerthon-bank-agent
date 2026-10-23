@@ -5,7 +5,9 @@ import sqlite3
 import pytest
 
 from app.storage import StoragePaths
-from app.storage.mock_bank.repository import LEDGER_FACT_COLUMNS, BankAccount, MockBankStore
+from app.storage.mock_bank.repository import (
+    LEDGER_FACT_COLUMNS, SCHEMA_VERSION, BankAccount, MockBankStore,
+)
 
 NOW = "2026-10-01T09:00:00+08:00"
 EARLIER = "2026-09-12T12:30:00+08:00"
@@ -72,7 +74,7 @@ def test_fresh_bank_database_is_created_at_the_fact_schema(tmp_path):
     path = StoragePaths(tmp_path).bank
     MockBankStore(path)
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         columns = {row[1] for row in connection.execute("PRAGMA table_info(ledger_entries)")}
     assert set(LEDGER_FACT_COLUMNS) <= columns
 
@@ -92,7 +94,7 @@ def test_bank_v1_database_without_ledger_table_reaches_the_fact_schema(tmp_path)
         """)
     store = MockBankStore(path)
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         columns = {row[1] for row in connection.execute("PRAGMA table_info(ledger_entries)")}
     assert set(LEDGER_FACT_COLUMNS) <= columns
     assert store.get_operation("U1", "old").updated_at == NOW
@@ -101,7 +103,7 @@ def test_bank_v1_database_without_ledger_table_reaches_the_fact_schema(tmp_path)
 def test_newer_bank_database_is_refused(tmp_path):
     path = StoragePaths(tmp_path).bank
     with sqlite3.connect(path) as connection:
-        connection.execute("PRAGMA user_version = 4")
+        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION + 1}")
     with pytest.raises(RuntimeError, match="newer"):
         MockBankStore(path)
 
@@ -152,7 +154,7 @@ def test_bank_v2_ledger_migrates_to_v3_without_losing_rows(tmp_path):
 
     store = MockBankStore(path)
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     assert store.list_ledger("U1", "A1") == [{
         "transaction_id": "TX1", "account_id": "A1", "user_id": "U1", "operation_id": "OP1",
         "amount_fen": 3200, "direction": "outflow", "nature": "consumption",
