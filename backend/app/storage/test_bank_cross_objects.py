@@ -33,14 +33,17 @@ def create_order_op(store, operation_id="22222222-2222-4222-8222-222222222222"):
         "U1", operation_id, "bank.create_order",
         {"product_id": "p_flower", "quantity": 1, "expected_total_fen": 19900},
         "succeeded", {"order_id": "o1"}, NOW, [], [],
-        (OrderCreation("o1", "p_flower", 1, "m_flower", "花店", 19900, 19900, NOW,
-                       LATER, "张*", "****1234", "某市****"),),
+        (OrderCreation(order_id="o1", product_id="p_flower", quantity=1,
+                       merchant_id="m_flower", merchant_name="花店",
+                       total_fen=19900, expected_total_fen=19900, created_at=NOW,
+                       deliver_by=LATER, recipient_name_masked="张*",
+                       phone_masked="****1234", address_masked="某市****"),),
     )
 
 
 def capture_op(store, operation_id="33333333-3333-4333-8333-333333333333",
                amount_fen=46700, order_id="o1", transaction_id="TX1",
-               freeze_amount=46700):
+               freeze_amount=46700, annotate=True):
     account = store.get_account("U1", "A1")
     book = account.book_balance_fen - amount_fen
     frozen = account.frozen_balance_fen - freeze_amount
@@ -50,7 +53,13 @@ def capture_op(store, operation_id="33333333-3333-4333-8333-333333333333",
         "succeeded", {"transaction_id": transaction_id}, LATER,
         [("A1", account.version, book, frozen)],
         [(transaction_id, "A1", amount_fen, "outflow", "consumption", "shopping", LATER)],
-        (FreezeCapture("f1", freeze_amount, transaction_id, order_id, LATER),),
+        (FreezeCapture(
+            freeze_id="f1", amount_fen=freeze_amount, transaction_id=transaction_id,
+            order_id=order_id, paid_at=LATER,
+            counterparty_id="m_flower" if annotate else None,
+            counterparty_name="邻里花店" if annotate else None,
+            summary="生日鲜花" if annotate else None,
+        ),),
     )
 
 
@@ -83,7 +92,12 @@ def test_freeze_capture_release_land_together_or_not_at_all(tmp_path):
     freeze = store.get_freeze("U1", "f1")
     assert (freeze["captured_total_fen"], freeze["released_total_fen"]) == (46700, 3300)
     assert store.get_account("U1", "A1").frozen_balance_fen == 0
-    assert len(store.list_ledger("U1", "A1")) == 1
+    ledger = store.list_ledger("U1", "A1")
+    assert len(ledger) == 1
+    # The capture annotated its own consumption row, so B08 can return it whole.
+    assert ledger[0]["counterparty_id"] == "m_flower"
+    assert ledger[0]["counterparty_name"] == "邻里花店"
+    assert ledger[0]["summary"] == "生日鲜花"
 
 
 def test_same_operation_replays_and_different_parameters_are_rejected(tmp_path):
@@ -118,6 +132,24 @@ def test_one_order_pays_once_even_with_a_new_operation_number(tmp_path):
     assert store.get_freeze("U1", "f1")["captured_total_fen"] == 46700
     assert store.get_order("U1", "o1")["payment_transaction_id"] == "TX1"
     assert [row["transaction_id"] for row in store.list_ledger("U1", "A1")] == ["TX1"]
+
+
+def test_plain_capture_without_counterparty_facts_stays_bare(tmp_path):
+    store = seeded(tmp_path)
+    freeze_op(store)
+    account = store.get_account("U1", "A1")
+    plain = store.commit_operation(
+        "U1", "12121212-1212-4121-8121-121212121212", "bank.capture_frozen",
+        {"freeze_id": "f1", "amount_fen": 100, "order_id": None},
+        "succeeded", {"transaction_id": "TX3"}, LATER,
+        [("A1", account.version, account.book_balance_fen - 100,
+          account.frozen_balance_fen - 100)],
+        [("TX3", "A1", 100, "outflow", "consumption", "shopping", LATER)],
+        (FreezeCapture(freeze_id="f1", amount_fen=100, transaction_id="TX3"),),
+    )
+    assert plain.status == "succeeded"
+    row = store.list_ledger("U1", "A1")[0]
+    assert row["counterparty_name"] is None and row["summary"] is None
 
 
 def test_processing_unknown_keeps_effects_for_the_finalize(tmp_path):
