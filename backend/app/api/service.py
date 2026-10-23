@@ -240,6 +240,8 @@ class ApiService:
         link = self.link(identity, source_id, mutate=True)
         kind = source.snapshot.get("capability_name")
         data = (source.snapshot.get("result") or {}).get("data")
+        labels = {"dining": "餐饮", "transport": "交通", "medical": "医疗", "shopping": "购物",
+                  "housing": "居住", "transfer": "转账", "other": "其他"}
         if ((body.transaction_id is not None or body.account_id is not None) and body.action != "bill_check"
                 or body.month is not None and body.action != "bill_range"):
             raise ApiProblem(400, "INVALID_ARGUMENT")
@@ -251,6 +253,14 @@ class ApiService:
                 raise ApiProblem(400, "INVALID_ARGUMENT")
             capability, intent = kind, link["intent_text"]
             parent_id = source_id if kind.startswith("bills.") else None
+            if kind == "bills.generate_report":
+                intent = "继续生成账单报告"
+            elif kind == "bills.summarize":
+                # Refresh the completed choice, not the initial (possibly
+                # incomplete or since-corrected) request. The checked parent
+                # carries the actual account and absolute date bounds.
+                intent = ("继续查看" + labels.get(data.get("category"), "账单") + "明细"
+                          if "transactions" in data else "继续查看账单")
         elif body.action == "subscription_cancel":
             if body.category is not None or kind != "subscription.list_subscriptions":
                 raise ApiProblem(400, "INVALID_ARGUMENT")
@@ -271,8 +281,6 @@ class ApiService:
                 (BillDetails if "transactions" in data else SpendingSummary).model_validate(data)
             else:
                 raise ApiProblem(400, "INVALID_ARGUMENT")
-            labels = {"dining": "餐饮", "transport": "交通", "medical": "医疗", "shopping": "购物",
-                      "housing": "居住", "transfer": "转账", "other": "其他"}
             capability = "bills.summarize" if body.action == "bill_details" else "bills.detect_anomalies"
             intent = "查看" + labels.get(body.category, "账单") + "明细" if body.action == "bill_details" else "核对陌生扣款"
             if body.action == "bill_range":
@@ -573,7 +581,9 @@ class ApiService:
         self.identity(self.cookie(identity.session_id))
         link = self.link(identity, proposal.task_id, mutate=True)
         if link["thread_id"] != job["thread_id"]:
-            raise ApiProblem(409, "TASK_THREAD_MISMATCH")
+            self.store.save_message_reply(job["job_id"], "这项办理在另一段对话中，请回到原对话查看任务卡片后继续。您也可以在这里重新说明要办理的事情。")
+            self.publish_message_reply(job)
+            return
         endpoint = "/message-continuation/" + job["job_id"]
         try:
             previous = self.store.receipt(identity, endpoint, job["request_id"], proposal)
@@ -621,6 +631,14 @@ class ApiService:
         current = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, proposal.task_id)
         self.link_message_job_task(job, identity, current)
         self.publish_message_job_task(job["job_id"])
+
+    def publish_message_job_error(self, job, identity, error):
+        # A disconnected client must also find the failure in the ordinary
+        # message history. Stable ids keep retries from adding duplicate replies.
+        message_id = str(uuid5(UUID(job["error_event_id"]), "failure-reply"))
+        if not self.store.rows("SELECT 1 FROM api_messages WHERE message_id=?", (message_id,)):
+            self.message(identity, job["thread_id"], error.reason, "assistant", message_id=message_id)
+        self.emit(identity, job["thread_id"], "stream_error", error, event_id=job["error_event_id"])
 
     def process_message_job(self, job_id):
         try:
@@ -676,8 +694,7 @@ class ApiService:
                     self.dispatch_continuation(self.store.message_job(job_id), identity)
                     return
                 if outcome.error and outcome.error.code == "MODEL_PROPOSAL_FAILED":
-                    self.emit(identity, job["thread_id"], "stream_error", outcome.error,
-                              event_id=job["error_event_id"])
+                    self.publish_message_job_error(job, identity, outcome.error)
                     self.store.set_message_job_status(job_id, "error_completed")
                     return
                 self.link_message_job_task(job, identity, outcome)
@@ -702,11 +719,11 @@ class ApiService:
                     self.store.set_message_job_status(job_id, "continuation_ready" if job.get("continuation_json") else "interrupted")
                 if job["status"] not in {"reply_completed", "task_completed", "error_completed"}:
                     from app.contracts.tasks import ModuleError
-                    self.emit(identity, job["thread_id"], "stream_error", ModuleError(
+                    self.publish_message_job_error(job, identity, ModuleError(
                         code="DEPENDENCY_UNAVAILABLE", source="platform", field=None,
                         reason="消息处理中断，请重试以恢复原请求。" if platform_task is not None or job.get("continuation_json") or job["status"] in {"reply_ready", "task_linked"}
                             else "无法确定原消息处理结果，请重新发起并核对信息。", upstream_code=None,
-                    ), event_id=job["error_event_id"])
+                    ))
                     if platform_task is None and not job.get("continuation_json") and job["status"] not in {"reply_ready", "task_linked"}:
                         self.store.set_message_job_status(job_id, "error_completed")
         finally:

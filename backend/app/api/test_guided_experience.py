@@ -145,6 +145,29 @@ def test_refresh_subscription_reads_current_bank_state(tmp_path):
         assert bank_operations(app.state.api.runtime.gateway._bank) == before
 
 
+@pytest.mark.parametrize("capability,intent", [
+    ("bills.summarize", "2026年9月账单"),
+    ("bills.summarize", "2026年9月餐饮明细"),
+    ("bills.generate_report", "2026年9月账单报告"),
+])
+def test_bill_refresh_uses_completed_selection_not_initial_request(tmp_path, capability, intent):
+    app = app_for(configuration(tmp_path))
+    with TestClient(app) as client, patch.object(app.state.api.runtime.harness.planner, "select",
+            return_value=TransferProposal(capability_name=capability)):
+        _, waiting = start(client, intent)
+        assert waiting["status"] == "waiting_input"
+        option = next(row for row in waiting["interaction"]["options"] if "主账户" in row["label"])
+        source = post(client, f"/tasks/{waiting['task_id']}/inputs",
+                      interaction_id=waiting["interaction"]["interaction_id"], selected_option_id=option["id"]).json()["data"]
+        assert source["status"] == "succeeded"
+        refreshed = post(client, f"/tasks/{source['task_id']}/actions",
+                         source_revision=source["task_revision"], action="refresh_query").json()["data"]
+        assert refreshed["status"] == "succeeded", refreshed
+        assert refreshed["data"]["scope"] == source["data"]["scope"]
+        assert refreshed["data"].get("category") == source["data"].get("category")
+        assert ("transactions" in refreshed["data"]) == ("transactions" in source["data"])
+
+
 def test_stale_saved_payee_can_be_corrected_without_losing_other_fields(tmp_path):
     app = make_app(tmp_path, proposal=TransferProposal(amount_fen=50000, payer_account_id="A1"))
     with TestClient(app) as client:
