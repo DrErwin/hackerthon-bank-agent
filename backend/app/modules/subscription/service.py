@@ -371,7 +371,7 @@ class SubscriptionService:
             f"扣款账户{account_label(item.account_masked)}，"
             f"{CYCLE_TEXT[item.cycle]} {money(item.amount_fen)} 元，"
             f"原定下一期 {item.next_billing_at.date().isoformat()} 扣款。"
-            "点「确认退订」后还要填一次短信验证码；退了以后从下一期起不再自动扣费，"
+            "请核对后点击确认；如需身份验证，页面会提示您完成。退订成功后从下一期起不再自动扣费，"
             "之前已经扣掉的钱不退。"
         )
 
