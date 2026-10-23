@@ -240,7 +240,18 @@ class ApiService:
         link = self.link(identity, source_id, mutate=True)
         kind = source.snapshot.get("capability_name")
         data = (source.snapshot.get("result") or {}).get("data")
-        if body.action == "subscription_cancel":
+        if ((body.transaction_id is not None or body.account_id is not None) and body.action != "bill_check"
+                or body.month is not None and body.action != "bill_range"):
+            raise ApiProblem(400, "INVALID_ARGUMENT")
+        if body.action == "refresh_query":
+            if (body.category is not None or body.subscription_id is not None or kind not in {
+                "transfer.list_accounts", "transfer.list_payees", "subscription.list_subscriptions",
+                "bills.summarize", "bills.generate_report",
+            }):
+                raise ApiProblem(400, "INVALID_ARGUMENT")
+            capability, intent = kind, link["intent_text"]
+            parent_id = source_id if kind.startswith("bills.") else None
+        elif body.action == "subscription_cancel":
             if body.category is not None or kind != "subscription.list_subscriptions":
                 raise ApiProblem(400, "INVALID_ARGUMENT")
             inventory = SubscriptionTaskView.model_validate(data)
@@ -264,6 +275,22 @@ class ApiService:
                       "housing": "居住", "transfer": "转账", "other": "其他"}
             capability = "bills.summarize" if body.action == "bill_details" else "bills.detect_anomalies"
             intent = "查看" + labels.get(body.category, "账单") + "明细" if body.action == "bill_details" else "核对陌生扣款"
+            if body.action == "bill_range":
+                if not body.month or body.category is not None:
+                    raise ApiProblem(400, "INVALID_ARGUMENT")
+                year, month = body.month.split("-")
+                capability, intent = "bills.summarize", f"继续查看{year}年{int(month)}月账单"
+            if body.action == "bill_check" and (body.transaction_id is not None or body.account_id is not None):
+                if not isinstance(data, dict) or "transactions" not in data:
+                    raise ApiProblem(400, "INVALID_ARGUMENT")
+                details = BillDetails.model_validate(data)
+                row = next((item for item in details.transactions
+                            if item.transaction_id == body.transaction_id and item.account_id == body.account_id), None)
+                if row is None:
+                    raise ApiProblem(400, "INVALID_ARGUMENT")
+                # Only a bank amount becomes a search clue. Multiple matches stay a
+                # visible user choice; merchant text never becomes an instruction.
+                intent = f"核对这笔{row.amount_fen // 100}.{row.amount_fen % 100:02d}元扣款"
             parent_id = source_id
         task_id = str(uuid5(NAMESPACE_URL, json.dumps([identity.user_id, identity.demo_round_id,
                                                      source_id, str(body.request_id), "card-action"])))
@@ -1408,19 +1435,23 @@ class ApiService:
         if task.task_revision != revision:
             raise ApiProblem(409, "TASK_REVISION_STALE")
         if (task.module != "transfer" or task.recovery_required
-                or task.status != TaskStatus.WAITING_APPROVAL
+                or task.status not in {TaskStatus.WAITING_INPUT, TaskStatus.WAITING_APPROVAL}
                 or not task.interaction
-                or task.interaction.kind != "confirmation"
+                or task.interaction.kind not in {"input", "confirmation"}
                 or not isinstance(task.data, TransferTaskView)
                 or task.data.operation is not None):
             raise ApiProblem(409, "DRAFT_NOT_EDITABLE")
         if not fields:
+            raise ApiProblem(400, "INVALID_ARGUMENT")
+        if "payee_id" in fields and "payee_hint" in fields:
             raise ApiProblem(400, "INVALID_ARGUMENT")
         fields = {
             name: safe_text(value, numeric_field=name == "payer_account_id").strip()
             if isinstance(value, str) else value
             for name, value in fields.items()
         }
+        if "payee_id" in fields:
+            fields["payee_input"] = {"kind": "saved", "payee_id": fields.pop("payee_id")}
         # The module generates a new action revision and confirmation. Cancelling
         # the old confirmation would terminate this task, so never answer it here.
         return self.continue_task(identity, task_id, {"fields": fields}, publish=publish)

@@ -76,6 +76,7 @@ class ReviseDraftRequest(RequestIdOnly):
     amount_fen: PositiveMoney | None = None
     payer_account_id: str | None = Field(default=None, min_length=1, max_length=100)
     payee_hint: str | None = Field(default=None, min_length=1, max_length=100)
+    payee_id: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class AuditExportRequest(RequestIdOnly):
@@ -85,9 +86,12 @@ class AuditExportRequest(RequestIdOnly):
 
 class CardActionRequest(RequestIdOnly):
     source_revision: PositiveInt
-    action: Literal["bill_details", "bill_check", "subscription_cancel"]
+    action: Literal["bill_details", "bill_check", "bill_range", "subscription_cancel", "refresh_query"]
     category: Category | None = None
     subscription_id: str | None = Field(default=None, min_length=1, max_length=200)
+    transaction_id: str | None = Field(default=None, min_length=1, max_length=200)
+    account_id: str | None = Field(default=None, min_length=1, max_length=200)
+    month: str | None = Field(default=None, pattern=r"^20\d{2}-(0[1-9]|1[0-2])$")
 
 
 class MemoriesDeleteRequest(RequestIdOnly):
@@ -335,6 +339,14 @@ def create_app(runtime=None, config=None):
             fields = body.model_dump(exclude={"request_id", "task_revision"}, exclude_none=True)
             return service.revise_draft(who, task_id, body.task_revision, fields)
         return mutation(service, who, request, body, action)
+
+    @application.get("/api/v1/tasks/{task_id}/transfer-choices")
+    def transfer_choices(task_id: str, kind: Literal["accounts", "payees"],
+                         who=Depends(identity), service=Depends(api)):
+        task = service.task_view(who, task_id)
+        if task.module != "transfer" or not isinstance(task.data, TransferTaskView):
+            raise ApiProblem(400, "INVALID_ARGUMENT")
+        return success(service.runtime.read_transfer_choices(service.trusted(who, task_id), kind))
 
     @application.post("/api/v1/tasks/{task_id}/resume")
     @application.post("/api/v1/tasks/{task_id}/cancel")
