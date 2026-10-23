@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { MessageView } from "../contracts";
 import { Composer, ExpiredBanner, MessageBubble, SafetyRail, TopBar, TypingBubble } from "./components/Chrome";
 import { Notice } from "./components/Primitives";
@@ -8,7 +8,7 @@ import type { SlotRegistry } from "./slots";
 import type { ShellDataSource, TaskEnvelope } from "./types";
 import { useConversation } from "./useConversation";
 
-import { buildTimeline, inputPrompt } from "./presentation";
+import { buildTimeline, needsAttentionInTree, taskTitle } from "./presentation";
 import { TaskRecord } from "./components/TaskRecord";
 import { isTerminal } from "./format";
 
@@ -27,19 +27,13 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const bodyRef = useRef<HTMLDivElement>(null);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
   const pinned = useRef(true);
-  const [replyChoice, setReplyChoice] = useState<string | null>(null);
   const timeline = useMemo(() => buildTimeline(messages, tasks, conversation.cardLinks), [messages, tasks, conversation.cardLinks]);
   const latestTaskId = timeline.filter((item) => item.type === "task").at(-1)?.envelope.task.task_id;
-  const primarySlot = slots.slots[0];
   const exampleHints = slots.slots.flatMap((slot) => slot.exampleHints ?? []);
   const inputTasks = [...tasks.values()].filter(({ task }) =>
     task.status === "waiting_input" && task.interaction?.kind === "input"
     && task.allowed_actions.includes("provide_input") && !task.recovery_required
     && !conversation.bootRecovery.has(task.task_id));
-  const choice = replyChoice === "chat" ? "chat"
-    : inputTasks.some(({ task }) => task.task_id === replyChoice) ? replyChoice!
-    : inputTasks.length === 1 ? inputTasks[0].task.task_id : inputTasks.length > 1 ? "" : "chat";
-  const replyTask = inputTasks.find(({ task }) => task.task_id === choice)?.task;
   const pendingApproval = [...tasks.values()].filter(({ task }) => task.status === "waiting_approval").length;
   const finished = [...tasks.values()].filter(({ task }) => isTerminal(task)).length;
 
@@ -57,17 +51,16 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
     setAwayFromLatest(false);
   }
 
-  function renderChild(id: string) {
+  function renderChild(id: string, ancestors = new Set<string>()): ReactNode {
+    if (ancestors.has(id)) return <p>关联记录重复，请重新读取办理记录。</p>;
     const envelope = tasks.get(id);
     if (!envelope) return <p role="status">正在读取…</p>;
-    return <TaskBlock envelope={envelope} slot={slots.resolve(envelope.module)} origin={source.origin} conversation={conversation} />;
+    return <TaskBlock envelope={envelope} slot={slots.resolve(envelope.module)} origin={source.origin} conversation={conversation}
+      renderChild={(child) => renderChild(child, new Set([...ancestors, id]))} />;
   }
 
   async function send(text: string) {
     pinned.current = true;
-    if (pendingMessage) return actions.send(text);
-    if (replyTask) return actions.provideText(replyTask, text);
-    if (!choice) return false;
     return actions.send(text);
   }
 
@@ -76,6 +69,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
       <a className="sh-skip" href="#sh-main">跳到对话内容</a>
       <TopBar title="AI 银行助手" connected={connected} expired={expired} origin={source.origin} userDisplay={session?.user_display ?? null} />
       {expired && <ExpiredBanner onReenter={() => void actions.reenter()} />}
+      {!connected && !booting && !expired && <Notice tone="warning" title="实时更新暂时中断"
+        action={<button className="sh-link-btn" onClick={() => void actions.refreshConversation()}>重新读取办理记录</button>}>已有资料仍保留。办理结果请以重新读取的状态为准。</Notice>}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {!booting && `已有 ${messages.filter((message) => message.role === "assistant").length} 条助手回复。${inputTasks.length} 项等您补充，${pendingApproval} 项需要您确认或验证，${finished} 项已结束。请在对话中查看。`}
       </p>
@@ -90,6 +85,11 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
           <div className="sh-timeline" >
             <article className="sh-msg sh-msg-assistant">
               <p className="sh-bubble">您好，我是您的银行小助手。您想办点什么？</p>
+              <div className="sh-quick-actions" aria-label="常用服务">{[
+                ["我要转账", "我要转账"], ["我的账户", "我有哪些账户和余额"], ["我的收款人", "我有哪些收款人"],
+                ["查看账单", "查看本月账单"], ["自动扣费", "查看我的订阅和自动扣费"],
+              ].map(([label, text]) => <button className="sh-btn sh-btn-secondary" type="button" key={label}
+                disabled={expired || booting || sending || awaitingReply || Boolean(pendingMessage)} onClick={() => void send(text)}>{label}</button>)}</div>
               {exampleHints.length > 0 && (
                 <p className="sh-examples">可以这样说：{exampleHints.map((hint) => "「" + hint + "」").join("、")}</p>
               )}
@@ -99,15 +99,14 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
               ? <MessageBubble key={item.message.message_id} message={item.message} />
               : <TaskRecord key={item.envelope.task.task_id} task={item.envelope.task} messages={item.messages}
                   latest={item.envelope.task.task_id === latestTaskId}
-                  hasActiveChild={conversation.cardLinks.some((link) => {
-                    const child = tasks.get(link.childId)?.task;
-                    return link.parentId === item.envelope.task.task_id && child && (!isTerminal(child) || child.status === "failed" || child.recovery_required);
-                  })}>
+                  hasActiveChild={conversation.cardLinks.some((link) => link.parentId === item.envelope.task.task_id
+                    && needsAttentionInTree(link.childId, tasks, conversation.cardLinks))}>
                   <TaskBlock envelope={item.envelope} slot={slots.resolve(item.envelope.module)}
                     origin={source.origin} conversation={conversation} renderChild={renderChild} />
                 </TaskRecord>)}
             {awaitingReply && <TypingBubble />}
-            {pageError && <Notice tone="warning" title="提示">{pageError}</Notice>}
+            {pageError && <Notice tone="warning" title="提示" action={<button className="sh-link-btn" onClick={() => void (conversation.thread ? actions.refreshConversation() : actions.reenter())}>重新读取</button>}>{pageError}</Notice>}
+            {conversation.pageNotice && <p role="status" className="sh-action-feedback">{conversation.pageNotice}</p>}
           </div>
         </main>
 
@@ -115,23 +114,22 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
       </div>
       {awayFromLatest && <button type="button" className="sh-back-latest" onClick={jumpToLatest}>回到最新消息 ↓</button>}
       <SafetyRail />
-      {inputTasks.length > 0 && (
-        <div className="sh-reply-target">
-          <label htmlFor="sh-reply-task">继续哪项办理</label>
-          <select id="sh-reply-task" value={choice}
-            disabled={sending || awaitingReply || Boolean(replyTask && conversation.busy[replyTask.task_id]) || Boolean(pendingMessage)}
-            onChange={(event) => setReplyChoice(event.target.value)}>
-            {!choice && <option value="">请先选择要继续的办理</option>}
-            {inputTasks.map(({ task }, index) => <option key={task.task_id} value={task.task_id}>办理 {index + 1}：{inputPrompt(task)}</option>)}
-            <option value="chat">发起新问题</option>
-          </select>
-        </div>
-      )}
+      {[...tasks.values()].some(({ task }) => !isTerminal(task)) && <nav className="sh-pending-nav" aria-label="正在办理">
+        <span>继续办理：</span>{[...tasks.values()].filter(({ task }) => !isTerminal(task)).map(({ task }) =>
+          <button type="button" className="sh-link-btn" key={task.task_id} onClick={() => {
+            const target = document.getElementById("task-" + task.task_id);
+            let ancestor = target?.parentElement;
+            while (ancestor) {
+              if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+              ancestor = ancestor.parentElement;
+            }
+            target?.scrollIntoView({ block: "center" }); target?.focus();
+          }}>{taskTitle(task)}</button>)}
+      </nav>}
       <Composer
-        disabled={expired || booting || !conversation.thread || !choice || awaitingReply}
-        sending={sending || Boolean(replyTask && conversation.busy[replyTask.task_id])}
+        disabled={expired || booting || !conversation.thread || awaitingReply}
+        sending={sending}
         pendingText={pendingMessage?.text ?? null}
-        voiceDemoText={primarySlot?.voiceDemoText}
         onSend={send}
       />
     </div>

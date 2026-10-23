@@ -78,6 +78,7 @@ function task(status: ShellTask["status"], data: unknown, message = ""): ShellTa
 }
 
 const conversation = {
+  tasks: new Map(),
   history: {},
   confirmations: {},
   verifications: {},

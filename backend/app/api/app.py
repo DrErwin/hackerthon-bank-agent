@@ -76,6 +76,7 @@ class ReviseDraftRequest(RequestIdOnly):
     amount_fen: PositiveMoney | None = None
     payer_account_id: str | None = Field(default=None, min_length=1, max_length=100)
     payee_hint: str | None = Field(default=None, min_length=1, max_length=100)
+    payee_id: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class AuditExportRequest(RequestIdOnly):
@@ -85,9 +86,12 @@ class AuditExportRequest(RequestIdOnly):
 
 class CardActionRequest(RequestIdOnly):
     source_revision: PositiveInt
-    action: Literal["bill_details", "bill_check", "subscription_cancel"]
+    action: Literal["bill_details", "bill_check", "bill_range", "subscription_cancel", "refresh_query"]
     category: Category | None = None
     subscription_id: str | None = Field(default=None, min_length=1, max_length=200)
+    transaction_id: str | None = Field(default=None, min_length=1, max_length=200)
+    account_id: str | None = Field(default=None, min_length=1, max_length=200)
+    month: str | None = Field(default=None, pattern=r"^20\d{2}-(0[1-9]|1[0-2])$")
 
 
 class MemoriesDeleteRequest(RequestIdOnly):
@@ -114,8 +118,13 @@ def problem(exc):
     reasons = {401: "演示登录已过期，请重新进入。", 403: "没有操作或查看权限。",
                404: "当前用户范围内找不到该记录。", 409: "请求已失效或与当前状态冲突，请刷新任务。",
                400: "请核对输入并使用对应的专用入口。", 503: "服务暂不可用，原任务结果待核实，请查询原任务后再继续。"}
+    specific = {
+        "PAYEE_MISMATCH": "收款人姓名与银行卡号未通过核对，请检查姓名和卡号后重新填写。",
+        "CONFIRMATION_STALE": "这张确认单已经失效，请核对最新确认单。",
+        "TASK_BUSY": "这项办理正在处理，请稍候查看更新后的状态。",
+    }
     return status, {"error": ModuleError(code=code, source="platform", field=None,
-                                        reason=reasons[status], upstream_code=None).model_dump(mode="json")}
+                                        reason=specific.get(code, reasons[status]), upstream_code=None).model_dump(mode="json")}
 
 
 def success(value, status=200):
@@ -335,6 +344,14 @@ def create_app(runtime=None, config=None):
             fields = body.model_dump(exclude={"request_id", "task_revision"}, exclude_none=True)
             return service.revise_draft(who, task_id, body.task_revision, fields)
         return mutation(service, who, request, body, action)
+
+    @application.get("/api/v1/tasks/{task_id}/transfer-choices")
+    def transfer_choices(task_id: str, kind: Literal["accounts", "payees"],
+                         who=Depends(identity), service=Depends(api)):
+        task = service.task_view(who, task_id)
+        if task.module != "transfer" or not isinstance(task.data, TransferTaskView):
+            raise ApiProblem(400, "INVALID_ARGUMENT")
+        return success(service.runtime.read_transfer_choices(service.trusted(who, task_id), kind))
 
     @application.post("/api/v1/tasks/{task_id}/resume")
     @application.post("/api/v1/tasks/{task_id}/cancel")

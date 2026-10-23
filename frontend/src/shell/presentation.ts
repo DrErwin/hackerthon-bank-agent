@@ -1,10 +1,20 @@
 import type { MessageView } from "../contracts";
 import type { CardSelection, ShellTask, TaskEnvelope } from "./types";
+import { isTerminal } from "./format";
 
 export interface CardLink { parentId: string; childId: string; selection: CardSelection; revision: number }
+export function needsAttentionInTree(id: string, tasks: Map<string, TaskEnvelope>, links: CardLink[], seen = new Set<string>()): boolean {
+  if (seen.has(id)) return false;
+  seen.add(id);
+  const task = tasks.get(id)?.task;
+  return Boolean(task && (!isTerminal(task) || task.status === "failed" || task.recovery_required))
+    || links.some((link) => link.parentId === id && needsAttentionInTree(link.childId, tasks, links, seen));
+}
 export const selectionKey = (selection: CardSelection) => selection.action === "subscription_cancel"
   ? selection.action + ":" + selection.subscription_id
-  : selection.action === "bill_details" ? selection.action + ":" + selection.category : selection.action;
+  : selection.action === "bill_details" ? selection.action + ":" + selection.category
+  : selection.action === "bill_range" ? selection.action + ":" + selection.month
+  : selection.action === "bill_check" ? selection.action + ":" + (selection.account_id ?? "") + ":" + (selection.transaction_id ?? "") : selection.action;
 
 export function readCardLinks(threadId: string): CardLink[] {
   try {
@@ -12,7 +22,7 @@ export function readCardLinks(threadId: string): CardLink[] {
     if (!Array.isArray(value)) return [];
     return value.filter((item): item is CardLink => typeof item?.parentId === "string"
       && typeof item.childId === "string" && item.parentId !== item.childId
-      && Number.isInteger(item.revision) && item.selection && ["bill_details", "bill_check", "subscription_cancel"].includes(item.selection.action));
+      && Number.isInteger(item.revision) && item.selection && ["bill_details", "bill_check", "bill_range", "subscription_cancel", "refresh_query"].includes(item.selection.action));
   } catch { return []; }
 }
 
@@ -29,7 +39,11 @@ export function taskTitle(task: ShellTask): string {
     if (Array.isArray(data?.transactions)) return (categories[String(data.category)] ?? "账单") + "明细";
     return "查看账单";
   }
-  if (task.module === "transfer") return "转账办理";
+  if (task.module === "transfer") {
+    const payee = data?.payee as { remark?: string; name_masked?: string } | undefined;
+    return (payee ? "转给" + (payee.remark || payee.name_masked) : "转账办理")
+      + (typeof data?.amount_fen === "number" ? " · " + (data.amount_fen / 100).toFixed(2) + " 元" : "");
+  }
   return "办理记录";
 }
 
@@ -52,8 +66,17 @@ export type TimelineItem = { type: "message"; message: MessageView }
 // that record, never moves it below unrelated conversation. Legacy unlinked
 // tasks use the public snapshot time; no fabricated parent relationship.
 export function buildTimeline(messages: MessageView[], tasks: Map<string, TaskEnvelope>, links: CardLink[] = []): TimelineItem[] {
-  const nested = new Set(links.filter((link) => tasks.has(link.parentId) && tasks.has(link.childId)
-    && !links.some((other) => other.parentId === link.childId)).map((link) => link.childId));
+  const validLinks = links.filter((link) => tasks.has(link.parentId) && tasks.has(link.childId) && link.parentId !== link.childId);
+  const nested = new Set(validLinks.filter((link) => {
+    const seen = new Set([link.childId]);
+    let parent: string | undefined = link.parentId;
+    while (parent) {
+      if (seen.has(parent)) return false;
+      seen.add(parent);
+      parent = validLinks.find((item) => item.childId === parent)?.parentId;
+    }
+    return true;
+  }).map((link) => link.childId));
   const anchored = new Set<string>();
   const items: { value: TimelineItem; time: string; order: number }[] = [];
   messages.forEach((message, index) => {

@@ -1,0 +1,26 @@
+{
+  "captured_at": "2026-10-23T06:16:21.454301+00:00",
+  "layer": "read-only-isolated-mock-bank-not-real-bank",
+  "tasks": [
+    {
+      "task_id": "327b6284-5f90-45ad-98d5-3aa67bf09f68",
+      "status": "needs_attention",
+      "revision": 5,
+      "capability": "transfer.start_transfer",
+      "scope": null,
+      "source_task_id": null,
+      "operation_id": "b2ab2798-74e8-49da-a403-959324ecbc3b",
+      "amount_fen": 50000,
+      "transaction_id": null
+    }
+  ],
+  "operations": [],
+  "ledger": [],
+  "cancelled_subscriptions": [
+    {
+      "mandate_id": "sub_003",
+      "status": "cancelled",
+      "cancel_operation_id": "c81d5e3f-4a2b-4c7d-8e9f-0a1b2c3d4e5f"
+    }
+  ]
+}

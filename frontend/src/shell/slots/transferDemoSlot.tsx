@@ -25,7 +25,7 @@ function result(task: ShellTask<TransferTaskView>): ResultView | null {
     return { tone: "neutral", title: "已取消，没有转出", fields: summarize(task) };
   }
   if (task.status === "failed" && !operation) {
-    return { tone: "danger", title: "这笔钱没有转出去", fields: summarize(task) };
+    return { tone: "danger", title: task.data && "amount_fen" in task.data ? "这笔转账没有完成" : "这次查询没有完成", fields: summarize(task) };
   }
   if (!operation) return null;
   if (operation.operation_status === "succeeded" && operation.receipt) {
@@ -46,7 +46,7 @@ function result(task: ShellTask<TransferTaskView>): ResultView | null {
     return {
       tone: "danger",
       title: "这笔钱没有转出去",
-      fields: [...summarize(task), { name: "reason", label: "银行说明", value_text: operation.failure?.code ?? "银行未说明原因" }],
+      fields: [...summarize(task), { name: "reason", label: "银行说明", value_text: task.error?.reason || "银行未批准这笔转账，请核对账户、金额和收款资料。" }],
     };
   }
   return null;

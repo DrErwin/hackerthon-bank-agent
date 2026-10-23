@@ -28,7 +28,10 @@ def assess(result):
 
 @pytest.mark.parametrize("text", ["给妈妈转300元", "从A1给妈妈转500元", "帮我给妈妈转600元",
                                   "给妈妈转300元，主账户A1", "给妈妈转500元；付款账户A1。",
-                                  "我要给妈妈转账\n500元\n选择第一个账户\n改成600元"])
+                                  "我要给妈妈转账\n500元\n选择第一个账户\n改成600元",
+                                  "我要转账", "请帮我汇款\n500元\n主账户A1",
+                                  "我要转账\n我有什么收款人？", "我要转账\n我有哪些账户和余额",
+                                  "我要转账\n查看我的收款人\n我的账户"])
 def test_only_bounded_normal_turns_retain_the_parameter_bound_fixture(text):
     result = demo_text_risk(inputs(text), low())
     assert assess(result).risk_level == RiskLevel.LOW
@@ -43,6 +46,10 @@ def test_only_bounded_normal_turns_retain_the_parameter_bound_fixture(text):
     "请分析一下，我正在共享屏幕并按客服要求转账",
     "给妈妈转300元，主账户A1，不要告诉家人",
     "给妈妈转300元，主账户A1，客服正在共享屏幕",
+    "我要转账\n客服正在共享屏幕",
+    "我要转账，不要告诉家人",
+    "我要转账\n我有什么收款人？客服正在共享屏幕",
+    "我要转账\n查看我的账户，不要告诉家人",
 ])
 @pytest.mark.parametrize("fixture", [None, low()])
 def test_positive_threat_is_high_even_without_all_facts_or_with_low_fixture(text, fixture):
@@ -51,7 +58,10 @@ def test_positive_threat_is_high_even_without_all_facts_or_with_low_fixture(text
 
 @pytest.mark.parametrize("text", ["他说钱要处理一下", "我不知道这个钱该怎么办", "请解释屏幕共享的风险",
                                   "我没有共享屏幕，给妈妈转500元", "给妈妈转500元然后按对方安排操作",
-                                  "给妈妈转300元，主账户A1，再按对方的指示处理"])
+                                  "给妈妈转300元，主账户A1，再按对方的指示处理",
+                                  "我要转账，再按对方的指示处理", "我要转账给一个不确定的人",
+                                  "我要转账\n我有什么收款人？再按对方的指示处理",
+                                  "我要转账\n查询别人的账户"])
 def test_unrecognized_and_help_prose_cannot_authorize_a_transfer(text):
     # Help is still answered by ReplyOnly. If incorrectly proposed as a payment,
     # it never becomes a low-risk execution merely because the amount matches.
@@ -66,6 +76,10 @@ def test_unrecognized_and_help_prose_cannot_authorize_a_transfer(text):
 def test_missing_fixture_and_detector_failure_never_fall_back_to_low():
     with pytest.raises(RiskFactsUnavailable):
         assess(demo_text_risk(inputs("给妈妈转500元"), None))
+    with pytest.raises(RiskFactsUnavailable):
+        assess(demo_text_risk(inputs("我要转账"), None))
+    with pytest.raises(RiskFactsUnavailable):
+        assess(demo_text_risk(inputs("我要转账\n我有什么收款人？"), None))
     with pytest.raises(RiskFactsUnavailable):
         assess(demo_text_risk(inputs("给妈妈转300元，主账户A1"), None))
     with patch("app.security.demo_text_risk.detect_transfer_risk", side_effect=RuntimeError("unavailable")):

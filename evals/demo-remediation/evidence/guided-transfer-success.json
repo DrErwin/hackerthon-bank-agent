@@ -1,0 +1,61 @@
+{
+  "captured_at": "2026-10-23T06:27:44.379879+00:00",
+  "layer": "read-only-isolated-mock-bank-not-real-bank",
+  "tasks": [
+    {
+      "task_id": "3e2e2e21-8b61-4940-8d99-c2dcca8dc2e8",
+      "status": "succeeded",
+      "revision": 8,
+      "capability": "transfer.start_transfer",
+      "scope": null,
+      "source_task_id": null,
+      "operation_id": "2c7883b9-4d3c-41ac-8d26-c1c77eb69ef0",
+      "amount_fen": 30000,
+      "transaction_id": "4cf53ef4-2a94-4d0a-a159-88950734660a"
+    },
+    {
+      "task_id": "24ebee5d-fee8-4dc5-8d91-64e64c34b1f3",
+      "status": "succeeded",
+      "revision": 2,
+      "capability": "transfer.list_payees",
+      "scope": null,
+      "source_task_id": null,
+      "operation_id": null,
+      "amount_fen": null,
+      "transaction_id": null
+    },
+    {
+      "task_id": "8763ea1b-8b20-4f92-9905-0b0837345432",
+      "status": "succeeded",
+      "revision": 2,
+      "capability": "transfer.list_accounts",
+      "scope": null,
+      "source_task_id": null,
+      "operation_id": null,
+      "amount_fen": null,
+      "transaction_id": null
+    }
+  ],
+  "operations": [
+    {
+      "operation_id": "2c7883b9-4d3c-41ac-8d26-c1c77eb69ef0",
+      "action_name": "bank.submit_transfer",
+      "status": "succeeded"
+    }
+  ],
+  "ledger": [
+    {
+      "transaction_id": "4cf53ef4-2a94-4d0a-a159-88950734660a",
+      "operation_id": "2c7883b9-4d3c-41ac-8d26-c1c77eb69ef0",
+      "amount_fen": 30000,
+      "direction": "outflow"
+    }
+  ],
+  "cancelled_subscriptions": [
+    {
+      "mandate_id": "sub_003",
+      "status": "cancelled",
+      "cancel_operation_id": "c81d5e3f-4a2b-4c7d-8e9f-0a1b2c3d4e5f"
+    }
+  ]
+}
