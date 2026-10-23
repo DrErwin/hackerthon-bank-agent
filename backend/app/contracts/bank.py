@@ -8,7 +8,7 @@ from pydantic import Field, JsonValue, model_validator
 from typing_extensions import TypeAliasType
 
 from .common import (
-    Category, ContractModel, ID, Money, OperationId, OperationStatus, PositiveMoney, Timestamp,
+    Category, ContractModel, ID, Money, OperationId, OperationStatus, PositiveInt, PositiveMoney, Timestamp,
 )
 
 
@@ -210,3 +210,140 @@ class Transaction(ContractModel):
 class TransactionList(ContractModel):
     transactions: list[Transaction]
     as_of: Timestamp
+
+
+# --- Freeze, capture and release (B10—B13, bank fields §4) ---
+
+
+class FreezeFundsInput(ContractModel):
+    account_id: ID
+    amount_fen: PositiveMoney
+    reason: str
+
+
+class FreezeReceipt(ContractModel):
+    freeze_id: ID
+    frozen_amount_fen: PositiveMoney
+    remaining_fen: Money
+    balance: BalanceSnapshot
+
+
+class CaptureFrozenInput(ContractModel):
+    freeze_id: ID
+    amount_fen: PositiveMoney
+    merchant_id: ID
+    merchant_name: str
+    purpose: str
+    category: Category
+    order_id: ID | None = None
+
+
+class CaptureReceipt(ContractModel):
+    transaction_id: ID
+    freeze_id: ID
+    captured_amount_fen: PositiveMoney
+    remaining_fen: Money
+    balance: BalanceSnapshot
+
+
+class ReleaseFrozenInput(ContractModel):
+    freeze_id: ID
+    amount_fen: PositiveMoney
+
+
+class ReleaseReceipt(ContractModel):
+    freeze_id: ID
+    released_amount_fen: PositiveMoney
+    remaining_fen: Money
+    balance: BalanceSnapshot
+
+
+class GetFreezeInput(ContractModel):
+    freeze_id: ID
+
+
+class FreezeView(ContractModel):
+    freeze_id: ID
+    account_id: ID
+    original_amount_fen: PositiveMoney
+    captured_total_fen: Money
+    released_total_fen: Money
+    remaining_fen: Money
+    as_of: Timestamp
+
+    @model_validator(mode="after")
+    def match_amounts(self) -> "FreezeView":
+        if self.original_amount_fen != self.captured_total_fen + self.released_total_fen + self.remaining_fen:
+            raise ValueError("original_amount_fen must equal captured plus released plus remaining")
+        return self
+
+
+# --- Products and orders (B20—B22, bank fields §6) ---
+
+
+class ListProductsInput(ContractModel):
+    merchant_id: ID | None = None
+    purpose: str | None = None
+    deliver_by: Timestamp | None = None
+
+
+class Product(ContractModel):
+    product_id: ID
+    merchant_id: ID
+    merchant_name: str
+    product_name: str
+    unit_price_fen: Money
+    category: Category
+    earliest_delivery_at: Timestamp
+
+
+class ProductList(ContractModel):
+    products: list[Product]
+
+
+class DeliveryInput(ContractModel):
+    """Controlled-bank-path delivery facts; repr hides the raw text from logs and debugging."""
+
+    recipient_name: str = Field(repr=False)
+    phone: str = Field(repr=False)
+    address: str = Field(repr=False)
+    deliver_by: Timestamp
+
+
+class CreateOrderInput(ContractModel):
+    product_id: ID
+    quantity: PositiveInt
+    expected_total_fen: Money
+    delivery: DeliveryInput
+
+
+class OrderView(ContractModel):
+    order_id: ID
+    product_id: ID
+    quantity: PositiveInt
+    merchant_id: ID
+    merchant_name: str
+    total_fen: Money
+    created_at: Timestamp
+    deliver_by: Timestamp
+    recipient_name_masked: str
+    phone_masked: str
+    address_masked: str
+    payment_status: Literal["unpaid", "paid"]
+    payment_transaction_id: ID | None
+
+    @model_validator(mode="after")
+    def match_payment_link(self) -> "OrderView":
+        if self.payment_status == "paid" and self.payment_transaction_id is None:
+            raise ValueError("a paid order carries its payment transaction id")
+        if self.payment_status == "unpaid" and self.payment_transaction_id is not None:
+            raise ValueError("an unpaid order has no payment transaction id")
+        return self
+
+
+class OrderResult(ContractModel):
+    order: OrderView
+
+
+class GetOrderInput(ContractModel):
+    order_id: ID
