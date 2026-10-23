@@ -118,8 +118,13 @@ def problem(exc):
     reasons = {401: "演示登录已过期，请重新进入。", 403: "没有操作或查看权限。",
                404: "当前用户范围内找不到该记录。", 409: "请求已失效或与当前状态冲突，请刷新任务。",
                400: "请核对输入并使用对应的专用入口。", 503: "服务暂不可用，原任务结果待核实，请查询原任务后再继续。"}
+    specific = {
+        "PAYEE_MISMATCH": "收款人姓名与银行卡号未通过核对，请检查姓名和卡号后重新填写。",
+        "CONFIRMATION_STALE": "这张确认单已经失效，请核对最新确认单。",
+        "TASK_BUSY": "这项办理正在处理，请稍候查看更新后的状态。",
+    }
     return status, {"error": ModuleError(code=code, source="platform", field=None,
-                                        reason=reasons[status], upstream_code=None).model_dump(mode="json")}
+                                        reason=specific.get(code, reasons[status]), upstream_code=None).model_dump(mode="json")}
 
 
 def success(value, status=200):

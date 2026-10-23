@@ -6,6 +6,7 @@ from app.agent_platform.model import TransferProposal
 from app.agent_platform.own_bank_queries import register_own_bank_queries
 from .test_app import approve, enter, make_app, post, start
 from unittest.mock import patch
+from uuid import uuid4
 from app.agent_platform.test_local_demo import app_for, configuration
 
 
@@ -135,10 +136,35 @@ def test_refresh_subscription_reads_current_bank_state(tmp_path):
         verifying = approve(client, waiting)
         challenge = verifying["interaction"]["record_ref"]
         code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
-        assert post(client, f"/verifications/{challenge}/code", submission_id=__import__("uuid").uuid4().hex, code=code).status_code == 200
+        assert post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code).status_code == 200
         before = bank_operations(app.state.api.runtime.gateway._bank)
         refreshed = post(client, path, source_revision=source["task_revision"], action="refresh_query")
         assert refreshed.status_code == 200, refreshed.text
         current = next(item for item in refreshed.json()["data"]["data"]["list_result"]["items"] if item["subscription_id"] == row["subscription_id"])
         assert current["status"] == "cancelled"
         assert bank_operations(app.state.api.runtime.gateway._bank) == before
+
+
+def test_stale_saved_payee_can_be_corrected_without_losing_other_fields(tmp_path):
+    app = make_app(tmp_path, proposal=TransferProposal(amount_fen=50000, payer_account_id="A1"))
+    with TestClient(app) as client:
+        _, task = start(client)
+        path = f"/tasks/{task['task_id']}/draft"
+        rejected = post(client, path, task_revision=task["task_revision"], payee_id="missing").json()["data"]
+        assert rejected["status"] == "waiting_input"
+        assert rejected["error"]["code"] == "PAYEE_MISMATCH"
+        assert rejected["data"]["amount_fen"] == 50000
+        assert rejected["data"]["payer_account_id"] == "A1"
+        contacts = client.get(f"/api/v1/tasks/{task['task_id']}/transfer-choices?kind=payees").json()["data"]["payees"]
+        payee = next(item for item in contacts if item["remark"] == "妈妈")
+        corrected = post(client, path, task_revision=rejected["task_revision"], payee_id=payee["payee_id"]).json()["data"]
+        assert corrected["status"] == "waiting_approval" and corrected["error"] is None
+        assert app.state.api.runtime.gateway._bank.store.list_ledger("U1", "A1") == []
+
+
+def test_manual_payee_mismatch_explains_the_fields_to_correct():
+    from .app import problem
+    from .service import ApiProblem
+    status, payload = problem(ApiProblem(400, "PAYEE_MISMATCH"))
+    assert status == 400
+    assert "姓名与银行卡号" in payload["error"]["reason"]
