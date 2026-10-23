@@ -57,3 +57,4 @@ Package: [bank-e2e-remediation/packages/01-demo-remediation](packages/01-demo-re
 | [10](issues/10-business-cards.md) | P1 | 账户与订阅逐项卡片和账单明细操作 | `frontend/` | 02,03,05,08,09 |
 | [11](issues/11-acceptance.md) | P0/P1 | 三条真实用户路径联调与安全复验 | `evals/demo-remediation/` | 01,02,03,04,05,06,07,08,09,10 |
 | [14](issues/14-conversation-layout.md) | P0 | 稳定阅读顺序、原地展开、长明细抽屉与前端短话术 | `frontend/` | 02,10 |
+| [15](issues/15-acceptance-findings-20261023.md) | P1/P2 | 验收发现记录：问句被当收款人、断连文案误导、前端服务中断（待修） | `frontend/` + `backend/app/agent_platform/`（待拆） | 14 |
