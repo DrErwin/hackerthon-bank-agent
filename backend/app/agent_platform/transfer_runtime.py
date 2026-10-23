@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from pathlib import Path
 from time import monotonic
 from typing import Callable
@@ -19,7 +20,7 @@ from app.contracts.audit import (
     VerificationChangedPayload,
 )
 from app.contracts.bank import BankError, OperationResult, PayeeDisplay, PayeeInput, QueryFailure
-from app.contracts.common import DisplayField, Phase, RiskLevel, SecurityDecisionCode, TaskStatus
+from app.contracts.common import DisplayField, OperationLevel, Phase, RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import CapabilityDefinition, TrustedContext
 from app.contracts.security import (
     ActionDescriptor, ConfirmationAnswer, ConfirmationRecord,
@@ -32,7 +33,9 @@ from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.modules.transfer.tools import GatewayTransferTools, TransferAction, TransferSnapshots
 from app.modules.transfer.workflow import TransferWorkflow
 from app.security import ConfirmationService, SecurityGate, ToolRegistry
-from app.security.gate import RiskAssessment, RiskAssessor, ScopeAuthorizer, SecurityError
+from app.security.gate import (
+    ExecutionOutcome, RiskAssessment, RiskAssessor, ScopeAuthorizer, SecurityError,
+)
 from app.services.bank_gateway.gateway import BankGateway
 from app.services.mock_bank.core import MockBankService
 from app.storage.application import ApplicationStore
@@ -221,7 +224,8 @@ class AuditedTransferPorts:
                  record_result: Callable,
                  decision_spans: dict[str, str],
                  payee_references: ControlledPayeeReferences,
-                 workflow: TransferWorkflow | None = None):
+                 workflow: TransferWorkflow | None = None,
+                 arrangement_guard: Callable[[TrustedContext, str, TransferAction], object] | None = None):
         self.tools = tools
         self.trace = trace
         self.activate = activate
@@ -229,6 +233,7 @@ class AuditedTransferPorts:
         self.decision_spans = decision_spans
         self.workflow = workflow
         self.payee_references = payee_references
+        self.arrangement_guard = arrangement_guard
 
     def protect_payee(self, trusted, payee, payee_revision):
         """Public port used before business input can enter its checkpoint."""
@@ -319,6 +324,24 @@ class AuditedTransferPorts:
         decision = self.tools.gate.check_action(context, descriptor)
         if decision.decision != SecurityDecisionCode.ALLOW:
             return self.tools.execute(trusted, action)
+        if self.arrangement_guard is not None:
+            # D1 pauses an ordinary spend before submission while another task's
+            # arrangement holds the payer account; the pause is an application-side
+            # decision, never a bank rejection.
+            payload = self.tools.snapshots.resolve(context, descriptor)
+            payer_account_id = payload.get("payer_account_id")
+            if payer_account_id:
+                pause = self.arrangement_guard(trusted, payer_account_id, action)
+                if pause is not None:
+                    self.trace.record(
+                        "security.decided", SecurityDecidedPayload(decision=pause),
+                        "denied", module="security",
+                        parent_span_id=self.decision_spans.get(decision.decision_id),
+                    )
+                    return ExecutionOutcome(
+                        decision=pause, executed=False, reused=False,
+                        state="not_started", result=None, result_ref=None,
+                    )
         call_id = str(uuid4())
         started_event = self.trace.record("tool.started", ToolStartedPayload(
             tool_call_id=call_id, tool_name="bank.submit_transfer",
@@ -506,6 +529,9 @@ class TransferRuntime:
         )
 
     def _bank_authorized(self, trusted, operation_id, payer_account_id, payee, amount_fen):
+        if self._arrangement_holder_conflict(trusted, payer_account_id) is not None:
+            # D1 backstop at the one shared bank-write authorization seam.
+            return False
         active = self._active.get()
         if active is None:
             return False
@@ -765,11 +791,47 @@ class TransferRuntime:
 
         ports = AuditedTransferPorts(
             tools, trace, activate, self._record_result, decision_spans, self.payee_references,
+            arrangement_guard=self._arrangement_guard,
         )
         flow = TracedTransferWorkflow(ports, saver, trace, node_span)
         ports.workflow = flow
         flow_ref[0] = flow
         return flow
+
+    def _arrangement_holder_conflict(self, trusted: TrustedContext, payer_account_id: str):
+        """The active D1 arrangement held outside this task's lineage, if any.
+
+        Reads, cancellations and the limited release never reach this check; only
+        the shared submit authorization seam does.
+        """
+        active = self.application.get_active_arrangement(
+            trusted.user_id, trusted.demo_round_id, payer_account_id,
+        )
+        if active is None:
+            return None
+        if active.record.source_task_id in self.application.task_lineage(
+            trusted.user_id, trusted.demo_round_id, trusted.task_id,
+        ):
+            return None
+        return active
+
+    def _arrangement_guard(self, trusted: TrustedContext, payer_account_id: str,
+                           action: TransferAction):
+        conflict = self._arrangement_holder_conflict(trusted, payer_account_id)
+        if conflict is None:
+            return None
+        return SecurityDecision(
+            decision_id=str(uuid4()), task_id=trusted.task_id, run_id=trusted.run_id,
+            action_name="bank.submit_transfer", parameters_ref=action.parameters_ref,
+            operation_id=action.operation_id, action_revision=action.action_revision,
+            phase=Phase.EXECUTION, operation_level=OperationLevel.SENSITIVE,
+            risk_level=None, decision=SecurityDecisionCode.PAUSE,
+            reason_codes=["ARRANGEMENT_CONFLICT"], rule_ids=["D1_ACCOUNT_EXCLUSIVITY"],
+            policy_version="v05-cross-platform-03", authorization_snapshot_ref=None,
+            evidence_refs=[], interaction=None,
+            checked_at=datetime.now(timezone.utc),
+            message="该付款账户已有正在办理的联动资金安排，请先完成或结束该安排。",
+        )
 
     def _task_module(self, trusted: TrustedContext) -> str:
         """Contract §6.5: the capability prefix names the module that owns the task."""
