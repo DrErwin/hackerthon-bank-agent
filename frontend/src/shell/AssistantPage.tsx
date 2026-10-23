@@ -118,6 +118,11 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         <span>继续办理：</span>{[...tasks.values()].filter(({ task }) => !isTerminal(task)).map(({ task }) =>
           <button type="button" className="sh-link-btn" key={task.task_id} onClick={() => {
             const target = document.getElementById("task-" + task.task_id);
+            let ancestor = target?.parentElement;
+            while (ancestor) {
+              if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+              ancestor = ancestor.parentElement;
+            }
             target?.scrollIntoView({ block: "center" }); target?.focus();
           }}>{taskTitle(task)}</button>)}
       </nav>}

@@ -106,3 +106,29 @@ it("keeps category, direction and bank amount available in an unfiltered transac
   expect(dining.textContent).toContain("银行返回的说明");
   expect(dining.textContent).toContain("****1234");
 });
+
+
+it("keeps a fourth-row pending check visible after closing its drawer", async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new Event("close")); };
+  const detailsTask = { ...task, data: { scope: {}, category: null, as_of: task.snapshot_at,
+    transactions: Array.from({ length: 4 }, (_, i) => ({ transaction_id: "row" + i, account_id: "A1",
+      occurred_at: task.snapshot_at, nature: "consumption", direction: "outflow", category: "dining",
+      counterparty_name: "商家" + i, amount_fen: 1000 })) } };
+  const action = vi.fn().mockResolvedValue("check4");
+  const props = { task: detailsTask, demo: false, onAction: action,
+    renderChild: (id: string) => <button id={"task-" + id}>继续核对第四笔</button> };
+  const view = render(<BillDetailsCard {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "查看全部 4 笔明细" }));
+  const row = screen.getByText("商家3").closest("details")!;
+  fireEvent.click(row.querySelector("summary")!);
+  fireEvent.click(row.querySelector("button")!);
+  await waitFor(() => expect(action).toHaveBeenCalledWith({ action: "bill_check", transaction_id: "row3", account_id: "A1" }));
+  view.rerender(<BillDetailsCard {...props} links={[{ parentId: task.task_id, childId: "check4", revision: 1,
+    selection: { action: "bill_check", transaction_id: "row3", account_id: "A1" } }]} activeChildren={["check4"]} />);
+  expect(screen.getAllByRole("button", { name: "继续核对第四笔" })).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "关闭详情" }));
+  const pending = screen.getByRole("button", { name: "继续核对第四笔" });
+  expect(pending.closest("details")?.open).toBe(true);
+  expect(screen.queryByRole("dialog")).toBeNull();
+});

@@ -156,7 +156,8 @@ export function billDetails(task: ShellTask): BillDetails | null {
 
 function TransactionRows({ items, busy, onAction, ...inline }: { items: BillDetails["transactions"]; busy?: boolean; onAction?: (selection: CardSelection) => Promise<string | null> } & InlineActions) {
   const natures = { consumption: "消费", refund: "退款", transfer: "转账", interest: "利息" };
-  return <div className="sh-transaction-list">{items.map((item) => <details className="sh-disclosure sh-transaction" key={item.transaction_id}>
+  return <div className="sh-transaction-list">{items.map((item) => <details className="sh-disclosure sh-transaction" key={item.transaction_id}
+    open={inline.links?.some((link) => link.selection.transaction_id === item.transaction_id && inline.activeChildren?.includes(link.childId)) || undefined}>
     <summary><span>{item.counterparty_name}<small>{natures[item.nature]} · {item.direction === "inflow" ? "收入" : "支出"}</small></span><strong>{yuan(item.amount_fen)}</strong></summary>
     <p>{new Date(item.occurred_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false })}</p>
     <p>分类：{CATEGORY_LABEL[item.category]}</p>
@@ -168,13 +169,15 @@ function TransactionRows({ items, busy, onAction, ...inline }: { items: BillDeta
 }
 
 export function BillDetailsCard({ task, demo, busy, onAction, ...inline }: { task: ShellTask; demo: boolean; busy?: boolean; onAction?: (selection: CardSelection) => Promise<string | null> } & InlineActions) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const data = billDetails(task);
   if (!data) return null;
   const title = (data.category ? CATEGORY_LABEL[data.category] : "账单") + "明细";
   return <Card title={title} labelledBy={"task-" + task.task_id + "-details"}>
     <p className="sh-hint">共 {data.transactions.length} 笔，点一笔查看说明。</p>
-    <TransactionRows items={data.transactions.slice(0, 3)} busy={busy} onAction={onAction} {...inline} />
-    {data.transactions.length > 3 && <DetailsDrawer title={"查看全部 " + data.transactions.length + " 笔明细"}>
+    <TransactionRows items={data.transactions.filter((item, index) => index < 3 || inline.links?.some((link) =>
+      link.selection.transaction_id === item.transaction_id && inline.activeChildren?.includes(link.childId)))} busy={busy} onAction={onAction} {...inline} renderChild={drawerOpen ? undefined : inline.renderChild} />
+    {data.transactions.length > 3 && <DetailsDrawer title={"查看全部 " + data.transactions.length + " 笔明细"} onOpenChange={setDrawerOpen}>
       <TransactionRows items={data.transactions} busy={busy} onAction={onAction} {...inline} />
     </DetailsDrawer>}
     <p className="sh-hint">查询日期：{dateLabel(data.as_of)}</p>
