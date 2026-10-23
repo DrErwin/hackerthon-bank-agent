@@ -64,6 +64,8 @@ function errorText(error: unknown): string {
   return "操作没有完成，请刷新状态后再试。";
 }
 
+const replyReadError = "暂时没有读到最新结果，请查询办理进度。已有请求不会重复提交。";
+
 export function useConversation(source: ShellDataSource) {
   const [session, setSession] = useState<SessionView | null>(null);
   const [thread, setThread] = useState<ThreadView | null>(null);
@@ -94,6 +96,7 @@ export function useConversation(source: ShellDataSource) {
   const didBoot = useRef(false);
   const loadFlight = useRef<Promise<void> | null>(null);
   const loadAgain = useRef(false);
+  const loadedThread = useRef<ThreadView | null>(null);
   const awaitingMessageId = useRef<string | null>(null);
   const refreshedCancellations = useRef(new Set<string>());
   const refreshErrors = useRef(new Map<string, string>());
@@ -126,7 +129,7 @@ export function useConversation(source: ShellDataSource) {
       let recovery = markRecovery;
       do {
         loadAgain.current = false;
-        const current = await source.ensureThread();
+        const current = !recovery && loadedThread.current ? loadedThread.current : await source.ensureThread();
         const [messageList, taskList] = await Promise.all([source.listMessages(current.thread_id), source.listTasks(current.thread_id)]);
         const recordResults = await Promise.all(taskList.map(async ({ task }) => {
           try {
@@ -138,6 +141,7 @@ export function useConversation(source: ShellDataSource) {
         }));
         const recordLists = recordResults.filter((records): records is TaskRecordsView => records !== null);
         setThread(current);
+        loadedThread.current = current;
         let positions: Record<string, string> = {};
         try { positions = JSON.parse(localStorage.getItem("fe-task-positions:" + current.thread_id) ?? "{}") ?? {}; } catch { /* Display metadata only. */ }
         setMessages((previous) => mergeMessages(recovery ? [] : previous, messageList));
@@ -293,6 +297,30 @@ export function useConversation(source: ShellDataSource) {
     );
     return unsubscribe;
   }, [expire, expired, loadThread, source, threadId, upsertTask]);
+
+  // A proxy can leave an apparently open event stream after losing its upstream.
+  // While a message is outstanding, read persisted results; never resend it.
+  useEffect(() => {
+    if (!threadId || expired || sending || !awaitingReply) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const readReply = async () => {
+      try {
+        await loadThread(false);
+        if (!stopped) setPageError((current) => current === replyReadError ? "" : current);
+      } catch (error) {
+        if (stopped) return;
+        if (error instanceof ApiError && error.status === 401) {
+          expire();
+          return;
+        }
+        setPageError(replyReadError);
+      }
+      if (!stopped) timer = setTimeout(() => void readReply(), 15000);
+    };
+    timer = setTimeout(() => void readReply(), 15000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [awaitingReply, expire, expired, loadThread, sending, threadId]);
 
   // Every interaction the server shows becomes a history entry that stays visible read-only.
   useEffect(() => {

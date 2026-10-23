@@ -1,10 +1,11 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api";
 import type { ConfirmationView, MessageView, SessionView, TaskRecordsView, ThreadView } from "../contracts";
 import { AssistantPage } from "./AssistantPage";
 import { verificationAdminHref, verificationAdminLabel } from "./components/TaskBlock";
 import { shellUsesContractDemo } from "./ShellApp";
+import { useConversation } from "./useConversation";
 import { createSlotRegistry } from "./slots";
 import { transferSlot } from "./slots/transferDemoSlot";
 import type { ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
@@ -142,10 +143,63 @@ function sourceHarness() {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   localStorage.clear();
 });
 
 describe("shell recovery from server records", () => {
+  it("reads a missed reply without resending the accepted message", async () => {
+    vi.useFakeTimers();
+    const harness = sourceHarness();
+    const sent = message("查看账单");
+    harness.source.sendMessage = vi.fn(async () => {
+      harness.messages.push(sent);
+      return { thread_id: thread.thread_id, message_id: sent.message_id, task_id: null, run_id: null, accepted_at: sent.created_at };
+    });
+    const { result, unmount } = renderHook(() => useConversation(harness.source));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await result.current.actions.send("查看账单"); });
+    expect(result.current.awaitingReply).toBe(true);
+    harness.source.ensureThread = vi.fn(async () => ({ ...thread, thread_id: "newer-thread" }));
+    const readMessages = harness.source.listMessages;
+    harness.source.listMessages = vi.fn(async (id) => {
+      expect(id).toBe(thread.thread_id);
+      return readMessages(id);
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(result.current.awaitingReply).toBe(true);
+    harness.messages.push({ ...message("账单已查到"), role: "assistant", created_at: "2026-10-18T00:00:01Z" });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(result.current.awaitingReply).toBe(false);
+    expect(result.current.messages.some((item) => item.text === "账单已查到")).toBe(true);
+    expect(harness.source.sendMessage).toHaveBeenCalledTimes(1);
+    expect(harness.source.ensureThread).not.toHaveBeenCalled();
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("clears only its polling error when a persisted failure reply arrives", async () => {
+    vi.useFakeTimers();
+    const harness = sourceHarness();
+    const sent = message("查看账单");
+    harness.source.sendMessage = vi.fn(async () => {
+      harness.messages.push(sent);
+      return { thread_id: thread.thread_id, message_id: sent.message_id, task_id: null, run_id: null, accepted_at: sent.created_at };
+    });
+    const { result } = renderHook(() => useConversation(harness.source));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await result.current.actions.send("查看账单"); });
+    const readMessages = harness.source.listMessages;
+    harness.source.listMessages = vi.fn(async () => { throw new ApiError(503, "OFFLINE", "暂时断线"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(result.current.pageError).toContain("暂时没有读到");
+    harness.source.listMessages = readMessages;
+    harness.messages.push({ ...message("消息处理失败，请重新说明"), role: "assistant", created_at: "2026-10-18T00:00:01Z" });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(result.current.awaitingReply).toBe(false);
+    expect(result.current.pageError).toBe("");
+    expect(harness.source.sendMessage).toHaveBeenCalledTimes(1);
+  });
   it("keeps the page usable when one task history request fails", async () => {
     const harness = sourceHarness();
     harness.messages.push(message("给妈妈转五百", ["task-ok"]));
