@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: blocked — 包负责人已接包；实施仍待本票前置及 Erwin 指派执行者。
+Status: delivered — 受控派发/恢复机制与 D1 执行接缝已合入（PR #258，squash f029e74，2026-10-24）；D1 错误呈现的 source/field 偏差已如实记录待转账负责人适配；Ringo 安全审查与 E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -45,10 +45,10 @@ Core scenarios: XL-S01、X02—X08；定义见[共享规格 §5](../../v05-cross
 
 ## Acceptance criteria
 
-- [ ] 父级只可调用允许的已注册能力，可信身份由服务端传递；各业务接收其正确公开输入。
-- [ ] 原子任务等待输入/确认/验证时父级准确挂起，成功后继续后继；失败/未知先说明或回查，不盲目续办。
-- [ ] 同一父任务同一时刻只有一个需用户响应或副作用的步骤推进；旧交互不能推进新版本。
-- [ ] 重复请求、重启、新会话和取消沿原关联恢复；现有账单来源继承及单项业务不回归。
+- [x] 父级只可调用允许的已注册能力，可信身份由服务端传递；各业务接收其正确公开输入。（dispatch_child：registry 校验+CHILD_INPUT_CONTRACTS 白名单+服务端构造子 TrustedContext）
+- [x] 原子任务等待输入/确认/验证时父级准确挂起，成功后继续后继；失败/未知先说明或回查，不盲目续办。（FAILED 释放槽位、NEEDS_ATTENTION 阻塞新副作用步骤；测试覆盖全序列）
+- [x] 同一父任务同一时刻只有一个需用户响应或副作用的步骤推进；旧交互不能推进新版本。（CHILD_STEP_ALREADY_ACTIVE；resume_child 强制 plan_revision→PLAN_SUPERSEDED；通用子任务路径靠单活跃不变量，票 04/05 注意）
+- [x] 重复请求、重启、新会话和取消沿原关联恢复；现有账单来源继承及单项业务不回归。（task_relations 持久+重启恢复测试；_inherited_bill_scope 零改动，test_bill_scope/test_harness 全绿；父级取消沿通用任务取消，票 05 验证）
 
 ## 实施交接：先提供机制，后装配业务
 
@@ -69,8 +69,10 @@ Core scenarios: XL-S01、X02—X08；定义见[共享规格 §5](../../v05-cross
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #258](https://github.com/DrErwin/hackerthon-bank-agent/pull/258)，squash 提交 `f029e74`（2026-10-24）。交付：`harness.py` dispatch_child/resume_child/child_task_summaries、`transfer_runtime.py` D1 守卫（提交前 PAUSE+ARRANGEMENT_CONFLICT、_bank_authorized 兜底、世系放行）、`test_child_dispatch.py`。
+- 本票验证：`app/agent_platform/` 238 passed（新增 7 项，含真实转账路径零银行写入与真实世系放行）；全量后端 1460 passed；CI 通过（PR #258）。
+- 审查：子代理审查 A—G 全 PASS、无必须修复代码项；建议项已转交票 04/05（见 PR #258 说明）。
+- **已知偏差（待转账负责人适配，纯 modules/transfer 改动）**：D1 冲突经转账 workflow 渲染为 `source="security"`、`field=None`、通用暂停文案；平台接缝已保证 code=ARRANGEMENT_CONFLICT 与银行零写入，需转账模块 PAUSE 分支透传 message/source/field 以完全达到契约 §5.4 修订口径。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
