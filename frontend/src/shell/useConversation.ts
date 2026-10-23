@@ -96,6 +96,7 @@ export function useConversation(source: ShellDataSource) {
   const loadAgain = useRef(false);
   const awaitingMessageId = useRef<string | null>(null);
   const refreshedCancellations = useRef(new Set<string>());
+  const refreshErrors = useRef(new Map<string, string>());
 
   const expire = useCallback(() => {
     setExpired(true);
@@ -349,10 +350,15 @@ export function useConversation(source: ShellDataSource) {
     try {
       const envelope = await source.getTask(taskId);
       upsertTask(envelope.task, envelope.module);
+      const priorReadError = refreshErrors.current.get(taskId);
+      if (priorReadError) setTaskErrors((current) => current[taskId] === priorReadError ? { ...current, [taskId]: "" } : current);
+      refreshErrors.current.delete(taskId);
       setTaskNotices((current) => ({ ...current, [taskId]: "已更新，请查看这项办理的最新状态。" }));
     } catch (error) {
       setTaskNotices((current) => ({ ...current, [taskId]: "" }));
-      setTaskErrors((current) => ({ ...current, [taskId]: errorText(error) }));
+      const message = errorText(error);
+      refreshErrors.current.set(taskId, message);
+      setTaskErrors((current) => ({ ...current, [taskId]: message }));
       if (error instanceof ApiError && error.status === 401) expire();
     }
   }, [expire, source, upsertTask]);
@@ -362,6 +368,7 @@ export function useConversation(source: ShellDataSource) {
     inflight.current.add(taskId);
     setBusy((current) => ({ ...current, [taskId]: key }));
     setTaskErrors((current) => ({ ...current, [taskId]: "" }));
+    setTaskNotices((current) => ({ ...current, [taskId]: "" }));
     const requestId = pendingIds.current.get(key) ?? newRequestId();
     pendingIds.current.set(key, requestId);
     try {
@@ -450,6 +457,10 @@ export function useConversation(source: ShellDataSource) {
         ? current : { ...current, [fresh.confirmation_id]: fresh });
     }
     upsertTask(result.task);
+    if (result.task.error || result.task.status === "failed" || result.task.status === "needs_attention") {
+      setTaskErrors((current) => ({ ...current, [task.task_id]: result.task.error?.reason || result.task.message }));
+      return false;
+    }
     setTaskNotices((current) => ({ ...current, [task.task_id]: "资料已更新。请核对当前内容，确认前不会转账。" }));
     return true;
   }
@@ -463,6 +474,10 @@ export function useConversation(source: ShellDataSource) {
       source.submitPayeeDetails!(task.task_id, { request_id, interaction_id: task.interaction!.interaction_id, kind: "payee", fields }));
     if (!result) return false;
     upsertTask(result.task);
+    if (result.task.error || result.task.status === "failed" || result.task.status === "needs_attention") {
+      setTaskErrors((current) => ({ ...current, [task.task_id]: result.task.error?.reason || result.task.message }));
+      return false;
+    }
     setTaskNotices((current) => ({ ...current, [task.task_id]: "已核对收款资料，请查看脱敏后的收款人信息。" }));
     return true;
   }

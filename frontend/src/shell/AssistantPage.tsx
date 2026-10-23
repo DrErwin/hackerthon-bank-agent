@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { MessageView } from "../contracts";
 import { Composer, ExpiredBanner, MessageBubble, SafetyRail, TopBar, TypingBubble } from "./components/Chrome";
 import { Notice } from "./components/Primitives";
@@ -8,7 +8,7 @@ import type { SlotRegistry } from "./slots";
 import type { ShellDataSource, TaskEnvelope } from "./types";
 import { useConversation } from "./useConversation";
 
-import { buildTimeline, taskTitle } from "./presentation";
+import { buildTimeline, needsAttentionInTree, taskTitle } from "./presentation";
 import { TaskRecord } from "./components/TaskRecord";
 import { isTerminal } from "./format";
 
@@ -51,10 +51,12 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
     setAwayFromLatest(false);
   }
 
-  function renderChild(id: string) {
+  function renderChild(id: string, ancestors = new Set<string>()): ReactNode {
+    if (ancestors.has(id)) return <p>关联记录重复，请重新读取办理记录。</p>;
     const envelope = tasks.get(id);
     if (!envelope) return <p role="status">正在读取…</p>;
-    return <TaskBlock envelope={envelope} slot={slots.resolve(envelope.module)} origin={source.origin} conversation={conversation} />;
+    return <TaskBlock envelope={envelope} slot={slots.resolve(envelope.module)} origin={source.origin} conversation={conversation}
+      renderChild={(child) => renderChild(child, new Set([...ancestors, id]))} />;
   }
 
   async function send(text: string) {
@@ -97,10 +99,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
               ? <MessageBubble key={item.message.message_id} message={item.message} />
               : <TaskRecord key={item.envelope.task.task_id} task={item.envelope.task} messages={item.messages}
                   latest={item.envelope.task.task_id === latestTaskId}
-                  hasActiveChild={conversation.cardLinks.some((link) => {
-                    const child = tasks.get(link.childId)?.task;
-                    return link.parentId === item.envelope.task.task_id && child && (!isTerminal(child) || child.status === "failed" || child.recovery_required);
-                  })}>
+                  hasActiveChild={conversation.cardLinks.some((link) => link.parentId === item.envelope.task.task_id
+                    && needsAttentionInTree(link.childId, tasks, conversation.cardLinks))}>
                   <TaskBlock envelope={item.envelope} slot={slots.resolve(item.envelope.module)}
                     origin={source.origin} conversation={conversation} renderChild={renderChild} />
                 </TaskRecord>)}

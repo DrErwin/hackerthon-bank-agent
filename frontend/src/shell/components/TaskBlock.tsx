@@ -10,7 +10,7 @@ import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, Wa
 import { VerificationCard } from "./VerificationCard";
 import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
 import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
-import { inputPrompt } from "../presentation";
+import { inputPrompt, needsAttentionInTree } from "../presentation";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
   if (origin === "real-api") return administratorUrl({ taskId, challengeId, demoRoundId: roundId });
@@ -58,10 +58,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   });
   const links = (conversation.cardLinks ?? []).filter((link) => link.parentId === displayTask.task_id
     && conversation.tasks.has(link.childId));
-  const activeChildren = links.filter((link) => {
-    const child = conversation.tasks.get(link.childId)?.task;
-    return child && (!isTerminal(child) || child.status === "failed" || child.recovery_required);
-  }).map((link) => link.childId);
+  const activeChildren = links.filter((link) => needsAttentionInTree(link.childId, conversation.tasks, conversation.cardLinks ?? [])).map((link) => link.childId);
 
   if (gated) {
     return (
@@ -107,6 +104,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         />
       )}
       {guided && <GuidedTransfer task={task} conversation={conversation} busy={busy} />}
+      {busyKey && <p role="status" className="sh-action-feedback">正在处理，请稍候…</p>}
       {conversation.taskNotices?.[task.task_id] && <p role="status" className="sh-action-feedback">{conversation.taskNotices[task.task_id]}</p>}
       {entries.map((entry) => {
         const isActive = entry.kind === "input"
@@ -189,10 +187,11 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
       )}
       {report && !billSummary(task) && <ReportCard id={base + "-report"} view={report} origin={origin} />}
       {result && !businessPayload(task) && !billSummary(task) && !billDetails(task) && <ResultCard id={base + "-result"} view={result} origin={origin} />}
-      <BillDetailsCard task={displayTask} demo={origin !== "real-api"} busy={displayBusy} links={links} renderChild={renderChild} activeChildren={activeChildren}
+      <BillDetailsCard key={"details-" + displayTask.task_id} task={displayTask} demo={origin !== "real-api"} busy={displayBusy} links={links} renderChild={renderChild} activeChildren={activeChildren}
         onAction={conversation.supportsCardActions ? (selection) => actions.cardAction(displayTask, selection) : undefined} />
-      <BusinessCards task={displayTask} busy={displayBusy} enabled={conversation.supportsCardActions}
+      <BusinessCards key={"business-" + displayTask.task_id} task={displayTask} busy={displayBusy} enabled={conversation.supportsCardActions}
         transferTargets={expired ? [] : transferTargets}
+        targetBusy={conversation.busy} targetErrors={conversation.taskErrors}
         onChoose={async (target, changes) => {
           const view = target.interaction?.record_ref ? confirmations[target.interaction.record_ref] : undefined;
           if (await actions.reviseDraft(target, view, changes)) {
@@ -201,13 +200,13 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
           }
         }}
         links={links} renderChild={renderChild} activeChildren={activeChildren} onAction={(selection) => actions.cardAction(displayTask, selection)} />
-      <BillCardActions task={displayTask} busy={displayBusy} enabled={conversation.supportsCardActions} demo={origin !== "real-api"}
+      <BillCardActions key={"bill-" + displayTask.task_id} task={displayTask} busy={displayBusy} enabled={conversation.supportsCardActions} demo={origin !== "real-api"}
         links={links} renderChild={renderChild} activeChildren={activeChildren}
         details={report ? <ReportCard id={base + "-report"} view={report} origin={origin} /> : result ? <ResultCard id={base + "-result"} view={result} origin={origin} /> : null}
         onAction={(selection) => actions.cardAction(displayTask, selection)} />
       {displayTask.task_id !== task.task_id && <>
         <p className="sh-action-feedback" role="status">已显示重新查询的资料。</p>
-        {(conversation.cardLinks ?? []).filter((link) => link.parentId === task.task_id && link.selection.action === "subscription_cancel").map((link) => <div key={link.childId}>{renderChild?.(link.childId)}</div>)}
+        {(conversation.cardLinks ?? []).filter((link) => seen.has(link.parentId) && link.parentId !== displayTask.task_id && link.selection.action === "subscription_cancel").map((link) => <div key={link.childId}>{renderChild?.(link.childId)}</div>)}
         <details className="sh-disclosure"><summary>查看上次查询记录</summary>
           <BusinessCards task={task} busy={false} enabled={false} onAction={async () => null} />
           {billSummary(task) && <p>{task.message}</p>}

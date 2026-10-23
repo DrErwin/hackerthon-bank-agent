@@ -9,6 +9,9 @@ import { useConversation } from "./useConversation";
 import type { ShellTask } from "./types";
 import { ApiError } from "../api";
 import { billPeriod } from "./components/BusinessCards";
+import { buildTimeline, type CardLink } from "./presentation";
+import { TaskBlock } from "./components/TaskBlock";
+import { genericSlot } from "./slots";
 
 const task: ShellTask = {
   task_id: "draft", run_id: "run", module: "transfer", status: "waiting_input",
@@ -73,6 +76,57 @@ it("reports a failed status refresh rather than silently swallowing it", async (
   await act(async () => { await hook.result.current.actions.refreshTask("draft"); });
   expect(hook.result.current.taskErrors.draft).toContain("暂时连接不上");
   expect(hook.result.current.taskNotices.draft).toBe("");
+  backend.user.getTask = vi.fn().mockResolvedValue({ task, module: "transfer" });
+  await act(async () => { await hook.result.current.actions.refreshTask("draft"); });
+  expect(hook.result.current.taskErrors.draft).toBe("");
+  expect(hook.result.current.taskNotices.draft).toContain("已更新");
+});
+
+it("does not report a bank-level draft rejection as a successful edit", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.reviseDraft = vi.fn().mockResolvedValue({ ...task, task_revision: 2,
+    error: { code: "PAYEE_MISMATCH", source: "bank", field: "payee_hint", reason: "收款资料未通过核验", upstream_code: null } });
+  const hook = renderHook(() => useConversation(backend.user));
+  await waitFor(() => expect(hook.result.current.booting).toBe(false));
+  await act(async () => {
+    expect(await hook.result.current.actions.reviseDraft(task, undefined, { payee_id: "stale" })).toBe(false);
+  });
+  expect(hook.result.current.taskErrors.draft).toBe("收款资料未通过核验");
+  expect(hook.result.current.taskNotices.draft).not.toContain("已更新");
+});
+
+it("keeps repeated refreshes and their pending children in a single root record", () => {
+  const tasks = new Map(["root", "refresh1", "refresh2", "cancel"].map((id) => [id, { task: { ...task, task_id: id }, module: "subscription" }]));
+  const links: CardLink[] = [
+    { parentId: "root", childId: "refresh1", selection: { action: "refresh_query" }, revision: 1 },
+    { parentId: "refresh1", childId: "refresh2", selection: { action: "refresh_query" }, revision: 1 },
+    { parentId: "refresh2", childId: "cancel", selection: { action: "subscription_cancel", subscription_id: "s" }, revision: 1 },
+  ];
+  expect(buildTimeline([], tasks, links).map((item) => item.type === "task" && item.envelope.task.task_id)).toEqual(["root"]);
+});
+
+it("queries the new month instead of reopening the previous month's cached category", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  const hook = renderHook(() => useConversation(backend.user));
+  await waitFor(() => expect(hook.result.current.booting).toBe(false));
+  function bill(id: string, month: string): ShellTask {
+    return { ...task, task_id: id, module: "bills", status: "succeeded", interaction: null, allowed_actions: [],
+      data: { scope: { start_at: "2026-" + month + "-01T00:00:00+08:00", end_at: "2026-10-01T00:00:00+08:00", account_ids: ["A1"] },
+        categories: [{ category: "dining", net_fen: 3000 }], transaction_count: 1, consumption_net_fen: 3000, as_of: task.snapshot_at } };
+  }
+  const sept = bill("september", "09"), aug = bill("august", "08");
+  const cardAction = vi.fn().mockResolvedValue("september-details");
+  const base = { ...hook.result.current, supportsCardActions: true, actions: { ...hook.result.current.actions, cardAction },
+    tasks: new Map([[sept.task_id, { task: sept, module: "bills" }], [aug.task_id, { task: aug, module: "bills" }]]) };
+  const view = render(<TaskBlock envelope={{ task: sept, module: "bills" }} slot={genericSlot} origin="real-api"
+    conversation={base} renderChild={(id) => <p>{id}</p>} />);
+  fireEvent.click(screen.getByRole("button", { name: "查看餐饮明细" }));
+  expect(await screen.findByText("september-details")).toBeTruthy();
+  view.rerender(<TaskBlock envelope={{ task: sept, module: "bills" }} slot={genericSlot} origin="real-api"
+    conversation={{ ...base, cardLinks: [{ parentId: sept.task_id, childId: aug.task_id, revision: 1, selection: { action: "bill_range", month: "2026-08" } }] }}
+    renderChild={(id) => <p>{id}</p>} />);
+  fireEvent.click(screen.getByRole("button", { name: "查看餐饮明细" }));
+  await waitFor(() => expect(cardAction).toHaveBeenLastCalledWith(aug, { action: "bill_details", category: "dining" }));
 });
 
 it("labels full-month ranges with their inclusive calendar dates", () => {

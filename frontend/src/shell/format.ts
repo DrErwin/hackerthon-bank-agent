@@ -30,7 +30,7 @@ export function taskStatusLabel(task: ShellTask): StatusLabel {
         ? { tone: "pending", icon: "◆", text: "等您验证" }
         : { tone: "pending", icon: "?", text: "等您确认" };
     case "needs_attention":
-      return { tone: "warning", icon: "!", text: "结果待核实" };
+      return { tone: "warning", icon: "!", text: task.error?.source === "security" ? "安全核对暂停" : "结果待核实" };
     case "succeeded":
       return { tone: "success", icon: "✓", text: "已办结" };
     case "partially_succeeded":

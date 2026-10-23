@@ -69,12 +69,14 @@ function ActionButton({ label, busy, selection, onAction, links = [], renderChil
   </div>;
 }
 
-export function BusinessCards({ task, busy, enabled, onAction, links, renderChild, activeChildren, transferTargets = [], onChoose }: {
+export function BusinessCards({ task, busy, enabled, onAction, links, renderChild, activeChildren, transferTargets = [], onChoose, targetBusy = {}, targetErrors = {} }: {
   task: ShellTask; busy: boolean; enabled: boolean;
   transferTargets?: ShellTask[];
   onChoose?: (task: ShellTask, changes: DraftChanges) => Promise<void>;
+  targetBusy?: Record<string, string>; targetErrors?: Record<string, string>;
   onAction: (selection: CardSelection) => Promise<string | null>;
 } & InlineActions) {
+  const [chosenRow, setChosenRow] = useState("");
   const data = businessPayload(task);
   const id = "task-" + task.task_id + "-business";
   if (!data) return null;
@@ -84,8 +86,9 @@ export function BusinessCards({ task, busy, enabled, onAction, links, renderChil
     {data.accounts.map((item) => <div className="sh-business-row" key={item.account_id}>
       <div className="sh-row-heading"><strong>{item.display_name}</strong><strong>{yuan(item.available_balance_fen)}</strong></div>
       <p className="sh-hint">{item.bank_name} · {item.account_masked} · 可用余额</p>
-      {onChoose && transferTargets.map((target) => <button type="button" className="sh-btn sh-btn-secondary" key={target.task_id} disabled={busy}
-        onClick={() => void onChoose(target, { payer_account_id: item.account_id })}>用这张卡 · {taskTitle(target)}</button>)}
+      {onChoose && transferTargets.map((target) => <div key={target.task_id}><button type="button" className="sh-btn sh-btn-secondary" disabled={busy || Boolean(targetBusy[target.task_id])}
+        onClick={() => { setChosenRow(item.account_id + target.task_id); void onChoose(target, { payer_account_id: item.account_id }); }}>{targetBusy[target.task_id] ? "正在更新…" : "用" + item.display_name + " · " + taskTitle(target)}</button>
+        {chosenRow === item.account_id + target.task_id && targetErrors[target.task_id] && <p role="alert">{targetErrors[target.task_id]}</p>}</div>)}
     </div>)}
     {enabled && <QueryRefresh busy={busy} onAction={onAction} />}
   </Card>;
@@ -94,8 +97,9 @@ export function BusinessCards({ task, busy, enabled, onAction, links, renderChil
     {data.payees.map((item, index) => <div className="sh-business-row" key={item.payee_id ?? index}>
       <strong>{item.remark || item.name_masked}</strong>
       <p>{item.name_masked} · {item.bank_name} · {item.account_masked}</p>
-      {onChoose && item.payee_id && transferTargets.map((target) => <button type="button" className="sh-btn sh-btn-secondary" key={target.task_id} disabled={busy}
-        onClick={() => void onChoose(target, { payee_id: item.payee_id! })}>选这位收款人 · {taskTitle(target)}</button>)}
+      {onChoose && item.payee_id && transferTargets.map((target) => <div key={target.task_id}><button type="button" className="sh-btn sh-btn-secondary" disabled={busy || Boolean(targetBusy[target.task_id])}
+        onClick={() => { setChosenRow(item.payee_id! + target.task_id); void onChoose(target, { payee_id: item.payee_id! }); }}>{targetBusy[target.task_id] ? "正在更新…" : "选择" + (item.remark || item.name_masked) + " · " + taskTitle(target)}</button>
+        {chosenRow === item.payee_id + target.task_id && targetErrors[target.task_id] && <p role="alert">{targetErrors[target.task_id]}</p>}</div>)}
     </div>)}
     <p className="sh-hint">在正在办理的转账卡中，可以直接选择这些收款人。</p>
     {enabled && <QueryRefresh busy={busy} onAction={onAction} />}
