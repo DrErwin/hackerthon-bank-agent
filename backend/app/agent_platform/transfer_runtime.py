@@ -395,6 +395,20 @@ class TransferRuntime:
     def close(self) -> None:
         self.gateway.close()
 
+    def read_transfer_choices(self, trusted, kind):
+        """Read owned banking facts without resuming or modifying the transfer."""
+        if kind not in {"accounts", "payees"}:
+            raise ValueError("INVALID_ARGUMENT")
+        saver = self.memory.checkpointer(MemoryContext(
+            trusted.user_id, trusted.session_id, trusted.demo_round_id,
+        ), trusted.task_id)
+        flow = self._transfer_factory(trusted, saver, self._trace(trusted))
+        outcome = flow.ports.read(trusted, "bank.list_" + kind,
+                                  None if kind == "payees" else {})
+        if not outcome.executed or outcome.result is None or isinstance(outcome.result, QueryFailure):
+            raise ValueError("DEPENDENCY_UNAVAILABLE")
+        return outcome.result.data
+
     def _verify_controlled_payee(self, trusted, payee):
         # Reuse registered read tools, permissions, termination checks and audit.
         # Building the workflow does not start it or put the input in its saver.

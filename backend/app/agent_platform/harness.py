@@ -42,7 +42,11 @@ from .untrusted_data import MAX_ITEMS, UntrustedData, tool_observation, user_mat
 _LOCK_GUARD = Lock()
 _TASK_LOCKS: dict[str, RLock] = {}
 _HELD_LOCKS = local()
-_SELECTED_CAPABILITIES = frozenset({"bills.summarize", "bills.detect_anomalies", "subscription.cancel_subscription"})
+_SELECTED_CAPABILITIES = frozenset({
+    "bills.summarize", "bills.generate_report", "bills.detect_anomalies",
+    "subscription.cancel_subscription", "subscription.list_subscriptions",
+    "transfer.list_accounts", "transfer.list_payees",
+})
 # A request that carries outside material may only be analysed. The refusal is
 # fixed here, never taken from the model or the material itself (S2 / A03).
 _UNTRUSTED_MATERIAL_REFUSAL = (
