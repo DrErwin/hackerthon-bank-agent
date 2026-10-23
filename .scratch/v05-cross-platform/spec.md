@@ -1,6 +1,6 @@
 # 公共接缝与模拟银行工作规格
 
-Status: ticketed — 2026-10-24 Erwin 已接包，现有九票已细化供交接；票 01 的[业务裁定稿](01-decision.md)及[字段详稿](01-contract-detail.md)已备齐，待 Erwin 裁定；公共模型代码和具体实施尚待完成。
+Status: ticketed — 2026-10-24 Erwin 已接包，现有九票已细化供交接；票 01 的[业务裁定稿](01-decision.md)及[字段详稿](01-contract-detail.md)已备齐；Erwin 已确认 D1/D2 业务规则，具体契约确认、公共模型代码和实施尚待完成。
 
 Owner: Erwin
 

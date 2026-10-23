@@ -7,7 +7,7 @@
 
 | 日期 | 交付 | 提交 / 证据 | 边界与未做 |
 |---|---|---|---|
-| 10-24 | 联动票 01 约定裁定材料 | [裁定稿](../../../.scratch/v05-cross-platform/01-decision.md)、[字段与样例](../../../.scratch/v05-cross-platform/01-contract-detail.md)；源码核对确认复用部分完成状态及配送 F36 | 待 Erwin 裁定与必要安全确认；未实现公共模型、未运行模型测试/E2E，不代表开发票完成 |
+| 10-24 | 联动票 01 约定裁定材料 | [裁定稿](../../../.scratch/v05-cross-platform/01-decision.md)、[字段与样例](../../../.scratch/v05-cross-platform/01-contract-detail.md)；源码核对确认复用部分完成状态及配送 F36 | Erwin 已确认 D1/D2 业务规则，具体契约及必要安全确认仍待完成；未实现公共模型、未运行模型测试/E2E，不代表开发票完成 |
 | 10-24 | 第一个联动包接包与九票细化 | Erwin 本人明确接受；[执行交接](../../../.scratch/v05-cross-platform/handoff.md)与九票增加输入输出、边界及验证步骤 | 公共约定/安全审阅待确认；具体执行者由 Erwin 指派；代码和 E2E 未启动 |
 | 10-24 | 联动共享规格、六包及 21 张规划票 | [规格](../../../.scratch/v05-cross-linkage/spec.md)、[公共约定方案](../../../.scratch/v05-cross-linkage/contract-proposal.md)、[正式票索引](../../../.scratch/v05-cross-linkage/ticket-proposal.md)；PM 已批准顺序和拆分 | 公共约定细节/安全审阅仍待完成；各负责人未代领，代码与 E2E 未开始 |
 | 10-24 | 跨场景联动 PRD 重写（需求文档） | [PRD](../../prd/06-跨场景联动-PRD-2026-09-23.md)、[E2E 用例设计](../../../evals/cross/representative-cases.md)；PM 已确认三个生活场景，补齐 AI / Harness / 确定性业务边界 | 新增公共约定待收口；实施未开工、未拆票、未运行联动 E2E，不代表功能交付或安全签核 |
