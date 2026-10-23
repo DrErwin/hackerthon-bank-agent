@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/contracts/`
 
-Status: blocked — D1、D2 业务规则已获 Erwin 确认；具体公共字段/兼容方案待受影响方及 Ringo 按契约流程确认，模型编码未开始。
+Status: delivered — 模型、兼容测试与契约修订已合入（PR #256，squash f0d14a4，2026-10-24）；子代理审查通过（无必须修复项）；Ringo 安全审查与 E2E 仍按原流程另行记录，本票不代签。
 
 Package accepted by: Erwin
 
@@ -44,9 +44,9 @@ None（无实施前置票；仍须满足下面的开始条件，不表示现在�
 
 ## Acceptance criteria
 
-- [ ] C1—C7 的必要字段、能力输入与视图有唯一公共模型；不复制到业务模块。
-- [ ] 旧场景保留原行为，新增枚举不使原页面/调用静默失效；未知值明确拒绝。
-- [ ] 同步正式契约和示例，记录受影响负责人确认；目前已有规划和 D1/D2 业务批准，不代表具体契约或安全批准。
+- [x] C1—C7 的必要字段、能力输入与视图有唯一公共模型；不复制到业务模块。（`backend/app/contracts/cross.py` + `bank.py` 新增段；`__init__.py` 唯一导出）
+- [x] 旧场景保留原行为，新增枚举不使原页面/调用静默失效；未知值明确拒绝。（test_ct03/ct05；全量后端 1447 passed）
+- [x] 同步正式契约和示例，记录受影响负责人确认；目前已有规划和 D1/D2 业务批准，不代表具体契约或安全批准。（契约 §5.4 修订段；Erwin 2026-10-24 按票面任务指令收口轻量确认；Ringo 安全审查待完成）
 
 ## 实施交接：公共语义与兼容边界
 
@@ -75,8 +75,10 @@ Business decisions approved by: Erwin，2026-10-24 回复“认可”；范围�
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #256](https://github.com/DrErwin/hackerthon-bank-agent/pull/256)，squash 提交 `f0d14a4`（2026-10-24）。交付：`contracts/cross.py`（CrossScenario/CrossStartInput/CrossConstraints/Allocation/BudgetRef/BudgetView/AdoptedBudget/BudgetCommitment/ArrangementView/AdoptedArrangement/CrossStep/CrossTaskView）、`bank.py` B10—B13/B20—B22 模型、`test_cross_contracts.py`、契约 §5.4 修订段。
+- 本票验证：`app/contracts/` 81 passed（新增 16 项，覆盖 CT01—CT09/CT13/CT15 的模型层）；合入前全量后端 `pytest -q` 1447 passed；CI Repository checks 通过（PR #256）。
+- 审查：子代理代码审查 A—G 全 PASS、无必须修复项；其建议的两处非阻塞修正（错误信息语言、BudgetView 反向校验）与一处遗漏字段（AdoptedArrangement.payer_account_id，详稿 §3.1「已采用参数快照」）已随同 PR 修复。
+- 契约确认：Erwin 2026-10-24 以本轮任务指令按 §8 轻量确认收口（兼容新增，旧调用与旧载荷行为不变）；Ringo 安全审查（资金安排/配送隐私相关字段）尚未完成。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
@@ -89,3 +91,5 @@ Business decisions approved by: Erwin，2026-10-24 回复“认可”；范围�
 2026-10-24（本票指派）：Erwin 要求“你开始把票一完成，然后最后交由我来裁定”。承接本轮公共规则讨论，已准备完整待裁定约定及样例；D1 同账户资金安排互斥、D2 部分完成后停止的终态待本人裁定。正式公共契约及运行代码未修改。
 
 2026-10-24（PM 裁定）：Erwin 回复“认可”，D1、D2 按建议采用。业务规则准备已收口；字段/兼容确认、安全审查、模型编码与验证仍待完成，本开发票不关闭。
+
+2026-10-24（实施交付）：按用户指令接续实施。分支 `codex/cross-platform-01-public-models`，实现+测试+契约修订经子代理审查后以 PR #256 合入（f0d14a4）。票面验收项已按证据勾选；Ringo 安全审查与 E2E 保持未签，待各自流程。下游 02/06 可开始：公共模型见 `app.contracts`（CrossStartInput/CrossConstraints/Allocation/ArrangementView/AdoptedArrangement/BudgetCommitment、B10—B13/B20—B22），调用示例见 `test_cross_contracts.py`。
