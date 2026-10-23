@@ -1,5 +1,7 @@
 # Demo 修复实际验证（2026-10-23）
 
+后续增量：[连续退订与现有业务全面走查](business-e2e.md)（票22～28，依赖PR #253，证据层和未覆盖范围单独记录）。下文保留前轮验收历史。
+
 关联 [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)、[实施票 11](../../.scratch/bank-e2e-remediation/issues/11-acceptance.md)。本目录只存合成演示数据及脱敏结果，不含配置、密钥、会话 cookie、数据库或实际验证码。
 
 ## 证据边界

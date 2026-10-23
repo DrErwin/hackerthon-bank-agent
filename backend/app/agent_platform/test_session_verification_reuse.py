@@ -1,6 +1,7 @@
 """Session facts are rebound by the server; each new transfer still confirms."""
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+from unittest.mock import patch
 
 import pytest
 
@@ -104,5 +105,45 @@ def test_source_task_session_migration_does_not_block_old_valid_session(tmp_path
         assert len(bank.store.list_ledger("U1", "A1")) == 0
         assert approved(app, owner, pending).status == TaskStatus.SUCCEEDED
         assert len(bank.store.list_ledger("U1", "A1")) == 1
+    finally:
+        app.close()
+
+
+@pytest.mark.parametrize("reverse_sources", [False, True])
+def test_verified_transfer_then_two_cancellations_and_another_transfer(tmp_path, reverse_sources):
+    """A reused record is not the task that originally issued its challenge."""
+    from .subscription_runtime import register_subscription
+    from .test_subscription_runtime import approve, mandate, bank_operations
+
+    app, bank, verification_id = verified_then_cancelled(tmp_path)
+    bank.seed_flow_history()
+    register_subscription(app, clock=bank.clock)
+    try:
+        for index, mandate_id in enumerate(("sub_001", "sub_002"), start=2):
+            owner = trusted("R" + str(index)).model_copy(update={"task_id": "T" + str(index)})
+            sources = app.facts.session_verification_sources
+            with patch.object(app.facts, "session_verification_sources",
+                              side_effect=lambda current: list(reversed(sources(current))) if reverse_sources else sources(current)):
+                pending = app.harness.start_selected(owner, uuid4(), "取消 " + mandate_id,
+                                                     "subscription.cancel_subscription")
+            assert pending.status == TaskStatus.WAITING_APPROVAL, pending.error
+            assert pending.interaction.kind == "confirmation"
+            assert mandate(bank, mandate_id).status == "active"
+            approve(app, owner, pending)
+            result = app.harness.resume(owner, {"choice": "approve"})
+            assert result.status == TaskStatus.SUCCEEDED, result.error
+            assert mandate(bank, mandate_id).status == "cancelled"
+            assert app.gateway.list_verifications(owner, owner.task_id) == []
+            assert app.harness.resume(owner, {}).data["operation_id"] == str(result.data.operation_id)
+        assert bank_operations(bank) == 2
+        # A fresh runtime must still handle multiple durable copies of the record.
+        app.close()
+        app = runtime(tmp_path / "app.sqlite", bank)
+        owner = trusted("R4").model_copy(update={"task_id": "T4"})
+        pending = app.harness.start(owner, uuid4(), "给妈妈转 500 元")
+        assert pending.interaction.kind == "confirmation"
+        assert app._context(owner, pending.data.operation_id, 1).verification_ids == [verification_id]
+        assert approved(app, owner, pending).status == TaskStatus.SUCCEEDED
+        assert bank_operations(bank) == 3
     finally:
         app.close()

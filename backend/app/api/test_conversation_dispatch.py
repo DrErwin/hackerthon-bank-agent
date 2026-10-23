@@ -9,6 +9,28 @@ from app.agent_platform.model import ContinueProposal, ReplyOnly, TransferPropos
 from .test_app import approve, enter, make_app, post, start
 
 
+@pytest.mark.parametrize("fault", ["planner", "pipeline"])
+def test_failed_message_is_readable_without_stream_and_not_duplicated(tmp_path, monkeypatch, fault):
+    app = make_app(tmp_path)
+    with TestClient(app) as client:
+        enter(client)
+        thread = post(client, "/threads").json()["data"]["thread_id"]
+        service = app.state.api
+        def fail(*args, **kwargs):
+            raise RuntimeError("private upstream detail")
+        target = service.runtime.harness.planner if fault == "planner" else service.runtime.harness
+        monkeypatch.setattr(target, "select" if fault == "planner" else "handle_message", fail)
+        body = dict(request_id=str(uuid4()), text="查看账单")
+        assert post(client, f"/threads/{thread}/messages", **body).status_code == 202
+        assert post(client, f"/threads/{thread}/messages", **body).status_code == 202
+        messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
+        replies = [item for item in messages if item["role"] == "assistant"]
+        assert len(replies) == 1
+        assert replies[0]["text"] and "private upstream detail" not in replies[0]["text"]
+        jobs = service.store.rows("SELECT status FROM api_message_jobs WHERE thread_id=?", (thread,))
+        assert jobs[0]["status"] == "error_completed"
+
+
 def say(client, app, thread, task, action, **fields):
     app.state.api.runtime.harness.planner.proposal = ContinueProposal(
         task_id=task["task_id"], task_revision=task["task_revision"], action=action, **fields)
@@ -96,6 +118,10 @@ def test_a_candidate_cannot_target_another_thread(tmp_path):
         _, current = say(client, app, other, task, "revise", amount_fen=60000)
         assert current["task_revision"] == task["task_revision"]
         assert client.get("/api/v1/tasks", params={"thread_id": other}).json()["data"]["items"] == []
+        jobs = app.state.api.store.rows("SELECT status FROM api_message_jobs WHERE thread_id=?", (other,))
+        assert jobs[0]["status"] == "reply_completed"
+        messages = client.get(f"/api/v1/threads/{other}/messages").json()["data"]["items"]
+        assert any(item["role"] == "assistant" and "原对话" in item["text"] for item in messages)
 
 
 def test_secret_free_safety_question_is_answered_but_values_never_persist(tmp_path):

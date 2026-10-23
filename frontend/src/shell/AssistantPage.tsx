@@ -104,7 +104,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
                   <TaskBlock envelope={item.envelope} slot={slots.resolve(item.envelope.module)}
                     origin={source.origin} conversation={conversation} renderChild={renderChild} />
                 </TaskRecord>)}
-            {awaitingReply && <TypingBubble />}
+            {awaitingReply && <><TypingBubble /><button className="sh-link-btn" onClick={() => void actions.refreshConversation()}>查询办理进度</button></>}
             {pageError && <Notice tone="warning" title="提示" action={<button className="sh-link-btn" onClick={() => void (conversation.thread ? actions.refreshConversation() : actions.reenter())}>重新读取</button>}>{pageError}</Notice>}
             {conversation.pageNotice && <p role="status" className="sh-action-feedback">{conversation.pageNotice}</p>}
           </div>

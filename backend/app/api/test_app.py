@@ -278,7 +278,8 @@ def test_invalid_model_outcome_does_not_create_public_task(tmp_path):
         assert accepted.status_code == 202, accepted.text
         assert accepted.json()["data"]["task_id"] is None
         messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
-        assert [(message["role"], message["task_ids"]) for message in messages] == [("user", [])]
+        assert [(message["role"], message["task_ids"]) for message in messages] == [("user", []), ("assistant", [])]
+        assert messages[1]["text"]
         assert client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"] == []
 
 
@@ -1087,10 +1088,12 @@ def test_interrupted_chat_does_not_reclassify_into_transfer(tmp_path, monkeypatc
         assert client.get("/api/v1/tasks").json()["data"]["items"] == []
         history = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
         if fault == "complete_reply_job":
-            assert [m["role"] for m in history] == ["user", "assistant"]
-            assert history[1]["text"] == "您好。"
+            assert [m["role"] for m in history] == ["user", "assistant", "assistant"]
+            assert "消息处理中断" in history[1]["text"]
+            assert history[2]["text"] == "您好。"
         else:
-            assert [m["role"] for m in history] == ["user"]
+            assert [m["role"] for m in history] == ["user", "assistant"]
+            assert "无法确定原消息处理结果" in history[1]["text"]
             events = restarted.state.api.store.rows("SELECT event_json FROM api_events")
             assert any("无法确定原消息处理结果" in event["event_json"] for event in events)
         assert all(m["task_ids"] == [] for m in history)

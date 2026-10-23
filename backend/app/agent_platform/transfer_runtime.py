@@ -451,7 +451,10 @@ class TransferRuntime:
 
     def _reuse_session_verifications(self, trusted: TrustedContext) -> None:
         self._task(trusted)
+        rebound = set()
         for source_task, verification_id in self.facts.session_verification_sources(trusted):
+            if verification_id in rebound:
+                continue
             try:
                 record = self.gateway.get_verification_record(trusted, verification_id)
             except ValueError:
@@ -465,12 +468,19 @@ class TransferRuntime:
             # The task may have moved sessions since this bank session fact was issued.
             if self.application.get_task(trusted.user_id, trusted.demo_round_id, source_task) is None:
                 continue
-            challenge = self.gateway.get_verification(source, record.source_challenge_id)
+            try:
+                challenge = self.gateway.get_verification(source, record.source_challenge_id)
+            except ValueError:
+                # A task that reused this record is not necessarily the owner of
+                # its original challenge. Keep looking for the issuing task;
+                # never relax the bank's challenge ownership check.
+                continue
             if challenge.challenge_status != "passed" or challenge.purpose != "basic_identity":
                 continue
             self.application.bind_ref(trusted.user_id, trusted.demo_round_id, trusted.task_id,
                                       "verification", verification_id)
             self.facts.add_verification(trusted, record)
+            rebound.add(verification_id)
             self._trace(trusted).record("verification.changed", VerificationChangedPayload(
                 challenge_id=challenge.challenge_id, method="code", result="passed",
                 purpose=challenge.purpose, operation_id=None, verification_id=verification_id,
