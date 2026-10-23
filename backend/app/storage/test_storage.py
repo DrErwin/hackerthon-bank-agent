@@ -14,6 +14,7 @@ from langgraph.graph import StateGraph
 from langgraph.types import Command, interrupt
 
 from app.storage import ApplicationStore, StoragePaths
+from app.storage.application import SCHEMA_VERSION
 from app.storage.mock_bank.repository import BankAccount, MockBankStore
 
 
@@ -139,7 +140,7 @@ def test_application_v3_operation_order_migrates_to_explicit_sequence(tmp_path):
 
     migrated = ApplicationStore(store.path)
     with sqlite3.connect(store.path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     assert migrated.list_task_operations("U1", "D1", "T1") == [first, second]
 
 
@@ -439,7 +440,7 @@ def test_task_reference_session_scope_migrates_from_application_v1(tmp_path):
 
     store = ApplicationStore(path)
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     assert store.has_ref("U1", "D1", "T1", "confirmation", "C1")
 
     created_at, expires_at = active_session_window()

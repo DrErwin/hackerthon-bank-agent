@@ -36,3 +36,14 @@ task = store.transition_task_session(
 ```
 
 如果任务版本或来源会话已变化、目标属于其他用户或轮次，或目标会话尚未生效 / 已过期，调用会失败。
+
+## v0.5 联动持久记录（v05-cross-platform/02，应用库 v5）
+
+应用库 v5 迁移新增四张表，全部要求用户与轮次范围，计划版本仍保存在任务快照里：
+
+- `task_relations`：父子任务组织关系（`link_child_task` 幂等登记，子任务只能属于一个父任务；`parent_of_task` / `task_lineage` 供平台核对归属）。它只表达组织关系，账单来源继承仍由平台按原事实来源字段处理，不复用此表。
+- `arrangements`：已采用资金安排（`AdoptedArrangement` 快照 + `payer_account_id` 列）。`acquire_arrangement` 是 D1 的原子接缝——同一 user/round/account 只允许一份 active 安排：他人持有抛 `ArrangementConflictError`（带持有者 task/arrangement 编号），同父任务改版自动 supersede 旧记录；`close_arrangement` 只关 active（在途未核实不得关闭由调用方核实）；`get_active_arrangement` 供其他应用入口做只读冲突核对。数据库另有部分唯一索引兜底。
+- `budget_commitments`：按 `budget_id`（不分版本）串行的预算占用记录。`register_budget_commitment(..., max_in_flight_fen=...)` 在同一写事务内核对非 closed 占用的 unconsumed 合计并登记，超出抛 `BudgetOccupationExceededError`；`update_budget_commitment` 原地更新（budget/task 身份不可变），unknown 占用一直可查，closed 不再计入在途。
+- `controlled_details`：受控资料原文（`delivery` / `payee` / `payee_search`）按本人、轮次、任务存储；`get_controlled_detail` 越权一律返回 `None`，不泄露存在性。原文是否可进入某条路径由 API/安全层决定，存储本身不是脱敏边界。
+
+存储不判断生活费、银行余额、限额或风控；金额上限等业务参数由调用方以参数传入。
