@@ -760,6 +760,38 @@ class ApiService:
                       ReportReady(task_id=task_id, report_id=report_id), task)
         return task
 
+    def child_tasks(self, identity, task_id):
+        """Expose one parent's durable children through the generic task API (§6.5).
+
+        The parent card shows child steps, but submissions must target the task
+        that owns the interaction; registering children here makes the existing
+        input/confirmation/verification endpoints answer on the child path.
+        """
+        link = self.link(identity, task_id)
+        parent = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+        parent_trusted = TrustedContext(
+            user_id=identity.user_id, session_id=identity.session_id,
+            demo_round_id=identity.demo_round_id, task_id=task_id,
+            run_id=parent.run_id if parent else link["run_id"], parent_task_id=None,
+        )
+        views = []
+        for summary in self.runtime.harness.child_task_summaries(parent_trusted):
+            child_id = summary["child_task_id"]
+            if not self.store.rows("SELECT 1 FROM api_tasks WHERE task_id=?", (child_id,)):
+                child = self.runtime.application.get_task(
+                    identity.user_id, identity.demo_round_id, child_id,
+                )
+                self.store.write("""INSERT OR IGNORE INTO api_tasks (
+                    task_id,thread_id,user_id,session_id,demo_round_id,run_id,created_at,request_id,intent_text)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (child_id, link["thread_id"], identity.user_id, identity.session_id,
+                     identity.demo_round_id, child.run_id if child else link["run_id"],
+                     now().isoformat(),
+                     (child.snapshot.get("request_id") if child else None) or str(uuid4()),
+                     f"{summary['capability_name']}:{summary['step_id']}"))
+            views.append(self.task_view(identity, child_id))
+        return views
+
     def events_for_session(self, identity, thread_id, cursor):
         """Do not replay old-session task controls into a newly authenticated view."""
         visible = []
