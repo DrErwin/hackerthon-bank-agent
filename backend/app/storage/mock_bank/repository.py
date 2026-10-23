@@ -65,13 +65,20 @@ class OrderCreation:
 
 @dataclass(frozen=True)
 class FreezeCapture:
-    """B11: consume frozen funds; an order link marks it paid exactly once."""
+    """B11: consume frozen funds; an order link marks it paid exactly once.
+
+    counterparty facts annotate the consumption ledger row this capture creates,
+    so B08 can return a complete Transaction instead of failing on a bare row.
+    """
 
     freeze_id: str
     amount_fen: int
     transaction_id: str
     order_id: str | None = None
     paid_at: str | None = None
+    counterparty_id: str | None = None
+    counterparty_name: str | None = None
+    summary: str | None = None
 
 
 @dataclass(frozen=True)
@@ -324,8 +331,7 @@ class MockBankStore:
             ).rowcount
             if changed != 1:
                 raise ValueError("account is out of scope or changed concurrently")
-        for effect in effects:
-            MockBankStore._apply_object_effect(connection, user_id, operation_id, effect, at)
+        # Ledger rows first: a capture effect annotates the row it just created.
         for transaction_id, account_id, amount_fen, direction, nature, category, occurred_at in ledger_entries:
             _require_owned_account(connection, user_id, account_id)
             connection.execute(
@@ -335,6 +341,8 @@ class MockBankStore:
                 (transaction_id, account_id, user_id, operation_id, amount_fen,
                  direction, nature, category, occurred_at),
             )
+        for effect in effects:
+            MockBankStore._apply_object_effect(connection, user_id, operation_id, effect, at)
 
     @staticmethod
     def _apply_object_effect(connection, user_id: str, operation_id: str, effect, at: str) -> None:
@@ -363,6 +371,15 @@ class MockBankStore:
                    updated_at = ? WHERE freeze_id = ?""",
                 (effect.amount_fen, at, effect.freeze_id),
             )
+            if effect.counterparty_name is not None or effect.summary is not None:
+                annotated = connection.execute(
+                    """UPDATE ledger_entries SET counterparty_id = ?, counterparty_name = ?,
+                       summary = ? WHERE transaction_id = ? AND operation_id = ?""",
+                    (effect.counterparty_id, effect.counterparty_name, effect.summary,
+                     effect.transaction_id, operation_id),
+                ).rowcount
+                if annotated != 1:
+                    raise ValueError("capture has no matching ledger row")
             if effect.order_id is not None:
                 order = connection.execute(
                     "SELECT user_id, payment_status FROM orders WHERE order_id = ?",
