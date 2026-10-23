@@ -58,6 +58,8 @@ CURATED_SOURCES = [
     "docs/versions/v0.3.0/completion.md",
     "docs/versions/v0.4.0/requirements.md",
     "docs/versions/v0.4.0/completion.md",
+    "docs/versions/v0.5.0/requirements.md",
+    "docs/versions/v0.5.0/completion.md",
     "docs/prd/01-智能转账-PRD-2026-09-23.md",
     "docs/prd/02-账单分析-PRD-2026-09-23.md",
     "docs/prd/06-跨场景联动-PRD-2026-09-23.md",
