@@ -4,9 +4,9 @@ Package: v05-cross-linkage/packages/01-platform-bank
 
 Owner: Erwin
 
-Status: blocked — Erwin 已接包、规格与九票已细化；实施前待公共约定确认及前置能力。
+Status: blocked — Erwin 已接包、规格与九票已细化；票 01 公共约定稿待 Erwin 裁定，模型编码及其他实施前置未完成。
 
-Activation: 2026-10-24 Erwin 明确接受本包，要求拆票后交其他执行者实施；本轮只完成规格/票据交接，未指派或启动执行者。
+Activation: 2026-10-24 Erwin 明确接受本包，要求拆票后交其他执行者实施；随后已指派 Codex 准备票 01 裁定稿；其他实施执行者仍待指派，模型/业务代码未启动。
 
 Accepted by: Erwin
 

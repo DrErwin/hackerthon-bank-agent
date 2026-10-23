@@ -1,6 +1,6 @@
 # 公共接缝与模拟银行工作规格
 
-Status: ticketed — 2026-10-24 Erwin 已接包，现有九票已细化供交接；公共约定确认及具体实施尚待完成。
+Status: ticketed — 2026-10-24 Erwin 已接包，现有九票已细化供交接；票 01 的[业务裁定稿](01-decision.md)及[字段详稿](01-contract-detail.md)已备齐，待 Erwin 裁定；公共模型代码和具体实施尚待完成。
 
 Owner: Erwin
 
@@ -8,7 +8,7 @@ Accepted by: Erwin
 
 Accepted at: 2026-10-24
 
-Execution assignee: 由 Erwin 另行指派；本聊天只负责规格与拆票。
+Execution assignee: 票 01 的公共约定准备由 Erwin 指派 Codex；其余实施执行者仍待指派。本轮未启动模型编码。
 
 Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银行](../v05-cross-linkage/packages/01-platform-bank.md)
 
