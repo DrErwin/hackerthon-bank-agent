@@ -8,7 +8,7 @@ from .demo_policy import DemoRiskEvidence, DemoRiskSignal as Signal, _HIGH_RISK_
 from .risk_detector import detect_transfer_risk
 
 
-VERSION = "demo-text-risk-2"
+VERSION = "demo-text-risk-3"
 # This is deliberately a small language surface for the local demonstration,
 # not a claim that arbitrary Chinese prose has been classified as safe.
 _ACCOUNT = r"(?:A[123]|(?:主账户|付款账户)A[123]|日常账户|储蓄账户|养老金账户)"
@@ -17,6 +17,7 @@ _AMOUNT = r"\d+(?:\.\d{1,2})?(?:元|块钱|块)?"
 _NORMAL_TURN = re.compile(
     rf"(?:(?:请|麻烦|帮我|我要|我想|请帮我)?(?:从{_ACCOUNT}|用{_ACCOUNT})?"
     rf"(?:给|向){_PAYEE}(?:转账?|汇款)(?:{_AMOUNT})?"
+    r"|(?:请|麻烦|帮我|我要|我想|请帮我)?(?:转账|汇款)"
     rf"|(?:请)?(?:改成|改为|修改为|金额改成|金额改为){_AMOUNT}"
     rf"|{_AMOUNT}|{_ACCOUNT}|(?:用|使用|选择?){_ACCOUNT}"
     r"|选择?第[一二三123]个(?:付款)?账户|继续办理|请继续办理|查询原结果|取消)"
