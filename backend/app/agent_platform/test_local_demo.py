@@ -107,7 +107,11 @@ def test_reply_only_and_invalid_model_create_no_task_or_bank_submission(tmp_path
             assert accepted.json()["data"]["task_id"] is None
             assert client.get("/api/v1/tasks", params={"thread_id": thread}).json()["data"]["items"] == []
             messages = client.get(f"/api/v1/threads/{thread}/messages").json()["data"]["items"]
-            assert len(messages) == (2 if mode == "reply" else 1)
+            # 失败也要留可读消息（票 28）：模型无输出时，除用户消息外还有一条面向用户的失败说明。
+            assert len(messages) == 2
+            assert [item["role"] for item in messages] == ["user", "assistant"]
+            assert messages[-1]["text"].strip()
+            assert all(marker not in messages[-1]["text"] for marker in ("MODEL_PROPOSAL_FAILED", "Traceback", "Error"))
             assert submitted_ledger_count(app) == 0
             if mode == "none":
                 assert app.state.api.store.rows("SELECT status FROM api_message_jobs ORDER BY created_at DESC LIMIT 1")[0]["status"] == "error_completed"
