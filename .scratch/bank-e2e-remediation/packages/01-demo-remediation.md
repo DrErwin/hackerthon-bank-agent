@@ -18,3 +18,5 @@ Work spec: [bank-e2e-remediation](../spec.md)
 2026-10-23：24个单目录PR #228～#251已依次合入。三条真实路径、银行计数与安全复验见[分层证据](../../../evals/demo-remediation/README.md)。实现与运行验证完成；票10专项UI检查、用户最终验收仍待。
 
 本轮体验增量票16～21已实现、相关本地检查和真实主路径通过；[证据](../../../evals/demo-remediation/guided-experience.md)。集中PR待审，最终验收未完成。
+
+2026-10-23追加接受：用户要求修连续退订并全面走查已有业务、发现即修、开新PR。按[本轮规格](../business-e2e-spec.md)及票22～23推进，继承集中PR例外；依赖#253，不自动合并。
