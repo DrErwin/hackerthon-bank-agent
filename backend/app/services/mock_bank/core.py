@@ -28,6 +28,7 @@ from app.storage.database import connect, parameter_digest, transaction
 from app.storage.mock_bank.repository import BankAccount, MockBankStore
 
 from . import subscriptions
+from .birthday import BIRTHDAY_RECEIPTS, MockBirthdayBank
 from .flow_seeds import build_flow_rows, shift_months
 from .verification import MockBankVerification
 
@@ -124,6 +125,7 @@ class MockBankService:
                     result.model_dump_json(), now.isoformat(), row["operation_id"],
                 ))
         self.verification = MockBankVerification(store.path, demo_secret)
+        self.birthday = MockBirthdayBank(store, clock=self.clock, slow_seconds=slow_seconds)
 
     def seed_demo(self, *, include_evaluation: bool = False) -> None:
         """Add missing JSON accounts without resetting balances or existing state."""
@@ -679,6 +681,12 @@ class MockBankService:
                 lookup="found",
                 operation=OperationResult[SubscriptionCancelReceipt].model_validate(
                     operation.result),
+            )
+        if operation.action_name in BIRTHDAY_RECEIPTS:
+            receipt_model = BIRTHDAY_RECEIPTS[operation.action_name]
+            return OperationFound[receipt_model](
+                lookup="found",
+                operation=OperationResult[receipt_model].model_validate(operation.result),
             )
         return OperationFound[TransferReceipt](
             lookup="found", operation=OperationResult[TransferReceipt].model_validate(operation.result),
