@@ -305,7 +305,7 @@ class TransferWorkflow:
         if error:
             return self._read_failure(error, "收款账户暂时无法核验。", "verify_payee")
         if not verification.matched:
-            return self._fail("PAYEE_MISMATCH", "bank", "收款账户未通过核验，请核对账户资料。")
+            return self._payee_rejected(state, "PAYEE_MISMATCH")
         return {"payee_display": verification.payee.model_dump(mode="json"), "next": "precheck"}
 
     def _precheck(self, state: TransferState) -> dict:
