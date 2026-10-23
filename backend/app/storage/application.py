@@ -8,12 +8,32 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from app.contracts import TaskStatus
+from app.contracts import AdoptedArrangement, BudgetCommitment, TaskStatus
 
 from .database import connect, parameter_digest, transaction
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
+
+
+class ArrangementConflictError(ValueError):
+    """D1: another task already holds the active arrangement for this account."""
+
+    def __init__(self, holder_task_id: str, holder_arrangement_id: str, payer_account_id: str):
+        self.holder_task_id = holder_task_id
+        self.holder_arrangement_id = holder_arrangement_id
+        self.payer_account_id = payer_account_id
+        super().__init__("ARRANGEMENT_CONFLICT")
+
+
+class BudgetOccupationExceededError(ValueError):
+    """The serialized budget seam refused an occupation above the caller's cap."""
+
+    def __init__(self, budget_id: str, in_flight_fen: int, max_in_flight_fen: int):
+        self.budget_id = budget_id
+        self.in_flight_fen = in_flight_fen
+        self.max_in_flight_fen = max_in_flight_fen
+        super().__init__("BUDGET_OCCUPATION_EXCEEDED")
 
 
 @dataclass(frozen=True)
@@ -49,6 +69,48 @@ class ToolOperation:
     parameters_digest: str
     state: str
     result_ref: str | None
+
+
+@dataclass(frozen=True)
+class TaskRelation:
+    """One parent-child organization link; bill-source inheritance stays elsewhere."""
+
+    parent_task_id: str
+    child_task_id: str
+    step_id: str
+    plan_revision: int
+    linked_at: str
+
+
+@dataclass(frozen=True)
+class ArrangementRecord:
+    record: AdoptedArrangement
+    payer_account_id: str
+    status: str
+
+
+@dataclass(frozen=True)
+class ControlledDetail:
+    detail_ref: str
+    user_id: str
+    demo_round_id: str
+    task_id: str
+    kind: str
+    payload: dict
+    created_at: str
+
+
+def _stable_dump(model) -> str:
+    return json.dumps(model.model_dump(mode="json"), ensure_ascii=False, sort_keys=True)
+
+
+def _require_task_in_scope(connection, user_id: str, demo_round_id: str, task_id: str) -> None:
+    row = connection.execute(
+        "SELECT 1 FROM tasks WHERE task_id = ? AND user_id = ? AND demo_round_id = ?",
+        (task_id, user_id, demo_round_id),
+    ).fetchone()
+    if row is None:
+        raise ValueError("task is not in scope")
 
 
 class ApplicationStore:
@@ -213,6 +275,56 @@ class ApplicationStore:
                 connection.execute("""CREATE UNIQUE INDEX IF NOT EXISTS
                     tool_operations_created_sequence ON tool_operations(created_sequence)""")
                 connection.execute("PRAGMA user_version = 4")
+            if version < 5:
+                # v05-cross-platform/02: durable cross records. Plan versions stay in
+                # the task snapshots; these tables own relations, D1 arrangements,
+                # budget occupations and controlled detail references.
+                connection.execute("""CREATE TABLE IF NOT EXISTS task_relations (
+                    parent_task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                    child_task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    step_id TEXT NOT NULL,
+                    plan_revision INTEGER NOT NULL,
+                    linked_at TEXT NOT NULL,
+                    PRIMARY KEY(parent_task_id, child_task_id),
+                    UNIQUE(child_task_id)
+                )""")
+                connection.execute("""CREATE TABLE IF NOT EXISTS arrangements (
+                    arrangement_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    payer_account_id TEXT NOT NULL,
+                    source_task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                    status TEXT NOT NULL CHECK(status IN ('active', 'superseded', 'closed')),
+                    record_json TEXT NOT NULL,
+                    adopted_at TEXT NOT NULL
+                )""")
+                # D1 backstop: at most one active arrangement per account per round.
+                connection.execute("""CREATE UNIQUE INDEX IF NOT EXISTS
+                    arrangements_one_active_per_account
+                    ON arrangements(user_id, demo_round_id, payer_account_id)
+                    WHERE status = 'active'""")
+                connection.execute("""CREATE TABLE IF NOT EXISTS budget_commitments (
+                    budget_id TEXT NOT NULL,
+                    commitment_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                    state TEXT NOT NULL CHECK(state IN ('pending', 'active', 'unknown', 'closed')),
+                    record_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )""")
+                connection.execute("""CREATE TABLE IF NOT EXISTS controlled_details (
+                    detail_ref TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                    kind TEXT NOT NULL CHECK(kind IN ('delivery', 'payee', 'payee_search')),
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )""")
+                connection.execute("PRAGMA user_version = 5")
 
     def create_session(
         self, session_id: str, user_id: str, demo_round_id: str, created_at: str, expires_at: str,
@@ -546,3 +658,307 @@ class ApplicationStore:
                 (state, result_ref, user_id, demo_round_id, operation_id),
             )
         return self.get_operation(user_id, demo_round_id, operation_id)
+
+    # --- v05-cross-platform/02: task relations, arrangements, budget seams, details ---
+
+    def link_child_task(
+        self, user_id: str, demo_round_id: str, parent_task_id: str,
+        child_task_id: str, step_id: str, plan_revision: int,
+    ) -> None:
+        """Idempotently record that a child task belongs to one parent step."""
+        if parent_task_id == child_task_id:
+            raise ValueError("a task cannot be its own child")
+        with transaction(self.path) as connection:
+            for role, task_id in (("parent", parent_task_id), ("child", child_task_id)):
+                try:
+                    _require_task_in_scope(connection, user_id, demo_round_id, task_id)
+                except ValueError as exc:
+                    raise ValueError(f"{role} task is not in scope") from exc
+            existing = connection.execute(
+                "SELECT parent_task_id FROM task_relations WHERE child_task_id = ?",
+                (child_task_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing["parent_task_id"] != parent_task_id:
+                    raise ValueError("child task already belongs to another parent")
+                return
+            connection.execute(
+                "INSERT INTO task_relations VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (parent_task_id, child_task_id, user_id, demo_round_id,
+                 step_id, plan_revision, datetime.now(timezone.utc).isoformat()),
+            )
+
+    def list_child_tasks(
+        self, user_id: str, demo_round_id: str, parent_task_id: str,
+    ) -> list[TaskRelation]:
+        connection = connect(self.path)
+        try:
+            rows = connection.execute(
+                """SELECT parent_task_id, child_task_id, step_id, plan_revision, linked_at
+                   FROM task_relations
+                   WHERE user_id = ? AND demo_round_id = ? AND parent_task_id = ?
+                   ORDER BY linked_at, child_task_id""",
+                (user_id, demo_round_id, parent_task_id),
+            ).fetchall()
+            return [TaskRelation(**dict(row)) for row in rows]
+        finally:
+            connection.close()
+
+    def parent_of_task(self, user_id: str, demo_round_id: str, child_task_id: str) -> str | None:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                """SELECT parent_task_id FROM task_relations
+                   WHERE user_id = ? AND demo_round_id = ? AND child_task_id = ?""",
+                (user_id, demo_round_id, child_task_id),
+            ).fetchone()
+            return row["parent_task_id"] if row else None
+        finally:
+            connection.close()
+
+    def task_lineage(self, user_id: str, demo_round_id: str, task_id: str) -> list[str]:
+        """The task and its ancestors, nearest parent first (bounded walk)."""
+        lineage = [task_id]
+        connection = connect(self.path)
+        try:
+            current = task_id
+            for _ in range(64):
+                row = connection.execute(
+                    """SELECT parent_task_id FROM task_relations
+                       WHERE user_id = ? AND demo_round_id = ? AND child_task_id = ?""",
+                    (user_id, demo_round_id, current),
+                ).fetchone()
+                if row is None or row["parent_task_id"] in lineage:
+                    break
+                lineage.append(row["parent_task_id"])
+                current = row["parent_task_id"]
+            return lineage
+        finally:
+            connection.close()
+
+    def acquire_arrangement(self, record: AdoptedArrangement) -> AdoptedArrangement:
+        """D1 seam: check-and-register in one serialized write.
+
+        A different task's active arrangement on the same account raises
+        ArrangementConflictError; the same task revising its plan supersedes its
+        own previous arrangement and keeps the account's single active record.
+        """
+        with transaction(self.path) as connection:
+            _require_task_in_scope(
+                connection, record.user_id, record.demo_round_id, record.source_task_id,
+            )
+            existing = connection.execute(
+                """SELECT source_task_id, status, record_json FROM arrangements
+                   WHERE arrangement_id = ? AND user_id = ? AND demo_round_id = ?""",
+                (record.arrangement_id, record.user_id, record.demo_round_id),
+            ).fetchone()
+            if existing is not None:
+                if existing["record_json"] == _stable_dump(record):
+                    return record
+                raise ValueError("arrangement_id is already bound to a different record")
+            active = connection.execute(
+                """SELECT arrangement_id, source_task_id FROM arrangements
+                   WHERE user_id = ? AND demo_round_id = ? AND payer_account_id = ?
+                     AND status = 'active'""",
+                (record.user_id, record.demo_round_id, record.payer_account_id),
+            ).fetchone()
+            if active is not None and active["source_task_id"] != record.source_task_id:
+                raise ArrangementConflictError(
+                    active["source_task_id"], active["arrangement_id"], record.payer_account_id,
+                )
+            if active is not None:
+                connection.execute(
+                    """UPDATE arrangements SET status = 'superseded'
+                       WHERE arrangement_id = ? AND user_id = ? AND demo_round_id = ?""",
+                    (active["arrangement_id"], record.user_id, record.demo_round_id),
+                )
+            connection.execute(
+                "INSERT INTO arrangements VALUES (?, ?, ?, ?, ?, 'active', ?, ?)",
+                (record.arrangement_id, record.user_id, record.demo_round_id,
+                 record.payer_account_id, record.source_task_id,
+                 _stable_dump(record), record.adopted_at.isoformat()),
+            )
+        return record
+
+    def close_arrangement(self, user_id: str, demo_round_id: str, arrangement_id: str) -> None:
+        """Close the active arrangement; the caller verifies in-flight facts first."""
+        with transaction(self.path) as connection:
+            changed = connection.execute(
+                """UPDATE arrangements SET status = 'closed'
+                   WHERE arrangement_id = ? AND user_id = ? AND demo_round_id = ?
+                     AND status = 'active'""",
+                (arrangement_id, user_id, demo_round_id),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("arrangement is not active")
+
+    def get_arrangement(
+        self, user_id: str, demo_round_id: str, arrangement_id: str,
+    ) -> ArrangementRecord | None:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                """SELECT * FROM arrangements
+                   WHERE arrangement_id = ? AND user_id = ? AND demo_round_id = ?""",
+                (arrangement_id, user_id, demo_round_id),
+            ).fetchone()
+            return self._arrangement(row) if row else None
+        finally:
+            connection.close()
+
+    def get_active_arrangement(
+        self, user_id: str, demo_round_id: str, payer_account_id: str,
+    ) -> ArrangementRecord | None:
+        """Read-only D1 check for other in-app spend entry points."""
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                """SELECT * FROM arrangements
+                   WHERE user_id = ? AND demo_round_id = ? AND payer_account_id = ?
+                     AND status = 'active'""",
+                (user_id, demo_round_id, payer_account_id),
+            ).fetchone()
+            return self._arrangement(row) if row else None
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _arrangement(row) -> ArrangementRecord:
+        return ArrangementRecord(
+            record=AdoptedArrangement.model_validate_json(row["record_json"]),
+            payer_account_id=row["payer_account_id"],
+            status=row["status"],
+        )
+
+    def register_budget_commitment(
+        self, user_id: str, demo_round_id: str, record: BudgetCommitment, *,
+        max_in_flight_fen: int | None = None,
+    ) -> BudgetCommitment:
+        """Serialized check-and-register per budget_id (§5.4).
+
+        max_in_flight_fen is the caller's own remaining cap; the sum of non-closed
+        unconsumed occupations (this one included) must not exceed it inside the
+        same write transaction, so two competing tasks cannot interleave.
+        """
+        with transaction(self.path) as connection:
+            _require_task_in_scope(connection, user_id, demo_round_id, record.task_id)
+            existing = connection.execute(
+                """SELECT record_json FROM budget_commitments WHERE commitment_id = ?""",
+                (record.commitment_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing["record_json"] == _stable_dump(record):
+                    return record
+                raise ValueError("commitment_id is already bound to a different record")
+            if max_in_flight_fen is not None:
+                rows = connection.execute(
+                    """SELECT record_json FROM budget_commitments
+                       WHERE user_id = ? AND demo_round_id = ? AND budget_id = ?
+                         AND state != 'closed'""",
+                    (user_id, demo_round_id, record.budget_ref.budget_id),
+                ).fetchall()
+                in_flight = sum(
+                    BudgetCommitment.model_validate_json(row["record_json"]).unconsumed_fen
+                    for row in rows
+                ) + record.unconsumed_fen
+                if in_flight > max_in_flight_fen:
+                    raise BudgetOccupationExceededError(
+                        record.budget_ref.budget_id, in_flight, max_in_flight_fen,
+                    )
+            connection.execute(
+                "INSERT INTO budget_commitments VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (record.budget_ref.budget_id, record.commitment_id, user_id, demo_round_id,
+                 record.task_id, record.state, _stable_dump(record), record.updated_at.isoformat()),
+            )
+        return record
+
+    def update_budget_commitment(
+        self, user_id: str, demo_round_id: str, commitment_id: str, record: BudgetCommitment,
+    ) -> BudgetCommitment:
+        """Update one commitment in place; unknown occupations stay queryable."""
+        with transaction(self.path) as connection:
+            existing = connection.execute(
+                """SELECT budget_id, task_id FROM budget_commitments
+                   WHERE commitment_id = ? AND user_id = ? AND demo_round_id = ?""",
+                (commitment_id, user_id, demo_round_id),
+            ).fetchone()
+            if existing is None:
+                raise ValueError("commitment is not in scope")
+            if (existing["budget_id"], existing["task_id"]) != (
+                record.budget_ref.budget_id, record.task_id,
+            ):
+                raise ValueError("commitment identity cannot change")
+            changed = connection.execute(
+                """UPDATE budget_commitments SET state = ?, record_json = ?, updated_at = ?
+                   WHERE commitment_id = ? AND user_id = ? AND demo_round_id = ?""",
+                (record.state, _stable_dump(record), record.updated_at.isoformat(),
+                 commitment_id, user_id, demo_round_id),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("commitment is not in scope")
+        return record
+
+    def list_budget_commitments(
+        self, user_id: str, demo_round_id: str, budget_id: str, *, include_closed: bool = False,
+    ) -> list[BudgetCommitment]:
+        connection = connect(self.path)
+        try:
+            rows = connection.execute(
+                """SELECT record_json FROM budget_commitments
+                   WHERE user_id = ? AND demo_round_id = ? AND budget_id = ?
+                     AND (? OR state != 'closed')
+                   ORDER BY updated_at, commitment_id""",
+                (user_id, demo_round_id, budget_id, include_closed),
+            ).fetchall()
+            return [BudgetCommitment.model_validate_json(row["record_json"]) for row in rows]
+        finally:
+            connection.close()
+
+    def store_controlled_detail(
+        self, detail_ref: str, user_id: str, demo_round_id: str, task_id: str,
+        kind: str, payload: dict, created_at: str,
+    ) -> None:
+        """Store raw controlled facts (delivery etc.) under their owner's scope only."""
+        if kind not in {"delivery", "payee", "payee_search"}:
+            raise ValueError("unsupported controlled detail kind")
+        with transaction(self.path) as connection:
+            _require_task_in_scope(connection, user_id, demo_round_id, task_id)
+            existing = connection.execute(
+                """SELECT user_id, demo_round_id, kind, payload_json FROM controlled_details
+                   WHERE detail_ref = ?""",
+                (detail_ref,),
+            ).fetchone()
+            payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+            if existing is not None:
+                same = (
+                    existing["user_id"], existing["demo_round_id"], existing["kind"],
+                    existing["payload_json"],
+                ) == (user_id, demo_round_id, kind, payload_json)
+                if not same:
+                    raise ValueError("detail_ref is already bound to different facts")
+                return
+            connection.execute(
+                "INSERT INTO controlled_details VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (detail_ref, user_id, demo_round_id, task_id, kind, payload_json, created_at),
+            )
+
+    def get_controlled_detail(
+        self, user_id: str, demo_round_id: str, detail_ref: str, *, task_id: str | None = None,
+    ) -> ControlledDetail | None:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                "SELECT * FROM controlled_details WHERE detail_ref = ?", (detail_ref,),
+            ).fetchone()
+            if row is None or (row["user_id"], row["demo_round_id"]) != (user_id, demo_round_id):
+                return None
+            if task_id is not None and row["task_id"] != task_id:
+                return None
+            return ControlledDetail(
+                detail_ref=row["detail_ref"], user_id=row["user_id"],
+                demo_round_id=row["demo_round_id"], task_id=row["task_id"],
+                kind=row["kind"], payload=json.loads(row["payload_json"]),
+                created_at=row["created_at"],
+            )
+        finally:
+            connection.close()
