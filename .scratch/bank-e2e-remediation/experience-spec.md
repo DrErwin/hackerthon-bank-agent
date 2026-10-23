@@ -1,5 +1,5 @@
 # 连续办理体验改进（2026-10-23）
-Status: in_progress
+Status: implemented — review/acceptance pending
 Owner: Erwin（用户直接授权 Codex 实施，长期目录归属不变）
 Package: [Demo 修复](packages/01-demo-remediation.md)
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)
@@ -32,3 +32,5 @@ HTTP测试接真实模块、安全门和隔离模拟银行，模型替身只证�
 2026-10-23用户明确豁免一个改动一个PR：本轮相关票合并至同一集成分支，一个可审查PR；逐目录提交保留审查边界。本地完成验证和审查后集中推送，避免反复触发Actions；不改CI配置。本聊天方案与验收场景已获批准，不重复问粒度。
 本机已读取to-spec/to-tickets/implement（disable-model-invocation，按仓库流程执行，不冒称调用斜杠命令），以及code-review。保护主工作区showcase。
 
+
+验证与未验收项：[连续办理证据](../../evals/demo-remediation/guided-experience.md)。
