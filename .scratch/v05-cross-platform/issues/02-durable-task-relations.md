@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/storage/`
 
-Status: blocked — 包负责人已接包；实施仍待本票前置及 Erwin 指派执行者。
+Status: delivered — 应用库 v5 持久化与并发接缝已合入（PR #257，squash 3f14a89，2026-10-24）；子代理审查发现的跨用户写缺口已修复并复测；Ringo 安全审查与 E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -43,9 +43,9 @@ Core scenarios: XL-P06、B07、X03—X05；定义见[共享规格 §5](../../v05
 
 ## Acceptance criteria
 
-- [ ] 父子关系、当前计划、采用记录及作用域引用重启后仍可定位；已有快照能继续读取。
-- [ ] 两个任务竞争同一账户安排或同一预算占用时，核对和登记不可被交错绕过；未知占用保留。
-- [ ] 记录按本人/轮次隔离，重复关联不生出第二个子任务；存储不承担银行余额/风控判断。
+- [x] 父子关系、当前计划、采用记录及作用域引用重启后仍可定位；已有快照能继续读取。（task_relations/arrangements/budget_commitments/controlled_details；计划版本仍在任务快照；重启与 v4→v5 升级有测试）
+- [x] 两个任务竞争同一账户安排或同一预算占用时，核对和登记不可被交错绕过；未知占用保留。（BEGIN IMMEDIATE 原子接缝+部分唯一索引兜底；真实双线程竞争测试；unknown 占用保留并持续占额）
+- [x] 记录按本人/轮次隔离，重复关联不生出第二个子任务；存储不承担银行余额/风控判断。（全部方法带 user/round 范围；审查修复 update_budget_commitment 跨用户写缺口；业务金额上限由调用方传参）
 
 ## 实施交接：应用记录，不是银行账本
 
@@ -66,8 +66,9 @@ Core scenarios: XL-P06、B07、X03—X05；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #257](https://github.com/DrErwin/hackerthon-bank-agent/pull/257)，squash 提交 `3f14a89`（2026-10-24）。交付：`storage/application.py` v5 迁移+四个受控接缝、`storage/test_cross_records.py`、`storage/README.md` v0.5 节。
+- 本票验证：`app/storage/` 31 passed（新增 5 项）；全量后端 1453 passed；CI Repository checks 通过（PR #257）。
+- 审查：子代理审查 A—G 中发现 1 项必须修复（`update_budget_commitment` 缺 user/round 过滤，跨用户可改写他人占用），已修复并补错误用户/轮次测试；其余 PASS。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
