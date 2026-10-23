@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/storage/`
 
-Status: blocked — 包负责人已接包；实施仍待本票前置及 Erwin 指派执行者。
+Status: delivered — 银行库 v4 原子对象提交已合入（PR #260，squash 39835d2，2026-10-24）；银行规则判定归票 07；E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -43,10 +43,10 @@ Core scenarios: XL-B01、B04—B07；定义见[共享规格 §5](../../v05-cross
 
 ## Acceptance criteria
 
-- [ ] 冻结、订单、核销/释放与操作登记在必要事务边界内一致；失败不得留下无法回查的资金变化。
-- [ ] 同号同参返回同一结果，同号异参拒绝；同订单不能因换编号被重复付款。
-- [ ] 本人/轮次、关联冻结和订单正确，未消费余额可核对；未知操作和占用不得被提前抹除。
-- [ ] 迁移与演示重置可重复；旧银行记录及已有单业务结果仍可读。
+- [x] 冻结、订单、核销/释放与操作登记在必要事务边界内一致；失败不得留下无法回查的资金变化。（commit/finalize_operation effects 参数，同一 BEGIN IMMEDIATE 事务；中途失败连账户变化回滚有测试）
+- [x] 同号同参返回同一结果，同号异参拒绝；同订单不能因换编号被重复付款。（操作表幂等+order_payments 主键+付款状态检查；换号重付四项全回滚有测试）
+- [x] 本人/轮次、关联冻结和订单正确，未消费余额可核对；未知操作和占用不得被提前抹除。（user 范围读取/效果归属检查；captured/released 合计可算 remaining；processing 保留由 finalize 单次生效）
+- [x] 迁移与演示重置可重复；旧银行记录及已有单业务结果仍可读。（v3→v4 IF NOT EXISTS；重启持久与升级测试；submit_transfer/订阅 115 项回归通过）
 
 ## 实施交接：银行对象与操作必须一起落地
 
@@ -67,8 +67,9 @@ Core scenarios: XL-B01、B04—B07；定义见[共享规格 §5](../../v05-cross
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #260](https://github.com/DrErwin/hackerthon-bank-agent/pull/260)，squash 提交 `39835d2`（2026-10-24）。交付：`storage/mock_bank/repository.py` v4 迁移+四类对象效果+get_freeze/get_order、`test_bank_cross_objects.py`。
+- 本票验证：`app/storage/` 37 passed（新增 6 项）；全量后端 1469 passed；CI 通过（PR #260）。
+- 审查：子代理审查 A—G 全 PASS、无必须修复项；建议（删未用常量、补 processing+effects 拒绝断言）已采纳。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
