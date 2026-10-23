@@ -7,6 +7,7 @@
 
 | 日期 | 交付 | 提交 / 证据 | 边界与未做 |
 |---|---|---|---|
+| 10-24 | 联动共享规格、六包及 21 张规划票 | [规格](../../../.scratch/v05-cross-linkage/spec.md)、[公共约定方案](../../../.scratch/v05-cross-linkage/contract-proposal.md)、[正式票索引](../../../.scratch/v05-cross-linkage/ticket-proposal.md)；PM 已批准顺序和拆分 | 公共约定细节/安全审阅仍待完成；各负责人未代领，代码与 E2E 未开始 |
 | 10-24 | 跨场景联动 PRD 重写（需求文档） | [PRD](../../prd/06-跨场景联动-PRD-2026-09-23.md)、[E2E 用例设计](../../../evals/cross/representative-cases.md)；PM 已确认三个生活场景，补齐 AI / Harness / 确定性业务边界 | 新增公共约定待收口；实施未开工、未拆票、未运行联动 E2E，不代表功能交付或安全签核 |
 | 10-21 | 管理端审计导出 F35 / F24 audit 分支（[#214](https://github.com/DrErwin/hackerthon-bank-agent/pull/214)） | `b01ceb9`；E2E 117 passed、后端全量 1191 passed、真实演示库 3636 事件证据包 | 管理前端入口按 PM 决定未做（已知限制） |
 | 10-22 | 可信观察接缝与四项体验能力（[#216](https://github.com/DrErwin/hackerthon-bank-agent/issues/216)，[交付记录](../../../evals/security/observers-2026-10-22.md)） | 九票合入；离线 E2E 26 checked / 0 failed、真实模型 GLM Coding Plan 6 次调用全 Passed | 前端粘贴框与记忆管理页未做（须 PM 同意另开前端票）、生产检测器 #160 未做、真实页面粘贴走查与批次 B/C 全量未做 |
@@ -19,7 +20,7 @@
 
 | 事项 | 负责人 | 状态 |
 |---|---|---|
-| 跨场景联动：业务能力、评测与前端接入 | 周恩宇（业务）、梁爽/六水（前端）；公共及模拟银行依赖 Erwin，安全 Ringo | **PRD 已重写；实施未开工、无票**。三个场景 E2E 均缺联动实现，生日还缺生活服务及冻结资金能力；待公共约定收口与 PM 启动拆票 |
+| 跨场景联动：业务能力、评测与前端接入 | 周恩宇（业务）、梁爽/六水（前端）；公共及模拟银行依赖 Erwin，安全 Ringo | **规格、六包及 21 张规划票已发布，实施未开工**。PM 已确认减支→养老金→生日的联调顺序；待公共约定收口和各负责人接包。三个场景 E2E 均缺实现，生日另缺生活服务及冻结资金能力 |
 | 生产检测器装配（[#160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)） | Ringo / 平台 | v0.4 起 deferred，未做 |
 | 安全样例扩充（[#215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)） | Ringo | 首批 56 条已提交；**PM 2026-10-24 决定只扩充样例、不再做候选模型比较** |
 | 200% 缩放、完整读屏、真机软键盘 | 前端 | 未做 |
