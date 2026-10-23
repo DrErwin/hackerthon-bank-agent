@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/api/`
 
-Status: blocked — 包负责人已接包；实施仍待本票前置及 Erwin 指派执行者。
+Status: delivered — 通用 children 端点与子交互路由已合入（PR #259，squash 08f6b7d，2026-10-24）；跨轮次/重置行为留 E2E 包；Ringo 审查与 E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -43,9 +43,9 @@ Core scenarios: XL-S01、X02—X05；定义见[共享规格 §5](../../v05-cross
 
 ## Acceptance criteria
 
-- [ ] 任务查询和 SSE 返回真实父进度、步骤及当前子交互；不伪造结果或多建一份确认。
-- [ ] 响应绑定子任务及交互版本；旧按钮、重复提交、越权和跨轮次拒绝且不产生额外业务写入。
-- [ ] 父取消能停止后续动作，恢复能找到原子任务；HTTP 与事件视图含义一致。
+- [x] 任务查询和 SSE 返回真实父进度、步骤及当前子交互；不伪造结果或多建一份确认。（GET /tasks/{id}/children 懒注册+真实 TaskView；确认/验证/输入走子任务通用路径；SSE 事件流与 HTTP 一致有测试）
+- [x] 响应绑定子任务及交互版本；旧按钮、重复提交、越权和跨轮次拒绝且不产生额外业务写入。（409 INTERACTION_STALE、request receipt 字节级重放零推进、404、409 SESSION_RECONFIRMATION_REQUIRED；跨轮次沿用 link() 既有过滤，留 E2E）
+- [x] 父取消能停止后续动作，恢复能找到原子任务；HTTP 与事件视图含义一致。（父取消后子任务真实可见、单活跃不变量阻止后续派发；SSE 断言 task_updated 与 HTTP 状态一致）
 
 ## 实施交接：让页面操作准确落到当前业务
 
@@ -65,8 +65,9 @@ Core scenarios: XL-S01、X02—X05；定义见[共享规格 §5](../../v05-cross
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #259](https://github.com/DrErwin/hackerthon-bank-agent/pull/259)，squash 提交 `08f6b7d`（2026-10-24）。交付：`api/service.py` child_tasks、`api/app.py` /children 端点、`test_parent_child_api.py`（真实 uvicorn+httpx）。
+- 本票验证：`app/api/` 172 passed（新增 3 项）；CI 通过（PR #259）。
+- 审查：子代理审查 A—F 全 PASS、无必须修复项；建议断言（404 懒注册边界、INTERACTION_STALE 错误码）已采纳。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
