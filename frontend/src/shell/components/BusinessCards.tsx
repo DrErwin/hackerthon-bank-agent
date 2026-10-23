@@ -205,7 +205,7 @@ export function BillCardActions({ task, busy, onAction, links, renderChild, acti
     <p className="sh-hint">{billPeriod(summary.scope.start_at, summary.scope.end_at)} · {summary.scope.account_ids.length} 张卡</p>
     {enabled && <form className="sh-guided-form" onSubmit={(event) => { event.preventDefault(); void onAction({ action: "bill_range", month }); }}>
       <label htmlFor={"month-" + task.task_id}>换一个月份（沿用这些银行卡）</label>
-      <input id={"month-" + task.task_id} type="month" value={month} onChange={(event) => setMonth(event.target.value)} required disabled={busy} />
+      <input id={"month-" + task.task_id} type="month" value={month} onInput={(event) => setMonth(event.currentTarget.value)} required disabled={busy} />
       <button className="sh-btn sh-btn-secondary" disabled={busy || !month}>查询这个月</button>
     </form>}
     <div className="sh-row-heading sh-bill-total"><span>消费扣除退款后</span><strong>{yuan(summary.consumption_net_fen)}</strong></div>
