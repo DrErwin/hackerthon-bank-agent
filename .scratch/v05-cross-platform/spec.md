@@ -1,10 +1,14 @@
 # 公共接缝与模拟银行工作规格
 
-Status: planning-approved — 2026-10-24 PM 已确认业务顺序、交付包与拆分；公共契约细节、实际接包及实施尚待完成。
+Status: ticketed — 2026-10-24 Erwin 已接包，现有九票已细化供交接；公共约定确认及具体实施尚待完成。
 
 Owner: Erwin
 
-Accepted by: 未记录
+Accepted by: Erwin
+
+Accepted at: 2026-10-24
+
+Execution assignee: 由 Erwin 另行指派；本聊天只负责规格与拆票。
 
 Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银行](../v05-cross-linkage/packages/01-platform-bank.md)
 
@@ -34,6 +38,6 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 
 ## 接包与下一步
 
-PM 本次批准的是规划和拆票，未替本工作组负责人领取，也未指派代码实施。正式接包后记录 Accepted by/at，按当前依赖选择票推进；不得跳过公共约定和必要的安全审查。
+Erwin 本次明确接受第一个包，要求细化票据后交其他人执行。九票沿用现有编号，逐票增加实施交接说明；不重新拆组，不改其他包领取状态。执行顺序、跨包前置及可复制的交接指令见[交接说明](handoff.md)。公共约定与安全审查仍须按真实结果记录。
 
 本机技能检查及来源说明沿用共享规格 Further Notes，实施时再检查 implement/code-review 的可用性。全过程只更新本人工作线和[项目跟踪](../../docs/01-项目跟踪.md)对应条目。

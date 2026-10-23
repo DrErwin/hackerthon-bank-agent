@@ -9,7 +9,7 @@
 
 ## 范围
 
-- **跨场景联动**（v0.4 移至）：2026-10-24 PM 确认三个生活目标——**养老金到账后的本月安排、找出并减少不必要开销、家人生日安排**；按[联动 PRD](../../prd/06-跨场景联动-PRD-2026-09-23.md)实现业务编排、评测与前端接入。AI 自主规划、Harness 任务承接和确定性业务规则分别定义。生日仍在本期范围，模拟生活服务、冻结/核销/释放和公共接缝为前置依赖，不能以只读建议替代交付。**PRD 与[共享规格](../../../.scratch/v05-cross-linkage/spec.md)已完成规划；PM 已确认并发布[六包及 21 张独立票](../../../.scratch/v05-cross-linkage/ticket-proposal.md)。新增公共约定待收口，各负责人接包及实施未开始。**
+- **跨场景联动**（v0.4 移至）：2026-10-24 PM 确认三个生活目标——**养老金到账后的本月安排、找出并减少不必要开销、家人生日安排**；按[联动 PRD](../../prd/06-跨场景联动-PRD-2026-09-23.md)实现业务编排、评测与前端接入。AI 自主规划、Harness 任务承接和确定性业务规则分别定义。生日仍在本期范围，模拟生活服务、冻结/核销/释放和公共接缝为前置依赖，不能以只读建议替代交付。**PRD 与[共享规格](../../../.scratch/v05-cross-linkage/spec.md)已完成规划；PM 已确认并发布[六包及 21 张独立票](../../../.scratch/v05-cross-linkage/ticket-proposal.md)。新增公共约定待收口；Erwin 已接受第一个包并细化九票，其他包待接，实施未开始。**
 - **任务评测与安全评测**：跑三场景任务评测与安全评测；生产检测器装配（[#160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)）按实际排期推进；样例扩充（[#215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)）**PM 2026-10-24 决定只扩充样例、不再做候选模型比较**。
 - **跨模块集成测试与缺陷修复**；核对审计证据、恢复、防重复和用户状态表达。
 - **管理端审计导出 F35 与 F24 audit 分支**（来源 [Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)，2026-10-13 PM 决定挂 v0.5）：**已交付**——[v05-platform/01](../../../.scratch/v05-platform/issues/01-audit-export.md)（[PR #214](https://github.com/DrErwin/hackerthon-bank-agent/pull/214) `b01ceb9`）；管理前端入口按 PM 决定不做（已知限制），历史轮次导出维持与 F33/F34 一致的当前轮次口径。

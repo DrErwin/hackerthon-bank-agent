@@ -4,15 +4,15 @@ Package: v05-cross-linkage/packages/01-platform-bank
 
 Owner: Erwin
 
-Status: planned
+Status: blocked — Erwin 已接包、规格与九票已细化；实施前待公共约定确认及前置能力。
 
-Activation: PM 已批准规划及拆票；待负责人明确接包和实施授权。本文件不构成已向本人通知或其已接受的记录。
+Activation: 2026-10-24 Erwin 明确接受本包，要求拆票后交其他执行者实施；本轮只完成规格/票据交接，未指派或启动执行者。
 
-Accepted by: 未记录
+Accepted by: Erwin
 
-Accepted at: 未记录
+Accepted at: 2026-10-24
 
-Work spec: [共享规格](../spec.md)、[v05-cross-platform 工作规格与独立票](../../v05-cross-platform/spec.md)；均为规划交付，负责人接包待登记。
+Work spec: [共享规格](../spec.md)、[v05-cross-platform 工作规格与独立票](../../v05-cross-platform/spec.md)；本包负责人已接受，具体实施执行者由 Erwin 另行指派。
 
 Directory boundaries: backend/app/contracts/、storage/、agent_platform/、api/、services/；实施时每票只取一个归属目录
 
@@ -39,6 +39,6 @@ Directory boundaries: backend/app/contracts/、storage/、agent_platform/、api/
 
 ## 依赖与交接
 
-为包 03/04 提供接缝；银行业务验证由包 06，页面贯通由包 05。候选 1—4、6、11—12、15—16 是供负责人调整的拆分建议。
+为包 03/04 提供接缝；银行业务验证由包 06，页面贯通由包 05。九张正式票沿用已批准编号，分别补齐输入、输出、边界和验证；执行交接见[本包交接说明](../../v05-cross-platform/handoff.md)。
 
-候选拆分见[拆票建议](../ticket-proposal.md)，生效规则见[公共约定方案](../contract-proposal.md)及正式契约。负责人接包后在自己的工作组细化实施票，一票一归属目录；本包只约定结果和边界，不替负责人锁定内部实现。正式领取和排期以[项目跟踪](../../../docs/01-项目跟踪.md)为准。
+候选拆分见[拆票建议](../ticket-proposal.md)，生效规则见[公共约定方案](../contract-proposal.md)及正式契约。Erwin 已接包并授权细化现有九票，一票一归属目录；执行者领取具体票后再记录其姓名、分支及验证证据。正式领取和排期以[项目跟踪](../../../docs/01-项目跟踪.md)为准。
