@@ -1,5 +1,5 @@
 # 已有业务全面 E2E 走查与连续办理修复
-Status: developed; verification complete; PR/user acceptance pending
+Status: merged — 用户最终体验验收待办（PR #254，squash `0e34351`）
 Owner: Erwin（用户授权 Codex 代行）
 Package: [Demo修复](packages/01-demo-remediation.md)
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)

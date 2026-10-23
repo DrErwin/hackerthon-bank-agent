@@ -51,3 +51,12 @@
 2026-10-23用户发现转账验证后退订优酷、再退订网盘失败。票22根因回归、票23全面业务走查已接受；[本轮规格](business-e2e-spec.md)，新PR依赖尚未合并的#253。原始失败库保留。
 
 票22～28完成实现：修复连续退订验证来源、跨对话续办反馈、账单刷新范围、退订验证说明、丢失通知补查及失败原因持久化。真实模型HTTP共18个场景最终补验通过；真实页面完成转账后连续退订、刷新恢复、账单明细与单笔核对、断开实时通知后的报告补查。全后端1,425项、前端70项与构建通过；最终API增量及双轴审查详见[分层证据](../../evals/demo-remediation/business-e2e.md)。集中新PR依赖#253，未合并；窄屏/200%/读屏和专业安全批准未追加宣称。
+
+## 2026-10-23 合并记录：#253 / #254（审查与验证边界）
+
+- **已合并**：票16～28。PR #253 → squash `b7fdd91`（[连续办理体验改进](experience-spec.md)）；PR #254 → squash `0e34351`（[已有业务走查与连续退订修复](business-e2e-spec.md)）。合并均未删除远端分支。
+- **审查边界（如实记录）**：审查为 **AI 双轴代审（DSH 子代理）**，按标准轴（安全门、越权、重复提交、功能回归、文档真实性）与规格轴（票16～28）核对，**不是真人审查，也不是 Ringo 的专业安全签核**。实施由 PM 授权 Codex 代行。`backend/app/security/`（Ringo 目录）与 `frontend/`（梁爽目录）的改动按 PM 集中 PR 豁免处理，未走各自负责人的常规 PR 审查。
+- **安全判断依据**：`demo_text_risk` 只新增「纯发起」和「明确本人数据查询」的受限表达；缺夹具、未知附言、检测器异常仍暂停，正向危险线索仍优先判 HIGH，且服务端未按 payer/payee/amount 精确绑定夹具时这些表达不会生效，用户文字带不进收款人或金额。会话验证复用限定同用户/同会话/同一 `basic_identity` 且在有效期内，跨用户、跨会话、操作专用验证不可复用，每笔仍独立确认（`test_session_verification_reuse.py` 覆盖）。
+- **CI 修复**：#254 唯一红测是**陈旧期望**——`test_reply_only_and_invalid_model_create_no_task_or_bank_submission` 写死"模型无输出时只有 1 条消息"，而票28要求失败也留可读消息。改为两种模式都要求用户消息 + 一条非空、面向用户的助手消息，并保留 `task_id is None`、`/tasks` 为空、`ledger` 为 0、`error_completed` 原断言；未放宽任何行为断言。
+- **验证数字**（#254 rebase 后、推送前在本机 worktree）：后端 `1431 passed / 0 failed`；mockbank `14 passed`；前端 `70 passed`；`npm run build` 通过；`check_links.py` 通过；`git diff --check origin/main...HEAD` 无输出。CI `Repository checks` 两次均 pass（#253 3m8s，#254 4m9s）。
+- **遗留**：Issue #227 **保持 OPEN**，用户最终体验验收未做；200% 缩放、完整读屏、Ringo 专业安全批准均未做；真实模型/浏览器证据沿用各票记录，本轮未重跑。

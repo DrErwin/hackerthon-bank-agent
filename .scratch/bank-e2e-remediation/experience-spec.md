@@ -1,5 +1,5 @@
 # 连续办理体验改进（2026-10-23）
-Status: implemented — review/acceptance pending
+Status: merged — 用户最终体验验收待办（PR #253，squash `b7fdd91`）
 Owner: Erwin（用户直接授权 Codex 实施，长期目录归属不变）
 Package: [Demo 修复](packages/01-demo-remediation.md)
 Source issue: [Issue #227](https://github.com/DrErwin/hackerthon-bank-agent/issues/227)

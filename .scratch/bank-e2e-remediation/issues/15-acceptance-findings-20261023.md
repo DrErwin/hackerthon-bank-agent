@@ -1,6 +1,6 @@
 # 15：2026-10-23 用户验收发现（问句被当人名、断连文案误导、前端服务中断）
 
-Status: open — 2 条产品问题待修；1 条环境事件已恢复；用户复测待做
+Status: fixed — 2 条产品问题已在 #253/#254 修复（问句不再当收款人、断连补读与可读失败消息）；1 条环境事件已恢复；用户复测待做
 Type: 缺陷记录 / 验收跟踪（先记录，未改代码）
 Owner: Erwin（用户报障）；AI 代查与记录，非本人结论
 Package: [bank-e2e-remediation/packages/01-demo-remediation](../packages/01-demo-remediation.md)
