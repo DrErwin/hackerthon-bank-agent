@@ -237,7 +237,8 @@ class TransferWorkflow:
                 "status": TaskStatus.WAITING_INPUT.value,
                 "interaction": self._interaction(
                     "请选择转出账户。", ["payer_account_id"],
-                    [InteractionOption(id=a.account_id, label=a.display_name + " " + a.account_masked)
+                    [InteractionOption(id=a.account_id, label=a.display_name + " " + a.account_masked
+                                       + f" · 可用余额 {a.available_balance_fen / 100:.2f} 元")
                      for a in accounts.accounts],
                 ),
                 "wait_kind": "details", "next": "wait",
@@ -524,7 +525,7 @@ class TransferWorkflow:
         if response.get("input_rejected"):
             return {"next": "wait"}
         kind = state["wait_kind"]
-        if kind in {"details", "adjust", "security"} and response.get("payee_error"):
+        if kind in {"details", "adjust", "security", "choose_payee"} and response.get("payee_error"):
             return self._payee_rejected(state, response["payee_error"])
         if kind == "retry_read":
             if response.get("choice") != "resume":
@@ -534,7 +535,7 @@ class TransferWorkflow:
                 "error": None, "recovery_required": False, "recovery_reason": None,
                 "next": state["retry_at"],
             }
-        if kind == "choose_payee":
+        if kind == "choose_payee" and not isinstance(response.get("fields"), dict):
             selected = next(
                 (item for item in state["payee_candidates"]
                  if item["payee_id"] == response.get("choice")), None,
@@ -546,12 +547,15 @@ class TransferWorkflow:
                 "payee_display": selected, "interaction": None,
                 "status": TaskStatus.RUNNING.value, "next": "verify_payee",
             }
-        if kind in {"details", "adjust", "security"} and isinstance(response.get("fields"), dict):
+        if kind in {"details", "adjust", "security", "choose_payee"} and isinstance(response.get("fields"), dict):
             changes = self._input_changes(response["fields"])
             if changes is None:
                 return {"next": "wait"}
             if "payee_hint" in changes:
                 changes["payee_input"] = None
+                changes["payee_display"] = None
+            elif "payee_input" in changes:
+                changes["payee_hint"] = None
                 changes["payee_display"] = None
             if state.get("operation_id"):
                 changes.update({
@@ -792,7 +796,7 @@ class TransferWorkflow:
         response = {key: value for key, value in response.items() if key in {"choice", "cancel"}}
         if isinstance(fields, dict) and not (response.get("cancel") is True or response.get("choice") == "cancel"):
             changes = self._input_changes(fields)
-            if saved.values.get("wait_kind") not in {"details", "adjust", "security"} or changes is None:
+            if saved.values.get("wait_kind") not in {"details", "adjust", "security", "choose_payee"} or changes is None:
                 response["input_rejected"] = True
             else:
                 if (saved.values.get("payee_input") or {}).get("kind") == "reference" and (
