@@ -131,4 +131,8 @@ it("keeps a fourth-row pending check visible after closing its drawer", async ()
   const pending = screen.getByRole("button", { name: "继续核对第四笔" });
   expect(pending.closest("details")?.open).toBe(true);
   expect(screen.queryByRole("dialog")).toBeNull();
+  view.rerender(<BillDetailsCard {...props} links={[{ parentId: task.task_id, childId: "check4", revision: 1,
+    selection: { action: "bill_check", transaction_id: "row3", account_id: "A1" } }]} activeChildren={[]}
+    renderChild={() => <p>第四笔核对已完成</p>} />);
+  expect(screen.getByText("第四笔核对已完成").closest("details")?.open).toBe(true);
 });

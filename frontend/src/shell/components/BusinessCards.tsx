@@ -52,6 +52,8 @@ function ActionButton({ label, busy, selection, onAction, links = [], renderChil
   const [expanded, setOpen] = useState(false);
   const childId = child ?? links.find((link) => selectionKey(link.selection) === selectionKey(selection))?.childId;
   const open = expanded || Boolean(childId && activeChildren.includes(childId));
+  const childNeedsAttention = Boolean(childId && activeChildren.includes(childId));
+  useEffect(() => { if (childNeedsAttention) setOpen(true); }, [childNeedsAttention]);
   useEffect(() => {
     if (!pending && !busy && restoreFocus.current) {
       if (document.activeElement === document.body) trigger.current?.focus();
@@ -157,7 +159,7 @@ export function billDetails(task: ShellTask): BillDetails | null {
 function TransactionRows({ items, busy, onAction, ...inline }: { items: BillDetails["transactions"]; busy?: boolean; onAction?: (selection: CardSelection) => Promise<string | null> } & InlineActions) {
   const natures = { consumption: "消费", refund: "退款", transfer: "转账", interest: "利息" };
   return <div className="sh-transaction-list">{items.map((item) => <details className="sh-disclosure sh-transaction" key={item.transaction_id}
-    open={inline.links?.some((link) => link.selection.transaction_id === item.transaction_id && inline.activeChildren?.includes(link.childId)) || undefined}>
+    open={inline.links?.some((link) => link.selection.transaction_id === item.transaction_id) || undefined}>
     <summary><span>{item.counterparty_name}<small>{natures[item.nature]} · {item.direction === "inflow" ? "收入" : "支出"}</small></span><strong>{yuan(item.amount_fen)}</strong></summary>
     <p>{new Date(item.occurred_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false })}</p>
     <p>分类：{CATEGORY_LABEL[item.category]}</p>
@@ -176,7 +178,7 @@ export function BillDetailsCard({ task, demo, busy, onAction, ...inline }: { tas
   return <Card title={title} labelledBy={"task-" + task.task_id + "-details"}>
     <p className="sh-hint">共 {data.transactions.length} 笔，点一笔查看说明。</p>
     <TransactionRows items={data.transactions.filter((item, index) => index < 3 || inline.links?.some((link) =>
-      link.selection.transaction_id === item.transaction_id && inline.activeChildren?.includes(link.childId)))} busy={busy} onAction={onAction} {...inline} renderChild={drawerOpen ? undefined : inline.renderChild} />
+      link.selection.transaction_id === item.transaction_id))} busy={busy} onAction={onAction} {...inline} renderChild={drawerOpen ? undefined : inline.renderChild} />
     {data.transactions.length > 3 && <DetailsDrawer title={"查看全部 " + data.transactions.length + " 笔明细"} onOpenChange={setDrawerOpen}>
       <TransactionRows items={data.transactions} busy={busy} onAction={onAction} {...inline} />
     </DetailsDrawer>}
