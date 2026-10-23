@@ -23,13 +23,14 @@ from app.contracts.audit import (
     AuditEvent, ChatMessagePayload, ContextChangedPayload, ModelFinishedPayload, ModelStartedPayload,
     ModelUsage, RecoveryCheckedPayload, TaskTransitionPayload,
 )
-from app.contracts.common import TaskStatus
+from app.contracts.common import OperationLevel, TaskStatus
 from app.contracts.bills import AnomalyResult, BillDetails, BillReport, BillScope, SpendingSummary
 from pydantic import ValidationError
+from app.contracts.cross import CrossStartInput
 from app.contracts.platform import CapabilityDefinition, StartTransferInput, TrustedContext
 from app.contracts.tasks import ModuleError, ModuleResult, TransferTaskView
 from app.memory.adapter import MemoryAdapter, MemoryContext
-from app.storage.application import ApplicationStore, TaskRecord
+from app.storage.application import ApplicationStore, ArrangementConflictError, TaskRecord
 from app.storage.database import transaction
 
 from .model import ContinueProposal, Planner, ReplyOnly, TransferProposal
@@ -945,6 +946,152 @@ class AgentHarness:
             raise ValueError("TASK_NOT_FOUND")
         self._check_task(task, trusted)
         return self._result(task)
+
+    # --- v05-cross-platform/03: controlled child-task dispatch for cross parents ---
+
+    # Public start-input contracts a parent may hand to a child capability; every
+    # other input shape is refused before any task is created.
+    CHILD_INPUT_CONTRACTS = (StartTransferInput, CrossStartInput)
+
+    def dispatch_child(self, parent: TrustedContext, capability_name: str,
+                       request_id: UUID, child_input, *, step_id: str,
+                       plan_revision: int) -> ModuleResult:
+        """Start one registered child task for a parent plan step.
+
+        The parent decides the step deterministically; the model never picks the
+        capability, fills the trusted context or resumes the child. One child step
+        that needs a user response or has side effects may be in flight per parent;
+        read-only children may interleave. Spends naming a payer account are
+        checked against the active arrangement holder (D1) before the task exists.
+        """
+        registration = self.registry.get(capability_name)
+        definition = registration.definition
+        self._authorize(parent, capability_name)
+        if not isinstance(child_input, self.CHILD_INPUT_CONTRACTS):
+            raise ValueError("INVALID_CAPABILITY_INPUT")
+
+        if definition.operation_level != OperationLevel.READ or definition.side_effect:
+            for _relation, task, child_definition in self._child_task_states(parent):
+                blocking = (
+                    task.status not in {
+                        TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED,
+                    }
+                    and (
+                        child_definition.operation_level != OperationLevel.READ
+                        or child_definition.side_effect
+                    )
+                )
+                if blocking:
+                    raise ValueError("CHILD_STEP_ALREADY_ACTIVE")
+
+        payer_account_id = getattr(child_input, "payer_account_id", None)
+        if payer_account_id:
+            active = self.application.get_active_arrangement(
+                parent.user_id, parent.demo_round_id, payer_account_id,
+            )
+            if active is not None and active.record.source_task_id not in (
+                self.application.task_lineage(parent.user_id, parent.demo_round_id, parent.task_id)
+            ):
+                raise ArrangementConflictError(
+                    active.record.source_task_id, active.record.arrangement_id, payer_account_id,
+                )
+
+        child_task_id, child_run_id, trace_id = str(uuid4()), str(uuid4()), str(uuid4())
+        child_trusted = TrustedContext(
+            user_id=parent.user_id, session_id=parent.session_id, task_id=child_task_id,
+            run_id=child_run_id, parent_task_id=parent.task_id, demo_round_id=parent.demo_round_id,
+        )
+        snapshot = {
+            "request_id": str(request_id), "intent_text": f"{capability_name}:{step_id}",
+            "config_version": self.planner.config_version,
+            "capability_name": capability_name, "step_id": step_id,
+            "plan_revision": plan_revision, "trace_id": trace_id,
+        }
+        with _task_lock(self.application.path, child_task_id):
+            task = self.application.create_task(
+                child_task_id, parent.user_id, parent.session_id, parent.demo_round_id,
+                child_run_id, TaskStatus.RUNNING, snapshot,
+            )
+            self.application.link_child_task(
+                parent.user_id, parent.demo_round_id, parent.task_id,
+                child_task_id, step_id, plan_revision,
+            )
+            context = self._scope(child_trusted)
+            trace = RunTrace(self.audit, child_trusted, task.checkpoint_thread_id, trace_id)
+            saver = self.memory.checkpointer(context, child_task_id)
+            entry = registration.factory(child_trusted, saver, trace)
+            result = entry.start(child_trusted, child_input, thread_id=task.checkpoint_thread_id)
+            self._check_result_scope(result, child_trusted)
+            self.application.update_task(
+                parent.user_id, parent.demo_round_id, child_task_id,
+                task.revision, child_run_id, result.status,
+                self._checkpoint_id(context, task),
+                {**snapshot, "result": result.model_dump(mode="json")},
+            )
+        trace.record(
+            "task.transition",
+            TaskTransitionPayload(
+                previous_status=TaskStatus.RUNNING, status=result.status,
+                plan_revision=plan_revision, step_id=step_id,
+                reason_code="CHILD_STEP_DISPATCHED", checkpoint_ref=None,
+            ), _task_outcome(result.status),
+        )
+        return result
+
+    def resume_child(self, parent: TrustedContext, child_task_id: str, response: dict,
+                     *, plan_revision: int) -> ModuleResult:
+        """Continue one owned child along its original association and plan version."""
+        with _task_lock(self.application.path, child_task_id):
+            if self.application.parent_of_task(
+                parent.user_id, parent.demo_round_id, child_task_id,
+            ) != parent.task_id:
+                raise PermissionError("ACCESS_DENIED")
+            task = self.application.get_task(parent.user_id, parent.demo_round_id, child_task_id)
+            if task is None or task.session_id != parent.session_id:
+                raise PermissionError("ACCESS_DENIED")
+            if task.snapshot.get("plan_revision") != plan_revision:
+                raise ValueError("PLAN_SUPERSEDED")
+            child_trusted = TrustedContext(
+                user_id=parent.user_id, session_id=parent.session_id, task_id=child_task_id,
+                run_id=task.run_id, parent_task_id=parent.task_id,
+                demo_round_id=parent.demo_round_id,
+            )
+        return self.resume(child_trusted, response)
+
+    def child_task_summaries(self, parent: TrustedContext) -> list[dict]:
+        """Durable child states for the parent's own progress mapping (§4.3 is business)."""
+        return [
+            {
+                "child_task_id": relation.child_task_id,
+                "step_id": relation.step_id,
+                "plan_revision": relation.plan_revision,
+                "capability_name": task.snapshot.get("capability_name"),
+                "status": task.status.value,
+            }
+            for relation, task, _definition in self._child_task_states(parent)
+        ]
+
+    def _child_task_states(self, parent: TrustedContext):
+        for relation in self.application.list_child_tasks(
+            parent.user_id, parent.demo_round_id, parent.task_id,
+        ):
+            task = self.application.get_task(
+                parent.user_id, parent.demo_round_id, relation.child_task_id,
+            )
+            if task is None:
+                continue
+            capability_name = task.snapshot.get("capability_name")
+            try:
+                definition = self.registry.get(capability_name).definition
+            except ValueError:
+                # A child whose capability vanished blocks fail-closed, never silently.
+                definition = CapabilityDefinition(
+                    name=str(capability_name), input_schema_ref="unknown", output_schema_ref="unknown",
+                    required_permissions=[], operation_level=OperationLevel.SENSITIVE,
+                    side_effect=True, confirmation_policy="per_action", timeout_ms=1,
+                    retry_policy="none", handler_ref="unknown",
+                )
+            yield relation, task, definition
 
     def resume(self, trusted: TrustedContext, response: dict) -> ModuleResult:
         with _task_lock(self.application.path, trusted.task_id):
