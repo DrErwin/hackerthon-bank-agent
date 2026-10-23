@@ -302,6 +302,12 @@ def create_app(runtime=None, config=None):
     def task(task_id: str, who=Depends(identity), service=Depends(api)):
         return success(service.task_view(who, task_id))
 
+    @application.get("/api/v1/tasks/{task_id}/children")
+    def children(task_id: str, who=Depends(identity), service=Depends(api)):
+        """A parent's durable children as real task views; submissions still go to
+        whichever child task owns the current interaction (§6.5)."""
+        return success(service.child_tasks(who, task_id))
+
     @application.get("/api/v1/tasks/{task_id}/records")
     def records(task_id: str, who=Depends(identity), service=Depends(api)):
         return success(service.task_records(who, task_id))
