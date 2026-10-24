@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/services/`
 
-Status: blocked — 包负责人已接包；实施仍待本票前置及 Erwin 指派执行者。
+Status: delivered — B10—B13/B20—B22 与网关已合入（PR #262，squash fad49e0，含 B08 修复的 storage 侧 PR #261）；B28 演示故障装配归票 09；E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -43,10 +43,10 @@ Core scenarios: XL-B01—B07；定义见[共享规格 §5](../../v05-cross-linka
 
 ## Acceptance criteria
 
-- [ ] B10—B13/B20—B22 实现原契约含义；B14 能查新写动作，统一错误与超时语义。
-- [ ] 商品价格及可送达性有真实模拟事实；固定花199/蛋糕268等验收种子和隔离故障可复现。
-- [ ] 冻结→订单绑定核销→释放对应正确资金状态；冻结/释放不伪造消费或收入。
-- [ ] 网关默认拒绝缺授权写入；未知先查原编号，不由网关自行换号重试；余额/限额等规则只由银行判定。
+- [x] B10—B13/B20—B22 实现原契约含义；B14 能查新写动作，统一错误与超时语义。（birthday.py + core.get_operation 动作分发；网关超时/冲突/库错语义）
+- [x] 商品价格及可送达性有真实模拟事实；固定花199/蛋糕268等验收种子和隔离故障可复现。（价目 19900/26800、lead 24h/48h、deliver_by 过滤；arm_response_loss 一次性故障）
+- [x] 冻结→订单绑定核销→释放对应正确资金状态；冻结/释放不伪造消费或收入。（全链路测试；核销带对手方 consumption 流水、冻结/释放无流水；B08 完整返回）
+- [x] 网关默认拒绝缺授权写入；未知先查原编号，不由网关自行换号重试；余额/限额等规则只由银行判定。（authorize_birthday 默认 ACCESS_DENIED 零写入；CALL_TIMEOUT 后 B14 回查 found；全部错误码由银行判定）
 
 ## 实施交接：提供可查询、可失败、可恢复的模拟服务
 
@@ -67,8 +67,11 @@ Core scenarios: XL-B01—B07；定义见[共享规格 §5](../../v05-cross-linka
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #262](https://github.com/DrErwin/hackerthon-bank-agent/pull/262)，squash 提交 `fad49e0`（2026-10-24）；配套 storage 侧 [PR #261](https://github.com/DrErwin/hackerthon-bank-agent/pull/261)。交付：`services/mock_bank/birthday.py`、`core.py` 接入与 B14 分发、`bank_gateway/gateway.py` authorize_birthday 接缝、`test_birthday_bank.py`。
+- 本票验证：`app/services/` 59 passed（新增 7 项）；叠加 `app/storage/` 38 passed；CI 通过（PR #261/#262）。
+- 审查：首轮子代理审查发现 1 项必须修复（核销流水缺对手方事实污染 B08）——按目录边界拆出 storage PR #261 + 本分支传参闭合；复审 A—D 全 PASS；其余建议项（下单摘要含配送原文、错误语义、去 target detail）已落实。
+- 联合 E2E：未因本票发布而通过；银行专项由 mockbank 评测包另行跑；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
+- 真人安全签核 / PM 最终验收：未由本票代签。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
