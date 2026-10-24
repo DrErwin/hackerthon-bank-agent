@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `frontend/`
 
-Status: in_progress — 2026-10-25 执行对话接手：正在准备具体页面方案供 Erwin 走查；未编码、未联调。
+Status: in_progress — 方案走查已通过（Erwin，2026-10-25）；先完成平台票 11（G1/G2），再编码。
 
 Package accepted by: Erwin
 
@@ -34,9 +34,13 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 
 ## Blocked by
 
+- [v05-cross-platform/11：子任务交互登记与联动文本输入](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md)（2026-10-25 页面走查发现 G1/G2 两处 P0，PM 裁定优先修）
+
+### 已合入的前置（保留记录）
+
 - [v05-cross-platform/04：联动任务与子交互 API](../../v05-cross-platform/issues/04-parent-child-api.md)
 
-上述 API 已合入（#259）。设计可开始；真实减支/养老金联调还需核对 [平台 05 装配](../../v05-cross-platform/issues/05-cross-runtime-wiring.md)（#276）及 [业务 01](../../v05-cross-business/issues/01-expense-reduction.md)/[业务 02](../../v05-cross-business/issues/02-monthly-arrangement.md)（#269/#268）。这些均已合入，账单类型化入口遗留仍可能阻断部分路径，不能据此宣称全链可用。
+上述 API 已合入（#259）。真实减支/养老金联调还需核对 [平台 05 装配](../../v05-cross-platform/issues/05-cross-runtime-wiring.md)（#276）及 [业务 01](../../v05-cross-business/issues/01-expense-reduction.md)/[业务 02](../../v05-cross-business/issues/02-monthly-arrangement.md)（#269/#268）。这些均已合入，账单类型化入口遗留仍可能阻断部分路径，不能据此宣称全链可用。
 
 ## Start when
 
@@ -46,7 +50,7 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 
 ## Acceptance criteria
 
-- [ ] 实施前提交方案总览、子卡片及结果状态的具体版式/文案并记录 PM 走查结论。
+- [x] 实施前提交方案总览、子卡片及结果状态的具体版式/文案并记录 PM 走查结论。（[page-plan-01.md](../page-plan-01.md) §11，Erwin 2026-10-25 认可）
 - [ ] 采用方案与确认具体业务不同；调用后端真实 allowed_actions，不靠聊天肯定词自动放行。
 - [ ] 多个任务、插入查询、等待、失败、未知、断线/刷新时不丢目标和已办项，旧确认不可用。
 - [ ] 复用原转账/退订验证卡；检查键盘、200% 缩放及读屏标签，本票页面结果留证。
@@ -77,7 +81,8 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
+- 方案走查：2026-10-25 通过（Erwin 认可版式与文案，见 [page-plan-01.md](../page-plan-01.md) §11）。
+- 实现 / PR / 合入：未开始（等 [v05-cross-platform/11](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md)）。
 - 本票验证：未运行。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
@@ -91,3 +96,5 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 2026-10-25：Erwin 明确领取包 04；本票沿用原编号并细化执行/验证要求，交其他对话实施。具体票领取、页面走查及编码均未代记为完成。
 
 2026-10-25（执行接手）：按交接转交登记本票由执行对话接手，开始日期 2026-10-25。本轮先盘点现有前端与真实接口、提交具体页面方案供 Erwin 走查；未编码、未运行测试或 E2E，也未记录 PM 走查结论。Owner 仍为目录归属，不表示本票由该执行对话以外的人领取。
+
+2026-10-25（走查通过）：页面方案 [page-plan-01.md](../page-plan-01.md) 与可点原型 [frontend/联动-交互原型-v0.1.html](../../../frontend/联动-交互原型-v0.1.html) 经 Erwin 走查，**六屏版式与文案认可、按此实现**。走查同时发现两处平台 P0（子任务确认/验证记录未登记、联动父任务文本回答被 API 400），PM 裁定另开 [v05-cross-platform/11](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md) 优先修复，本票编码排在其后。走查结论只批准版式与文案，不代替页面验收或安全签核。
