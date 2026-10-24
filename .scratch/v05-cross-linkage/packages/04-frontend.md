@@ -4,15 +4,15 @@ Package: v05-cross-linkage/packages/04-frontend
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: planned
+Status: in_progress — 已领取并细化两票；页面走查、代码实施与 E2E 未开始。
 
-Activation: 2026-10-24 Erwin 明确本阶段所有工作由本人完成；本包执行及审查责任已转给 Erwin，具体开工另记。
+Activation: 2026-10-25 Erwin 明确“你把包4领了拆票，开个交接文档给别人做”；本轮登记接包和细化，实施交其他对话。
 
-Accepted by: 未记录
+Accepted by: Erwin
 
-Accepted at: 未记录
+Accepted at: 2026-10-25
 
-Work spec: [共享规格](../spec.md)、[v05-cross-frontend 工作规格与独立票](../../v05-cross-frontend/spec.md)；均为规划交付，负责人接包待登记。
+Work spec: [共享规格](../spec.md)、[v05-cross-frontend 工作规格与独立票](../../v05-cross-frontend/spec.md)；已按本人接包指令细化，具体实施者待用户转交后登记。
 
 Directory boundaries: frontend/
 
@@ -47,4 +47,4 @@ Directory boundaries: frontend/
 
 2026-10-24 最新阶段分工：v0.5 剩余执行工作全部由 Erwin 承担，含安全规则审阅、实现、前端与评测；原负责人不再是本阶段的等待对象。按单目录、单票、单分支/PR 交付。安全确认由 Erwin 本人按实际证据记录为 PM 代行审查/接受；AI 审查、自动化测试、PM 本人审查与历史要求的 Ringo 专业签核分别标注，不补写他人签名，不因转派豁免安全验证。期限至 v0.5 收口，届时交接接口、证据与遗留；后续版本按项目跟踪重新分派。
 
-已有领取和交付记录保留；本次是责任调整及下一步建议，不把未启动的包记为已开工或已验收。
+2026-10-25：包 04 已正式领取并完成两票细化，尚未通过页面走查、实施或验收。包 05/06 不随本次接包自动领取。
