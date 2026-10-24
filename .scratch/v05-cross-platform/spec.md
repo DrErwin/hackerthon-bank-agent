@@ -29,6 +29,8 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 - [v05-cross-platform/07：生日模拟银行与网关](issues/07-birthday-bank-services.md)。
 - [v05-cross-platform/08：配送资料受控 API](issues/08-controlled-delivery-api.md)。
 - [v05-cross-platform/09：生日工具、权限与演示装配](issues/09-birthday-runtime-wiring.md)。
+- [v05-cross-platform/10：生日请求授权](issues/10-authorize-birthday-request.md)。
+- [v05-cross-platform/11：子任务交互登记与联动文本输入](issues/11-child-interaction-and-text-input.md)（2026-10-25 页面走查新开，PM 裁定优先修）。
 
 依赖、核心场景和可检查的验收写在各票。总顺序及跨组关系见[已批准拆票方案](../v05-cross-linkage/ticket-proposal.md)。
 

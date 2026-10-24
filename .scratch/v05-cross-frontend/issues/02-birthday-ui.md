@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `frontend/`
 
-Status: blocked — 实接依赖前端 01 交付；可先准备生日页面方案，PM 走查后按顺序编码。
+Status: blocked — 页面走查前置改为 [v05-cross-business/05](../../v05-cross-business/issues/05-birthday-delivery-and-structured-facts.md)（配送受控入口 + 结构化收尾视图）；该票交付后再走查生日页面。
 
 Package accepted by: Erwin
 
@@ -35,6 +35,7 @@ Core scenarios: XL-B01—B06、X08；定义见[共享规格 §5](../../v05-cross
 ## Blocked by
 
 - [v05-cross-frontend/01：总方案、子确认和结果页面](01-plan-and-child-interactions.md)
+- [v05-cross-business/05：生日受控配送入口与结构化收尾视图](../../v05-cross-business/issues/05-birthday-delivery-and-structured-facts.md)（2026-10-25 页面走查新开；G3/G10 由 PM 裁定先补后端）
 - [v05-cross-platform/08：配送资料受控 API](../../v05-cross-platform/issues/08-controlled-delivery-api.md)
 - [v05-cross-platform/09：生日工具、权限与演示装配](../../v05-cross-platform/issues/09-birthday-runtime-wiring.md)（真实联调前置，#279 已合入；设计可先行）
 
@@ -92,3 +93,5 @@ Core scenarios: XL-B01—B06、X08；定义见[共享规格 §5](../../v05-cross
 2026-10-24（责任更新）：本票本阶段执行由 Erwin 承担；具体票的开工、实现和验证状态仍按实际结果记录。
 
 2026-10-25：Erwin 明确领取包 04；本票沿用原编号并细化执行/验证要求，交其他对话实施。具体票领取、页面走查及编码均未代记为完成。
+
+2026-10-25（走查裁定）：页面走查时确认生日页的两个前端不可解前置——配送受控入口对联动任务不可达（G3）、订单/付款/冻结/释放没有结构化出口（G10）。PM 裁定**先开后端票** [v05-cross-business/05](../../v05-cross-business/issues/05-birthday-delivery-and-structured-facts.md) 补齐，再做本票页面方案走查与编码；本票在此之前保持 blocked，不用页面假数据掩盖缺口。

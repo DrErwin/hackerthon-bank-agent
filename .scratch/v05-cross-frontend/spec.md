@@ -1,6 +1,6 @@
 # 联动页面体验工作规格
 
-Status: ticketed — 2026-10-25 已领取并细化既有两票；先页面方案走查，后按票实现。
+Status: in_progress — 2026-10-25 页面方案已走查通过（Erwin 认可六屏版式与文案）；票 01 待平台票 11 后编码，票 02 等业务票 05。
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
@@ -76,5 +76,7 @@ Erwin 走查具体页面、文案及敏感确认的呈现；新增业务语义�
 ## Further Notes
 
 2026-10-25：Erwin 明确接包并要求拆票交他人实施。本轮只细化规格和票据，没有页面走查结论、编码、测试或 E2E。实际执行者在用户转交后登记具体票领取，无需再次询问包是否领取。
+
+2026-10-25（页面走查通过）：执行对话完成前端与后端只读盘点、提交[页面方案](page-plan-01.md)与[可点原型](../../frontend/联动-交互原型-v0.1.html)；Erwin 走查后认可六屏版式与文案。走查发现两处平台 P0（子任务确认/验证记录未登记、联动父任务文本回答 400）与两处业务前置（生日配送受控入口不可达、生日无结构化收尾视图），PM 当日裁定分别新开 [v05-cross-platform/11](../v05-cross-platform/issues/11-child-interaction-and-text-input.md) 与 [v05-cross-business/05](../v05-cross-business/issues/05-birthday-delivery-and-structured-facts.md)。票 01 编码排在平台票 11 之后；票 02 页面走查排在业务票 05 之后。走查结论只批准版式与文案，不代替页面验收、安全签核或 PM 最终接受。
 
 本机已读 to-spec/to-tickets 的 SKILL.md，implement/code-review 文件存在；前两者为 disable-model-invocation，当前会话未提供对应可调用 Skill 工具，按已批准流程手工细化，未声称调用成功。团队来源基线见[开工规范](../../docs/agents/delivery-workflow.md)，本次未重新核验上游来源或安装技能。交接按用户显式指定 handoff 技能保存到系统临时目录，仓库事实仍以本规格和票据为准。

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>联动页面交互原型 v0.1（票 01 走查）</title>
+<!-- 直接复用现有前端样式表，保证原型与真实页面同源；只补少量原型/联动专用类。 -->
+<link rel="stylesheet" href="src/shell/shell.css">
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; min-height: 100vh; background: #e9ebef; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+  .proto-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px 16px 40px; }
+  .proto-head { width: min(100%, 900px); background: #fff; border: 1px solid #d0d5dd; border-radius: 14px; padding: 14px 18px; }
+  .proto-head h1 { margin: 0 0 6px; font-size: 18px; color: #111827; }
+  .proto-head p { margin: 0; font-size: 14px; line-height: 1.6; color: #374151; }
+  .proto-head strong { color: #b42318; }
+  .proto-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .proto-tab { min-height: 40px; padding: 6px 12px; font-size: 14px; font-weight: 700; color: #111827; background: #fff; border: 1.5px solid #98a2b3; border-radius: 10px; cursor: pointer; }
+  .proto-tab[aria-pressed="true"] { background: #fff1e6; border-color: #ff6a00; }
+  .proto-stage { position: relative; width: 390px; height: 844px; background: #f5f6f8; border: 10px solid #111827; border-radius: 34px; overflow: hidden; box-shadow: 0 18px 40px rgba(17, 24, 39, .22); }
+  .proto-stage .sh-root { position: absolute; inset: 0; }
+  .proto-note { position: absolute; z-index: 40; left: 0; right: 0; bottom: 0; padding: 8px 12px; font-size: 12px; line-height: 1.5; color: #7a2e0e; background: #fff4e5; border-top: 1px solid #fedf89; }
+  @media (max-width: 520px) {
+    .proto-page { padding: 0; gap: 0; }
+    .proto-head { border-radius: 0; border-left: 0; border-right: 0; }
+    .proto-stage { width: 100vw; height: calc(100vh - 0px); border: 0; border-radius: 0; box-shadow: none; }
+  }
+  /* 联动卡专用（生产实现时并入 shell.css） */
+  .sh-cross-commit { padding: 12px 14px; font-size: 17px; line-height: 1.5; color: #7a2e0e; background: #fff4e5; border: 1px solid #fedf89; border-radius: 12px; }
+  .sh-step-active { background: #fff1e6; box-shadow: inset 0 0 0 2px #ff6a00; }
+  .sh-step-failed .sh-step-no { color: #fff; background: #b42318; border-color: #b42318; }
+  .sh-step-failed .sh-step-state { color: #b42318; }
+  .sh-step-warn .sh-step-no { color: #fff; background: #b54708; border-color: #b54708; }
+  .sh-step-warn .sh-step-state { color: #b54708; }
+  .sh-step-todo .sh-step-state { color: #6b7280; }
+  .sh-step-amount { margin-left: auto; font-size: 16px; font-weight: 700; }
+  /* 状态字样不折行，长步骤名换行而不是把状态挤成两行 */
+  .sh-steps .sh-step-state { flex: 0 0 auto; white-space: nowrap; }
+  .sh-steps .sh-step-head strong { min-width: 0; }
+  .sh-cross-child { margin: 4px 0 0; padding: 12px 0 0; border-top: 1px dashed #d0d5dd; }
+  .sh-cross-count { font-size: 16px; color: #374151; }
+  .sh-cross-note { font-size: 15px; line-height: 1.55; color: #7a2e0e; background: #fff4e5; border: 1px solid #fedf89; border-radius: 10px; padding: 10px 12px; }
+</style>
+</head>
+<body>
+<div class="proto-page">
+  <header class="proto-head">
+    <h1>联动页面交互原型 v0.1 ｜ 票 v05-cross-frontend/01 走查用</h1>
+    <p>原型只验证<strong>版式、状态与文案</strong>，不连后端、不产生任何真实办理。样式直接引用 <code>frontend/src/shell/shell.css</code>，与现有确认卡/验证卡/步骤样式同源。共 7 个画面，逐个点开看；<strong>灰底提示条</strong>说明该画面依赖的前置。</p>
+    <div class="proto-tabs" id="tabs" role="group" aria-label="画面切换"></div>
+  </header>
+  <div class="proto-stage">
+    <div class="sh-root">
+      <header class="sh-topbar">
+        <div class="sh-brand"><span class="sh-brand-mark" aria-hidden="true">银</span><div><h1>AI 银行助手</h1><p>王阿姨，您好</p></div></div>
+        <span class="sh-conn sh-conn-on"><span class="sh-conn-dot" aria-hidden="true"></span>已连接</span>
+      </header>
+      <div class="sh-body">
+        <div class="sh-body-inner">
+          <main class="sh-main"><div class="sh-timeline" id="stage"></div></main>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const badge = (tone, icon, text) => `<span class="sh-badge sh-tone-${tone}"><span class="sh-badge-icon" aria-hidden="true">${icon}</span>${text}</span>`;
+const card = (title, id, badgeHtml, body, extraClass = "") => `
+  <section class="sh-card ${extraClass}" aria-labelledby="${id}">
+    <header class="sh-card-head"><h3 id="${id}">${title}</h3>${badgeHtml}</header>
+    ${body}
+  </section>`;
+const fields = (rows) => `<dl class="sh-fields">${rows.map(([k, v, big]) => `<div class="sh-field${big ? " sh-field-emphasis" : ""}"><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
+const step = (no, name, state, opts = {}) => {
+  const tone = opts.tone || ""; // done | active | failed | warn | todo
+  const cls = ["sh-step", tone ? `sh-step-${tone}` : ""].filter(Boolean).join(" ");
+  return `<li class="${cls}">
+    <div class="sh-step-head"><span class="sh-step-no" aria-hidden="true">${no}</span><strong>${name}</strong><span class="sh-step-state">${state}</span></div>
+    ${opts.body || ""}
+  </li>`;
+};
+const steps = (items) => `<ol class="sh-steps">${items.join("")}</ol>`;
+const msg = (text) => `<article class="sh-msg sh-msg-user"><p class="sh-bubble">${text}</p></article>`;
+const reply = (text) => `<article class="sh-msg sh-msg-assistant"><p class="sh-bubble">${text}</p></article>`;
+const choices = (items) => `<div class="sh-choices">${items.map((label) => `<button type="button" class="sh-choice"><span>${label}</span><span aria-hidden="true">›</span></button>`).join("")}<p class="sh-hint">请自己点选，系统不会替您默认选择。</p></div>`;
+const confirmCard = (rows) => card("请确认办理内容", "c1", badge("pending", "?", "等您确认"),
+  `${fields(rows)}
+   <p class="sh-hint">请逐项核对。在聊天里说「确认」不算数，必须点下面的按钮。</p>
+   <div class="sh-actions">
+     <button type="button" class="sh-btn sh-btn-primary">确认办理</button>
+     <button type="button" class="sh-btn sh-btn-secondary">取消</button>
+   </div>`);
+const note = (text) => `<p class="sh-cross-note">${text}</p>`;
+
+const screens = {
+  s0: {
+    tab: "0 · 说明",
+    note: "这是原型说明页，不是产品画面。",
+    html: `${reply("您好，我是您的银行小助手。您想办点什么？")}
+      ${card("走查前请看三件事", "s0c", "", `
+        <p class="sh-lead">1）这一版只做「减支」和「养老金月度安排」两个目标，生日页面属票 02。</p>
+        <p class="sh-lead">2）三个概念在界面上必须分得开：<strong>采用方案</strong>（定下怎么办）→ <strong>逐项办理确认</strong>（每一笔单独确认）→ <strong>身份验证</strong>（验证码/人脸）。</p>
+        <p class="sh-lead">3）父卡只展示、只计数，<strong>不出现「全部批准」</strong>；每笔业务仍用原来的转账/退订确认卡。</p>
+        <p class="sh-cross-note">点上方 1—6 看具体画面；每个画面底部的黄条写明该画面依赖的前置条件。</p>`,
+        "")}`,
+  },
+  s1: {
+    tab: "1 · 采用方案前",
+    note: "依赖 G1/G3：菜单状态下服务端当前只返回一句话和选项（data=null），步骤清单与金额依据需后端把已有视图一并返回；未补时这一屏退化为「文字 + 选项」。",
+    html: `${msg("养老金到了，帮我安排本月的钱")}
+      ${reply("我先看了一遍您的入账、正在扣费的签约和最近账单。下面这个安排请您先定要不要按它办。")}
+      ${card("安排这个月的养老金", "s1c", badge("pending", "?", "等您选择"), `
+        <p class="sh-cross-commit">这个安排只是先定下怎么办；每一项真正办理时，还会单独请您确认。</p>
+        ${steps([
+          step(1, "查看您的账户", "✓ 已办好", { tone: "done" }),
+          step(2, "核对正在扣费的签约", "✓ 已办好", { tone: "done" }),
+          step(3, "查看最近的账单", "✓ 已办好", { tone: "done" }),
+          step(4, "取消「视频会员·连续包月」", "待开始", { tone: "todo" }),
+          step(5, "转出 ¥2,500.00 给本人另一账户", "待开始", { tone: "todo" }),
+          step(6, "转出 ¥1,000.00 给家里", "待开始", { tone: "todo" }),
+        ])}
+        ${fields([["这次安排的入账", "¥5,000.00"], ["生活费留存（不转出）", "¥1,500.00", true], ["可以安排的钱", "¥3,500.00"], ["已知代扣", "¥39.00（已含在生活费里）"]])}
+        ${choices(["采用这个安排", "退订「视频会员·连续包月」（39 元/每月，尾号 8842）", "都不退，直接安排资金"])}
+      `)}`,
+  },
+  s2: {
+    tab: "2 · 正在逐项办理",
+    note: "这一屏用真实服务端数据即可实现（父任务 running 时带 CrossTaskView + interaction_task_id，子任务走 /tasks/{id}/children）。",
+    html: `${msg("最近钱怎么花得快，帮我处理不用的扣费")}
+      ${card("减少用不上的扣费", "s2c", badge("pending", "…", "正在办理"), `
+        <p class="sh-cross-commit">采用好了。下面按顺序一项项办，每一笔都会单独请您确认或验证。</p>
+        ${steps([
+          step(1, "查看您的账户", "✓ 已办好", { tone: "done" }),
+          step(2, "核对正在扣费的签约", "✓ 已办好", { tone: "done" }),
+          step(3, "取消「视频会员·连续包月」", "◀ 正在办", { tone: "active",
+            body: `<div class="sh-cross-child">${confirmCard([["办理事项", "取消签约"], ["签约", "视频会员·连续包月"], ["每月扣费", "¥39.00"], ["扣费账户", "尾号 8842"]])}</div>` }),
+          step(4, "取消「音乐会员·连续包月」", "待开始", { tone: "todo" }),
+        ])}
+        <p class="sh-cross-count">已办好 2 项，还有 2 项没办。当前这项请您确认后再往下走。</p>
+        <details class="sh-disclosure"><summary>查看之前的办理</summary><p class="sh-hint">（这里展开的是已经办完的步骤记录，默认折叠。）</p></details>
+      `)}`,
+  },
+  s3: {
+    tab: "3 · 部分完成（停止后）",
+    note: "D2：已有实际目标完成才记「部分完成」；没有成功项才记「已取消」。文案不能让用户以为能退回已付的。",
+    html: `${card("减少用不上的扣费", "s3c", badge("warning", "!", "部分完成"), `
+        <p class="sh-cross-commit">已经停下，不再新办。已经办好的不会退回，没办的也不会再动。</p>
+        ${steps([
+          step(1, "查看您的账户", "✓ 已办好", { tone: "done" }),
+          step(2, "取消「视频会员·连续包月」", "✓ 已办好", { tone: "done" }),
+          step(3, "取消「音乐会员·连续包月」", "✕ 没办成", { tone: "failed",
+            body: `<p class="sh-hint">原因：这项签约已经不存在。（原因文字用服务端原文）</p>` }),
+          step(4, "取消「网盘会员·年付」", "待开始", { tone: "todo" }),
+        ])}
+        <p class="sh-cross-count">已办好 1 项，没办成 1 项，还有 1 项没有动。</p>
+      `)}`,
+  },
+  s4: {
+    tab: "4 · 结果待核实",
+    note: "未知只能沿原办理编号查询，父卡与子卡都不提供「再办一次」；未核实前不释放、不重复提交。",
+    html: `${card("安排这个月的养老金", "s4c", badge("warning", "!", "结果待核实"), `
+        <p class="sh-cross-commit">这笔的结果我暂时没查到，我没有再办一次。可以按原办理编号再查一遍。</p>
+        ${steps([
+          step(1, "转出 ¥2,500.00 给本人另一账户", "! 待核实", { tone: "warn",
+            body: `<button type="button" class="sh-link-btn">查询这笔的结果</button>` }),
+          step(2, "转出 ¥1,000.00 给家里", "待开始", { tone: "todo" }),
+        ])}
+        <p class="sh-cross-count">后面的转出先停着，等这笔核实清楚再说。</p>
+      `)}`,
+  },
+  s5: {
+    tab: "5 · 总回执",
+    note: "终态回执逐条照服务端状态显示；金额只写服务端给得的字段，拿不到就不写数字。",
+    html: `${card("这次安排的回执", "s5c", badge("success", "✓", "已办结"), `
+        ${steps([
+          step(1, "取消「视频会员·连续包月」", "✓ 已办好", { tone: "done" }),
+          step(2, "取消「音乐会员·连续包月」", "✓ 已办好", { tone: "done" }),
+          step(3, "转出 ¥2,500.00 给本人另一账户", "✓ 已办好", { tone: "done" }),
+          step(4, "转出 ¥1,000.00 给家里", "✓ 已办好", { tone: "done" }),
+        ])}
+        ${fields([["转出合计", "¥3,500.00"], ["生活费留存", "¥1,500.00（没有转出）"]])}
+        <p class="sh-hint">已经扣过的不退；取消的是以后的扣费，不是退款。</p>
+        <button type="button" class="sh-btn sh-btn-secondary">查看最新账户余额</button>
+      `)}`,
+  },
+  s6: {
+    tab: "6 · 刷新后恢复",
+    note: "沿用现有恢复卡：刷新后不自动继续、不自动重发；确认/验证历史按服务端记录回放。",
+    html: `${card("继续上次的办理", "s6c", badge("pending", "…", "等您决定是否继续"), `
+        <p class="sh-lead">上次「减少用不上的扣费」还没办完。已经办好的不会重做。</p>
+        <p class="sh-hint">原任务：减少用不上的扣费 · 上次停在第 3 步「取消视频会员·连续包月」。</p>
+        <div class="sh-actions">
+          <button type="button" class="sh-btn sh-btn-primary">继续查看原任务</button>
+          <button type="button" class="sh-btn sh-btn-secondary">放弃这次任务</button>
+        </div>
+      `)}`,
+  },
+};
+
+const tabs = document.getElementById("tabs");
+const stage = document.getElementById("stage");
+const noteEl = document.createElement("div");
+noteEl.className = "proto-note";
+function render(key) {
+  const screen = screens[key];
+  stage.innerHTML = screen.html;
+  [...tabs.children].forEach((btn) => btn.setAttribute("aria-pressed", String(btn.dataset.key === key)));
+  noteEl.textContent = "原型说明：" + screen.note;
+  document.querySelector(".proto-stage").appendChild(noteEl);
+  document.querySelector(".sh-body").scrollTop = 0;
+}
+Object.entries(screens).forEach(([key, screen]) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "proto-tab";
+  btn.dataset.key = key;
+  btn.textContent = screen.tab;
+  btn.addEventListener("click", () => {
+    location.hash = key;
+    render(key);
+  });
+  tabs.appendChild(btn);
+});
+render(location.hash.slice(1) in screens ? location.hash.slice(1) : "s1");
+</script>
+</body>
+</html>
