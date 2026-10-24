@@ -6,10 +6,12 @@ from uuid import uuid4
 import pytest
 
 from app.audit.journal import AuditJournal
+from app.contracts.bills import BillScope, BillSummarizeInput
 from app.contracts.common import OperationLevel, TaskStatus
 from app.contracts.platform import (
     CapabilityDefinition, ModuleManifest, StartTransferInput, TrustedContext,
 )
+from app.contracts.subscription import SubscriptionCancelInput, SubscriptionListInput
 from app.contracts.tasks import InteractionRequest, ModuleResult
 from app.memory.adapter import MemoryAdapter
 from app.services.mock_bank.core import MockBankService
@@ -183,6 +185,76 @@ def test_dispatch_runs_one_interactive_step_and_reads_interleave(tmp_path):
     with pytest.raises(ValueError, match="INVALID_CAPABILITY_INPUT"):
         harness.dispatch_child(parent(), "scripted.read", uuid4(), {"not": "a contract"},
                                step_id="x", plan_revision=1)
+
+
+def test_dispatch_validates_input_against_the_declared_contract(tmp_path):
+    """G1: bills and subscription children carry their own typed contracts.
+
+    A capability accepts exactly the input its manifest declares; the transfer
+    envelope is refused for them, so a parent cannot smuggle bills or
+    subscription parameters through StartTransferInput.
+    """
+    script = [finished("r", "r", TaskStatus.SUCCEEDED)]
+    harness = harness_with_parent(tmp_path / "app.sqlite", script)
+    manifest = ModuleManifest(
+        module_name="typed", version="v1", owner="test", description="typed children",
+        implementation_kind="workflow", capabilities=[
+            CapabilityDefinition(
+                name="typed.bills", input_schema_ref="BillSummarizeInput",
+                output_schema_ref="ModuleResult#1", required_permissions=[],
+                operation_level=OperationLevel.READ, side_effect=False,
+                confirmation_policy="none", timeout_ms=60000, retry_policy="read_only",
+                handler_ref="test",
+            ),
+            CapabilityDefinition(
+                name="typed.subscription_cancel", input_schema_ref="SubscriptionCancelInput",
+                output_schema_ref="ModuleResult#1", required_permissions=[],
+                operation_level=OperationLevel.SENSITIVE, side_effect=True,
+                confirmation_policy="per_action", timeout_ms=60000, retry_policy="none",
+                handler_ref="test",
+            ),
+            CapabilityDefinition(
+                name="typed.unknown_ref", input_schema_ref="NotAPublicContract",
+                output_schema_ref="ModuleResult#1", required_permissions=[],
+                operation_level=OperationLevel.READ, side_effect=False,
+                confirmation_policy="none", timeout_ms=60000, retry_policy="read_only",
+                handler_ref="test",
+            ),
+        ], dependencies=[],
+    )
+    harness.registry.register_module(manifest, lambda _trusted, _saver, _trace: ScriptedEntry(script))
+    scope = BillScope.model_validate({
+        "account_ids": ["A1"],
+        "start_at": "2026-09-01T00:00:00+00:00", "end_at": "2026-10-01T00:00:00+00:00",
+    })
+    legal_bills = BillSummarizeInput(scope=scope)
+    assert harness.dispatch_child(
+        parent(), "typed.bills", uuid4(), legal_bills, step_id="compare", plan_revision=1,
+    ).status is TaskStatus.SUCCEEDED
+    script.append(finished("w", "w", TaskStatus.SUCCEEDED))
+    legal_cancel = SubscriptionCancelInput(
+        request_id=uuid4(), intent_text="退订优酷视频", subscription_id="sub_001",
+    )
+    assert harness.dispatch_child(
+        parent(), "typed.subscription_cancel", uuid4(), legal_cancel,
+        step_id="cancel_1", plan_revision=1,
+    ).status is TaskStatus.SUCCEEDED
+
+    # Wrong shapes fail before any task exists: another capability's contract,
+    # the transfer envelope, plain dicts and undeclared refs alike.
+    for capability, payload in (
+        ("typed.bills", SubscriptionListInput(request_id=uuid4(), intent_text="看签约")),
+        ("typed.bills", write_input()),
+        ("typed.subscription_cancel", write_input()),
+        ("typed.subscription_cancel", {"subscription_id": "sub_001"}),
+        ("typed.unknown_ref", write_input()),
+    ):
+        with pytest.raises(ValueError, match="INVALID_CAPABILITY_INPUT"):
+            harness.dispatch_child(parent(), capability, uuid4(), payload,
+                                   step_id="rejected", plan_revision=1)
+    extra = [item for item in harness.child_task_summaries(parent())
+             if item["step_id"] == "rejected"]
+    assert extra == []
 
 
 def test_child_waiting_input_confirmation_verification_then_success(tmp_path):
