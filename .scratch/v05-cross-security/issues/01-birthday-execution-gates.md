@@ -12,13 +12,13 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `backend/app/security/`
 
-Status: ready-for-agent — 可接手规则/接入核对及方案准备；代码按本人审阅与票面开始条件推进，尚未实施。
+Status: in_review — 实现与本目录验证、转账/订阅安全回归已完成（2026-10-24），待 Erwin 本人安全审阅与 PR 审查合入。
 
 Package accepted by: Erwin
 
 Package accepted at: 2026-10-24
 
-Execution assignee: 待 Erwin 转交给执行对话（本聊天仅细化规格与票据）
+Execution assignee: ZCode 执行对话（Erwin 指派，2026-10-24）
 
 Accepted by: 未记录（具体实施票）
 
@@ -91,10 +91,13 @@ Core scenarios: XL-B05—B07、X05—X08；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：实现完成于分支 `v05-security-01-birthday-gates`（基线 `fedce40`，仅 `backend/app/security/`）：`state.py` 新增 `FreezeReleaseAuthorization` 记录与持久化（表 `security_release_authorizations`，只增不改既有方法）；新模块 `birthday_policy.py`（冻结工具声明、MEDIUM/LOW 风险规则、§3.5 条款）与 `birthday_release.py`（授权授予、冻结结果绑定、限定收尾执行器、`authorize_birthday_write` 银行回调）。PR 见审查记录；合入状态以 PR 为准。
+- 本票验证：2026-10-24，`backend/.venv`。新增 `test_birthday_release.py`（24 类失败模式：授予 5、绑定 4、收尾 15）与 `test_birthday_policy.py`（购买路径 10：确认→中风险双因子→执行、未批零写入、参数篡改 CONFIRMATION_STALE、终止后仅限定收尾等），37 passed（真实 MockBankService + BankGateway 层）。回归：`app/security/` 420 passed；转账/订阅/审计（transfer、subscription、agent_platform runtime、audit）184 passed。
+- 规则差异与决定：① `bank.release_frozen` 不注册为模型工具，模型发起的释放被 registered-tools-only 拒绝，仅受控收尾路径可释放；② 释放授权绑定 (user, session, round, task, account, freeze_operation_id, confirmation, max_amount)，状态机 pending_freeze→active/invalid、active→completed/invalid，篡改任何身份字段即 OPERATION_CONFLICT；③ 收尾前置：任务已结束（task_state_resolver=True）+ 本任务无 processing/unknown 在途 + B13 实时余额；余额 0 不提交零金额释放；余额超确认上限暂停不超额释放；④ 释放未知/失败仅沿原 operation_id 回查，不换号重做；⑤ 授权回调按（身份、操作编号、动作名、活跃 allow claim）绑定，参数绑定依赖银行同编号参数摘要与 claim 的 parameters_ref——回调不传参数是网关接口现状，如需回调级参数核对属网关/平台单目录补齐，已在模块 docstring 与 PR 说明登记。
+- Erwin 本人安全审阅：未取得（待 PR 审查时一并裁定上述 5 点）。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
+- 跨目录依赖登记：无新增公共缺口；平台 09 装配时将 `authorize_birthday_write(state)` 接入 BankGateway、在冻结确认作答后调 `grant_release_authorization`、冻结结果后调 `bind_freeze_result`、任务结束时调 `LimitedReleaseFinalizer.finalize`（网关 authorize_birthday 回调如需可见参数，回提供方单独补齐）。
 
 ## Comments
 
@@ -103,3 +106,5 @@ Core scenarios: XL-B05—B07、X05—X08；定义见[共享规格 §5](../../v05
 2026-10-24（责任更新）：本票本阶段执行由 Erwin 承担；具体票的开工、实现和验证状态仍按实际结果记录。
 
 2026-10-24（接包细化）：Erwin 已领取包 02，要求本聊天拆票、由其他对话执行。沿用原两票及目录/依赖，补齐输入输出、实施顺序、验证和回交；未记录具体执行者领取，未编码、未实跑。
+
+2026-10-24（执行记录）：ZCode 执行对话按交接指派领取本票，基线 `fedce40`，独立 worktree/分支实现；规则差异、验证结果与跨目录依赖见 Delivery record。AI 审查由子代理另行执行，不冒充 Erwin 本人安全审阅。
