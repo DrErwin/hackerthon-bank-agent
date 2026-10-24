@@ -31,14 +31,20 @@ from app.modules.cross.test_cross_expense import (
 
 
 class ScriptedBillsDetails:
-    def __init__(self, income_fen):
+    """Bills details + accounts stub; accounts answers draw from a shared
+    balance queue so a refresh observes a changed bank fact (review F9)."""
+
+    def __init__(self, income_fen, balances=None):
         self.income_fen = income_fen
+        self.balances = balances if balances is not None else [1_000_000]
 
     def start(self, trusted, request, *, thread_id=None):
         if isinstance(request, StartTransferInput):
+            balance = self.balances.pop(0) if len(self.balances) > 1 else self.balances[0]
             return ModuleResult(task_id=trusted.task_id, run_id=trusted.run_id,
                 status=TaskStatus.SUCCEEDED,
                 data={"accounts": [{"account_id": "A1", "account_masked": "尾号 0001",
+                                     "available_balance_fen": balance,
                                      "display_name": "主账户"}]},
                 message="已查到本人账户。", interaction=None, error=None,
                 allowed_actions=[], recovery_required=False, recovery_reason=None)
@@ -120,8 +126,9 @@ PAYEES_DATA = {"payees": [
 
 
 def pension_composition(tmp_path, *, income_fen=500000, transfers=("success", "success"),
-                        mandates=None):
+                        mandates=None, balances=None, blocked=()):
     transfer_queue = list(transfers)
+    balance_queue = list(balances) if balances is not None else [1_000_000]
     application = __import__("app.storage.application", fromlist=["ApplicationStore"]).ApplicationStore(
         tmp_path / "app.sqlite")
     memory = MemoryAdapter(application, active_round=lambda: "D1")
@@ -131,13 +138,15 @@ def pension_composition(tmp_path, *, income_fen=500000, transfers=("success", "s
                            CapabilityRegistry(), PlannerStub(),
                            authorize_capability=lambda _t, _d: True)
     bank = FakeSubscriptionBank(mandates=mandates)
+    bank.blocked_mandates = set(blocked)
     gate_states: dict = {}
     register_subscription(harness.registry, lambda trusted, trace: ScriptedPorts(bank, gate_states),
                           lambda: NOW)
     harness.registry.register_module(
         BILLS_MANIFEST, lambda trusted, saver, trace: ScriptedBillsDetails(income_fen))
     stubs = accounts_manifest("list_accounts")
-    harness.registry.register_module(stubs, lambda trusted, saver, trace: ScriptedBillsDetails(income_fen))
+    harness.registry.register_module(
+        stubs, lambda trusted, saver, trace: ScriptedBillsDetails(income_fen, balance_queue))
     payees = accounts_manifest("list_payees")
 
     class PayeesStub(ScriptedBillsDetails):
@@ -263,7 +272,7 @@ def test_p03_known_debits_calibration_changes_protection(tmp_path):
     basis = entry.resume(parent_trusted(),
                          {"selected_option_id": option_id(skip, "本月实际入账")})
     reserve = entry.resume(parent_trusted(), {"text": "1500元"})
-    assert "未来 30 天已知代扣合计 64.00 元" in reserve.message
+    assert "未来一个月内已知代扣合计 64.00 元" in reserve.message
     included = entry.resume(parent_trusted(),
                             {"selected_option_id": option_id(reserve, "算进留存")})
     # 5000 - 1500 reserve (debits inside): the destination ask shows the room.
@@ -302,8 +311,14 @@ def test_p05_cancelling_first_never_inflates_the_funds_scope(tmp_path):
     assert done.status is TaskStatus.WAITING_INPUT  # back on the pick menu
     back = entry.resume(parent_trusted(),
                         {"selected_option_id": option_id(done, "退订到这里")})
+    basis = entry.resume(parent_trusted(),
+                         {"selected_option_id": option_id(back, "本月实际入账")})
+    reserve = entry.resume(parent_trusted(), {"text": "1500元"})
+    # The cancelled 25 is gone from the known future debits (review F5).
+    assert "未来一个月内已知代扣合计 39.00 元" in reserve.message
     # Income facts are unchanged by the cancel: still 5000, not 5000+25.
     options = [item.label for item in back.interaction.options]
+    assert options  # back is the basis menu after the F5 chain above
     assert any("本月实际入账合计 5000.00 元" in label for label in options)
     assert not any("5025.00" in label or "5125.00" in label for label in options)
 
@@ -413,3 +428,93 @@ def test_reserve_over_base_and_amount_over_remaining_are_refused(tmp_path):
     over = entry.resume(parent_trusted(), {"text": "99999元"})
     assert over.status is TaskStatus.WAITING_INPUT
     assert "还可安排 3500.00 元" in over.message
+
+
+# ---------------------------------------- review F1-F4: refresh, retry, pause, deps
+
+
+def test_f1_balance_refresh_before_each_transfer_gates_the_second(tmp_path):
+    """The balance read before transfer:2 is the bank's current one (F1)."""
+    harness, entry, _, _ = pension_composition(
+        tmp_path, balances=[1_000_000, 1_000_000, 50_000])
+    adopting = run_to_adoption(entry)
+    harness.resume_child(parent_trusted(), adopting.data.interaction_task_id,
+                         {"choice": "approve"}, plan_revision=adopting.data.plan_revision)
+    asked = entry.resume(parent_trusted(), {})
+    assert asked.status is TaskStatus.WAITING_INPUT
+    assert "余额 500.00 元" in asked.message and "不够支付这笔 1000.00 元" in asked.message
+    # An empty resume must not sneak the spend past the unanswered question.
+    assert entry.resume(parent_trusted(), {}).message == asked.message
+
+
+def test_f2_retry_rechecks_the_balance_and_can_then_proceed(tmp_path):
+    harness, entry, _, _ = pension_composition(
+        tmp_path, balances=[1_000_000, 1_000_000, 50_000, 300_000])
+    adopting = run_to_adoption(entry)
+    harness.resume_child(parent_trusted(), adopting.data.interaction_task_id,
+                         {"choice": "approve"}, plan_revision=adopting.data.plan_revision)
+    asked = entry.resume(parent_trusted(), {})
+    assert "不够支付" in asked.message
+    retried = entry.resume(parent_trusted(),
+                           {"selected_option_id": option_id(asked, "重试这笔")})
+    assert retried.status is TaskStatus.RUNNING  # fresh balance covered it
+    done = harness.resume_child(parent_trusted(), retried.data.interaction_task_id,
+                                {"choice": "approve"},
+                                plan_revision=retried.data.plan_revision)
+    assert done.status is TaskStatus.SUCCEEDED
+    receipt = entry.resume(parent_trusted(), {})
+    assert receipt.status is TaskStatus.SUCCEEDED
+    assert "已转出 3500.00 元" in receipt.message
+
+
+def test_f3_a_failed_transfer_pauses_the_remaining_ones(tmp_path):
+    harness, entry, _, _ = pension_composition(tmp_path, transfers=("failed", "success"))
+    adopting = run_to_adoption(entry)
+    failed = harness.resume_child(parent_trusted(), adopting.data.interaction_task_id,
+                                  {"choice": "approve"},
+                                  plan_revision=adopting.data.plan_revision)
+    assert failed.status is TaskStatus.FAILED
+    children_before = len(harness.child_task_summaries(parent_trusted()))
+    paused = entry.resume(parent_trusted(), {})
+    assert paused.status is TaskStatus.RUNNING
+    assert "没有办成" in paused.message and "后续转账已暂停" in paused.message
+    assert len(harness.child_task_summaries(parent_trusted())) == children_before
+    stopped = entry.resume(parent_trusted(), {"cancel": True})
+    # Nothing actually transferred: D2 records a plain cancellation, and the
+    # failed attempt stays stated instead of being rewritten.
+    assert stopped.status is TaskStatus.CANCELLED
+    assert "没有办成" in stopped.message
+
+
+def test_p04_failed_precancel_surfaces_in_the_adoption_menu(tmp_path):
+    harness, entry, bank, _ = pension_composition(tmp_path, blocked=("sub_001",))
+    started = entry.start(parent_trusted(), CrossStartInput(
+        request_id=uuid4(), goal="帮我安排本月养老金"))
+    look = entry.resume(parent_trusted(),
+                        {"selected_option_id": option_id(started, "先看看可退订")})
+    picked = entry.resume(parent_trusted(),
+                          {"selected_option_id": option_id(look, "优酷")})
+    # The blocked cancel settles as FAILED inside its child on the spot; the
+    # parent comes back to the pick menu without the failed item.
+    assert picked.status is TaskStatus.WAITING_INPUT
+    basis_ask = entry.resume(parent_trusted(),
+                             {"selected_option_id": option_id(picked, "都不退")})
+    basis = entry.resume(parent_trusted(),
+                         {"selected_option_id": option_id(basis_ask, "本月实际入账")})
+    reserve = entry.resume(parent_trusted(), {"text": "1500元"})
+    # The failed cancel left the mandate active in the bank: both debits stay.
+    assert "未来一个月内已知代扣合计 64.00 元" in reserve.message
+    debits = entry.resume(parent_trusted(),
+                          {"selected_option_id": option_id(reserve, "算进留存")})
+    pick = entry.resume(parent_trusted(),
+                        {"selected_option_id": option_id(debits, "妈妈")})
+    after = entry.resume(parent_trusted(), {"text": "2500元"})
+    ready = entry.resume(parent_trusted(),
+                         {"selected_option_id": option_id(after, "去向已选好")})
+    assert "没有办成" in ready.message
+    assert any("知道未办成，仍继续办理转账" in item.label
+               for item in ready.interaction.options)
+    stop = entry.resume(parent_trusted(),
+                        {"selected_option_id": option_id(ready, "取消，不办理")})
+    assert stop.status is TaskStatus.CANCELLED
+    assert bank.cancel_calls == []
