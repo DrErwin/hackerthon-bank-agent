@@ -118,46 +118,35 @@ def test_real_composition_mounts_cross_and_traces_children(tmp_path):
     app.state.api.runtime.close()
 
 
-def test_undelivered_goals_are_refused_without_faking_success(tmp_path):
-    """Pension arrived with v05-cross-business/02; only birthday is still an
-    honestly-refused goal in this composition."""
+def test_pension_and_birthday_goals_reach_their_real_flows(tmp_path):
+    """All three life goals now reach their real modules (business 02/03 +
+    platform 09 wiring); none is refused or faked."""
     app, runtime = wired_app(tmp_path)
     now = datetime.now(timezone.utc)
     runtime.application.create_session(
         "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
     )
-    for task_id, goal, fragment in (
-        ("BIRTHDAY", "帮我安排家人生日", "暂时不能办理"),
-    ):
-        runtime.application.create_task(task_id, "U1", "S1", "D1", "R1", "running", {})
-        from app.contracts.platform import StartTransferInput
-        from app.memory.adapter import MemoryContext
-        from app.modules.cross.entry import CrossEntry
-        saver = runtime.memory.checkpointer(MemoryContext("U1", "S1", "D1"), task_id)
-        entry = CrossEntry(runtime.harness, saver, None, runtime.gateway._bank.clock)
-        menu = entry.start(trusted(runtime, task_id),
-                           StartTransferInput(request_id=uuid4(), intent_text=goal))
-        assert menu.status is TaskStatus.WAITING_INPUT
-        assert fragment in menu.message
-        options = {option.label for option in menu.interaction.options}
-        assert any("减" in label for label in options)
-        # No children were dispatched for an undelivered goal.
-        assert runtime.application.list_child_tasks("U1", "D1", task_id) == []
-    # A pension goal now reaches the real registered cross module too (its
-    # business module landed in v05-cross-business/02).
-    runtime.application.create_task("PENSION", "U1", "S1", "D1", "R1", "running", {})
     from app.contracts.platform import StartTransferInput
     from app.memory.adapter import MemoryContext
     from app.modules.cross.entry import CrossEntry
-    saver = runtime.memory.checkpointer(MemoryContext("U1", "S1", "D1"), "PENSION")
-    entry = CrossEntry(runtime.harness, saver, None, runtime.gateway._bank.clock)
-    pension = entry.start(trusted(runtime, "PENSION"),
-                          StartTransferInput(request_id=uuid4(),
-                                             intent_text="养老金到了，帮我安排本月的钱"))
-    # The pension module asks its funds-basis question first (v05-cross-business/02);
-    # reaching the registered module without faking an outcome is this ticket's bar.
-    assert pension.status is TaskStatus.WAITING_INPUT
-    assert pension.interaction is not None
+
+    for task_id, goal, first_question in (
+        ("PENSION", "养老金到了，帮我安排本月的钱", "账户"),
+        ("BIRTHDAY", "帮我安排家人生日", "预算"),
+    ):
+        runtime.application.create_task(task_id, "U1", "S1", "D1", "R1", "running", {})
+        saver = runtime.memory.checkpointer(MemoryContext("U1", "S1", "D1"), task_id)
+        entry = CrossEntry(runtime.harness, saver, None, runtime.gateway._bank.clock,
+                           birthday_ports_factory=runtime.birthday.ports_factory)
+        started = entry.start(trusted(runtime, task_id),
+                              StartTransferInput(request_id=uuid4(), intent_text=goal))
+        assert started.status is TaskStatus.WAITING_INPUT, started.message
+        assert first_question in started.message
+        children = runtime.application.list_child_tasks("U1", "D1", task_id)
+        # Reads ran through the real factories; nothing was written.
+        assert all(relation.step_id in {"accounts", "subscriptions", "bills_details",
+                                        "bills_compare"}
+                   for relation in children)
     assert submitted_ledger_count(runtime) == 0
     app.state.api.runtime.close()
 

@@ -243,10 +243,18 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     # its one write is authorized by a live claim from the shared executor.
     subscription_runtime.register_subscription(runtime, bank.clock)
     register_own_bank_queries(runtime)
-    # v05-cross-platform/05: mount the real cross module — expense reduction and
-    # the monthly pension arrangement run; birthday still reports its dependency
-    # note. Its bank touches go through dispatched children under their own gates.
-    register_cross(runtime.harness, bank.clock)
+    # v05-cross-platform/05+09: mount the real cross module — expense reduction
+    # and the monthly pension arrangement run through dispatched children under
+    # their own gates; the birthday scenario attaches the real money ports
+    # (gate-confirmed writes with step-up verification and the §3.5 limited
+    # release) so its goal runs on the bank, not on stand-ins.
+    from .birthday_runtime import BirthdayRuntime
+    runtime.birthday = BirthdayRuntime(
+        runtime, demo_user_id=config.demo_user_id,
+        current_demo_round=lambda: config.demo_round_id,
+    )
+    register_cross(runtime.harness, bank.clock,
+                   birthday_ports_factory=runtime.birthday.ports_factory)
     return runtime
 
 
