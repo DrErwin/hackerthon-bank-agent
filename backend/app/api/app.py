@@ -17,7 +17,8 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import Field
 
 from app.contracts.api import (
-    ConfirmationAnswerRequest, MessageAccepted, PayeeDetailsFields, PayeeSearchFields, ProvideInputRequest, RequestIdOnly,
+    ConfirmationAnswerRequest, DeliveryDetailsFields, MessageAccepted,
+    PayeeDetailsFields, PayeeSearchFields, ProvideInputRequest, RequestIdOnly,
     SendMessageRequest, SessionExpired, StreamEvent, SubmitDetailsRequest, VerificationCodeRequest,
 )
 from app.contracts.bank import ManualPayee, QueryFailure
@@ -394,7 +395,13 @@ def create_app(runtime=None, config=None):
         service.link(who, task_id, mutate=True)
         def action():
             pending = service.current_input_task(who, task_id, body.interaction_id)
-            if pending.interaction.required_fields != ["payee_hint"] or body.kind == "delivery":
+            if isinstance(body.fields, DeliveryDetailsFields):
+                # F36 delivery branch: the raw text goes to the controlled store
+                # only; the answer carries masked fields and one reference.
+                if pending.interaction.required_fields != ["delivery"]:
+                    raise ApiProblem(409, "DETAILS_NOT_REQUESTED")
+                return service.store_delivery_detail(who, task_id, body)
+            if pending.interaction.required_fields != ["payee_hint"]:
                 raise ApiProblem(409, "DETAILS_NOT_REQUESTED")
             trusted = service.trusted(who, task_id)
             candidates = None
