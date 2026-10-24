@@ -21,11 +21,12 @@ from app.contracts.audit import (
     VerificationChangedPayload,
 )
 from app.contracts.api import (
-    ExportView, MessageView, ReportReady, StreamEvent, TaskRecordsView, VerificationResponse,
+    DeliveryDetailsFields, DetailsResponse, ExportView, MessageView, ReportReady, StreamEvent,
+    TaskRecordsView, VerificationResponse,
 )
 from app.contracts.bills import BillDetails, BillReport, SpendingSummary
 from app.contracts.bank import AccountList, PayeeList
-from app.contracts.common import TaskStatus
+from app.contracts.common import DisplayField, TaskStatus
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
 from app.contracts.subscription import SubscriptionTaskView
@@ -759,6 +760,46 @@ class ApiService:
             self.emit(identity, task.thread_id, "report_ready",
                       ReportReady(task_id=task_id, report_id=report_id), task)
         return task
+
+    @staticmethod
+    def _masked_delivery_fields(fields: DeliveryDetailsFields) -> list[DisplayField]:
+        # F36: the raw delivery text never leaves the controlled path; the normal
+        # task answer only carries masked display fields plus the reference.
+        name, phone, address = fields.recipient_name, fields.phone, fields.address
+        return [
+            DisplayField(name="recipient", label="收件人",
+                         value_text=(name[:1] + "*") if name else "*"),
+            DisplayField(name="phone", label="联系电话",
+                         value_text=("****" + phone[-4:]) if len(phone) >= 4 else "****"),
+            DisplayField(name="address", label="地址",
+                         value_text=(address[:2] + "****") if len(address) >= 2 else "****"),
+        ]
+
+    def store_delivery_detail(self, identity, task_id: str, request):
+        """F36 delivery branch: store the raw facts once, hand back one reference.
+
+        The reference is bound to this user, round and task; only the controlled
+        business seam (cross) may resolve it later. The task itself never advances
+        from a delivery entry and the reply never contains the raw text.
+        """
+        if self.runtime.application.get_task(
+            identity.user_id, identity.demo_round_id, task_id,
+        ) is None:
+            raise ApiProblem(409, "DETAILS_NOT_REQUESTED")
+        detail_ref = str(uuid4())
+        self.runtime.application.store_controlled_detail(
+            detail_ref, identity.user_id, identity.demo_round_id, task_id,
+            "delivery", request.fields.model_dump(), now().isoformat(),
+        )
+        self.store.write("INSERT INTO api_records VALUES (?, ?, ?)",
+                         ("detail", detail_ref, task_id))
+        view = self.task_view(identity, task_id)
+        return DetailsResponse[type(view)](
+            detail_ref=detail_ref,
+            display_fields=self._masked_delivery_fields(request.fields),
+            candidates=None,
+            task=view,
+        )
 
     def child_tasks(self, identity, task_id):
         """Expose one parent's durable children through the generic task API (§6.5).
