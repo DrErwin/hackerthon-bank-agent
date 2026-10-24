@@ -24,10 +24,14 @@ from app.contracts.audit import (
     ModelUsage, RecoveryCheckedPayload, TaskTransitionPayload,
 )
 from app.contracts.common import OperationLevel, TaskStatus
-from app.contracts.bills import AnomalyResult, BillDetails, BillReport, BillScope, SpendingSummary
+from app.contracts.bills import (
+    AnomalyResult, BillDetails, BillReport, BillScope, BillSummarizeInput, DetectAnomaliesInput,
+    GenerateReportInput, SpendingSummary,
+)
 from pydantic import ValidationError
 from app.contracts.cross import CrossStartInput
 from app.contracts.platform import CapabilityDefinition, StartTransferInput, TrustedContext
+from app.contracts.subscription import SubscriptionCancelInput, SubscriptionListInput
 from app.contracts.tasks import ModuleError, ModuleResult, TransferTaskView
 from app.memory.adapter import MemoryAdapter, MemoryContext
 from app.storage.application import ApplicationStore, ArrangementConflictError, TaskRecord
@@ -949,9 +953,26 @@ class AgentHarness:
 
     # --- v05-cross-platform/03: controlled child-task dispatch for cross parents ---
 
-    # Public start-input contracts a parent may hand to a child capability; every
-    # other input shape is refused before any task is created.
-    CHILD_INPUT_CONTRACTS = (StartTransferInput, CrossStartInput)
+    # Public start-input contracts a parent may hand to a child capability. Each
+    # capability accepts exactly the contract its manifest declares (a "#version"
+    # suffix on the ref still names the same model); every other input shape —
+    # including another capability's contract — is refused before any task is
+    # created, so bills and subscription parameters are never smuggled through
+    # the transfer envelope.
+    CHILD_INPUT_CONTRACTS: dict[str, tuple[type, ...]] = {
+        "StartTransferInput": (StartTransferInput,),
+        "CrossStartInput": (CrossStartInput,),
+        "BillSummarizeInput": (BillSummarizeInput,),
+        "DetectAnomaliesInput": (DetectAnomaliesInput,),
+        "GenerateReportInput": (GenerateReportInput,),
+        "SubscriptionListInput": (SubscriptionListInput,),
+        "SubscriptionCancelInput": (SubscriptionCancelInput,),
+    }
+
+    @classmethod
+    def _declared_child_input(cls, definition: CapabilityDefinition) -> tuple[type, ...] | None:
+        declared_ref = definition.input_schema_ref.split("#", 1)[0]
+        return cls.CHILD_INPUT_CONTRACTS.get(declared_ref)
 
     def dispatch_child(self, parent: TrustedContext, capability_name: str,
                        request_id: UUID, child_input, *, step_id: str,
@@ -967,7 +988,8 @@ class AgentHarness:
         registration = self.registry.get(capability_name)
         definition = registration.definition
         self._authorize(parent, capability_name)
-        if not isinstance(child_input, self.CHILD_INPUT_CONTRACTS):
+        allowed_input = self._declared_child_input(definition)
+        if allowed_input is None or not isinstance(child_input, allowed_input):
             raise ValueError("INVALID_CAPABILITY_INPUT")
 
         if definition.operation_level != OperationLevel.READ or definition.side_effect:
