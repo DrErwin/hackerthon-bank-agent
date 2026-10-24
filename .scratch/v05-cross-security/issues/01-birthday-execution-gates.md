@@ -99,7 +99,7 @@ Core scenarios: XL-B05—B07、X05—X08；定义见[共享规格 §5](../../v05
 - Erwin 本人安全审阅：2026-10-24 给出定向裁定（聊天原意）：以用户体验为出发点——办理信息尽量对用户可见；用户想完成的操作整个系统要有办法完成；AI 做自由裁量（选品、比价、改计划），动钱与否走确定性规则，风险处由用户确认授权。按此口径映射：规则差异 1-3 成立（钱=确定性判定+冻结确认单一次看清并授权+暂停态均有完成路径：结果不明可回查、先取消即可收尾、专用通道始终能释放），4 维持现状并登记为网关可选增强，5/6 认可，7 知悉。据"办理信息可见"要求同日补齐收尾回执三数（已消费/已释放/仍冻结，`ReleaseOutcome.consumed_total_fen` + 人话金额消息，security 424 passed）。合入决定待 Erwin。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
-- 跨目录依赖登记：无新增公共缺口；平台 09 装配时将 `authorize_birthday_write(state)` 接入 BankGateway、在冻结确认作答后调 `grant_release_authorization`、冻结结果后调 `bind_freeze_result`、任务结束时调 `LimitedReleaseFinalizer.finalize`——**finalize 装配时必须传 `current_demo_round`**（缝隙可选，缺省 None 时旧轮次防护不生效，复审 R-1）；网关 authorize_birthday 回调如需可见参数，回提供方单独补齐。
+- 跨目录依赖登记：无新增公共缺口；平台 09 装配时将 `authorize_birthday_write(state)` 接入 BankGateway、在冻结确认作答后调 `grant_release_authorization`、冻结结果后调 `bind_freeze_result`、任务结束时调 `LimitedReleaseFinalizer.finalize`——**finalize 装配时必须传 `current_demo_round`**（缝隙可选，缺省 None 时旧轮次防护不生效，复审 R-1）。2026-10-24 Erwin 裁定"回调要能看到金额信息"：安全侧已支持第四个 request 参数并按释放 claim 的 `parameters_ref` 载荷（freeze_id:amount）逐字段精确核对（购买类 claim 参数核对仍由平台快照比对承担，同转账）；网关透传 request 由 [v05-cross-platform/10](../../v05-cross-platform/issues/10-authorize-birthday-request.md) 单目录补齐，合入后精确绑定自动生效。
 
 ## Comments
 

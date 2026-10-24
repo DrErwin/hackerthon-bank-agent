@@ -681,8 +681,8 @@ class SQLiteSecurityState:
             row = connection.execute(
                 """SELECT * FROM security_executions
                    WHERE task_id = ? AND action_name = 'bank.release_frozen'
-                     AND parameters_ref = ? ORDER BY rowid DESC LIMIT 1""",
-                (context.task_id, f"release:{release_authorization_id}"),
+                     AND parameters_ref LIKE ? ORDER BY rowid DESC LIMIT 1""",
+                (context.task_id, f"release:{release_authorization_id}:%"),
             ).fetchone()
         finally:
             connection.close()

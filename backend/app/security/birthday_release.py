@@ -166,14 +166,18 @@ def bind_freeze_result(
 def authorize_birthday_write(state: SQLiteSecurityState) -> Callable[..., bool]:
     """Wire this into BankGateway(authorize_birthday=...).
 
-    The gateway passes (trusted context, operation id, action name); the
-    decision below binds exactly those to the persisted allow claim. No claim,
-    foreign identity, wrong action, replayed completed claim, or non-allow
-    decision ever passes — there is no constant-true callback here.
+    The gateway passes (trusted context, operation id, action name) and, once
+    v05-cross-platform/10 lands, the typed request as a fourth argument. The
+    decision binds identity, operation id, action name, and a live allow
+    claim; a release claim additionally carries its exact payload
+    (freeze id plus amount) in parameters_ref, so a passed request must match
+    it field by field. No claim, foreign identity, wrong action, replayed
+    completed claim, non-allow decision, or mismatched request ever passes —
+    there is no constant-true callback here.
     """
 
     def authorize(trusted_context: TrustedContext, operation_id: UUID,
-                  action: str) -> bool:
+                  action: str, request=None) -> bool:
         try:
             claim = state.find_execution(operation_id)
         except Exception:
@@ -189,9 +193,29 @@ def authorize_birthday_write(state: SQLiteSecurityState) -> Callable[..., bool]:
             return False
         if claim.action_name != action or claim.state != "processing":
             return False
-        return claim.decision.decision is SecurityDecisionCode.ALLOW
+        if claim.decision.decision is not SecurityDecisionCode.ALLOW:
+            return False
+        binding = _release_payload_binding(claim.parameters_ref)
+        if binding is None or request is None:
+            # Purchase claims bind parameters through the platform's snapshot
+            # comparison (as transfer does); until the gateway forwards the
+            # request, release claims keep the identity-plus-claim binding.
+            return True
+        return (getattr(request, "freeze_id", None),
+                getattr(request, "amount_fen", None)) == binding
 
     return authorize
+
+
+def _release_payload_binding(parameters_ref: str) -> tuple[str, int] | None:
+    """Parse the exact payload a release claim binds: (freeze_id, amount)."""
+    parts = parameters_ref.split(":")
+    if len(parts) != 4 or parts[0] != "release":
+        return None
+    try:
+        return parts[2], int(parts[3])
+    except ValueError:
+        return None
 
 
 def _load(
@@ -362,6 +386,21 @@ class LimitedReleaseFinalizer:
             phase=Phase.EXECUTION,
         )
 
+    @staticmethod
+    def _release_action(
+        authorization: FreezeReleaseAuthorization, freeze_id: str, amount_fen: int,
+    ) -> ActionDescriptor:
+        """The release action binds its exact payload in parameters_ref."""
+        return ActionDescriptor(
+            action_name="bank.release_frozen",
+            parameters_ref=(
+                f"release:{authorization.release_authorization_id}"
+                f":{freeze_id}:{amount_fen}"
+            ),
+            resource_refs=[freeze_id, authorization.account_id],
+            phase=Phase.EXECUTION,
+        )
+
     def _observe(
         self, context: ExecutionSecurityContext, operation_id: UUID,
     ):
@@ -378,13 +417,25 @@ class LimitedReleaseFinalizer:
         authorization: FreezeReleaseAuthorization,
         operation_id: UUID,
     ) -> ReleaseOutcome:
-        action = self._record(authorization)
         evidence = [authorization.release_authorization_id, str(operation_id)]
         claim = None
         try:
             claim = self.state.find_execution(operation_id)
         except ValueError:
             claim = None
+        parameters_ref = (
+            claim.parameters_ref if claim is not None
+            else f"release:{authorization.release_authorization_id}"
+        )
+        action = ActionDescriptor(
+            action_name="bank.release_frozen",
+            parameters_ref=parameters_ref,
+            resource_refs=[
+                authorization.freeze_id or str(authorization.freeze_operation_id),
+                authorization.account_id,
+            ],
+            phase=Phase.EXECUTION,
+        )
         snapshot_ref = (
             claim.decision.authorization_snapshot_ref
             if claim is not None and claim.decision is not None else None
@@ -718,6 +769,7 @@ class LimitedReleaseFinalizer:
 
         # Authorization snapshot and decision must persist before the bank call.
         operation_id = self.operation_factory()
+        action = self._release_action(authorization, authorization.freeze_id, remaining)
         submit_context = context.model_copy(update={
             "operation_id": operation_id, "action_revision": 1,
         })

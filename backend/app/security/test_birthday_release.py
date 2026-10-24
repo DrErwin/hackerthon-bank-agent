@@ -754,6 +754,40 @@ def test_authorizer_denies_everything_without_a_live_claim(tmp_path):
     assert authorizer(same_identity, claim_op, "bank.release_frozen") is False
 
 
+def test_authorizer_binds_the_exact_release_payload(tmp_path):
+    """With the request visible at the callback (v05-cross-platform/10), a
+    release claim's bound freeze id and amount must match field by field."""
+    rig = Rig(tmp_path)
+    authorizer = authorize_birthday_write(rig.state)
+    _, _, authorization, freeze = rig.active_authorization()
+    freeze_id = freeze.receipt.freeze_id
+    release_context = context(operation_id=uuid4(), action_revision=1)
+    release_action = ActionDescriptor(
+        action_name="bank.release_frozen",
+        parameters_ref=(
+            f"release:{authorization.release_authorization_id}:{freeze_id}:30100"
+        ),
+        resource_refs=[freeze_id], phase=Phase.EXECUTION,
+    )
+    rig.state.claim_release_execution(
+        release_context, release_action,
+        allow_decision(release_context, release_action),
+    )
+    identity = trusted(release_context)
+    claim_op = release_context.operation_id
+    # Three-argument calls stay compatible until the gateway forwards requests.
+    assert authorizer(identity, claim_op, "bank.release_frozen") is True
+    assert authorizer(identity, claim_op, "bank.release_frozen", ReleaseFrozenInput(
+        freeze_id=freeze_id, amount_fen=30100,
+    )) is True
+    assert authorizer(identity, claim_op, "bank.release_frozen", ReleaseFrozenInput(
+        freeze_id=freeze_id, amount_fen=99999,
+    )) is False
+    assert authorizer(identity, claim_op, "bank.release_frozen", ReleaseFrozenInput(
+        freeze_id="frz_other", amount_fen=30100,
+    )) is False
+
+
 def test_gateway_denies_birthday_writes_without_the_authorizer(tmp_path):
     """Unwired platforms stay closed: no authorize_birthday means no birthday write."""
     rig = Rig(tmp_path)
