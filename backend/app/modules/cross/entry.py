@@ -617,18 +617,29 @@ class CrossEntry:
             lines.append(f"已退订 {receipt['service_name']}：{money(receipt['amount_fen'])}元/{cycle}，"
                          f"自 {receipt['effective_stop_at']} 起不再自动扣费。")
         if pension.get("base_fen") is not None:
-            protected = (pension.get("reserve_fen") or 0) + (
-                pension.get("known_debits_fen") or 0
-                if pension.get("includes_debits") is False else 0)
+            debits = self._known_debits_fen(state) if pension.get(
+                "includes_debits") is False else 0
+            protected = (pension.get("reserve_fen") or 0) + debits
             retained = pension["base_fen"] - protected - transferred
-            note = ""
-            if pension.get("includes_debits") is False and pension.get("known_debits_fen"):
-                note = f"（留存之外已保护未来代扣 {money(pension['known_debits_fen'])} 元）"
+            note = (f"（留存之外已保护未来代扣 {money(debits)} 元）" if debits else "")
             lines.append(f"资金范围 {money(pension['base_fen'])} 元；留存 "
                          f"{money(pension.get('reserve_fen') or 0)} 元{note}；"
                          f"已转出 {money(transferred)} 元；未转出留在账户 "
                          f"{money(retained)} 元。")
         return lines, transferred, unknown
+
+    @staticmethod
+    def _known_debits_fen(state: dict) -> int:
+        """Live known-debits total, same calibration as the adopted view (N2)."""
+
+        settled = ({receipt["subscription_id"] for receipt in state.get("receipts", [])}
+                   | {entry["subscription_id"] for entry in state.get("unknown", [])})
+        return sum(item.get("amount_fen", 0)
+                   for item in (state.get("inventory") or [])
+                   if item.get("status") == "active"
+                   and item.get("source_type") == "mandate"
+                   and item.get("can_cancel_in_bank")
+                   and item.get("subscription_id") not in settled)
 
     def _receipt_pension(self, trusted, state, *, stopped: bool = False) -> ModuleResult:
         lines, transferred, unknown = self._pension_summary_lines(state)

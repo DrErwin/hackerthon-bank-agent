@@ -532,14 +532,17 @@ class PensionFlow:
             claimed = parse_amount_fen(text)
             incomes = self._income_transactions()
             income_total = sum(row["amount_fen"] for row in incomes)
-            balance = self._balance(self.pension["payer"]) or 0
+            balance = self._balance(self.pension["payer"])
             if claimed is None:
                 return self._ask_basis(trusted)
             correction = []
             if claimed != income_total and claimed != balance:
-                correction.append(f"您说的 {money(claimed)} 元与银行记录不一致："
-                                  f"本月实际入账 {money(income_total)} 元，"
-                                  f"当前可用余额 {money(balance)} 元。以哪个为准？")
+                facts = f"本月实际入账 {money(income_total)} 元" if incomes else "本月入账暂无可查"
+                if self.pension.get("accounts_ok") and balance is not None:
+                    facts += f"，当前可用余额 {money(balance)} 元"
+                else:
+                    facts += "，账户余额暂时查不到"
+                correction.append(f"您说的 {money(claimed)} 元与银行记录不一致：{facts}。以哪个为准？")
             prompt = "\n".join(correction) if correction else "请选择资金范围："
             return self.entry._ask(trusted, self.state, prompt,
                                    self._basis_choices(income_total, balance))
@@ -551,8 +554,11 @@ class PensionFlow:
         if income_total:
             choices.append((f"本月实际入账合计 {money(income_total)} 元",
                             {"kind": "pension_basis", "basis": "selected_income"}))
-        choices.append((f"当前可用余额 {money(balance)} 元",
-                        {"kind": "pension_basis", "basis": "available_balance"}))
+        # A failed accounts read offers no balance basis — zero would be a
+        # fabricated fact, and a chosen None base crashes later maths (N1).
+        if self.pension.get("accounts_ok") and balance is not None:
+            choices.append((f"当前可用余额 {money(balance)} 元",
+                            {"kind": "pension_basis", "basis": "available_balance"}))
         return choices
 
     # ------------------------------------------------------------------ adoption
