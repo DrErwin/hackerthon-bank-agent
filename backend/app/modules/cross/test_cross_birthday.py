@@ -3,13 +3,12 @@
 The birthday money writes are scripted ports (the real gate + gateway seam is
 platform 09's wiring); the storage seams — controlled delivery detail, the
 serialized budget occupation, D1 — and the whole plan/interaction machine are
-real. Numbers follow XL-B01..B07.
+real. Numbers follow XL-B01..B07: freeze = the adopted budget cap (500),
+consumption 199 + 268, remainder 33 released.
 """
 
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-
-import pytest
 
 from app.audit.journal import AuditJournal
 from app.contracts.bank import Product, ProductList, QueryOk
@@ -28,6 +27,7 @@ from app.agent_platform.own_bank_queries import manifest as accounts_manifest
 
 from app.modules.cross.test_cross_expense import NOW, PlannerStub, parent_trusted
 
+BUDGET_ID = "bud_U1_2026-10"  # user + month of the fixed test clock
 FLOWER = Product(product_id="P_FLOWER", merchant_id="M_SHOP", merchant_name="邻里花坊",
                  product_name="康乃馨花束", unit_price_fen=19900, category="other",
                  earliest_delivery_at=NOW)
@@ -44,46 +44,75 @@ def gate_confirmation(name: str, prompt: str) -> InteractionRequest:
         record_ref=f"conf-{name}")
 
 
-class ScriptedBirthdayPorts:
-    """Implements the ports protocol from a per-action script.
+def completed_order(item_pid: str) -> WriteOutcome:
+    class OrderView:
+        order_id = f"ord_{item_pid[-5:]}"
 
-    scripts: dict action -> list of outcomes/answers; writes whose execute
-    answer is scripted "unknown" are later resolved by requery()/bind_freeze().
-    """
+    class Result:
+        order = OrderView()
+
+    return WriteOutcome(executed=True, state="completed", result=Result(),
+                        operation_id=str(uuid4()))
+
+
+def completed_capture(item_pid: str) -> WriteOutcome:
+    class Receipt:
+        transaction_id = f"txn_{item_pid[-5:]}"
+
+    class Ok:
+        receipt = Receipt()
+
+    return WriteOutcome(executed=True, state="completed", result=Ok(),
+                        operation_id=str(uuid4()))
+
+
+class ScriptedBirthdayPorts:
+    """Ports from per-action scripts; release amounts are given per test."""
 
     def __init__(self, *, products=(FLOWER, CAKE), fresh_prices=None,
-                 freeze="completed", orders=("completed", "completed"),
+                 fresh_missing=(), freeze="completed",
+                 orders=("completed", "completed"),
                  captures=("completed", "completed"),
-                 requery_results=None, release="released"):
+                 requery_results=None, requery_auto=False,
+                 release_status="released", released_amount_fen=3300):
         self.products_list = list(products)
         self.fresh_prices = dict(fresh_prices or {})
+        self.fresh_missing = set(fresh_missing)
         self.freeze_script = freeze
         self.orders_script = list(orders)
         self.captures_script = list(captures)
         self.requery_results = requery_results or {}
-        self.release_status = release
+        self.requery_auto = requery_auto
+        self.last_order_op = None
+        self.last_capture_op = None
+        self.release_status = release_status
+        self.released_amount_fen = released_amount_fen
         self.granted: list[str] = []
         self.bind_calls: list[str] = []
+        self.requery_ids: list[str] = []
         self.freeze_executes = 0
         self.order_executes: list[str] = []
         self.capture_executes: list[str] = []
         self.finalize_calls: list[str] = []
+        self._reads = 0
 
-    # reads ------------------------------------------------------------------
     def products(self, context, request):
-        # Fresh prices apply only from the second read onward: the first listing
-        # is the quote the user picked from, later reads are the re-check (B03).
-        self._reads = getattr(self, "_reads", 0) + 1
-        if self._reads > 1 and self.fresh_prices:
-            rows = [p.model_copy(update={"unit_price_fen": self.fresh_prices[p.product_id]})
-                    if p.product_id in self.fresh_prices else p
-                    for p in self.products_list]
-        else:
-            rows = list(self.products_list)
+        # Fresh state applies from the second read onward (the re-check).
+        self._reads += 1
+        rows = []
+        for product in self.products_list:
+            if self._reads > 1 and product.product_id in self.fresh_missing:
+                continue  # no longer offered: unavailable / undeliverable
+            if self._reads > 1 and product.product_id in self.fresh_prices:
+                product = product.model_copy(
+                    update={"unit_price_fen": self.fresh_prices[product.product_id]})
+            rows.append(product)
         return QueryOk(kind="ok", data=ProductList(products=rows))
 
-    # gate answers -----------------------------------------------------------
     def freeze_check(self, context, plan):
+        if self.freeze_script == "block":
+            return GateAnswer(decision=SecurityDecisionCode.BLOCK,
+                              operation_id=str(uuid4()), reason_code="HIGH_RISK")
         return GateAnswer(decision=SecurityDecisionCode.REQUIRE_CONFIRMATION,
                           operation_id=str(uuid4()),
                           interaction=gate_confirmation(
@@ -102,11 +131,6 @@ class ScriptedBirthdayPorts:
                           interaction=gate_confirmation(
                               "capture", f"按订单 {order_id} 付款 {item['name']}"))
 
-    # writes ------------------------------------------------------------------
-    class _Ok:
-        def __init__(self, receipt):
-            self.receipt = receipt
-
     def freeze_execute(self, context, plan):
         self.freeze_executes += 1
         if self.freeze_script == "unknown":
@@ -116,39 +140,35 @@ class ScriptedBirthdayPorts:
         class Receipt:
             freeze_id = "fz_001"
 
-        return WriteOutcome(executed=True, state="completed",
-                            result=self._Ok(Receipt()), operation_id=str(uuid4()))
+        class Ok:
+            receipt = Receipt()
+
+        return WriteOutcome(executed=True, state="completed", result=Ok(),
+                            operation_id=str(uuid4()))
 
     def order_execute(self, context, plan, item):
         self.order_executes.append(item["product_id"])
         state = self.orders_script.pop(0) if self.orders_script else "completed"
         if state == "unknown":
-            return WriteOutcome(executed=True, state="unknown", result=None,
+            unknown = WriteOutcome(executed=True, state="unknown", result=None,
+                                   operation_id=str(uuid4()))
+            self.last_order_op = unknown.operation_id
+            return unknown
+        if state == "failed":
+            return WriteOutcome(executed=True, state="failed", result=None,
                                 operation_id=str(uuid4()))
-
-        class OrderView:
-            order_id = f"ord_{item['product_id'][-5:]}"
-
-        class Result:
-            order = OrderView()
-
-        return WriteOutcome(executed=True, state="completed", result=Result(),
-                            operation_id=str(uuid4()))
+        return completed_order(item["product_id"])
 
     def capture_execute(self, context, plan, item, order_id):
         self.capture_executes.append(item["product_id"])
         state = self.captures_script.pop(0) if self.captures_script else "completed"
         if state == "unknown":
-            return WriteOutcome(executed=True, state="unknown", result=None,
-                                operation_id=str(uuid4()))
+            unknown = WriteOutcome(executed=True, state="unknown", result=None,
+                                   operation_id=str(uuid4()))
+            self.last_capture_op = unknown.operation_id
+            return unknown
+        return completed_capture(item["product_id"])
 
-        class Receipt:
-            transaction_id = f"txn_{item['product_id'][-5:]}"
-
-        return WriteOutcome(executed=True, state="completed",
-                            result=self._Ok(Receipt()), operation_id=str(uuid4()))
-
-    # release records -----------------------------------------------------------
     def grant_release(self, context, plan, confirmation_ref):
         self.granted.append(confirmation_ref)
         return "rel_001"
@@ -157,23 +177,26 @@ class ScriptedBirthdayPorts:
         self.bind_calls.append(operation_id)
         return "fz_001"
 
-    def requery(self, context, plan, target):
-        result = self.requery_results.get(target)
-        if result is None:
-            return None
-        return result
+    def requery(self, context, plan, target, operation_id):
+        self.requery_ids.append(operation_id)
+        if operation_id in self.requery_results:
+            return self.requery_results[operation_id]
+        if self.requery_auto:
+            return (completed_capture(context.task_id[-5:]) if target == "capture"
+                    else completed_order(context.task_id[-5:]))
+        return None
 
     def finalize(self, context, plan, reason):
         self.finalize_calls.append(reason)
         if self.release_status == "needs_attention":
             return ReleaseOutcome(status="needs_attention")
-        consumed = sum(int(item["amount_fen"]) for item in plan.items)
         if self.release_status == "nothing_to_release":
             return ReleaseOutcome(status="nothing_to_release", released_amount_fen=0,
-                                  remaining_fen=0, consumed_total_fen=consumed,
+                                  remaining_fen=0, consumed_total_fen=0,
                                   release_operation_id=str(uuid4()))
-        return ReleaseOutcome(status="released", released_amount_fen=3300,
-                              remaining_fen=0, consumed_total_fen=consumed,
+        return ReleaseOutcome(status="released",
+                              released_amount_fen=self.released_amount_fen,
+                              remaining_fen=0, consumed_total_fen=0,
                               release_operation_id=str(uuid4()))
 
 
@@ -236,7 +259,6 @@ def run_to_freeze(entry, *, budget="500元", date="2026-10-30", ref="deliver-ref
         request_id=uuid4(), goal="500 元以内给妈妈安排花和蛋糕"))
     assert started.status is TaskStatus.WAITING_INPUT
     current = entry.resume(parent_trusted(), {"text": budget})
-    assert current.status is TaskStatus.WAITING_INPUT
     current = entry.resume(parent_trusted(), {"text": date})
     current = entry.resume(parent_trusted(), {"text": ref})
     for pick in picks:
@@ -249,29 +271,32 @@ def run_to_freeze(entry, *, budget="500元", date="2026-10-30", ref="deliver-ref
                         {"selected_option_id": option_id(current, "采用并开始办理")})
 
 
+def confirm_until_settled(entry, guard_word=None):
+    result = entry.resume(parent_trusted(), {"choice": "approve"})
+    for _ in range(12):
+        if result.status is not TaskStatus.WAITING_APPROVAL:
+            return result
+        if guard_word and guard_word in result.message:
+            return result
+        result = entry.resume(parent_trusted(), {"choice": "approve"})
+    return result
+
+
 # ------------------------------------------------------------------- XL-B01
 
 
 def test_b01_freeze_500_pay_199_268_release_33(tmp_path):
-    ports = ScriptedBirthdayPorts()
+    ports = ScriptedBirthdayPorts(released_amount_fen=3300)
     harness, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
     freeze_ask = run_to_freeze(entry)
     assert freeze_ask.status is TaskStatus.WAITING_APPROVAL
-    assert "只退未消费部分" in freeze_ask.message  # the §3.5 clause reached the user
-    confirmed = entry.resume(parent_trusted(), {"choice": "approve"})
-    assert confirmed.status is TaskStatus.WAITING_APPROVAL  # first order confirmation
-    assert ports.granted == ["conf-freeze"]
+    assert "冻结 500.00 元" in freeze_ask.message  # the cap, per XL-B01
+    assert "只退未消费部分" in freeze_ask.message
+    entry.resume(parent_trusted(), {"choice": "approve"})  # freeze confirmation
+    assert ports.granted == ["conf-freeze"]  # §3.5 authorization from that approval
 
-    def confirm_until_done():
-        result = confirmed
-        for _ in range(10):
-            if result.status is not TaskStatus.WAITING_APPROVAL:
-                return result
-            result = entry.resume(parent_trusted(), {"choice": "approve"})
-        return result
-
-    done = confirm_until_done()
+    done = confirm_until_settled(entry)
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "康乃馨花束：订单已创建并已付款 199.00 元" in done.message
     assert "六寸蛋糕：订单已创建并已付款 268.00 元" in done.message
@@ -280,10 +305,11 @@ def test_b01_freeze_500_pay_199_268_release_33(tmp_path):
     assert ports.freeze_executes == 1
     assert ports.order_executes == ["P_FLOWER", "P_CAKE"]
     assert ports.capture_executes == ["P_FLOWER", "P_CAKE"]
-    # Budget occupation: opened at freeze, consumed by both captures, closed.
-    commitments = application.list_budget_commitments("U1", "D1", "bud_PARENT", include_closed=True)
+    commitments = application.list_budget_commitments(
+        "U1", "D1", BUDGET_ID, include_closed=True)
     assert len(commitments) == 1 and commitments[0].state == "closed"
-    assert commitments[0].committed_fen == 46700
+    assert commitments[0].committed_fen == 46700  # shrunk to real consumption
+    assert commitments[0].unconsumed_fen == 0
     assert len(commitments[0].settled_transaction_ids) == 2
 
 
@@ -292,9 +318,9 @@ def test_b01_freeze_500_pay_199_268_release_33(tmp_path):
 
 def test_b02_missing_delivery_reference_is_rejected_honestly(tmp_path):
     ports = ScriptedBirthdayPorts()
-    _, entry, application = birthday_composition(tmp_path, ports)
+    _, entry, _ = birthday_composition(tmp_path, ports)
     entry.start(parent_trusted(), CrossStartInput(request_id=uuid4(),
-                                                   goal="给妈妈过生日"))
+                                                   goal="给妈妈过生日，安排花和蛋糕"))
     entry.resume(parent_trusted(), {"text": "500元"})
     entry.resume(parent_trusted(), {"text": "2026-10-30"})
     bad = entry.resume(parent_trusted(), {"text": "no-such-ref-0000"})
@@ -302,128 +328,221 @@ def test_b02_missing_delivery_reference_is_rejected_honestly(tmp_path):
     assert "查不到对应的配送信息" in bad.message
 
 
-def test_b02_flower_only_skips_the_mechanical_script(tmp_path):
+def test_b02_over_budget_selection_stops_before_any_write(tmp_path):
     ports = ScriptedBirthdayPorts()
-    harness, entry, application = birthday_composition(tmp_path, ports)
+    _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
-    run = run_to_freeze(entry, picks=("康乃馨",))
-    confirmed = entry.resume(parent_trusted(), {"choice": "approve"})
-    result = confirmed
-    while result.status is TaskStatus.WAITING_APPROVAL:
-        result = entry.resume(parent_trusted(), {"choice": "approve"})
-    assert result.status is TaskStatus.SUCCEEDED
-    assert "六寸蛋糕" not in result.message
+    started = entry.start(parent_trusted(), CrossStartInput(
+        request_id=uuid4(), goal="300 元以内给妈妈安排花和蛋糕"))
+    entry.resume(parent_trusted(), {"text": "300元"})
+    entry.resume(parent_trusted(), {"text": "2026-10-30"})
+    current = entry.resume(parent_trusted(), {"text": "deliver-ref-0001"})
+    current = entry.resume(parent_trusted(),
+                           {"selected_option_id": option_id(current, "康乃馨")})
+    current = entry.resume(parent_trusted(),
+                           {"selected_option_id": option_id(current, "蛋糕")})
+    over = entry.resume(parent_trusted(),
+                        {"selected_option_id": option_id(current, "就选这些")})
+    assert over.status is TaskStatus.WAITING_INPUT
+    assert "超过预算上限 300.00 元" in over.message
+    stop = entry.resume(parent_trusted(),
+                        {"selected_option_id": option_id(over, "停止")})
+    assert stop.status is TaskStatus.CANCELLED
+    assert ports.freeze_executes == 0
+
+
+def test_b02_flower_only_skips_the_mechanical_script(tmp_path):
+    ports = ScriptedBirthdayPorts(released_amount_fen=30100)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry, picks=("康乃馨",))
+    done = confirm_until_settled(entry)
+    assert done.status is TaskStatus.SUCCEEDED
+    assert "六寸蛋糕" not in done.message
+    assert "释放 301.00 元" in done.message
     assert ports.order_executes == ["P_FLOWER"]
 
 
 # ------------------------------------------------------------------- XL-B03
 
 
-def test_b03_price_change_never_rides_the_old_confirmation(tmp_path):
-    ports = ScriptedBirthdayPorts(fresh_prices={"P_CAKE": 30000})
-    harness, entry, application = birthday_composition(tmp_path, ports)
+def test_b03_price_change_requotes_and_over_freeze_refuses(tmp_path):
+    # 199 + 350 = 549 > the 500 freeze: the honest refusal, not a silent charge.
+    ports = ScriptedBirthdayPorts(fresh_prices={"P_CAKE": 35000})
+    _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
-    freeze_ask = run_to_freeze(entry)  # 199 + 268 quoted at pick time
-    confirmed = entry.resume(parent_trusted(), {"choice": "approve"})  # flower order+pay
-    result = confirmed
-    while result.status is TaskStatus.WAITING_APPROVAL and "六寸蛋糕" not in result.message:
+    run_to_freeze(entry)
+    confirm_until_settled(entry, guard_word="康乃馨")  # flower paid at 199
+    result = entry.resume(parent_trusted(), {"choice": "approve"})
+    while not ("价格已从" in result.message and "350.00" in result.message):
         result = entry.resume(parent_trusted(), {"choice": "approve"})
-    # The cake re-quote appears before its order runs.
-    assert "价格已从 268.00 元变为 300.00 元" in result.message
     assert "旧确认不批准新金额" in result.message
-    # 199 paid + 300 new > 467 frozen: the honest refusal, not a silent charge.
     refusal = entry.resume(parent_trusted(),
                            {"selected_option_id": option_id(result, "按新价")})
     assert "超过已冻结" in refusal.message
     skip = entry.resume(parent_trusted(),
                         {"selected_option_id": option_id(refusal, "跳过这件")})
-    done = skip
-    while done.status is TaskStatus.WAITING_APPROVAL:
-        done = entry.resume(parent_trusted(), {"choice": "approve"})
+    assert skip.status is TaskStatus.SUCCEEDED
+    assert "康乃馨花束：订单已创建并已付款 199.00 元" in skip.message
+
+
+def test_b03_unavailable_product_is_skipped_not_bought(tmp_path):
+    ports = ScriptedBirthdayPorts(fresh_missing={"P_CAKE"})
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry)
+    confirm_until_settled(entry, guard_word="康乃馨")
+    result = entry.resume(parent_trusted(), {"choice": "approve"})
+    while "目前不可购买" not in result.message:
+        result = entry.resume(parent_trusted(), {"choice": "approve"})
+    skip = entry.resume(parent_trusted(),
+                        {"selected_option_id": option_id(result, "跳过这件")})
+    assert skip.status is TaskStatus.SUCCEEDED
+    assert ports.order_executes == ["P_FLOWER"]
+
+
+# ------------------------------------------------------------------- XL-B04
+
+
+def test_b04_flower_paid_cake_order_failed_releases_301(tmp_path):
+    ports = ScriptedBirthdayPorts(orders=("completed", "failed"),
+                                  captures=("completed",),
+                                  released_amount_fen=30100)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry)
+    done = confirm_until_settled(entry)
     assert done.status is TaskStatus.SUCCEEDED
     assert "康乃馨花束：订单已创建并已付款 199.00 元" in done.message
+    assert "六寸蛋糕：下单未办成，未付款。" in done.message
+    assert "释放 301.00 元" in done.message
+    assert "已付款项不退" in done.message
 
 
 # ------------------------------------------------------------------- XL-B05
 
 
 def test_b05_unknown_freeze_blocks_orders_until_requery(tmp_path):
-    ports = ScriptedBirthdayPorts(freeze="unknown")
-    harness, entry, application = birthday_composition(tmp_path, ports)
+    ports = ScriptedBirthdayPorts(freeze="unknown", released_amount_fen=3300)
+    _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
-    freeze_ask = run_to_freeze(entry)
-    confirmed = entry.resume(parent_trusted(), {"choice": "approve"})
-    assert confirmed.status is TaskStatus.WAITING_INPUT
-    assert "冻结结果还待核实" in confirmed.message
-    assert "不重复冻结" in confirmed.message
-    assert entry.resume(parent_trusted(), {}).message == confirmed.message
+    run_to_freeze(entry)
+    held = entry.resume(parent_trusted(), {"choice": "approve"})
+    assert held.status is TaskStatus.WAITING_INPUT
+    assert "冻结结果还待核实" in held.message and "不重复冻结" in held.message
+    # Free text must not bypass the hold (review B1).
+    assert entry.resume(parent_trusted(), {"text": "继续下单"}).message == held.message
     resolved = entry.resume(parent_trusted(),
-                            {"selected_option_id": option_id(confirmed, "核实原操作")})
-    assert ports.freeze_executes == 1 and ports.bind_calls  # original id re-query only
-    result = resolved
-    while result.status is TaskStatus.WAITING_APPROVAL:
+                            {"selected_option_id": option_id(held, "核实原操作")})
+    assert ports.freeze_executes == 1 and ports.bind_calls
+    done = confirm_until_settled(entry)
+    assert done.status is TaskStatus.SUCCEEDED
+
+
+def test_b05_unknown_order_requeries_by_original_id_and_pays_once(tmp_path):
+    ports = ScriptedBirthdayPorts(orders=("unknown",), captures=("completed",),
+                                  requery_auto=True, released_amount_fen=30100)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry, picks=("康乃馨",))
+    result = entry.resume(parent_trusted(), {"choice": "approve"})  # freeze confirm
+    assert result.status is TaskStatus.WAITING_APPROVAL  # the order confirmation
+    held = entry.resume(parent_trusted(), {"choice": "approve"})  # order → unknown
+    assert held.status is TaskStatus.WAITING_INPUT
+    assert "下单结果还待核实" in held.message
+    # Free text never restarts the purchase while the order is unsettled (B1).
+    assert entry.resume(parent_trusted(), {"text": "继续"}).message == held.message
+    resolved = entry.resume(parent_trusted(),
+                            {"selected_option_id": option_id(held, "核实原操作")})
+    assert ports.requery_ids == [str(ports.last_order_op)]  # the original id
+    done = confirm_until_settled(entry)
+    assert done.status is TaskStatus.SUCCEEDED
+    assert "已付款 199.00 元" in done.message
+    assert ports.order_executes == ["P_FLOWER"]  # submitted exactly once
+
+
+def test_b05_unknown_capture_requeries_and_does_not_double_pay(tmp_path):
+    # Two items; the SECOND capture goes unknown: the re-query must resolve the
+    # cake's payment, never re-bind onto the already-paid flower (review B2).
+    ports = ScriptedBirthdayPorts(captures=("completed", "unknown"),
+                                  requery_auto=True, released_amount_fen=3300)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry)
+    result = entry.resume(parent_trusted(), {"choice": "approve"})  # freeze confirm
+    while "付款结果还待核实" not in result.message:
         result = entry.resume(parent_trusted(), {"choice": "approve"})
-    assert result.status is TaskStatus.SUCCEEDED
+    resolved = entry.resume(parent_trusted(),
+                            {"selected_option_id": option_id(result, "核实原操作")})
+    assert ports.requery_ids == [str(ports.last_capture_op)]
+    assert resolved.status is TaskStatus.SUCCEEDED
+    assert "康乃馨花束：订单已创建并已付款 199.00 元" in resolved.message
+    assert "六寸蛋糕：订单已创建并已付款 268.00 元" in resolved.message
+    assert ports.capture_executes == ["P_FLOWER", "P_CAKE"]  # each paid once
 
 
 # ------------------------------------------------------------------- XL-B06
 
 
-def test_b06_cancel_after_freeze_releases_and_records_cancelled(tmp_path):
-    ports = ScriptedBirthdayPorts()
-    harness, entry, application = birthday_composition(tmp_path, ports)
+def test_b06_cancel_after_freeze_releases_whole_remainder(tmp_path):
+    ports = ScriptedBirthdayPorts(released_amount_fen=50000)
+    _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
-    freeze_ask = run_to_freeze(entry)
-    entry.resume(parent_trusted(), {"choice": "approve"})  # freeze done, order asks
+    run_to_freeze(entry)
+    entry.resume(parent_trusted(), {"choice": "approve"})  # freeze done
     stopped = entry.resume(parent_trusted(), {"cancel": True})
     assert stopped.status is TaskStatus.CANCELLED
     assert "已停止办理" in stopped.message
-    assert "释放 33.00 元" in stopped.message
+    assert "释放 500.00 元" in stopped.message
     assert ports.order_executes == []
     assert ports.finalize_calls == ["user_cancelled"]
 
 
+def test_b06_cancel_after_flower_paid_is_partial(tmp_path):
+    ports = ScriptedBirthdayPorts(released_amount_fen=30100)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry)
+    # Approve until the CAKE's order confirmation: by then the flower is paid.
+    result = entry.resume(parent_trusted(), {"choice": "approve"})
+    while "六寸蛋糕" not in result.message or result.status is TaskStatus.WAITING_APPROVAL and "下单 六寸蛋糕" not in result.message:
+        result = entry.resume(parent_trusted(), {"choice": "approve"})
+    stopped = entry.resume(parent_trusted(), {"cancel": True})
+    assert stopped.status is TaskStatus.PARTIALLY_SUCCEEDED
+    assert stopped.message.startswith("部分完成，后续已停止")
+    assert "已付款 199.00 元" in stopped.message
+    assert "释放 301.00 元" in stopped.message
+
+
 def test_b06_release_unknown_stays_pending(tmp_path):
-    ports = ScriptedBirthdayPorts(release="needs_attention")
-    harness, entry, application = birthday_composition(tmp_path, ports)
+    ports = ScriptedBirthdayPorts(release_status="needs_attention")
+    _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
     run_to_freeze(entry)
     entry.resume(parent_trusted(), {"choice": "approve"})
     stopped = entry.resume(parent_trusted(), {"cancel": True})
-    assert stopped.status is TaskStatus.RUNNING  # unsettled release stays open
+    assert stopped.status is TaskStatus.RUNNING
     assert "释放结果待核实" in stopped.message
     assert "不宣称已解冻" in stopped.message
 
 
-# ------------------------------------------------------------------- XL-B07
-
-
-def test_b07_budget_occupation_cap_blocks_an_over_cap_freeze(tmp_path):
-    ports = ScriptedBirthdayPorts()
-    harness, entry, application = birthday_composition(tmp_path, ports)
+def test_b06_gate_block_writes_nothing(tmp_path):
+    ports = ScriptedBirthdayPorts(freeze="block")
+    _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
-    # An adopted 3000 budget already consumed 2600 (closed commitment history).
-    consumed = BudgetCommitment(
-        budget_ref=BudgetRef(budget_id="bud_PARENT", version=1), task_id="PARENT",
-        commitment_id="bc_prior", committed_fen=260000, unconsumed_fen=0,
-        freeze_id=None, operation_ids=[], settled_transaction_ids=["txn_prior"],
-        state="closed", updated_at=NOW)
-    consumed = consumed.model_copy(update={"state": "closed"})
-    application.register_budget_commitment("U1", "D1", consumed)
-    run_to_freeze(entry)  # 500 requested, only 300 room left
-    outcome = entry.resume(parent_trusted(), {"choice": "approve"})
-    assert outcome.status is TaskStatus.FAILED
-    assert "预算不够" in outcome.message and "原额退回" in outcome.message
-    assert ports.order_executes == []
-    assert ports.finalize_calls == ["budget_exceeded"]
+    run_to_freeze(entry)
+    blocked = entry.resume(parent_trusted(), {"choice": "approve"})
+    # The gate refused before any submission: no authorization, no money moved.
+    assert ports.granted == []
+    assert ports.freeze_executes == 0
+    assert ports.finalize_calls == []  # nothing was frozen, nothing to release
 
 
 def test_b06_d1_conflict_stops_before_any_freeze(tmp_path):
     from app.contracts.cross import AdoptedArrangement
-    from app.modules.cross.test_cross_expense import composition as expense_composition
 
     ports = ScriptedBirthdayPorts()
-    harness, entry, application = birthday_composition(tmp_path, ports)
+    _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
     application.create_task("OTHER", "U1", "S1", "D1", "R2", "running", {})
     application.acquire_arrangement(AdoptedArrangement.model_validate({
@@ -445,3 +564,56 @@ def test_b06_d1_conflict_stops_before_any_freeze(tmp_path):
                         {"selected_option_id": option_id(adopt, "停止")})
     assert stop.status is TaskStatus.CANCELLED
     assert ports.freeze_executes == 0
+
+
+def test_b06_own_arrangement_lineage_does_not_block(tmp_path):
+    from app.contracts.cross import AdoptedArrangement
+
+    ports = ScriptedBirthdayPorts()
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    # The parent task itself holds the arrangement: its own lineage proceeds.
+    application.acquire_arrangement(AdoptedArrangement.model_validate({
+        "arrangement_id": "arr_PARENT", "user_id": "U1", "demo_round_id": "D1",
+        "source_task_id": "PARENT", "plan_revision": 1, "payer_account_id": "A1",
+        "funds_basis": "available_balance", "income_transaction_ids": [],
+        "base_fen": 1000000, "living_reserve_fen": 0,
+        "reserve_includes_known_debits": True,
+        "upcoming_debit_scope": {"account_ids": ["A1"],
+                                  "start_at": "2026-10-01T00:00:00+08:00",
+                                  "end_at": "2026-11-01T00:00:00+08:00"},
+        "known_debits_fen": 0, "adopted_at": NOW.isoformat(),
+        "adoption_interaction_id": "I1", "status": "active",
+    }))
+    adopt = run_to_freeze(entry)
+    assert adopt.status is TaskStatus.WAITING_APPROVAL  # freeze proceeds
+
+
+# ------------------------------------------------------------------- XL-B07
+
+
+def test_b07_shared_monthly_budget_cap_blocks_over_cap_freeze(tmp_path):
+    ports = ScriptedBirthdayPorts(released_amount_fen=50000)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    # A 3000 monthly budget with 2600 already consumed by another commitment
+    # under the SAME user-month id: only 400 room, the freeze asks 500.
+    application.create_task("OTHER_TASK", "U1", "S1", "D1", "R9", "running", {})
+    prior = BudgetCommitment(
+        budget_ref=BudgetRef(budget_id=BUDGET_ID, version=1), task_id="OTHER_TASK",
+        commitment_id="bc_prior", committed_fen=260000, unconsumed_fen=0,
+        freeze_id=None, operation_ids=[], settled_transaction_ids=["txn_prior"],
+        state="closed", updated_at=NOW)
+    application.register_budget_commitment("U1", "D1", prior)
+    run_to_freeze(entry)
+    outcome = entry.resume(parent_trusted(), {"choice": "approve"})
+    assert outcome.status is TaskStatus.FAILED
+    assert "预算不够" in outcome.message
+    assert "已占用/消费 2600.00 元" in outcome.message
+    assert "原额退回" in outcome.message and "500.00 元" in outcome.message
+    assert ports.order_executes == []
+    assert ports.finalize_calls == ["budget_exceeded"]
+    # The failed attempt left no occupation behind.
+    own = [c for c in application.list_budget_commitments(
+        "U1", "D1", BUDGET_ID, include_closed=True) if c.task_id == "PARENT"]
+    assert own == []
