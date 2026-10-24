@@ -5,7 +5,7 @@ Package: 本轮用户直接授权的数据检查与补充（无另设交付包�
 Spec: [Demo 安全模型候选数据准备](../spec.md)
 Owner: AI 按用户授权代行；目录归属 Ringo，非本人审查
 Directory: evals/security/
-Status: Done — 数据准备与本地检查完成、首批已提交 main（2026-10-22）。**2026-10-24 PM 决定：不做候选模型比较，只扩充样例**（见 #215）
+Status: In review — 首批 56 条已在 main；新增 40 条已提交 [PR #270](https://github.com/DrErwin/hackerthon-bank-agent/pull/270)。2026-10-24 PM 决定取消候选模型比较，只扩充样例（见 #215）
 Blocked by: None
 Core scenarios: 赛程安全合规四方向，覆盖转账、账单及订阅相关表达；仅检测层样例，不新增业务功能
 Verification: 数据结构、编号、去重、分组隔离、标签与场景语义逐项核对；不跑模型或全量业务回归
@@ -20,4 +20,4 @@ Verification: 数据结构、编号、去重、分组隔离、标签与场景语
 - AI 逐条内容复核；F08-03 增加可信演示验证框前置，避免把未知页面当作正常；F07-02、P01-02 补成多轮。
 - 数据 SHA256：`3783826a98180f4f89e49a8ea0ecc8abb87bd1c78efb61567289ab54bb3c0ace`。
 - 未运行付费模型、原安全 runner、全量回归或 CI。首批数据与说明已于 2026-10-22 随文档/数据提交通道直接提交 main（纯数据与说明，未跑模型）。样例全部 NOT_RUN，未将数据完成标为模型通过或专业批准。
-- 下一步（追踪 [Issue #215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)）：扩充样例（变形改写、真实求助语气、边界对照、跨轮、账单/订阅表达），再做候选模型比较；PM 确认「Jev」模型身份与额度前不调用付费模型。本票不包含模型接入实现。
+- 2026-10-24 扩充已提交 [PR #270](https://github.com/DrErwin/hackerthon-bank-agent/pull/270)：新增 40 条，覆盖变形改写、银发求助、边界对照、跨轮与跨会话、账单及订阅表达。候选模型比较已取消；已有真实模型探针仅作历史参考，不重跑。本票不包含模型接入实现。
