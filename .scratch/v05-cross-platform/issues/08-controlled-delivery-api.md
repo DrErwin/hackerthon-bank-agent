@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/api/`
 
-Status: blocked — 包负责人已接包；实施仍待本票前置及 Erwin 指派执行者。
+Status: delivered — F36 delivery 受控录入已合入（PR #263，squash 5ab6ecb，2026-10-24）；前端表单归 frontend 包、cross 引用消费归票 05/09；Ringo 隐私审查与 E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -45,9 +45,9 @@ Core scenarios: XL-B02、X05、X08；定义见[共享规格 §5](../../v05-cross
 
 ## Acceptance criteria
 
-- [ ] 配送原文由受控录入路径生成本人本轮引用，不经普通聊天或模型解析。
-- [ ] 读取/使用引用按身份、轮次及实际业务权限检查；错误引用不能取得他人资料。
-- [ ] 返回模型、任务视图与普通日志的内容脱敏；恢复仍可用正确引用，重置后旧引用不能使用。
+- [x] 配送原文由受控录入路径生成本人本轮引用，不经普通聊天或模型解析。（details delivery 分支独立于聊天；任务不推进、无模型调用/无 SSE；测试全文扫描响应无原文）
+- [x] 读取/使用引用按身份、轮次及实际业务权限检查；错误引用不能取得他人资料。（controlled_details 本人/轮次/任务范围，跨用户/跨轮次解析 None 有测试；跨用户 404、跨会话 409）
+- [x] 返回模型、任务视图与普通日志的内容脱敏；恢复仍可用正确引用，重置后旧引用不能使用。（display_fields 脱敏；ref 不绑会话可恢复；轮次重置自然失效）
 
 ## 实施交接：配送资料专用入口与受控引用
 
@@ -67,8 +67,10 @@ Core scenarios: XL-B02、X05、X08；定义见[共享规格 §5](../../v05-cross
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #263](https://github.com/DrErwin/hackerthon-bank-agent/pull/263)，squash 提交 `5ab6ecb`（2026-10-24）。交付：`api/service.py` store_delivery_detail/_masked_delivery_fields、`api/app.py` delivery 分支（含 required_fields 收集需求门）、`test_delivery_details.py`。
+- 本票验证：`app/api/` 175 passed（新增 3 项）；CI 通过（PR #263）。
+- 审查：子代理审查 A—F 全 PASS、无必须修复项；两条一行级建议（F36 收集需求门、清理导入）已采纳。
+- 已知边界：cross 业务对 delivery_ref 的消费（结合送达时间构造 DeliveryInput）与前端专用表单分别归票 05/09 与 frontend/02；Ringo 隐私专项审查待完成。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 

@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: blocked — 包负责人已接包；实施仍待本票前置及 Erwin 指派执行者。
+Status: blocked（跨包依赖）— 平台侧前置（票 05、08）中 08 已合入；05 又依赖 v05-cross-business/01，且本票直接前置 v05-cross-business/03（生日编排，周恩宇包）未实施；不能在平台目录代写 cross 业务。
 
 Package accepted by: Erwin
 
