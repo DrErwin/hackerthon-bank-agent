@@ -237,7 +237,16 @@ class SQLiteSecurityState:
                 ):
                     raise SecurityStateError("ACCESS_DENIED")
                 if row["claimed"]:
-                    raise SecurityStateError("OPERATION_UNKNOWN")
+                    # One unresolved confirmation per action: a claimed record
+                    # whose execution already settled makes room for the next
+                    # sequential write of the same action (birthday items).
+                    settled = connection.execute(
+                        """SELECT state FROM security_executions
+                           WHERE operation_id = ? AND state != 'processing'""",
+                        (str(current.operation_id),),
+                    ).fetchone()
+                    if settled is None:
+                        raise SecurityStateError("OPERATION_UNKNOWN")
                 if current.decision == "cancelled":
                     raise SecurityStateError("TASK_TERMINATED")
                 if current.operation_id == context.operation_id and (
