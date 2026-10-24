@@ -23,7 +23,7 @@ from app.contracts.platform import StartTransferInput
 from app.contracts.subscription import SubscriptionListInput
 
 from . import plan
-from .plan import money
+from .plan import money, month_range
 
 _AMOUNT = re.compile(r"^\s*(\d+)(?:[.．](\d{1,2}))?\s*(?:元|块钱?|块)?\s*$")
 
@@ -42,15 +42,23 @@ def parse_amount_fen(text) -> int | None:
 class PensionFlow:
     """Owns the monthly_arrangement phases on top of the shared plan skeleton."""
 
+    DEFAULTS = {
+        "phase": "facts", "basis": None, "base_fen": None,
+        "income_transaction_ids": [], "payer": None,
+        "reserve_fen": None, "includes_debits": None,
+        "known_debits_fen": None, "allocations": [], "arrangement_id": None,
+        "pre_cancel": False, "accounts": [], "payees": [],
+    }
+
     def __init__(self, entry, state: dict):
         self.entry, self.state = entry, state
-        self.pension = state.setdefault("pension", {
-            "phase": "facts", "basis": None, "base_fen": None,
-            "income_transaction_ids": [], "payer": None,
-            "reserve_fen": None, "includes_debits": None,
-            "known_debits_fen": None, "allocations": [], "arrangement_id": None,
-            "pre_cancel": False, "accounts": [], "payees": [],
-        })
+        pension = state.get("pension")
+        if pension is None:
+            pension = {}
+            state["pension"] = pension
+        for key, default in self.DEFAULTS.items():
+            pension.setdefault(key, default)
+        self.pension = pension
 
     # ------------------------------------------------------------------ helpers
 
@@ -105,7 +113,6 @@ class PensionFlow:
     def view(self) -> ArrangementView:
         from app.contracts.bills import BillScope as Scope
         now = self.entry.clock()
-        window_start, window_end = month_range(now, 0), None
         start, end = month_range(now, 0)
         return ArrangementView(
             arrangement_id=self.pension["arrangement_id"] or f"arr_{self.state['actor'][2]}",
@@ -182,8 +189,8 @@ class PensionFlow:
             plan.add_step(state, {"step_id": refresh_id,
                                   "action": "transfer.list_accounts", "kind": "read",
                                   "depends_on": []})
-            entry._dispatch(trusted, state, plan.next_step(state) or
-                            next(s for s in state["steps"] if s["step_id"] == refresh_id))
+            refresh_step = next(s for s in state["steps"] if s["step_id"] == refresh_id)
+            entry._dispatch(trusted, state, refresh_step)
             entry._reconcile(state, trusted)
             self._collect_pension_facts()
         balance = self._balance(self.pension["payer"])
@@ -213,6 +220,8 @@ class PensionFlow:
             "reserve_debits": self._ask_reserve_debits,
             "destination": self._ask_destination, "amount": self._ask_amount,
             "adopt": self._ask_adopt, "running": self._running_view,
+            "cancel_pick": lambda trusted: self.entry._ask_pick(
+                trusted, self.state, pension_mode=True),
         }[phase]
         return handler(trusted)
 
@@ -316,7 +325,7 @@ class PensionFlow:
                  "采用后开始逐笔办理；每笔转账仍会单独确认。"]
         self.pension["phase"] = "adopt"
         return self.entry._ask(trusted, self.state, "\n".join(lines),
-                               [("采用并开始办理", {"kind": "pension_adopt"}),
+                               [("采用并开始办理", {"kind": "pension_confirm_adopt"}),
                                 ("取消，不办理", {"kind": "pension_stop"})])
 
     def _running_view(self, trusted):
@@ -337,9 +346,10 @@ class PensionFlow:
                 trusted, state,
                 "有一笔转账没有办成，后续转账已暂停。已成功的保留，不会自动重办。",
                 active=None, child_id=None)
-        if not pending:
-            self.entry._close_arrangement_if_any(state)
-            return self.entry._receipt_pension(trusted, state)
+        if pending:
+            # The previous write settled; continue with the next allocation.
+            return self.advance(trusted)
+        self.entry._close_arrangement_if_any(state)
         return self.entry._receipt_pension(trusted, state)
 
     # ------------------------------------------------------------------ choices
@@ -347,12 +357,17 @@ class PensionFlow:
     def apply(self, trusted, picked: dict):
         entry, state, pension = self.entry, self.state, self.pension
         kind = picked["kind"]
+        if kind in {"cancel_item", "finish"}:
+            # The optional pre-transfer cancel loop shares the expense pick
+            # handling; "finish" there returns to the pension phases.
+            return entry._apply_pick(trusted, state, picked)
         if kind == "pension_payer":
             pension["payer"] = picked["account_id"]
             pension["phase"] = "pre_cancel"
             return entry._advance_pension(trusted, self.state)
         if kind == "pension_pre_cancel":
             pension["pre_cancel"] = True
+            pension["phase"] = "cancel_pick"
             return entry._ask_pick(trusted, state, pension_mode=True)
         if kind == "pension_skip_cancel":
             pension["phase"] = "basis"
@@ -385,6 +400,11 @@ class PensionFlow:
             pension["phase"] = "destination"
             return entry._advance_pension(trusted, self.state)
         if kind == "pension_adopt":
+            # The explicit adoption menu: adopting is a user decision the server
+            # records, never implied by finishing the destination list.
+            pension["phase"] = "adopt"
+            return self._ask_adopt(trusted)
+        if kind == "pension_confirm_adopt":
             return self._adopt(trusted)
         if kind == "pension_stop":
             return entry._closeout(trusted, state, stop_reason="user_cancelled")
@@ -454,6 +474,7 @@ class PensionFlow:
             funds_basis=view.funds_basis,
             income_transaction_ids=list(pension["income_transaction_ids"]),
             base_fen=pension["base_fen"], living_reserve_fen=pension["reserve_fen"] or 0,
+            reserve_includes_known_debits=bool(pension["includes_debits"]),
             upcoming_debit_scope=view.upcoming_debit_scope,
             known_debits_fen=view.known_debits_fen, adopted_at=now,
             adoption_interaction_id=state.get("interaction_id") or str(uuid4()),

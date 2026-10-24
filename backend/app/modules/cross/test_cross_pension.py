@@ -25,9 +25,8 @@ from app.agent_platform.own_bank_queries import manifest as accounts_manifest
 from app.modules.bills.manifest import MANIFEST as BILLS_MANIFEST
 from app.modules.transfer.manifest import MANIFEST as TRANSFER_MANIFEST
 
-from test_cross_expense import (
-    NOW, FakeSubscriptionBank, PlannerStub, ScriptedPorts, accounts_stubs_needed,
-    parent_trusted, seeded_mandates,
+from app.modules.cross.test_cross_expense import (
+    NOW, FakeSubscriptionBank, PlannerStub, ScriptedPorts, parent_trusted,
 )
 
 
@@ -73,20 +72,28 @@ class ScriptedTransfer:
     """transfer.start_transfer child with scripted outcomes (confirm -> done)."""
 
     def __init__(self, script):
-        self.script = list(script)
+        # A shared list makes one queue span every child of the composition.
+        self.script = script if isinstance(script, list) else list(script)
 
-    def _next(self, trusted, waiting):
-        outcome = self.script.pop(0)
-        if outcome == "waiting":
+    def start(self, trusted, request, *, thread_id=None):
+        # A spend always waits for its own confirmation before any outcome.
+        return ModuleResult(task_id=trusted.task_id, run_id=trusted.run_id,
+            status=TaskStatus.WAITING_APPROVAL, data=None, message="请确认转账。",
+            interaction=InteractionRequest(interaction_id=str(uuid4()),
+                kind="confirmation", prompt="确认转账", required_fields=[],
+                options=[InteractionOption(id="approve", label="确认"),
+                         InteractionOption(id="cancel", label="取消")],
+                record_ref=str(uuid4())),
+            error=None, allowed_actions=["confirm", "cancel"],
+            recovery_required=False, recovery_reason=None)
+
+    def resume(self, trusted, response, *, thread_id=None):
+        if response.get("cancel") is True or response.get("choice") == "cancel":
             return ModuleResult(task_id=trusted.task_id, run_id=trusted.run_id,
-                status=TaskStatus.WAITING_APPROVAL, data=None, message="请确认转账。",
-                interaction=InteractionRequest(interaction_id=str(uuid4()),
-                    kind="confirmation", prompt="确认转账", required_fields=[],
-                    options=[InteractionOption(id="approve", label="确认"),
-                             InteractionOption(id="cancel", label="取消")],
-                    record_ref=str(uuid4())),
-                error=None, allowed_actions=["confirm", "cancel"],
+                status=TaskStatus.CANCELLED, data=None, message="已取消转账。",
+                interaction=None, error=None, allowed_actions=[],
                 recovery_required=False, recovery_reason=None)
+        outcome = self.script.pop(0)
         result_status = {"success": TaskStatus.SUCCEEDED,
                          "unknown": TaskStatus.NEEDS_ATTENTION,
                          "failed": TaskStatus.FAILED}[outcome]
@@ -96,14 +103,6 @@ class ScriptedTransfer:
             status=result_status, data=None, message=message, interaction=None,
             error=None, allowed_actions=[], recovery_required=False,
             recovery_reason=None)
-
-    def start(self, trusted, request, *, thread_id=None):
-        return self._next(trusted, True)
-
-    def resume(self, trusted, response, *, thread_id=None):
-        if response.get("choice") == "approve":
-            return self._next(trusted, False)
-        return self._next(trusted, False)
 
     def recover_session(self, trusted, *, source_session_id, thread_id=None):
         raise AssertionError("not used here")
@@ -122,6 +121,7 @@ PAYEES_DATA = {"payees": [
 
 def pension_composition(tmp_path, *, income_fen=500000, transfers=("success", "success"),
                         mandates=None):
+    transfer_queue = list(transfers)
     application = __import__("app.storage.application", fromlist=["ApplicationStore"]).ApplicationStore(
         tmp_path / "app.sqlite")
     memory = MemoryAdapter(application, active_round=lambda: "D1")
@@ -149,7 +149,7 @@ def pension_composition(tmp_path, *, income_fen=500000, transfers=("success", "s
 
     harness.registry.register_module(payees, lambda trusted, saver, trace: PayeesStub(0))
     harness.registry.register_transfer(TRANSFER_MANIFEST,
-                                       lambda trusted, saver, trace: ScriptedTransfer(transfers))
+                                       lambda trusted, saver, trace: ScriptedTransfer(transfer_queue))
     register_cross(harness, lambda: NOW)
     real_now = datetime.now(timezone.utc)
     application.create_session("S1", "U1", "D1", real_now.isoformat(),
@@ -186,8 +186,10 @@ def run_to_adoption(entry, *, basis_needle="本月实际入账", reserve_text="1
         assert pick.status is TaskStatus.WAITING_INPUT
         current = entry.resume(parent_trusted(), {"text": amount})
         assert current.status is TaskStatus.WAITING_INPUT
+    ready = entry.resume(parent_trusted(),
+                         {"selected_option_id": option_id(current, "去向已选好")})
     return entry.resume(parent_trusted(),
-                        {"selected_option_id": option_id(current, "采用并开始办理")})
+                        {"selected_option_id": option_id(ready, "采用并开始办理")})
 
 
 # ------------------------------------------------------------------- XL-P01
@@ -197,8 +199,9 @@ def test_p01_income_basis_reserve_and_two_transfers(tmp_path):
     harness, entry, bank, _ = pension_composition(tmp_path)
     adopting = run_to_adoption(entry)
     assert adopting.status is TaskStatus.RUNNING  # first transfer waits on its child
-    first = adopting.data.steps[-1]
-    assert first.step_id == "transfer:1" and first.amount_fen == 250000
+    steps = {step.step_id: step for step in adopting.data.steps}
+    first = steps["transfer:1"]
+    assert first.amount_fen == 250000
     # The D1 arrangement is live for this payer while transfers run.
     active = harness.application.get_active_arrangement("U1", "D1", "A1")
     assert active is not None and active.record.source_task_id == "PARENT"
@@ -259,10 +262,12 @@ def test_p03_known_debits_calibration_changes_protection(tmp_path):
                         {"selected_option_id": option_id(started, "直接安排资金")})
     basis = entry.resume(parent_trusted(),
                          {"selected_option_id": option_id(skip, "本月实际入账")})
-    assert "未来 30 天已知代扣合计 64.00 元" in basis.message
+    reserve = entry.resume(parent_trusted(), {"text": "1500元"})
+    assert "未来 30 天已知代扣合计 64.00 元" in reserve.message
     included = entry.resume(parent_trusted(),
-                            {"selected_option_id": option_id(basis, "算进留存")})
-    assert "可安排 3500.00 元" in included.message  # 5000 - 1500 reserve (debits inside)
+                            {"selected_option_id": option_id(reserve, "算进留存")})
+    # 5000 - 1500 reserve (debits inside): the destination ask shows the room.
+    assert "还可安排 3500.00 元" in included.message
 
     other = pension_composition(tmp_path / "b")
     started = other[1].start(parent_trusted(), CrossStartInput(
@@ -271,10 +276,11 @@ def test_p03_known_debits_calibration_changes_protection(tmp_path):
                            {"selected_option_id": option_id(started, "直接安排资金")})
     basis = other[1].resume(parent_trusted(),
                             {"selected_option_id": option_id(skip, "本月实际入账")})
+    reserve = other[1].resume(parent_trusted(), {"text": "1500元"})
     excluded = other[1].resume(parent_trusted(),
-                               {"selected_option_id": option_id(basis, "另加保护")})
+                               {"selected_option_id": option_id(reserve, "另加保护")})
     # 5000 - 1500 reserve - 64 protected debits
-    assert "可安排 3436.00 元" in excluded.message
+    assert "还可安排 3436.00 元" in excluded.message
 
 
 # ------------------------------------------------------------------- XL-P05
@@ -293,12 +299,13 @@ def test_p05_cancelling_first_never_inflates_the_funds_scope(tmp_path):
     harness.resume_child(parent_trusted(), child, {"choice": "approve"},
                          plan_revision=picked.data.plan_revision)
     done = entry.resume(parent_trusted(), {})
-    assert "已退订" in done.message
+    assert done.status is TaskStatus.WAITING_INPUT  # back on the pick menu
     back = entry.resume(parent_trusted(),
-                        {"selected_option_id": option_id(done, "继续安排资金")})
+                        {"selected_option_id": option_id(done, "退订到这里")})
     # Income facts are unchanged by the cancel: still 5000, not 5000+25.
-    assert "本月实际入账合计 5000.00 元" in back.message
-    assert "5125.00" not in back.message
+    options = [item.label for item in back.interaction.options]
+    assert any("本月实际入账合计 5000.00 元" in label for label in options)
+    assert not any("5025.00" in label or "5125.00" in label for label in options)
 
 
 # ------------------------------------------------------------------- XL-P06
@@ -320,7 +327,7 @@ def test_p06_unknown_second_transfer_keeps_the_arrangement_open(tmp_path):
 
     held = entry.resume(parent_trusted(), {})
     assert held.status is TaskStatus.RUNNING
-    assert "待核实" in held.message
+    assert "结果未知" in held.message and "核实" in held.message
     assert entry.resume(parent_trusted(), {}).message == held.message  # no retry
     stopped = entry.resume(parent_trusted(), {"cancel": True})
     assert stopped.status is TaskStatus.RUNNING  # D2: unsettled stays open
@@ -347,7 +354,7 @@ def test_p06_partial_success_after_stop_closes_the_arrangement(tmp_path):
 
 def test_x03_conflicting_arrangement_is_refused_with_options(tmp_path):
     from app.contracts.cross import AdoptedArrangement
-    from test_cross_expense import composition as expense_composition
+    from app.modules.cross.test_cross_expense import composition as expense_composition
 
     harness, entry, _, _ = pension_composition(tmp_path)
     started = entry.start(parent_trusted(), CrossStartInput(
@@ -369,6 +376,7 @@ def test_x03_conflicting_arrangement_is_refused_with_options(tmp_path):
         "source_task_id": "OTHER", "plan_revision": 1, "payer_account_id": "A1",
         "funds_basis": "available_balance", "income_transaction_ids": [],
         "base_fen": 1000000, "living_reserve_fen": 0,
+        "reserve_includes_known_debits": True,
         "upcoming_debit_scope": {"account_ids": ["A1"],
                                   "start_at": "2026-10-01T00:00:00+08:00",
                                   "end_at": "2026-11-01T00:00:00+08:00"},
@@ -376,8 +384,10 @@ def test_x03_conflicting_arrangement_is_refused_with_options(tmp_path):
         "adoption_interaction_id": "I1", "status": "active",
     })
     harness.application.acquire_arrangement(other)
+    ready = entry.resume(parent_trusted(),
+                         {"selected_option_id": option_id(after_amount, "去向已选好")})
     adopting = entry.resume(parent_trusted(),
-                            {"selected_option_id": option_id(after_amount, "采用并开始办理")})
+                            {"selected_option_id": option_id(ready, "采用并开始办理")})
     assert adopting.status is TaskStatus.WAITING_INPUT
     assert "已有正在办理的资金安排" in adopting.message
     stop = entry.resume(parent_trusted(),

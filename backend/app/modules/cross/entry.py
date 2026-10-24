@@ -557,6 +557,8 @@ class CrossEntry:
     def _apply_pick(self, trusted, state, picked: dict) -> ModuleResult:
         if picked["kind"] == "finish":
             if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
+                if isinstance(state.get("pension"), dict):
+                    state["pension"]["phase"] = "basis"
                 return self._advance_pension(trusted, state)
             return self._receipt(trusted, state)
         if picked["kind"] != "cancel_item":
