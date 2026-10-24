@@ -799,3 +799,57 @@ def test_gateway_denies_birthday_writes_without_the_authorizer(tmp_path):
     )
     assert isinstance(denied, QueryFailure)
     assert denied.error.code == "ACCESS_DENIED"
+
+def test_sequential_same_action_confirmations_after_settled_claim(tmp_path):
+    """v05-cross-security/04: one unresolved confirmation per action; a settled
+    claim makes room for the next sequential write of the same action."""
+    state = SQLiteSecurityState(tmp_path / "security.sqlite3")
+
+    def context(operation_id):
+        return ExecutionSecurityContext(
+            user_id="U1", session_id="S1", demo_round_id="D1", task_id="T1",
+            run_id="R1", source_task_id=None,
+            operation_id=UUID(operation_id) if isinstance(operation_id, str) else operation_id,
+            action_revision=1, confirmation_id=None, confirmation_version=None,
+            verification_ids=[], release_authorization_id=None,
+        )
+
+    def action(op):
+        return ActionDescriptor(action_name="bank.create_order",
+                                parameters_ref=op, resource_refs=[],
+                                phase=Phase.EXECUTION)
+
+    now = datetime.now(timezone.utc)
+    fields = [DisplayField(name="amount", label="金额", value_text="199.00 元")]
+    hour = timedelta(hours=1)
+    first = state.create_confirmation(context(str(uuid4())), action("op-1"),
+                                      fields, now, now + hour)
+    answered = state.answer_confirmation(
+        context(first.operation_id), first.confirmation_id,
+        first.confirmation_version, "approve", now,
+    )
+    claim_context = context(str(answered.operation_id)).model_copy(update={
+        "confirmation_id": answered.confirmation_id,
+        "confirmation_version": answered.confirmation_version,
+    })
+    claim, _created = state.claim_execution(
+        claim_context, action("op-1"),
+        allow_decision(claim_context, action("op-1")),
+        now=now, task_state_resolver=lambda _ctx: False,
+    )
+    assert claim.state == "processing"
+    # The claim is still in flight: a parallel confirmation stays refused.
+    with pytest.raises(SecurityStateError) as parallel:
+        state.create_confirmation(context(str(uuid4())), action("op-2"),
+                                  fields, now, now + hour)
+    assert parallel.value.code == "OPERATION_UNKNOWN"
+    # Once the execution settles, the next sequential confirmation is allowed.
+    state.record_execution(context(str(answered.operation_id)), action("op-1"),
+                           "completed", "result-ref")
+    second_context = context(str(uuid4())).model_copy(update={"action_revision": 2})
+    second = state.create_confirmation(second_context, action("op-3"),
+                                       fields, now, now + hour)
+    # The settled record is reused at a fresh version, ready for the next item.
+    assert second.confirmation_id == first.confirmation_id
+    assert second.confirmation_version > first.confirmation_version
+    assert second.decision == "pending"
