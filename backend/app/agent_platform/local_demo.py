@@ -22,6 +22,7 @@ from app.memory.adapter import MemoryAdapter
 from app.modules.bills.anomaly_entry import register_bills_anomalies
 from app.modules.bills.entry import register_bills, register_bills_report
 from app.modules.bills.reads import GatewayBillsReads
+from app.modules.cross.entry import register_cross
 from app.modules.transfer.tools import TransferSnapshots
 from app.security import SecurityGate, ToolRegistry
 from app.security.demo_policy import DemoRiskEvidence, DemoRiskSignal, DemoSecurityPolicy
@@ -242,6 +243,10 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     # its one write is authorized by a live claim from the shared executor.
     subscription_runtime.register_subscription(runtime, bank.clock)
     register_own_bank_queries(runtime)
+    # v05-cross-platform/05: mount the real cross module — expense reduction and
+    # the monthly pension arrangement run; birthday still reports its dependency
+    # note. Its bank touches go through dispatched children under their own gates.
+    register_cross(runtime.harness, bank.clock)
     return runtime
 
 
