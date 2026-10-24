@@ -617,3 +617,29 @@ def test_b07_shared_monthly_budget_cap_blocks_over_cap_freeze(tmp_path):
     own = [c for c in application.list_budget_commitments(
         "U1", "D1", BUDGET_ID, include_closed=True) if c.task_id == "PARENT"]
     assert own == []
+
+
+def test_b05_requery_after_budget_filled_fails_and_reverses(tmp_path):
+    """Review N2: the freeze resolved after another task filled the month cap."""
+    ports = ScriptedBirthdayPorts(freeze="unknown", released_amount_fen=50000)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry)
+    held = entry.resume(parent_trusted(), {"choice": "approve"})
+    assert held.status is TaskStatus.WAITING_INPUT  # freeze unknown
+    # Another task consumed the whole monthly room while it was unknown.
+    application.create_task("OTHER_TASK", "U1", "S1", "D1", "R9", "running", {})
+    application.register_budget_commitment("U1", "D1", BudgetCommitment(
+        budget_ref=BudgetRef(budget_id=BUDGET_ID, version=1), task_id="OTHER_TASK",
+        commitment_id="bc_full", committed_fen=50000, unconsumed_fen=50000,
+        freeze_id="fz_other", operation_ids=[uuid4()],
+        settled_transaction_ids=[], state="active", updated_at=NOW))
+    resolved = entry.resume(parent_trusted(),
+                            {"selected_option_id": option_id(held, "核实原操作")})
+    assert resolved.status is TaskStatus.FAILED
+    assert "预算不够" in resolved.message and "原额退回" in resolved.message
+    assert ports.finalize_calls == ["budget_exceeded"]
+    assert ports.order_executes == []
+    own = [c for c in application.list_budget_commitments(
+        "U1", "D1", BUDGET_ID, include_closed=True) if c.task_id == "PARENT"]
+    assert own == []

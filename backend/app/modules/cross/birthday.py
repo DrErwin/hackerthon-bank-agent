@@ -61,15 +61,23 @@ class BirthdayFlow:
 
     # ------------------------------------------------------------------ helpers
 
+    def _plan_items(self) -> list[dict]:
+        by_id = {p["product_id"]: p for p in self.b["products"]}
+        rows = self.b["orders"] or [
+            {"product_id": i["product_id"], "amount_fen": i["amount_fen"],
+             "quantity": i.get("quantity", 1)} for i in self._chosen_items()]
+        items = []
+        for row in rows:
+            source = by_id.get(row["product_id"], {})
+            items.append({**source,
+                          "product_id": row["product_id"],
+                          "quantity": row.get("quantity", 1),
+                          "amount_fen": row["amount_fen"],
+                          "name": source.get("product_name", row.get("name"))})
+        return items
+
     def _plan(self) -> BirthdayPlan:
-        items = tuple(self.b["orders"] and [
-            {"product_id": o["product_id"], "name": o["name"],
-             "unit_price_fen": o["amount_fen"], "quantity": o.get("quantity", 1),
-             "amount_fen": o["amount_fen"],
-             "product_name": o["name"], "merchant_id": "M",
-             "merchant_name": "商户", "category": "other",
-             "earliest_delivery_at": None} for o in self.b["orders"]]
-            or [dict(item) for item in self._chosen_items()])
+        items = tuple(self._plan_items())
         # The freeze covers the adopted budget cap, not the current basket:
         # purchases may shrink, the remainder returns at the ending (XL-B01).
         return BirthdayPlan(
@@ -78,7 +86,7 @@ class BirthdayFlow:
             budget_limit_fen=self.b["budget_limit_fen"],
             freeze_amount_fen=self.b["budget_limit_fen"],
             deliver_by=self.b["deliver_by"],
-            delivery_ref=self.b["delivery_ref"], items=tuple(items))
+            delivery_ref=self.b["delivery_ref"], items=items)
 
     def _chosen_items(self) -> list[dict]:
         by_id = {p["product_id"]: p for p in self.b["products"]}
@@ -100,10 +108,6 @@ class BirthdayFlow:
 
     def _order(self, product_id: str) -> dict:
         return next(o for o in self.b["orders"] if o["product_id"] == product_id)
-
-    def _consumed_total(self) -> int:
-        return sum(o.get("amount_fen", 0) for o in self.b["orders"]
-                   if o.get("capture") == "completed")
 
     def _ask(self, trusted, prompt, choices):
         return self.entry._ask(trusted, self.state, prompt, choices)
@@ -185,7 +189,6 @@ class BirthdayFlow:
             pid = product["product_id"]
             if pid in self.b["chosen"]:
                 continue
-            reachable = product.get("earliest_delivery_at")
             label = (f"{product['merchant_name']}·{product['product_name']} "
                      f"{yuan(product['unit_price_fen'])} 元")
             choices.append((label, {"kind": "b_pick", "product_id": pid}))
@@ -240,10 +243,6 @@ class BirthdayFlow:
         if kind == "b_retry_products":
             self.b["products"] = []
             return self.advance(trusted)
-        if kind == "b_no_delivery":
-            self.b["delivery_ref"] = None
-            self.b["phase"] = "pick"
-            return self._ask_pick(trusted)
         if kind == "b_pick":
             if picked["product_id"] not in self.b["chosen"]:
                 self.b["chosen"].append(picked["product_id"])
@@ -445,7 +444,7 @@ class BirthdayFlow:
                         f"预算不够：该预算当前已占用/消费 {yuan(consumed_before)} 元，"
                         f"再冻结 {yuan(record['amount_fen'])} 元会超过上限 "
                         f"{yuan(self.b['budget_limit_fen'])} 元"
-                        f"（合计需 {yuan(exceeded.in_flight_fen)} 元）。"
+                        f"（合计需 {yuan(consumed_before + record['amount_fen'])} 元）。"
                         f"已按限定授权把刚冻结的 "
                         f"{yuan(release.released_amount_fen or record['amount_fen'])} 元"
                         "原额退回，本次不购买。")
@@ -454,7 +453,7 @@ class BirthdayFlow:
             if outcome.state == "unknown":
                 self.b["holding"] = "unknown_freeze"
                 return self._holding_view(trusted)
-            return self._failed_stop(trusted, "freeze")
+            return self._failed_stop(trusted)
         if kind == "order":
             item = next(i for i in self.b["orders"] if i["product_id"] == item_id)
             outcome = self.ports.order_execute(trusted, plan_data, item)
@@ -503,7 +502,7 @@ class BirthdayFlow:
                 # settled purchases → finalize under the limited authorization
                 self.b["phase"] = "finalize"
                 return self._finalize(trusted)
-            return self._failed_stop(trusted, "order")
+            return self._failed_stop(trusted)
         item = pending[0]
         # A changed or unavailable quote surfaces BEFORE its confirmation is
         # asked for; an old confirmation never approves new money (B03).
@@ -559,7 +558,6 @@ class BirthdayFlow:
                               "核实前不付款。"),
             "unknown_capture": ("付款结果还待核实（原编号保留，不重复扣款）；"
                                 "核实前不继续、也不抢先释放。"),
-            "unknown_release": "释放结果还待核实（原编号保留，不宣称已解冻）。",
         }
         if kind == "gate":
             pending = self.b.get("pending") or {}
@@ -586,7 +584,20 @@ class BirthdayFlow:
             if freeze_id:
                 freeze["freeze_id"] = freeze_id
                 freeze["status"] = "completed"
-                self._register_commitment(freeze)
+                try:
+                    self._register_commitment(freeze)
+                except BudgetOccupationExceededError:
+                    # The room vanished while the freeze was unknown: reverse
+                    # the verified freeze and fail honestly (review N2).
+                    self.b["stop_reason"] = "business_failure"
+                    release = self.ports.finalize(trusted, self._plan(),
+                                                  "budget_exceeded")
+                    self.b["holding"] = None
+                    return self.entry._done(
+                        trusted, self.state, TaskStatus.FAILED,
+                        f"预算不够：核实后这笔冻结已无额度可用。已按限定授权把刚核实的 "
+                        f"{yuan(release.released_amount_fen or freeze['amount_fen'])} 元"
+                        "原额退回，本次不购买。")
                 self.b["holding"] = None
                 self.b["phase"] = "orders"
                 return self._run_next_order(trusted)
@@ -693,7 +704,7 @@ class BirthdayFlow:
         self.b["blocked_reason"] = reason_code
         return self._finalize(trusted)
 
-    def _failed_stop(self, trusted, stage):
+    def _failed_stop(self, trusted):
         self.b["stop_reason"] = "business_failure"
         return self._finalize(trusted)
 
@@ -701,7 +712,7 @@ class BirthdayFlow:
         self.b["stop_reason"] = reason
         return self._finalize(trusted)
 
-    def _finalize(self, trusted, *, blocked=None):
+    def _finalize(self, trusted):
         freeze = self.b.get("freeze")
         if not freeze:
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
