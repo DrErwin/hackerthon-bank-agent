@@ -69,6 +69,8 @@ def completed_capture(item_pid: str) -> WriteOutcome:
 class ScriptedBirthdayPorts:
     """Ports from per-action scripts; release amounts are given per test."""
 
+    verify_challenge = None  # a step-up challenge to hold at, once
+
     def __init__(self, *, products=(FLOWER, CAKE), fresh_prices=None,
                  fresh_missing=(), freeze="completed",
                  orders=("completed", "completed"),
@@ -133,6 +135,10 @@ class ScriptedBirthdayPorts:
 
     def freeze_execute(self, context, plan):
         self.freeze_executes += 1
+        if self.freeze_script == "verify_once":
+            self.freeze_script = "completed"
+            return WriteOutcome(executed=False, state="verify_wait", result=None,
+                                operation_id=None, verify=self.verify_challenge)
         if self.freeze_script == "unknown":
             return WriteOutcome(executed=True, state="unknown", result=None,
                                 operation_id=str(uuid4()))
@@ -311,6 +317,40 @@ def test_b01_freeze_500_pay_199_268_release_33(tmp_path):
     assert commitments[0].committed_fen == 46700  # shrunk to real consumption
     assert commitments[0].unconsumed_fen == 0
     assert len(commitments[0].settled_transaction_ids) == 2
+
+
+def test_b01_step_up_verification_holds_then_resumes_the_write(tmp_path):
+    """The real gate asks a step-up code between the approval and the bank
+    (v05 security policy); the flow holds at the challenge and the platform's
+    resume signal continues the same write (G-series seam for platform 09)."""
+    ports = ScriptedBirthdayPorts(released_amount_fen=50000)
+    harness, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    freeze_ask = run_to_freeze(entry)
+    assert freeze_ask.status is TaskStatus.WAITING_APPROVAL
+
+    challenge = InteractionRequest(
+        interaction_id="verify-1", kind="verification", prompt="请输入验证码",
+        required_fields=["code"], options=[], record_ref="challenge-1")
+    ports.freeze_script = "verify_once"
+    ports.verify_challenge = challenge
+    held = entry.resume(parent_trusted(), {"choice": "approve"})
+    assert held.status is TaskStatus.WAITING_APPROVAL
+    assert held.interaction.kind == "verification"
+    assert held.interaction.record_ref == "challenge-1"
+    assert ports.freeze_executes == 1  # the first submit reached the gate only
+    assert application.get_task("U1", "D1", "PARENT").status != TaskStatus.SUCCEEDED
+    # An empty nudge replays the challenge, never submits a second time.
+    replayed = entry.resume(parent_trusted(), {})
+    assert replayed.interaction is not None
+    assert replayed.interaction.kind == "verification"
+    assert ports.freeze_executes == 1
+
+    # The verification service reports passed; the platform resumes the task.
+    settled = entry.resume(parent_trusted(), {"choice": "resume"})
+    assert settled.status is not TaskStatus.WAITING_APPROVAL or "验证" not in settled.message
+    assert ports.freeze_executes == 2  # same write, resubmitted, now executed
+    assert ports.granted == ["conf-freeze"]
 
 
 # ------------------------------------------------------------------- XL-B02
