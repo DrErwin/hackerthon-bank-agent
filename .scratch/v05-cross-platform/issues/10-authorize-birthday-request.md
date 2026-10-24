@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/services/bank_gateway/`
 
-Status: ready — 前置已备：生日银行写路径与回调默认拒绝已随票 07 合入；安全侧消费方 [v05-cross-security/01](../../v05-cross-security/issues/01-birthday-execution-gates.md)（PR #272）已支持第四个 request 参数并按释放 claim 载荷精确核对。
+Status: in_review — 实现与网关目录验证、双分支组合预检已完成（2026-10-24），待 Erwin 审查合入。
 
 Package accepted by: Erwin
 
@@ -49,8 +49,9 @@ authorize_birthday 回调在现有（可信身份、操作编号、动作名）�
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：分支 `feat/services/authorize-birthday-request`（基线 `fa40d45`，仅 `backend/app/services/bank_gateway/` + 同目录测试）：`_birthday_write` 增收 request 并透传给 authorize_birthday，B10/B11/B12/B21 四个写动作各自传入类型化请求。[PR #273](https://github.com/DrErwin/hackerthon-bank-agent/pull/273)；CI 受 GitHub 账户计费阻塞（同 #268/#272，非代码原因）；合入状态以 PR 为准。
+- 本票验证：2026-10-24，`backend/.venv`：`app/services/` 60 passed，新增 test_authorize_birthday_receives_the_typed_request（回调收到本次请求、金额可断言；拒绝路径银行零写入：冻结余额不变、bank_operations 仅剩已放行一条）。
+- 组合预检：本地将本分支合入 PR #272 分支后同跑 `app/security/` + 网关生日套件，433 passed——网关四参回调与安全侧释放载荷精确绑定真实联动通过；两 PR 合入顺序任意（互为前向兼容），合入后精确绑定自动生效。
 - 联合 E2E：不因本票单独通过。
 
 ## Comments

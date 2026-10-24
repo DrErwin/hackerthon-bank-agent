@@ -80,12 +80,15 @@ class BankGateway:
         return self._bank.get_operation(context, operation_id)
 
     # --- Birthday capabilities (B10—B13, B20—B22); writes are denied without
-    # the executor's authorization, exactly like an ordinary transfer. ---
+    # the executor's authorization, exactly like an ordinary transfer. The
+    # authorize_birthday callback receives the typed request (amount and
+    # resource ids included) so security can verify the exact submission
+    # behind the operation id; it must stay a plain callable boundary. ---
 
     def _birthday_write(self, context: TrustedContext, operation_id: UUID,
-                        action: str, invoke: Callable[[], object]):
+                        action: str, request, invoke: Callable[[], object]):
         if self._authorize_birthday is None or not self._authorize_birthday(
-            context, operation_id, action,
+            context, operation_id, action, request,
         ):
             return QueryFailure(kind="error", error=BankError(code="ACCESS_DENIED", details={}))
         future = self._executor.submit(invoke)
@@ -100,14 +103,14 @@ class BankGateway:
 
     def freeze_funds(self, context: TrustedContext, operation_id: UUID, request: FreezeFundsInput):
         birthday = self._bank.birthday
-        return self._birthday_write(context, operation_id, "bank.freeze_funds", lambda: (
+        return self._birthday_write(context, operation_id, "bank.freeze_funds", request, lambda: (
             birthday.freeze_funds(context, operation_id, request.account_id,
                                   request.amount_fen, request.reason)
         ))
 
     def capture_frozen(self, context: TrustedContext, operation_id: UUID, request: CaptureFrozenInput):
         birthday = self._bank.birthday
-        return self._birthday_write(context, operation_id, "bank.capture_frozen", lambda: (
+        return self._birthday_write(context, operation_id, "bank.capture_frozen", request, lambda: (
             birthday.capture_frozen(context, operation_id, request.freeze_id,
                                     request.amount_fen, request.merchant_id,
                                     request.merchant_name, request.purpose,
@@ -116,13 +119,13 @@ class BankGateway:
 
     def release_frozen(self, context: TrustedContext, operation_id: UUID, request: ReleaseFrozenInput):
         birthday = self._bank.birthday
-        return self._birthday_write(context, operation_id, "bank.release_frozen", lambda: (
+        return self._birthday_write(context, operation_id, "bank.release_frozen", request, lambda: (
             birthday.release_frozen(context, operation_id, request.freeze_id, request.amount_fen)
         ))
 
     def create_order(self, context: TrustedContext, operation_id: UUID, request: CreateOrderInput):
         birthday = self._bank.birthday
-        return self._birthday_write(context, operation_id, "bank.create_order", lambda: (
+        return self._birthday_write(context, operation_id, "bank.create_order", request, lambda: (
             birthday.create_order(context, operation_id, request.product_id,
                                   request.quantity, request.expected_total_fen, request.delivery)
         ))

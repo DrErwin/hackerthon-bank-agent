@@ -262,3 +262,54 @@ def test_response_loss_fault_is_recoverable_by_b14(tmp_path):
     assert lookup.operation.operation_status is OperationStatus.SUCCEEDED
     assert bank.store.get_account("U1", "BA1").frozen_balance_fen == 50000
     gate.close()
+
+
+def test_authorize_birthday_receives_the_typed_request(tmp_path):
+    """Ticket v05-cross-platform/10: the callback sees the exact submission
+    (amount included) and a refusal means zero bank writes."""
+    bank = bank_with_account(tmp_path)
+    seen = []
+
+    def authorize(trusted_context, operation_id, action, request):
+        seen.append((trusted_context, operation_id, action, request))
+        amount = getattr(request, "amount_fen", None)
+        if amount is None:
+            amount = request.expected_total_fen
+        return amount == 50000
+
+    gate = BankGateway(bank, authorize_birthday=authorize)
+    who = context()
+
+    frozen = ok_write(gate.freeze_funds(who, op(), FreezeFundsInput(
+        account_id="BA1", amount_fen=50000, reason="生日")))
+    assert seen[-1][2] == "bank.freeze_funds"
+    assert seen[-1][3].amount_fen == 50000
+    assert seen[-1][3].account_id == "BA1"
+    freeze_id = frozen.receipt.freeze_id
+
+    denied = gate.release_frozen(who, op(), ReleaseFrozenInput(
+        freeze_id=freeze_id, amount_fen=1))
+    assert isinstance(denied, QueryFailure)
+    assert denied.error.code == "ACCESS_DENIED"
+    assert seen[-1][2] == "bank.release_frozen"
+    assert seen[-1][3].amount_fen == 1
+
+    denied_order = gate.create_order(who, op(), CreateOrderInput(
+        product_id="p_flower", quantity=1, expected_total_fen=19900,
+        delivery=delivery(_now() + timedelta(hours=30))))
+    assert isinstance(denied_order, QueryFailure)
+    assert denied_order.error.code == "ACCESS_DENIED"
+    assert seen[-1][3].expected_total_fen == 19900
+
+    # The refused submissions left the bank untouched.
+    account = bank.store.get_account("U1", "BA1")
+    assert account.frozen_balance_fen == 50000
+    view = gate.get_freeze(who, freeze_id).data
+    assert view.released_total_fen == 0
+    from app.storage.database import connect
+    with connect(bank.store.path) as connection:
+        writes = connection.execute(
+            "SELECT action_name FROM bank_operations",
+        ).fetchall()
+    assert [row["action_name"] for row in writes] == ["bank.freeze_funds"]
+    gate.close()
