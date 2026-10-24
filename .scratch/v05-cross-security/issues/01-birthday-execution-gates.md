@@ -12,13 +12,13 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `backend/app/security/`
 
-Status: ready-for-agent — 可接手规则/接入核对及方案准备；代码按本人审阅与票面开始条件推进，尚未实施。
+Status: in_review — 实现与本目录验证、转账/订阅安全回归已完成（2026-10-24），待 Erwin 本人安全审阅与 PR 审查合入。
 
 Package accepted by: Erwin
 
 Package accepted at: 2026-10-24
 
-Execution assignee: 待 Erwin 转交给执行对话（本聊天仅细化规格与票据）
+Execution assignee: ZCode 执行对话（Erwin 指派，2026-10-24）
 
 Accepted by: 未记录（具体实施票）
 
@@ -91,10 +91,15 @@ Core scenarios: XL-B05—B07、X05—X08；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：实现完成于分支 `feat/security/birthday-release-gates`（基线 `fedce40`，rebase 至 `2bfd687`，仅 `backend/app/security/`）：`state.py` 新增 `FreezeReleaseAuthorization` 记录与持久化（表 `security_release_authorizations`，只增不改既有方法）；新模块 `birthday_policy.py`（冻结工具声明、MEDIUM/LOW 风险规则、§3.5 条款）与 `birthday_release.py`（授权授予、冻结结果绑定、限定收尾执行器、`authorize_birthday_write` 银行回调）。[PR #272](https://github.com/DrErwin/hackerthon-bank-agent/pull/272)；CI 作业 0 步骤即失败，与 #268 相同的 GitHub 账户计费阻塞（非代码原因，已在 PR 留言并附本地等价验证）；合入状态以 PR 为准。
+- 本票验证：2026-10-24，`backend/.venv`。新增 `test_birthday_release.py`（27 条：授予 5、绑定 5（含冻结响应丢失按原编号绑定激活）、收尾 17（含旧轮次拒绝、任务状态读取失败））与 `test_birthday_policy.py`（购买路径 11：确认→中风险双因子→执行、冻结/下单/核销三动作全链路真实银行写入、未批零写入、参数篡改 CONFIRMATION_STALE、终止后仅限定收尾等），41 passed（真实 MockBankService + BankGateway 层）。回归：`app/security/` 424 passed；转账/订阅/审计（transfer、subscription、agent_platform runtime、audit）184 passed；后端全量 1538 passed（修复前基线，修复后 security 目录复跑 424 passed）。
+- AI 审查（子代理）：2026-10-24 完成一轮，结论"暂不可合入"：blocking 1（bind_freeze_result 不接受网关 get_operation 的 OperationFound 包装，冻结响应丢失后授权永远无法激活）+ major 2（end_reason 丢弃、收尾不核验当前轮次）+ minor 5。已全部修复：B-1 解包 OperationFound 并补"冻结响应丢失→finalize 回查绑定→释放恰一次"测试；M-1 end_reason 以 `end_reason:<原因>` 进入收尾裁决 evidence_refs（快照内关联由平台 09 装配，AuthorizationSnapshot 为冻结契约无该字段）；M-2 LimitedReleaseFinalizer 增加可选 `current_demo_round` 缝隙，记录轮次非当前轮即 STALE_ROUND 拒绝并附测试；minor：freeze_id 入 evidence_refs、下单/核销全链路测试、任务状态读取失败测试、删除未用参数；`claim_release_execution` 不自证授权有效（前置不变量在 finalizer，与 claim_execution 对确认的校验不对称）留作 Erwin 签核知悉项。
+- AI 复审（子代理，提交 04545ec/43c4200）：**结论"可合入"**——B-1 两条链（finalize 回查链与 bind 直传链）经独立复现脚本与真实链路测试验证；M-1 表示法可接受；M-2 缝隙设计正确；minor 全落实；复审独立复跑 新增 41 passed、security 424×3、回归 392 passed。遗留非阻塞 R-1/R-2 已随本票处理（R-1 依赖登记补"finalize 必须传 current_demo_round"；R-2 测试装备默认超时调大、仅响应丢失用例收紧），R-3 为复审撞上 rebase 中间态、已随 43c4200 解决。合入前待 Erwin 本人安全签核（含规则差异 5 点、end_reason 表示法、claim_release_execution 知悉项）。
+- 规则差异与决定：① `bank.release_frozen` 不注册为模型工具，模型发起的释放被 registered-tools-only 拒绝，仅受控收尾路径可释放；② 释放授权绑定 (user, session, round, task, account, freeze_operation_id, confirmation, max_amount)，状态机 pending_freeze→active/invalid、active→completed/invalid，篡改任何身份字段即 OPERATION_CONFLICT；③ 收尾前置：任务已结束（task_state_resolver=True）+ 本任务无 processing/unknown 在途 + B13 实时余额；余额 0 不提交零金额释放；余额超确认上限暂停不超额释放；④ 释放未知/失败仅沿原 operation_id 回查，不换号重做；⑤ 授权回调按（身份、操作编号、动作名、活跃 allow claim）绑定，参数绑定依赖银行同编号参数摘要与 claim 的 parameters_ref——回调不传参数是网关接口现状，如需回调级参数核对属网关/平台单目录补齐，已在模块 docstring 与 PR 说明登记。
+- Erwin 本人安全审阅：2026-10-24 给出定向裁定（聊天原意）：以用户体验为出发点——办理信息尽量对用户可见；用户想完成的操作整个系统要有办法完成；AI 做自由裁量（选品、比价、改计划），动钱与否走确定性规则，风险处由用户确认授权。按此口径映射：规则差异 1-3 成立（钱=确定性判定+冻结确认单一次看清并授权+暂停态均有完成路径：结果不明可回查、先取消即可收尾、专用通道始终能释放），4 维持现状并登记为网关可选增强，5/6 认可，7 知悉。据"办理信息可见"要求同日补齐收尾回执三数（已消费/已释放/仍冻结，`ReleaseOutcome.consumed_total_fen` + 人话金额消息，security 424 passed）。合入决定待 Erwin。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
+- 跨目录依赖登记：无新增公共缺口；平台 09 装配时将 `authorize_birthday_write(state)` 接入 BankGateway、在冻结确认作答后调 `grant_release_authorization`、冻结结果后调 `bind_freeze_result`、任务结束时调 `LimitedReleaseFinalizer.finalize`——**finalize 装配时必须传 `current_demo_round`**（缝隙可选，缺省 None 时旧轮次防护不生效，复审 R-1）。2026-10-24 Erwin 裁定"回调要能看到金额信息"：安全侧已支持第四个 request 参数并按释放 claim 的 `parameters_ref` 载荷（freeze_id:amount）逐字段精确核对（购买类 claim 参数核对仍由平台快照比对承担，同转账）；网关透传 request 由 [v05-cross-platform/10](../../v05-cross-platform/issues/10-authorize-birthday-request.md) 单目录补齐，合入后精确绑定自动生效。
 
 ## Comments
 
@@ -103,3 +108,5 @@ Core scenarios: XL-B05—B07、X05—X08；定义见[共享规格 §5](../../v05
 2026-10-24（责任更新）：本票本阶段执行由 Erwin 承担；具体票的开工、实现和验证状态仍按实际结果记录。
 
 2026-10-24（接包细化）：Erwin 已领取包 02，要求本聊天拆票、由其他对话执行。沿用原两票及目录/依赖，补齐输入输出、实施顺序、验证和回交；未记录具体执行者领取，未编码、未实跑。
+
+2026-10-24（执行记录）：ZCode 执行对话按交接指派领取本票，基线 `fedce40`，独立 worktree/分支实现；规则差异、验证结果与跨目录依赖见 Delivery record。AI 审查由子代理另行执行，不冒充 Erwin 本人安全审阅。

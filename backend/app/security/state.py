@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Literal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+from app.contracts.common import (
+    ContractModel, ID, OperationId, PositiveInt, PositiveMoney, Timestamp,
+)
 from app.contracts.security import (
     ActionDescriptor,
     ConfirmationRecord,
@@ -22,6 +25,32 @@ class SecurityStateError(ValueError):
     def __init__(self, code: str):
         super().__init__(code)
         self.code = code
+
+
+class FreezeReleaseAuthorization(ContractModel):
+    """The §3.5 backend-controlled limited-release record (safety annex §3.1)."""
+
+    release_authorization_id: ID
+    user_id: ID
+    session_id: ID
+    demo_round_id: ID
+    task_id: ID
+    account_id: ID
+    freeze_operation_id: OperationId
+    freeze_id: ID | None
+    confirmation_id: ID
+    confirmation_version: PositiveInt
+    max_amount_fen: PositiveMoney
+    granted_at: Timestamp
+    status: Literal["pending_freeze", "active", "completed", "invalid"]
+
+
+_RELEASE_TRANSITIONS = frozenset({
+    ("pending_freeze", "active"),
+    ("pending_freeze", "invalid"),
+    ("active", "completed"),
+    ("active", "invalid"),
+})
 
 
 @dataclass(frozen=True)
@@ -87,6 +116,17 @@ class SQLiteSecurityState:
                     demo_round_id TEXT NOT NULL,
                     task_id TEXT NOT NULL,
                     challenge_json TEXT NOT NULL
+                )
+            """)
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS security_release_authorizations (
+                    release_authorization_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    task_id TEXT NOT NULL,
+                    freeze_operation_id TEXT NOT NULL,
+                    authorization_json TEXT NOT NULL,
+                    UNIQUE(task_id, freeze_operation_id)
                 )
             """)
 
@@ -481,3 +521,213 @@ class SQLiteSecurityState:
                 (str(context.operation_id),),
             ).fetchone()
             return self._claim(updated)
+
+    # --- limited-release authorizations and controlled release claims ---
+
+    def store_release_authorization(
+        self, record: FreezeReleaseAuthorization,
+    ) -> FreezeReleaseAuthorization:
+        with transaction(self.path) as connection:
+            row = connection.execute(
+                """SELECT * FROM security_release_authorizations
+                   WHERE task_id = ? AND freeze_operation_id = ?""",
+                (record.task_id, str(record.freeze_operation_id)),
+            ).fetchone()
+            if row is not None:
+                stored = FreezeReleaseAuthorization.model_validate_json(
+                    row["authorization_json"],
+                )
+                identity = (
+                    stored.user_id, stored.session_id, stored.demo_round_id,
+                    stored.task_id, stored.account_id,
+                    str(stored.freeze_operation_id), stored.confirmation_id,
+                    stored.confirmation_version, stored.max_amount_fen,
+                )
+                granted = (
+                    record.user_id, record.session_id, record.demo_round_id,
+                    record.task_id, record.account_id,
+                    str(record.freeze_operation_id), record.confirmation_id,
+                    record.confirmation_version, record.max_amount_fen,
+                )
+                if identity == granted and stored.status == record.status:
+                    return stored
+                raise SecurityStateError("OPERATION_CONFLICT")
+            connection.execute(
+                "INSERT INTO security_release_authorizations VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    record.release_authorization_id, record.user_id,
+                    record.demo_round_id, record.task_id,
+                    str(record.freeze_operation_id), record.model_dump_json(),
+                ),
+            )
+            return record
+
+    def get_release_authorization(
+        self,
+        context: ExecutionSecurityContext,
+        release_authorization_id: str,
+    ) -> FreezeReleaseAuthorization | None:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                """SELECT * FROM security_release_authorizations
+                   WHERE release_authorization_id = ?""",
+                (release_authorization_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            record = FreezeReleaseAuthorization.model_validate_json(
+                row["authorization_json"],
+            )
+            if (record.user_id, record.demo_round_id, record.task_id) != (
+                context.user_id, context.demo_round_id, context.task_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            return record
+        finally:
+            connection.close()
+
+    def update_release_authorization(
+        self,
+        context: ExecutionSecurityContext,
+        record: FreezeReleaseAuthorization,
+    ) -> FreezeReleaseAuthorization:
+        with transaction(self.path) as connection:
+            row = connection.execute(
+                """SELECT * FROM security_release_authorizations
+                   WHERE release_authorization_id = ?""",
+                (record.release_authorization_id,),
+            ).fetchone()
+            if row is None:
+                raise SecurityStateError("OPERATION_UNKNOWN")
+            current = FreezeReleaseAuthorization.model_validate_json(
+                row["authorization_json"],
+            )
+            if (current.user_id, current.demo_round_id, current.task_id) != (
+                context.user_id, context.demo_round_id, context.task_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            if current == record:
+                return current
+            immutable = (
+                current.release_authorization_id, current.user_id,
+                current.session_id, current.demo_round_id, current.task_id,
+                current.account_id, current.freeze_operation_id,
+                current.confirmation_id, current.confirmation_version,
+                current.max_amount_fen, current.granted_at,
+            )
+            same_identity = (
+                record.release_authorization_id, record.user_id,
+                record.session_id, record.demo_round_id, record.task_id,
+                record.account_id, record.freeze_operation_id,
+                record.confirmation_id, record.confirmation_version,
+                record.max_amount_fen, record.granted_at,
+            )
+            if immutable != same_identity:
+                raise SecurityStateError("OPERATION_CONFLICT")
+            if current.freeze_id is not None and record.freeze_id != current.freeze_id:
+                raise SecurityStateError("OPERATION_CONFLICT")
+            if (current.status, record.status) not in _RELEASE_TRANSITIONS:
+                raise SecurityStateError("OPERATION_CONFLICT")
+            if record.status in {"active", "completed"} and record.freeze_id is None:
+                raise SecurityStateError("OPERATION_CONFLICT")
+            connection.execute(
+                """UPDATE security_release_authorizations SET authorization_json = ?
+                   WHERE release_authorization_id = ?""",
+                (record.model_dump_json(), record.release_authorization_id),
+            )
+            return record
+
+    def find_execution(self, operation_id: UUID) -> ExecutionClaim | None:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                "SELECT * FROM security_executions WHERE operation_id = ?",
+                (str(operation_id),),
+            ).fetchone()
+            return None if row is None else self._claim(row)
+        finally:
+            connection.close()
+
+    def unresolved_executions(
+        self,
+        context: ExecutionSecurityContext,
+    ) -> list[str]:
+        connection = connect(self.path)
+        try:
+            rows = connection.execute(
+                """SELECT * FROM security_executions
+                   WHERE task_id = ? AND state != 'completed'""",
+                (context.task_id,),
+            ).fetchall()
+        finally:
+            connection.close()
+        unresolved = []
+        for row in rows:
+            if (row["user_id"], row["demo_round_id"]) != (
+                context.user_id, context.demo_round_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            unresolved.append(row["operation_id"])
+        return sorted(unresolved)
+
+    def release_claim(
+        self,
+        context: ExecutionSecurityContext,
+        release_authorization_id: str,
+    ) -> ExecutionClaim | None:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                """SELECT * FROM security_executions
+                   WHERE task_id = ? AND action_name = 'bank.release_frozen'
+                     AND parameters_ref LIKE ? ORDER BY rowid DESC LIMIT 1""",
+                (context.task_id, f"release:{release_authorization_id}:%"),
+            ).fetchone()
+        finally:
+            connection.close()
+        if row is None:
+            return None
+        if (row["user_id"], row["demo_round_id"]) != (
+            context.user_id, context.demo_round_id,
+        ):
+            raise SecurityStateError("ACCESS_DENIED")
+        return self._claim(row)
+
+    def claim_release_execution(
+        self,
+        context: ExecutionSecurityContext,
+        action: ActionDescriptor,
+        decision: SecurityDecision,
+    ) -> tuple[ExecutionClaim, bool]:
+        """Persists the controlled release operation before any bank submit.
+
+        Unlike claim_execution this path carries no new user confirmation: the
+        authority is the already-granted limited-release authorization, and the
+        caller has verified the task has ended.
+        """
+        if context.operation_id is None or context.action_revision is None:
+            raise SecurityStateError("INPUT_REQUIRED")
+        with transaction(self.path) as connection:
+            existing = connection.execute(
+                "SELECT * FROM security_executions WHERE operation_id = ?",
+                (str(context.operation_id),),
+            ).fetchone()
+            if existing is not None:
+                self._validate_execution_row(existing, context, action)
+                return self._claim(existing), False
+            connection.execute(
+                """INSERT INTO security_executions
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'processing', ?, NULL)""",
+                (
+                    str(context.operation_id), context.user_id,
+                    context.demo_round_id, context.task_id,
+                    action.action_name, action.parameters_ref,
+                    context.action_revision, decision.model_dump_json(),
+                ),
+            )
+            created = connection.execute(
+                "SELECT * FROM security_executions WHERE operation_id = ?",
+                (str(context.operation_id),),
+            ).fetchone()
+            return self._claim(created), True
