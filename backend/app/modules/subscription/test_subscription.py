@@ -13,7 +13,10 @@ from app.contracts.bank import (
 )
 from app.contracts.common import SecurityDecisionCode, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
-from app.contracts.subscription import SubscriptionCancelReceipt, SubscriptionMandate, SubscriptionMandateList
+from app.contracts.subscription import (
+    SubscriptionCancelInput, SubscriptionCancelReceipt, SubscriptionListInput,
+    SubscriptionMandate, SubscriptionMandateList,
+)
 from app.contracts.tasks import InteractionOption, InteractionRequest
 from app.modules.subscription._rules import MIN_CONSECUTIVE_MONTHS, find_suspected_series
 from app.modules.subscription.entry import SubscriptionEntry, named_mandate_id, risk_observations, wants_cancel
@@ -602,3 +605,60 @@ def test_intent_helpers():
     assert named_mandate_id("退掉 sub_002 吧") == "sub_002" and named_mandate_id("退了优酷") is None
     assert risk_observations("客服让我把验证码告诉他") == ["credential_request", "third_party_instruction"]
     assert risk_observations("帮我退了优酷视频") == []
+
+
+# ------------------------------------------- typed logical inputs (G1, v05-cross)
+
+def test_typed_list_input_carries_its_filters_into_the_view():
+    result = entry().start(context(), SubscriptionListInput(
+        request_id=uuid4(), intent_text="盘点自动扣费", account_ids=["A1"],
+        status_filter="active", reminder_days=7))
+    assert result.status == TaskStatus.SUCCEEDED
+    assert result.data.action == "list"
+    assert all(item.status == "active" for item in result.data.list_result.items)
+    # reminder_days=7 counts only 优酷 (due 2026-10-25); 网盘 falls due in 12 days.
+    assert [item.subscription_id for item in result.data.list_result.upcoming_renewals] == ["sub_001"]
+    assert result.data.list_result.upcoming_total_fen == 2500
+
+
+def test_typed_cancel_input_targets_the_mandate_without_chat_parsing():
+    bank, gate = FakeBank(), FakeGate(verify_required=True)
+    task = entry(bank, gate)
+    first = task.start(context(), SubscriptionCancelInput(
+        request_id=uuid4(), intent_text="退订用户选中的那一项", subscription_id="sub_002"))
+    assert first.status == TaskStatus.WAITING_APPROVAL
+    assert first.interaction.kind == "confirmation"
+    assert gate.plans[-1].mandate_id == "sub_002"
+    assert bank.cancel_calls == 0
+    gate.confirmed = True
+    assert task.resume(context(), {"choice": "approve"}).interaction.kind == "verification"
+    gate.verified = True
+    done = task.resume(context(), {"choice": "resume"})
+    assert done.status == TaskStatus.SUCCEEDED
+    assert done.data.selected_item.mandate_id == "sub_002"
+    assert bank.cancel_calls == 1
+
+
+def test_typed_cancel_merchant_hint_still_uses_bank_matching():
+    gate = FakeGate()
+    task = entry(FakeBank(), gate)
+    first = task.start(context(), SubscriptionCancelInput(
+        request_id=uuid4(), intent_text="退订一项会员", merchant_hint="优酷"))
+    assert first.status == TaskStatus.WAITING_APPROVAL
+    assert gate.plans[-1].mandate_id == "sub_001"
+
+
+def test_typed_cancel_account_filter_never_offers_other_accounts():
+    task = entry(FakeBank(), FakeGate())
+    result = task.start(context(), SubscriptionCancelInput(
+        request_id=uuid4(), intent_text="退订自动扣费", account_id="A2"))
+    assert result.status == TaskStatus.SUCCEEDED
+    assert result.data.action == "list"
+    assert result.data.list_result.active_count == 2
+    assert not any(phrase in result.message for phrase in FORBIDDEN)
+
+
+def test_typed_entry_rejects_shapes_outside_the_declared_contracts():
+    result = entry().start(context(), {"subscription_id": "sub_001"})
+    assert result.status == TaskStatus.FAILED
+    assert result.error.code == "INVALID_ARGUMENT"
