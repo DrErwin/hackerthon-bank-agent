@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Callable
 from uuid import UUID
 
-from app.contracts.bank import BankError, QueryFailure
+from app.contracts.bank import (
+    BankError, CaptureFrozenInput, CreateOrderInput, FreezeFundsInput, QueryFailure,
+    ReleaseFrozenInput,
+)
 from app.contracts.platform import TrustedContext
 from app.services.mock_bank.core import MockBankService
 from app.services.mock_bank.verification import AdminContext
@@ -18,12 +22,14 @@ class BankGateway:
         authorize_transfer: Callable[..., bool] | None = None,
         authorize_face: Callable[..., bool] | None = None,
         authorize_cancel: Callable[..., bool] | None = None,
+        authorize_birthday: Callable[..., bool] | None = None,
     ):
         self._bank = bank
         self._transfer_timeout_seconds = transfer_timeout_seconds
         self._authorize_transfer = authorize_transfer
         self._authorize_face = authorize_face
         self._authorize_cancel = authorize_cancel
+        self._authorize_birthday = authorize_birthday
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mock-bank")
 
     def close(self) -> None:
@@ -72,6 +78,64 @@ class BankGateway:
 
     def get_operation(self, context: TrustedContext, operation_id: UUID):
         return self._bank.get_operation(context, operation_id)
+
+    # --- Birthday capabilities (B10—B13, B20—B22); writes are denied without
+    # the executor's authorization, exactly like an ordinary transfer. ---
+
+    def _birthday_write(self, context: TrustedContext, operation_id: UUID,
+                        action: str, invoke: Callable[[], object]):
+        if self._authorize_birthday is None or not self._authorize_birthday(
+            context, operation_id, action,
+        ):
+            return QueryFailure(kind="error", error=BankError(code="ACCESS_DENIED", details={}))
+        future = self._executor.submit(invoke)
+        try:
+            return future.result(timeout=self._transfer_timeout_seconds)
+        except TimeoutError:
+            return QueryFailure(kind="error", error=BankError(code="CALL_TIMEOUT", details={}))
+        except ValueError:
+            return QueryFailure(kind="error", error=BankError(code="OPERATION_CONFLICT", details={}))
+        except sqlite3.Error:
+            return QueryFailure(kind="error", error=BankError(code="BANK_UNAVAILABLE", details={}))
+
+    def freeze_funds(self, context: TrustedContext, operation_id: UUID, request: FreezeFundsInput):
+        birthday = self._bank.birthday
+        return self._birthday_write(context, operation_id, "bank.freeze_funds", lambda: (
+            birthday.freeze_funds(context, operation_id, request.account_id,
+                                  request.amount_fen, request.reason)
+        ))
+
+    def capture_frozen(self, context: TrustedContext, operation_id: UUID, request: CaptureFrozenInput):
+        birthday = self._bank.birthday
+        return self._birthday_write(context, operation_id, "bank.capture_frozen", lambda: (
+            birthday.capture_frozen(context, operation_id, request.freeze_id,
+                                    request.amount_fen, request.merchant_id,
+                                    request.merchant_name, request.purpose,
+                                    request.category, request.order_id)
+        ))
+
+    def release_frozen(self, context: TrustedContext, operation_id: UUID, request: ReleaseFrozenInput):
+        birthday = self._bank.birthday
+        return self._birthday_write(context, operation_id, "bank.release_frozen", lambda: (
+            birthday.release_frozen(context, operation_id, request.freeze_id, request.amount_fen)
+        ))
+
+    def create_order(self, context: TrustedContext, operation_id: UUID, request: CreateOrderInput):
+        birthday = self._bank.birthday
+        return self._birthday_write(context, operation_id, "bank.create_order", lambda: (
+            birthday.create_order(context, operation_id, request.product_id,
+                                  request.quantity, request.expected_total_fen, request.delivery)
+        ))
+
+    def get_freeze(self, context: TrustedContext, freeze_id: str):
+        return self._bank.birthday.get_freeze(context.user_id, freeze_id)
+
+    def get_order(self, context: TrustedContext, order_id: str):
+        return self._bank.birthday.get_order(context.user_id, order_id)
+
+    def list_products(self, context: TrustedContext, merchant_id: str | None = None,
+                      purpose: str | None = None, deliver_by=None):
+        return self._bank.birthday.list_products(merchant_id, purpose, deliver_by)
 
     def list_subscriptions(self, context: TrustedContext, account_id: str | None = None,
                            status: str | None = None):
