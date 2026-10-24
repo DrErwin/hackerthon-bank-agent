@@ -81,3 +81,5 @@ Core scenarios: XL-S01、X02—X08；定义见[共享规格 §5](../../v05-cross
 2026-10-24：按 PM 已批准拆分发布，来源为[拆票方案候选 3](../../v05-cross-linkage/ticket-proposal.md)。票面 Owner 为目录归属，不表示其本人已领取。
 
 2026-10-24（接包后细化）：Erwin 明确接受第一个交付包，授权本聊天完成拆票后交其他执行者实施。本票沿用原编号、目录和依赖；具体执行者尚未领取。总交接见[本包交接说明](../handoff.md)。
+
+2026-10-24（包 03 接包核对 G1，转给 Erwin 平台线）：源码 CHILD_INPUT_CONTRACTS 目前仅含 StartTransferInput/CrossStartInput，减支需要的 BillSummarizeInput、SubscriptionListInput、SubscriptionCancelInput 会在创建子任务前被 INVALID_CAPABILITY_INPUT 拒绝。因此基础派发已交付不表示减支真实接入就绪。后续修正在 agent_platform 单目录内按能力核对合法输入，验证账单/订阅实际工厂可派发、等待/恢复与错误类型拒绝，并提供合入证据。本轮仅登记缺口，未修代码、未重跑测试；业务 01 保留此开始条件，不能将其延后至依赖业务 01 的平台 05 而造成循环。

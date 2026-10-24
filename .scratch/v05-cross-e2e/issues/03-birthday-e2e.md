@@ -8,7 +8,7 @@ Spec: [本工作组规格](../spec.md)
 
 Type: 评测
 
-Owner: 周恩宇
+Owner: Erwin（v0.5 阶段承接；包 05 本轮尚未领取）
 
 Directory: `evals/cross/`
 

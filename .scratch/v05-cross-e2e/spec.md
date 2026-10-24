@@ -2,7 +2,7 @@
 
 Status: planning-approved — 2026-10-24 PM 已确认业务顺序、交付包与拆分；公共契约细节、实际接包及实施尚待完成。
 
-Owner: 周恩宇
+Owner: Erwin（v0.5 阶段承接；包 05 本轮尚未领取）
 
 Accepted by: 未记录
 
@@ -29,6 +29,6 @@ Package: [v05-cross-linkage/packages/05-cross-e2e：三主线 E2E 与全面验�
 
 ## 接包与下一步
 
-PM 本次批准的是规划和拆票，未替本工作组负责人领取，也未指派代码实施。正式接包后记录 Accepted by/at，按当前依赖选择票推进；不得跳过公共约定和必要的安全审查。
+2026-10-24 PM 将本阶段包 05 从周恩宇转给 Erwin；本轮只领取包 03，包 05 尚未领取，未启动 E2E。正式接包后记录 Accepted by/at，按当前依赖选择票推进；不得跳过公共约定和必要的安全审查。
 
 本机技能检查及来源说明沿用共享规格 Further Notes，实施时再检查 implement/code-review 的可用性。全过程只更新本人工作线和[项目跟踪](../../docs/01-项目跟踪.md)对应条目。

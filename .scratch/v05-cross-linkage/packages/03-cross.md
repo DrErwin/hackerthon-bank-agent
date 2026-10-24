@@ -2,17 +2,17 @@
 
 Package: v05-cross-linkage/packages/03-cross
 
-Owner: 周恩宇
+Owner: Erwin（v0.5 本阶段承接；原负责人周恩宇）
 
-Status: planned
+Status: blocked — Erwin 已接包并完成三票细化；平台子调用输入支持缺口、安全审查及各票前置尚待满足，业务代码未启动。
 
-Activation: PM 已批准规划及拆票；待负责人明确接包和实施授权。本文件不构成已向本人通知或其已接受的记录。
+Activation: 2026-10-24 Erwin 明确将本阶段包 03/05 转给自己，并领取包 03、要求开始拆票。本轮为规格及票据细化，未启动代码实施。
 
-Accepted by: 未记录
+Accepted by: Erwin
 
-Accepted at: 未记录
+Accepted at: 2026-10-24
 
-Work spec: [共享规格](../spec.md)、[v05-cross-business 工作规格与独立票](../../v05-cross-business/spec.md)；均为规划交付，负责人接包待登记。
+Work spec: [共享规格](../spec.md)、[v05-cross-business 工作规格与独立票](../../v05-cross-business/spec.md)；三票已按本次接包细化，见[执行交接](../../v05-cross-business/handoff.md)。
 
 Directory boundaries: backend/app/modules/cross/
 
@@ -42,3 +42,7 @@ Directory boundaries: backend/app/modules/cross/
 主要依赖包 01、02；向包 04/05 提供真实业务。候选 5、9、14；原转账/账单/订阅优先复用，真实缺字段再交提供方。
 
 候选拆分见[拆票建议](../ticket-proposal.md)，生效规则见[公共约定方案](../contract-proposal.md)及正式契约。负责人接包后在自己的工作组细化实施票，一票一归属目录；本包只约定结果和边界，不替负责人锁定内部实现。正式领取和排期以[项目跟踪](../../../docs/01-项目跟踪.md)为准。
+
+## 本阶段分工记录
+
+2026-10-24 起至 v0.5 本包收口，执行负责人为 Erwin。审查按现有流程由 Erwin 组织并记录实际审查人；涉及安全仍由 Ringo 审查，AI 审查与真人签核分开。v0.5 收口时交还文档、接口、证据及遗留，后续阶段按项目跟踪重新分派；长期目录归属不因本次阶段承接自动改变。

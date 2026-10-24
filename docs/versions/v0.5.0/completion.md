@@ -7,6 +7,7 @@
 
 | 日期 | 交付 | 提交 / 证据 | 边界与未做 |
 |---|---|---|---|
+| 10-24 | 联动包 03/05 阶段转派、03 接包与三票细化 | Erwin 本人确认；[包 03 规格](../../../.scratch/v05-cross-business/spec.md)及[交接](../../../.scratch/v05-cross-business/handoff.md) | 05 尚未领取；G1 输入支持及安全/票面前置未闭合；未写业务代码或运行 E2E |
 | 10-24 | **联动平台底座七票实施**（v05-cross-platform 01/02/03/04/06/07/08） | PR [#256](https://github.com/DrErwin/hackerthon-bank-agent/pull/256)/[#257](https://github.com/DrErwin/hackerthon-bank-agent/pull/257)/[#258](https://github.com/DrErwin/hackerthon-bank-agent/pull/258)/[#259](https://github.com/DrErwin/hackerthon-bank-agent/pull/259)/[#260](https://github.com/DrErwin/hackerthon-bank-agent/pull/260)+[#261](https://github.com/DrErwin/hackerthon-bank-agent/pull/261)/[#262](https://github.com/DrErwin/hackerthon-bank-agent/pull/262)/[#263](https://github.com/DrErwin/hackerthon-bank-agent/pull/263)（均 CI 绿）。公共模型+契约 §5.4 修订；应用库 v5（父子关系/D1 资金安排原子接缝/预算占用串行/受控资料）；受控子任务派发与恢复+D1 普通转账提交前暂停（银行零写入）；通用 children 端点；银行库 v4 原子对象+核销流水对手方回填；B10—B13/B20—B22 服务与网关默认拒绝写入+响应丢失故障；F36 配送受控录入。每票子代理审查（发现的 2 个必须项均已修复复测）+票面回交 | 票 05/09 阻塞于 v05-cross-business（未代写）；D1 错误呈现 source/field 偏差待转账负责人适配；Ringo 安全审查、前端接入、E2E、真人签核未做；合入前后端全量 1469 passed |
 | 10-24 | 联动后续工作交接 | [执行交接](../../../.scratch/v05-cross-platform/handoff.md)：补齐票一收口步骤、九票顺序、跨包开始条件、决策分工及可转交指令 | 交接文档已准备；未代执行者接票，未实施代码或运行 E2E |
 | 10-24 | 联动票 01 约定裁定材料 | [裁定稿](../../../.scratch/v05-cross-platform/01-decision.md)、[字段与样例](../../../.scratch/v05-cross-platform/01-contract-detail.md)；源码核对确认复用部分完成状态及配送 F36 | Erwin 已确认 D1/D2 业务规则，具体契约及必要安全确认仍待完成；未实现公共模型、未运行模型测试/E2E，不代表开发票完成 |
@@ -20,11 +21,13 @@
 | 10-23 | 连续退订与业务 E2E 修复（[#254](https://github.com/DrErwin/hackerthon-bank-agent/pull/254)） | `0e34351`；验证复用、断线补读、账单刷新保留范围、可读失败原因；后端 1431 passed、前端 70 passed | 同上 |
 | 10-22～10-23 | **订阅场景前端插槽**（清单/退订/回执/刷新） | #230–#232、#247、#253/#254；真实页面取消优酷（专用验证 + 银行成功）、连续退订优酷→网盘、清单自动刷新至 0 项 0 元 | 卡片未单独标「7 天内会扣款」角标（回复文案已含）；200%/读屏属全局缺口 |
 
+本阶段分工：2026-10-24 起，包 03/05 执行负责人为 Erwin，期限至 v0.5 本包收口；由 Erwin 组织审查并记录实际人选，安全仍由 Ringo 审查。收口交接接口、证据及遗留，后续阶段重新分派，不自动改变长期目录归属。
+
 ## 二、未完成（v0.5 剩余）
 
 | 事项 | 负责人 | 状态 |
 |---|---|---|
-| 跨场景联动：业务能力、评测与前端接入 | 周恩宇（业务）、梁爽/六水（前端）；公共及模拟银行依赖 Erwin，安全 Ringo | **平台底座包 9 票中 7 票已合入**（公共模型/存储/派发/API/银行/配送，见上表）；票 05/09 与真实联动装配阻塞于 v05-cross-business 包（未接未实施）；安全/前端/业务/E2E/银行专项五包未接。三个场景 E2E 均缺实现，生日另缺业务编排接入（银行能力已具备） |
+| 跨场景联动：业务能力、评测与前端接入 | Erwin（v0.5 业务及 E2E）、梁爽/六水（前端）；公共及模拟银行依赖 Erwin，安全 Ringo | **平台底座包 9 票中 7 票已合入**（公共模型/存储/派发/API/银行/配送，见上表）；票 05/09 与真实联动装配阻塞于 v05-cross-business 包（Erwin 已接包并细化三票，未实施）；新增 G1 平台子调用账单/订阅输入支持缺口。E2E 包转给 Erwin 未领取；安全/前端/银行专项仍未接。三个场景 E2E 均缺实现，生日另缺业务编排接入（银行能力已具备） |
 | 生产检测器装配（[#160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)） | Ringo / 平台 | v0.4 起 deferred，未做 |
 | 安全样例扩充（[#215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)） | Ringo | 首批 56 条已提交；**PM 2026-10-24 决定只扩充样例、不再做候选模型比较** |
 | 200% 缩放、完整读屏、真机软键盘 | 前端 | 未做 |
