@@ -191,16 +191,18 @@ class Rig:
         self.bank_calls.append((trusted_context, operation_id, request))
         return self.gateway.release_frozen(trusted_context, operation_id, request)
 
-    def rebuild_finalizer(self, *, freeze_reader=None):
+    def rebuild_finalizer(self, *, freeze_reader=None, current_demo_round=None,
+                          task_state_resolver=None):
         self.finalizer = LimitedReleaseFinalizer(
             self.state,
             decision_sink=self.decisions.append,
             snapshot_writer=self._snapshot,
-            task_state_resolver=lambda _context: self.task_ended,
+            task_state_resolver=task_state_resolver or (lambda _context: self.task_ended),
             freeze_reader=freeze_reader or self.gateway.get_freeze,
             operation_reader=self.gateway.get_operation,
             bank_release=self._bank_release,
             clock=self.clock,
+            current_demo_round=current_demo_round,
         )
 
     def grant(self, *, clause: bool = True, amount_fen: int = 50000,
@@ -649,6 +651,43 @@ def test_definite_release_failure_keeps_original_id(tmp_path):
     assert again.status == "needs_attention"
     assert again.release_operation_id == failed_operation
     assert len(rig.bank_calls) == 1
+
+
+def test_lost_freeze_response_resolves_binds_and_releases(tmp_path):
+    """XL-B05: the freeze committed in the bank but its response was lost; the
+    authorization is still pending and must activate by the original id."""
+    rig = Rig(tmp_path)
+    _, applicant, authorization = rig.grant()
+    rig.freeze_for_real(applicant)  # bank holds a succeeded freeze, bind never ran
+    outcome = rig.finalizer.finalize(rig.ending_context(authorization), "user_cancelled")
+    assert outcome.status == "released"
+    assert outcome.released_amount_fen == 50000
+    assert outcome.authorization.status == "completed"
+    assert len(rig.bank_calls) == 1
+
+
+def test_stale_round_authorization_cannot_finalize(tmp_path):
+    rig = Rig(tmp_path)
+    _, _, authorization, _ = rig.active_authorization()
+    rig.rebuild_finalizer(current_demo_round=lambda: "D9")
+    outcome = rig.finalizer.finalize(rig.ending_context(authorization), "user_cancelled")
+    assert outcome.status == "blocked"
+    assert "STALE_ROUND" in outcome.decision.reason_codes
+    assert rig.bank_calls == []
+
+
+def test_task_state_reader_failure_pauses_release(tmp_path):
+    rig = Rig(tmp_path)
+    _, _, authorization, _ = rig.active_authorization()
+
+    def broken_resolver(_context):
+        raise RuntimeError("task store down")
+
+    rig.rebuild_finalizer(task_state_resolver=broken_resolver)
+    outcome = rig.finalizer.finalize(rig.ending_context(authorization), "user_cancelled")
+    assert outcome.status == "needs_attention"
+    assert "DEPENDENCY_UNAVAILABLE" in outcome.decision.reason_codes
+    assert rig.bank_calls == []
 
 
 def test_finalize_recovers_after_a_restart(tmp_path):

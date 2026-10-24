@@ -652,8 +652,6 @@ class SQLiteSecurityState:
     def unresolved_executions(
         self,
         context: ExecutionSecurityContext,
-        *,
-        exclude_operation_id: UUID | None = None,
     ) -> list[str]:
         connection = connect(self.path)
         try:
@@ -670,10 +668,6 @@ class SQLiteSecurityState:
                 context.user_id, context.demo_round_id,
             ):
                 raise SecurityStateError("ACCESS_DENIED")
-            if exclude_operation_id is not None and (
-                row["operation_id"] == str(exclude_operation_id)
-            ):
-                continue
             unresolved.append(row["operation_id"])
         return sorted(unresolved)
 

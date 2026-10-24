@@ -153,6 +153,27 @@ class PurchaseRig:
                 FreezeFundsInput(account_id=payload["account_id"],
                                  amount_fen=payload["amount_fen"], reason="生日礼物"),
             )
+        if action_name == "bank.create_order":
+            from app.contracts.bank import CreateOrderInput
+            return self.gateway.create_order(
+                trusted(security_context), security_context.operation_id,
+                CreateOrderInput(product_id=payload["product_id"],
+                                 quantity=payload["quantity"],
+                                 expected_total_fen=payload["expected_total_fen"],
+                                 delivery=payload["delivery"]),
+            )
+        if action_name == "bank.capture_frozen":
+            from app.contracts.bank import CaptureFrozenInput
+            return self.gateway.capture_frozen(
+                trusted(security_context), security_context.operation_id,
+                CaptureFrozenInput(freeze_id=payload["freeze_id"],
+                                   amount_fen=payload["amount_fen"],
+                                   merchant_id=payload["merchant_id"],
+                                   merchant_name=payload["merchant_name"],
+                                   purpose=payload["purpose"],
+                                   category=payload["category"],
+                                   order_id=payload["order_id"]),
+            )
         raise AssertionError("unexpected tool " + action_name)
 
     def _resolve_parameters(self, _security_context, action):
@@ -193,7 +214,9 @@ class PurchaseRig:
                 source_confirmation_id=confirmation.confirmation_id,
                 source_confirmation_version=confirmation.confirmation_version,
                 action_name=action.action_name,
-                amount_fen=self.payloads[action.parameters_ref]["amount_fen"],
+                amount_fen=self.payloads[action.parameters_ref].get(
+                    "amount_fen", self.payloads[action.parameters_ref].get(
+                        "expected_total_fen")),
                 payee=None,
                 display_fields=confirmation.display_fields,
             )
@@ -389,6 +412,82 @@ def test_full_freeze_path_confirms_verifies_and_freezes(tmp_path):
         third.result, rig.clock(),
     )
     assert bound.status == "active"
+
+
+def _confirmed_and_verified(rig, action, payload):
+    """Drive one purchase action through confirmation and step-up to allow.
+
+    Returns the verified context plus the bank OperationResult the executor
+    observed, so callers read bank facts from real receipts.
+    """
+    rig.payloads[action.parameters_ref] = payload
+    applicant = context()
+    outcome = rig.executor.execute(applicant, action)
+    assert outcome.decision.decision is SecurityDecisionCode.REQUIRE_CONFIRMATION
+    approved = rig.approve(applicant, action)
+    awaiting = rig.executor.execute(applicant.model_copy(update={
+        "confirmation_id": approved.confirmation_id,
+        "confirmation_version": approved.confirmation_version,
+    }), action)
+    assert awaiting.decision.decision is SecurityDecisionCode.REQUIRE_VERIFICATION
+    verified = rig.pass_step_up(applicant, action, approved)
+    result = rig.executor.execute(verified, action)
+    assert result.decision.decision is SecurityDecisionCode.ALLOW
+    assert result.executed is True
+    return verified, result.result
+
+
+def test_order_and_capture_run_the_full_gate_chain(tmp_path):
+    """XL-B01: freeze, order, and capture each pass confirmation, step-up
+    verification, the executor claim, and the bank authorization callback."""
+    from datetime import datetime, timedelta, timezone
+    from app.contracts.bank import DeliveryInput
+    from app.contracts.common import Category
+
+    rig = PurchaseRig(tmp_path)
+    freeze = rig.freeze_action()
+    _, frozen = _confirmed_and_verified(rig, freeze, {
+        "action_name": "bank.freeze_funds", "account_id": "BA1", "amount_fen": 50000,
+    })
+    freeze_id = frozen.receipt.freeze_id
+    assert frozen.receipt.remaining_fen == 50000
+
+    order = ActionDescriptor(
+        action_name="bank.create_order", parameters_ref="birthday:order:flower",
+        resource_refs=["p_flower"], phase=Phase.EXECUTION,
+    )
+    deliver_by = datetime.now(timezone.utc) + timedelta(days=3)
+    _, created = _confirmed_and_verified(rig, order, {
+        "action_name": "bank.create_order", "product_id": "p_flower", "quantity": 1,
+        "expected_total_fen": 19900,
+        "delivery": DeliveryInput(recipient_name="李演示", phone="DEMO-PHONE-0001",
+                                  address="演示市演示区示例路 1 号（虚构）",
+                                  deliver_by=deliver_by),
+    })
+    order_id = created.receipt.order.order_id
+    assert created.receipt.order.payment_status == "unpaid"
+
+    capture = ActionDescriptor(
+        action_name="bank.capture_frozen", parameters_ref="birthday:capture:flower",
+        resource_refs=[freeze_id], phase=Phase.EXECUTION,
+    )
+    _, paid = _confirmed_and_verified(rig, capture, {
+        "action_name": "bank.capture_frozen", "freeze_id": freeze_id,
+        "amount_fen": 19900, "merchant_id": "m_flower", "merchant_name": "邻里花店",
+        "purpose": "生日鲜花", "category": Category.SHOPPING,
+        "order_id": order_id,
+    })
+    assert rig.bank_writes == [
+        "bank.freeze_funds", "bank.create_order", "bank.capture_frozen",
+    ]
+    assert rig.bank.store.get_order("U1", order_id)["payment_status"] == "paid"
+    freeze_row = rig.bank.store.get_freeze("U1", freeze_id)
+    assert (
+        freeze_row["original_amount_fen"]
+        - freeze_row["captured_total_fen"]
+        - freeze_row["released_total_fen"]
+    ) == 30100
+    assert paid.receipt.remaining_fen == 30100
 
 
 def test_unconfirmed_or_unverified_paths_write_nothing(tmp_path):

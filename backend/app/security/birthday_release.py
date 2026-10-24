@@ -37,7 +37,7 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 from app.contracts.bank import (
-    OperationNotFound, OperationResult, QueryFailure, ReleaseFrozenInput,
+    OperationFound, OperationNotFound, OperationResult, QueryFailure, ReleaseFrozenInput,
 )
 from app.contracts.common import (
     OperationLevel, Phase, RiskLevel, SecurityDecisionCode,
@@ -126,9 +126,10 @@ def bind_freeze_result(
     """Bind the bank's freeze outcome (or its unresolved lookup) to the record.
 
     ``lookup`` is the bank operation observation for the original freeze
-    operation id: an ``OperationResult``, an ``OperationNotFound``, or a
-    ``QueryFailure``. Unknown outcomes leave the record pending; only a
-    definite success with the confirmed amount activates it.
+    operation id: an ``OperationResult``, the gateway's ``OperationFound``
+    wrapper, an ``OperationNotFound``, or a ``QueryFailure``. Unknown outcomes
+    leave the record pending; only a definite success with the confirmed
+    amount activates it.
     """
     del now  # the bank observation carries its own timestamps
     authorization = _load(state, context, release_authorization_id)
@@ -138,18 +139,19 @@ def bind_freeze_result(
         return authorization
     if isinstance(lookup, OperationNotFound):
         return authorization
-    if not isinstance(lookup, OperationResult):
+    operation = lookup.operation if isinstance(lookup, OperationFound) else lookup
+    if not isinstance(operation, OperationResult):
         raise SecurityError("POLICY_VIOLATION")
-    if str(lookup.operation_id) != str(authorization.freeze_operation_id):
+    if str(operation.operation_id) != str(authorization.freeze_operation_id):
         raise SecurityError("OPERATION_CONFLICT")
-    if lookup.operation_status == "succeeded":
-        receipt = lookup.receipt
+    if operation.operation_status == "succeeded":
+        receipt = operation.receipt
         if receipt is None or receipt.frozen_amount_fen != authorization.max_amount_fen:
             raise SecurityError("POLICY_VIOLATION")
         updated = authorization.model_copy(update={
             "status": "active", "freeze_id": receipt.freeze_id,
         })
-    elif lookup.operation_status == "failed":
+    elif operation.operation_status == "failed":
         updated = authorization.model_copy(update={"status": "invalid"})
     else:
         return authorization
@@ -238,6 +240,7 @@ class LimitedReleaseFinalizer:
         bank_release: BankRelease,
         clock: Clock,
         operation_factory: Callable[[], UUID] = uuid4,
+        current_demo_round: Callable[[], str] | None = None,
     ) -> None:
         self.state = state
         self.decision_sink = decision_sink
@@ -248,6 +251,7 @@ class LimitedReleaseFinalizer:
         self.bank_release = bank_release
         self.clock = clock
         self.operation_factory = operation_factory
+        self.current_demo_round = current_demo_round
 
     # --- decision plumbing ---
 
@@ -450,7 +454,6 @@ class LimitedReleaseFinalizer:
         context: ExecutionSecurityContext,
         end_reason: str,
     ) -> ReleaseOutcome:
-        del end_reason  # recorded by the caller's audit events, not this decision
         try:
             authorization = (
                 self.state.get_release_authorization(
@@ -489,6 +492,30 @@ class LimitedReleaseFinalizer:
         action = self._record(authorization)
         evidence = [authorization.release_authorization_id,
                     str(authorization.freeze_operation_id)]
+        if authorization.freeze_id is not None:
+            evidence.append(authorization.freeze_id)
+        if isinstance(end_reason, str) and end_reason:
+            evidence.append(f"end_reason:{end_reason}")
+
+        # A cleared demo round retires its authorizations; an old round's
+        # controlled identity cannot finalize into the current round.
+        if self.current_demo_round is not None:
+            try:
+                current_round = self.current_demo_round()
+            except Exception:
+                current_round = None
+            if (
+                not isinstance(current_round, str)
+                or not current_round
+                or current_round != authorization.demo_round_id
+            ):
+                return self._stop(
+                    context, action, authorization, status="blocked",
+                    code=SecurityDecisionCode.BLOCK, reasons=["STALE_ROUND"],
+                    rules=["current-round-required-for-release"],
+                    message="演示轮次已变化，该结束释放授权已失效。",
+                    evidence_refs=evidence,
+                )
 
         # A pending freeze is resolved by its original operation id first.
         if authorization.status == "pending_freeze":
