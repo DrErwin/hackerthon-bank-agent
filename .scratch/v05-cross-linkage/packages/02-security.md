@@ -4,15 +4,15 @@ Package: v05-cross-linkage/packages/02-security
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: planned
+Status: in_progress — Erwin 已领取并完成两票细化；票 01 可开始规则/接入核对，票 02 等装配与页面，代码及专项实跑未开始。
 
-Activation: 2026-10-24 Erwin 明确本阶段所有工作由本人完成；本包执行及审查责任已转给 Erwin，具体开工另记。
+Activation: 2026-10-24 Erwin 明确“登记我接收了包02”，授权本聊天拆票与交接，另由其他对话执行。
 
-Accepted by: 未记录
+Accepted by: Erwin
 
-Accepted at: 未记录
+Accepted at: 2026-10-24
 
-Work spec: [共享规格](../spec.md)、[v05-cross-security 工作规格与独立票](../../v05-cross-security/spec.md)；均为规划交付，负责人接包待登记。
+Work spec: [共享规格](../spec.md)、[v05-cross-security 工作规格与独立票](../../v05-cross-security/spec.md)；已按本次领取细化，见[执行交接](../../v05-cross-security/handoff.md)。
 
 Directory boundaries: backend/app/security/、evals/security/；分别立票
 
@@ -47,4 +47,4 @@ Directory boundaries: backend/app/security/、evals/security/；分别立票
 
 2026-10-24 最新阶段分工：v0.5 剩余执行工作全部由 Erwin 承担，含安全规则审阅、实现、前端与评测；原负责人不再是本阶段的等待对象。按单目录、单票、单分支/PR 交付。安全确认由 Erwin 本人按实际证据记录为 PM 代行审查/接受；AI 审查、自动化测试、PM 本人审查与历史要求的 Ringo 专业签核分别标注，不补写他人签名，不因转派豁免安全验证。期限至 v0.5 收口，届时交接接口、证据与遗留；后续版本按项目跟踪重新分派。
 
-已有领取和交付记录保留；本次是责任调整及下一步建议，不把未启动的包记为已开工或已验收。
+2026-10-24 本包已实际领取；本次完成规格、两票和交接，不把接包记为规则已签核、代码已实现或评测已通过。

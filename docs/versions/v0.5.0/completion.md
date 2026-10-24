@@ -7,6 +7,7 @@
 
 | 日期 | 交付 | 提交 / 证据 | 边界与未做 |
 |---|---|---|---|
+| 10-24 | 安全包 02 领取、规格与两票细化 | Erwin 本人领取；[规格](../../../.scratch/v05-cross-security/spec.md)、[两票交接](../../../.scratch/v05-cross-security/handoff.md) | 01 可准备规则与接入方案，代码待执行对话；02 实跑等平台 09/前端 02，未运行安全专项或代签本人审查 |
 | 10-24 | v0.5 全阶段执行责任调整 | [项目跟踪](../../01-项目跟踪.md)及六包/相关票负责人同步为 Erwin；下一步建议安全包 02 的票 01 | 仅更新责任与建议；既有验收证据不变，未开工的包不计开始或完成 |
 | 10-24 | **联动 G1 闭合与包 03 业务两票实施** | 平台输入核对 PR [#264](https://github.com/DrErwin/hackerthon-bank-agent/pull/264)、订阅类型化入口 PR [#266](https://github.com/DrErwin/hackerthon-bank-agent/pull/266)（均 CI 绿、子代理审查通过后合入）；票 01 减支编排+共用计划骨架 PR [#269](https://github.com/DrErwin/hackerthon-bank-agent/pull/269)、票 02 养老金安排与留存核算 PR [#268](https://github.com/DrErwin/hackerthon-bank-agent/pull/268) 已实现，cross 目录测试 21 项全绿，审查进行中 | 账单入口类型化输入缺口交账单负责人；票 03 生日阻塞于 Ringo 安全 01（planned）；平台 05/09 装配、前端、包 05 E2E 与真人签核未做 |
 | 10-24 | 联动包 03/05 阶段转派、03 接包与三票细化 | Erwin 本人确认；[包 03 规格](../../../.scratch/v05-cross-business/spec.md)及[交接](../../../.scratch/v05-cross-business/handoff.md) | 05 尚未领取；G1 输入支持及安全/票面前置未闭合；未写业务代码或运行 E2E |
@@ -29,7 +30,7 @@
 
 | 事项 | 负责人 | 状态 |
 |---|---|---|
-| 跨场景联动：业务能力、评测与前端接入 | Erwin（全部工作线） | 平台七票及减支 #269 已合入，养老金 #268 查询时仍 open；G1 平台/订阅已修，账单类型化入口仍待补；安全 01、生日业务、平台 05/09、前端与真实 E2E 待按依赖交付。02/04/05/06 已归 Erwin，开工另记 |
+| 跨场景联动：业务能力、评测与前端接入 | Erwin（全部工作线） | 平台七票及减支 #269 已合入，养老金 #268 查询时仍 open；G1 平台/订阅已修，账单类型化入口仍待补；安全 01、生日业务、平台 05/09、前端与真实 E2E 待按依赖交付。02 已由 Erwin 领取并细化两票，尚未编码；04/05/06 已归 Erwin，开工另记 |
 | 生产检测器装配（[#160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)） | Erwin | v0.4 起 deferred，未做 |
 | 安全样例扩充（[#215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)） | Erwin | 首批 56 条已提交；**PM 2026-10-24 决定只扩充样例、不再做候选模型比较** |
 | 200% 缩放、完整读屏、真机软键盘 | Erwin | 未做 |
