@@ -279,13 +279,18 @@ class CrossEntry:
         if "interaction_id" in response and response["interaction_id"] != state.get("interaction_id"):
             raise ValueError("INTERACTION_STALE")
         if (state.get("scenario") == CrossScenario.BIRTHDAY.value
-                and (response.get("choice") in {"approve", "cancel"}
+                and (response.get("choice") in {"approve", "cancel", "resume"}
                      or response.get("cancel") is True)):
             flow = self._birthday_flow(state)
             if flow is not None and (flow.b.get("pending")
                                      or response.get("choice") == "cancel"
                                      or response.get("cancel") is True):
-                result = flow.answer_gate(trusted, response)
+                if response.get("choice") == "resume" and flow.b.get("holding") == "verify":
+                    # The step-up verification service just reported the
+                    # challenge passed; continue the approved write.
+                    result = flow.resume_gate(trusted)
+                else:
+                    result = flow.answer_gate(trusted, response)
                 state["result"] = result.model_dump(mode="json")
                 self._save(trusted, None, state)
                 return result

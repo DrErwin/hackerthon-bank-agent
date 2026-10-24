@@ -397,7 +397,8 @@ class BirthdayFlow:
         pending = self.b.get("pending")
         if not pending:
             return self.advance(trusted)
-        self.b["pending"] = None
+        # The pending target stays until the write settles: a step-up
+        # verification (verify_wait) sits between the approval and the bank.
         self.b["holding"] = None
         target = pending["target"]
         if target[0] == "freeze" and pending.get("interaction"):
@@ -408,12 +409,41 @@ class BirthdayFlow:
                 self.ports.grant_release(trusted, self._plan(), ref)
         return self._submit(trusted, target)
 
+    def resume_gate(self, trusted):
+        """Continue one write after its step-up verification passed.
+
+        The verification service answers on the generic code endpoint; the
+        platform then resumes this task and the same ports resubmit under the
+        now-complete gate (confirmation approved plus challenge passed).
+        """
+        pending = self.b.get("pending")
+        if not pending or self.b.get("holding") != "verify":
+            return self.advance(trusted)
+        self.b["holding"] = None
+        return self._submit(trusted, pending["target"])
+
+    def _verify_wait(self, trusted, outcome) -> ModuleResult:
+        """Hold one approved write at its step-up challenge; nothing moved."""
+        self.b["holding"] = "verify"
+        self.b["pending"] = {**(self.b.get("pending") or {}),
+                             "verify": outcome.verify.model_dump(mode="json")}
+        return ModuleResult(
+            task_id=trusted.task_id, run_id=trusted.run_id,
+            status=TaskStatus.WAITING_APPROVAL, data=None,
+            message=outcome.verify.prompt,
+            interaction=outcome.verify, error=None,
+            allowed_actions=["verify", "cancel"], recovery_required=False,
+            recovery_reason=None)
+
     def _submit(self, trusted, target):
         kind, item_id = target
         plan_data = self._plan()
         application = self.entry.harness.application
         if kind == "freeze":
             outcome = self.ports.freeze_execute(trusted, plan_data)
+            if outcome.state == "verify_wait":
+                return self._verify_wait(trusted, outcome)
+            self.b["pending"] = None
             record = {"operation_id": outcome.operation_id, "amount_fen":
                       plan_data.freeze_amount_fen, "status": outcome.state,
                       "freeze_id": None, "authorization": "granted"}
@@ -457,6 +487,9 @@ class BirthdayFlow:
         if kind == "order":
             item = next(i for i in self.b["orders"] if i["product_id"] == item_id)
             outcome = self.ports.order_execute(trusted, plan_data, item)
+            if outcome.state == "verify_wait":
+                return self._verify_wait(trusted, outcome)
+            self.b["pending"] = None
             item["order_operation_id"] = outcome.operation_id
             if outcome.state == "completed" and outcome.result is not None:
                 order_view = getattr(outcome.result, "order", None) or getattr(
@@ -476,6 +509,9 @@ class BirthdayFlow:
             item = next(i for i in self.b["orders"] if i["product_id"] == item_id)
             outcome = self.ports.capture_execute(trusted, plan_data, item,
                                                  item.get("order_id"))
+            if outcome.state == "verify_wait":
+                return self._verify_wait(trusted, outcome)
+            self.b["pending"] = None
             item["capture_operation_id"] = outcome.operation_id
             if outcome.state == "completed" and outcome.result is not None:
                 receipt = getattr(outcome.result, "receipt", None)

@@ -36,12 +36,20 @@ class GateAnswer:
 
 @dataclass(frozen=True)
 class WriteOutcome:
-    """What the bank said about one submitted write; unknown is never success."""
+    """What the bank said about one submitted write; unknown is never success.
+
+    ``verify_wait`` is not a bank answer: the real gate demands a step-up
+    verification after the confirmation and before any money moves (v05
+    security policy). ``verify`` then carries the challenge interaction; the
+    orchestrator shows it and resubmits through the same ports once the
+    verification service reports the challenge passed.
+    """
 
     executed: bool
-    state: str  # "completed" | "unknown" | "failed"
+    state: str  # "completed" | "unknown" | "failed" | "verify_wait"
     result: OperationResult | QueryFailure | None = None
     operation_id: str | None = None
+    verify: InteractionRequest | None = None
 
 
 @dataclass(frozen=True)
