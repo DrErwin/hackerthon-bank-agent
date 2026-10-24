@@ -282,6 +282,14 @@ class CrossEntry:
         return self._apply_pick(trusted, state, picked)
 
     def _reask(self, trusted, state) -> ModuleResult:
+        if "steps" in state:
+            # A child still holding the plan's single response slot wins over a
+            # fresh menu: re-offering choices here could bump the plan revision
+            # and strand the in-flight confirmation (review note 1).
+            self._reconcile(state, trusted)
+            holding = plan.holding_step(state)
+            if holding is not None:
+                return self._holding_view(trusted, state, holding)
         if state.get("scenario") is None:
             return self._ask_goal(trusted, state)
         return self._ask_pick(trusted, state)
@@ -541,6 +549,12 @@ class CrossEntry:
                           "\n".join(lines + extra + ["当前没有可在线退订的签约。"]))
 
     def _evidence_line(self, state: dict) -> str:
+        accounts_record = plan.step_state(state, "accounts")
+        if accounts_record.get("status") is TaskStatus.FAILED:
+            # bills depends on accounts: with accounts failed it never runs, and
+            # saying "still querying" would be untrue (review note 3).
+            return ("本人账户暂时查不到，账单对比本次不可用；"
+                    "以下结论只基于签约盘点。")
         bills = state.get("bills")
         if bills is None:
             return "账单对比还在查询中。"
@@ -715,6 +729,7 @@ class CrossEntry:
     def _record_outcomes(self, state: dict) -> None:
         """Move finished cancel children into receipts / unknown bookkeeping."""
 
+        self._reclassify_unknown(state)
         for step in state["steps"]:
             if not step["step_id"].startswith("cancel:"):
                 continue
@@ -733,6 +748,7 @@ class CrossEntry:
                     state["receipts"].append({
                         "subscription_id": subscription_id,
                         "service_name": item.get("service_name") or receipt.get("service_name"),
+                        "merchant_name": item.get("merchant_name") or receipt.get("merchant_name"),
                         "amount_fen": receipt.get("amount_fen"),
                         "cycle": receipt.get("cycle"),
                         "effective_stop_at": (stop[:10] if isinstance(stop, str) else stop),
@@ -746,6 +762,42 @@ class CrossEntry:
                     "service_name": item["service_name"],
                     "child_task_id": record.get("child_task_id"),
                 })
+
+    @staticmethod
+    def _reclassify_unknown(state: dict) -> None:
+        """An unknown cancel that later resolved keeps its verified truth (review note 2).
+
+        A re-verified success becomes a receipt; a settled failure or cancellation
+        stops being reported as pending. Conservatism is for unsettled facts only.
+        """
+
+        still_unknown = []
+        for entry in state["unknown"]:
+            step = next((s for s in state["steps"]
+                         if s.get("subscription_id") == entry["subscription_id"]), None)
+            record = plan.step_state(state, step["step_id"]) if step else {}
+            status = record.get("status")
+            if status is TaskStatus.SUCCEEDED and isinstance(record.get("result"), dict):
+                operation = (record["result"].get("operation") or {})
+                receipt = operation.get("receipt") or {}
+                item = record["result"].get("selected_item") or {}
+                if receipt and item and entry["subscription_id"] not in {
+                        r["subscription_id"] for r in state["receipts"]}:
+                    stop = receipt.get("effective_stop_at")
+                    state["receipts"].append({
+                        "subscription_id": entry["subscription_id"],
+                        "service_name": item.get("service_name") or receipt.get("service_name"),
+                        "merchant_name": item.get("merchant_name") or receipt.get("merchant_name"),
+                        "amount_fen": receipt.get("amount_fen"),
+                        "cycle": receipt.get("cycle"),
+                        "effective_stop_at": (stop[:10] if isinstance(stop, str) else stop),
+                        "child_task_id": record.get("child_task_id"),
+                    })
+                continue
+            if status in (TaskStatus.NEEDS_ATTENTION, None):
+                still_unknown.append(entry)
+            # FAILED / CANCELLED: dropped from unknown — already refused, never pending.
+        state["unknown"] = still_unknown
 
     # --------------------------------------------------------------- entry seams
 
