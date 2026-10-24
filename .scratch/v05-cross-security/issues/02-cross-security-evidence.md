@@ -8,7 +8,7 @@ Spec: [本工作组规格](../spec.md)
 
 Type: 评测
 
-Owner: Ringo
+Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `evals/security/`
 
@@ -59,3 +59,5 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 ## Comments
 
 2026-10-24：按 PM 已批准拆分发布，来源为[拆票方案候选 19](../../v05-cross-linkage/ticket-proposal.md)。票面 Owner 为目录归属，不表示其本人已领取。
+
+2026-10-24（责任更新）：本票本阶段执行由 Erwin 承担；具体票的开工、实现和验证状态仍按实际结果记录。

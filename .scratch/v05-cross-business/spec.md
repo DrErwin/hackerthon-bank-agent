@@ -54,7 +54,7 @@ Directory: `backend/app/modules/cross/`
 | 平台受控子任务 | [平台 03 交付记录](../v05-cross-platform/issues/03-child-task-dispatch.md)，[PR #258](https://github.com/DrErwin/hackerthon-bank-agent/pull/258) 已合入 | **G1 待补**：当前允许的输入仅 StartTransferInput/CrossStartInput，账单和订阅的合法公开输入会被拒绝；减支真实接入不能标就绪 |
 | 生日模拟银行 | 平台 06/07，含 [PR #262](https://github.com/DrErwin/hackerthon-bank-agent/pull/262) 已交付 | 可作为生日事实能力，仍缺受控安全门与业务装配 |
 | 安全门与审查 | [v05-cross-security/01：生日动作与限定收尾安全门](../v05-cross-security/issues/01-birthday-execution-gates.md) 未实施；相关公共资金/隐私安全审查未完成 | 生日写入必须等实际安全能力；相关安全确认与真人签核不能由 AI 或合入记录代替 |
-| D1 普通转账错误展示 | 平台 03 已记录 source/field 与文案偏差 | 修复由转账负责人梁爽承担；本包保留缺口并在相关路径核验，不改转账目录 |
+| D1 普通转账错误展示 | 平台 03 已记录 source/field 与文案偏差 | 修复由 Erwin 在转账工作线承担；本包保留缺口并在相关路径核验，不改转账目录 |
 | 运行注册与页面 | 平台 05/09、前端包尚待依赖 | 本包先交入口与模块行为；装配票消费它们，不反向成为业务实现前置 |
 
 G1 由 Erwin 的平台工作线承接平台 03 后续修正，按能力核对真实输入类型、测试合法账单/订阅可派发及错误类型被拒绝，再交实际合入证据。登记在原平台票中，本轮未新增代码票或扩大已批准三票范围。不能将 G1 放到依赖本组 01 的平台 05 才处理，造成互相等待。
@@ -88,6 +88,6 @@ G1 由 Erwin 的平台工作线承接平台 03 后续修正，按能力核对真
 
 ## 8. Further Notes
 
-阶段归属：Erwin 承接 v0.5 包 03/05，本次明确领取 03。审查由 Erwin 按现有流程组织并记录实际人选，安全由 Ringo 审查；v0.5 收口交接接口、证据及遗留，后续分派以项目跟踪为准，长期目录归属不自动改变。
+阶段归属：Erwin 承接 v0.5 包 03/05，本次明确领取 03。审查由 Erwin 按现有流程组织并记录实际人选，安全由 Erwin 本阶段代行审查；v0.5 收口交接接口、证据及遗留，后续分派以项目跟踪为准，长期目录归属不自动改变。
 
 2026-10-24 已检查 to-spec、to-tickets、implement、code-review 文件均存在；读取前两者全文并按本次授权手工采用规格/拆票流程。to-spec/to-tickets 带 disable-model-invocation，且本会话无对应命令，不声称已调用斜杠命令。仓库安装基线为 mattpocock/skills@d81f3a183412e71a5b1e84ca21bc1a35eea03a60；已有本机文件来源未复核，不覆盖安装。粒度、目录和 E2E 检查面已经 PM 批准，本轮沿用；实施时再核对 implement/code-review 的可用性。
