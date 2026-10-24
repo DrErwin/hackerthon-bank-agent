@@ -831,6 +831,14 @@ class ApiService:
                      (child.snapshot.get("request_id") if child else None) or str(uuid4()),
                      f"{summary['capability_name']}:{summary['step_id']}"))
             views.append(self.task_view(identity, child_id))
+        for view in views:
+            if view.interaction and view.interaction.record_ref:
+                # §6.5: a child task is published here, not by publish_task, so its
+                # confirmation/verification record has to be bound here too; else
+                # F14—F17 answer 404 for a task the page can already see.
+                self.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
+                                 (view.interaction.kind, view.interaction.record_ref,
+                                  view.task_id))
         return views
 
     def events_for_session(self, identity, thread_id, cursor):
@@ -1550,6 +1558,18 @@ class ApiService:
         """F10: turn one answer into the response the task's own module expects (§5.6)."""
 
         interaction = task.interaction
+        if task.module == "cross":
+            # The cross module owns its answer grammar (amounts, dates, delivery
+            # references) and asks again when a value is unusable; the API only
+            # forwards what the user typed. These are control values, not free
+            # prose, so the bare-code guard must not reject a plain "1500".
+            if request.selected_option_id is not None:
+                if request.text is not None or request.selected_option_id not in {
+                    item.id for item in interaction.options
+                }:
+                    raise ApiProblem(400, "INVALID_OPTION")
+                return {"choice": request.selected_option_id}
+            return {"text": safe_text(request.text, numeric_field=True)}
         if task.module == "subscription":
             # S02: the module disambiguates by subscription id, or by the merchant the
             # user named in their own words.

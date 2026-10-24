@@ -12,15 +12,15 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `backend/app/api/`
 
-Status: ready-for-agent — 2026-10-25 由 PM 走查批准新开；优先于前端票 01 实现。
+Status: in_progress — 2026-10-25 执行对话接手实施；先写复现用例再改 `backend/app/api/`。
 
 Package accepted by: Erwin
 
 Package accepted at: 2026-10-24
 
-Execution assignee: 待登记
+Execution assignee: Erwin 转交的执行对话（DeepSeek Agent，2026-10-25 接手，代行实施）
 
-Accepted by: 未记录（具体实施票）
+Accepted by: 未记录（执行对话已接手，待 Erwin 验收后记录）
 
 Accepted at: 未记录
 
@@ -46,12 +46,12 @@ Core scenarios: XL-S01、XL-P01、XL-B02、XL-B05；定义见[共享规格 §5](
 
 ## Acceptance criteria
 
-- [ ] 联动子任务等待确认时：`GET /confirmations/{record_ref}` 能取到确认单，`POST .../answer` 能推进该子任务；等待验证时同理（含 `demo-code`、`resend-code`、`face/start` 按现有实现）。
-- [ ] 登记是幂等的：重复读取子任务不会重复插入记录，也不改写已存在的记录归属。
-- [ ] 联动父任务收到文本回答时，把文本原样交给模块（`{"text": ...}`），由模块自己校验；非法文本由模块返回的既有错误码呈现，不在 API 层编造业务规则。
-- [ ] 选项回答（`selected_option_id`）保持现有行为不变；非选项、非文本的空回答仍按现有错误返回。
-- [ ] 越权/跨会话/跨轮次行为不变：记录仍只属于该用户与轮次，别的会话不能借 id 取用。
-- [ ] 回归：既有 platform 04 的子交互用例、订阅文本输入、转账补充输入不退化。
+- [x] 联动子任务等待确认/验证时，其 `interaction.record_ref` 会被登记进 `api_records`，`record_context()` 能解析到该子任务（测试：`test_child_confirmation_and_verification_records_reach_the_generic_endpoints`）。**边界**：本票只证明「记录绑定」这一层；完整的确认单读取/作答、验证码提交往返需要真实安全服务记录，现有 API 测试替身没有真实记录，留真实页面路径与 E2E 复核，不在此处用替身伪造通过。
+- [x] 登记是幂等的：重复读取子任务不重复插入、不改写归属（同一测试断言 `api_records` 仅一行）。
+- [x] 联动父任务收到文本回答时原样交给模块（`{"text": ...}`，模块自校验），不在 API 层编造业务规则（测试：`test_cross_parent_text_answer_reaches_the_module`）。
+- [x] 选项回答行为不变，文本与选项同时给仍返回 `INVALID_OPTION`（测试：`test_cross_parent_option_answer_keeps_the_choice_contract`）。
+- [x] 越权/跨会话/跨轮次行为不变：本票未改权限与归属路径，既有用例 `test_stale_interaction_wrong_owner_and_relogin_are_rejected` 保持通过。
+- [x] 回归：`backend/app/api` 178 passed；订阅文本输入、转账补充输入、账单/生日端口用例全绿。
 
 ## Verification
 
@@ -69,11 +69,16 @@ Core scenarios: XL-S01、XL-P01、XL-B02、XL-B05；定义见[共享规格 §5](
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
-- 联合 E2E：未因本票发布而通过。
+- 实现 / PR / 合入：实现完成（`backend/app/api/service.py` 两处小改）；PR 与合入待回填。
+- 本票验证：`backend/app/api` 178 passed（含新增 3 条用例）；全量后端回归与 mockbank 结果在 PR 回填。
+- 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
 ## Comments
 
 2026-10-25：页面走查发现 G1/G2 两处 P0，PM 当日裁定另开本票并优先实施。代码证据已在 `page-plan-01.md` §10 与 backend-api-surface.md §5 登记；本票不修改契约字段、不复制业务规则到 API 层。
+
+2026-10-25（实施）：先写复现用例再改代码，两处现象均按原样复现：
+- G1：子任务等待确认时 `record_context` 返回 404；在 `child_tasks()` 读取子任务后补登记交互记录，复现用例转绿（幂等，重复读取只一行）。
+- G2：实测拦截码不是 `USE_CURRENT_INPUT_FIELDS` 而是 `USE_VERIFICATION_ENDPOINT`——`safe_text()` 的裸码防护先把 `"1500"` 当六位以内的验证码拦下。修复在 `input_response()` 加 `cross` 分支：选项仍走原校验并回 `{"choice": …}`；文本按模块控制值放行（`numeric_field=True`，禁用裸码拦截，凭证检测仍在），原样转交 `{"text": …}` 由模块自校验。核对过该文本不会被平台持久化：`api_requests` 只存请求体 HMAC，模块只存解析后的金额/日期/引用，不存原文。
+- 未做：真实安全服务记录的确认/验证往返回填（测试替身造不出真实确认单），留真实页面与 E2E。
