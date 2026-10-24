@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 阶段承接）
 
 Directory: `backend/app/modules/cross/`
 
-Status: blocked — 等待本组 01 和安全 01；平台 07 银行能力已交付，不能据此代替安全执行接入。
+Status: delivered — 已合入（PR #274，squash 4a5d25c，2026-10-24）；生日写动作经 birthday_ports 接缝交平台 09 真实装配，接缝缺口与余项见交付记录。
 
 Package accepted by: Erwin
 
@@ -73,8 +73,9 @@ Core scenarios: XL-B01—B07；定义见[共享规格 §5](../../v05-cross-linka
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。PR [#274](https://github.com/DrErwin/hackerthon-bank-agent/pull/274)（squash 4a5d25c，2026-10-24）。前置安全 01（#272）与平台 10（#273）合入后实施；子代理初轮审查 FAIL（B1 自由文本绕过未知态重复冻结、B2 回查错绑订单重复付款，均真实接缝探针复现；M1—M4 基线/超预算时机/预算标识/覆盖），全部修复后复审 PASS-with-notes，合入前必修 N1（requery 协议签名）/N2（回查占用超限镜像处理）已修并各补断言。
+- 本票验证：`app/modules/cross/` 43 项全绿（票 03 新增 18 项）：B01 冻结500/付199+268/释放33、B02 缺引用拒绝/超预算零写入/只要花、B03 涨价重报价+超冻结拒绝/不可购跳过、B04 付199退301/下单失败不付款、B05 冻结/下单/付款未知沿原编号回查+文本不绕过+回查后额度被占的镜像处理、B06 取消全退/付后部分完成/释放未知待处理/BLOCK 零写入/D1 冲突与自有世系、B07 用户+月份共享预算串行接缝。生日写动作为脚本化 ports（真实安全门+网关装配属平台 09）。
+- 余项（如实登记，不由本票代做）：CrossStartInput 携带的 budget_ref/budget_fen/deliver_by/delivery_ref 尚未接线（已采用预算引用/改版语义，交平台 09 装配或后续票）；budget_version 恒 1；B04 自然走完状态口径（succeeded vs 用户结束 partial）与"释放失败"细分留 E2E 对表；n1（ports 工厂 None 上下文）/n4（生日门应答重复保存）转平台 09 接线时顺手处理；无配送路径因银行 CreateOrderInput.delivery 必填而移除，属银行契约与到店类商品的接缝缺口。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 

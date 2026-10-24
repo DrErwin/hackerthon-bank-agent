@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 阶段承接）
 
 Directory: `backend/app/modules/cross/`
 
-Status: in_review — PR #268 审查通过（初轮 FAIL 四项 major 已修复，复审 PASS-with-notes 且 N1/N2 已处理）；本地 81 passed，CI 因 GitHub 账户计费问题未跑成，待计费恢复确认 CI 绿后合入。
+Status: delivered — 已合入（PR #268，squash 9d4386e，2026-10-24；CI 因账户计费故障全局未跑成，按 #272/#273 同口径凭本地全量证据合入）。
 
 Package accepted by: Erwin
 
@@ -70,8 +70,8 @@ Core scenarios: XL-P01—P06、X02—X05；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：PR [#268](https://github.com/DrErwin/hackerthon-bank-agent/pull/268)（已重定基 main）。子代理初轮审查 FAIL（F1 刷新死代码/F2 重试死循环/F3 失败不暂停/F4 退订依赖未实现，均实证复现），全部修复后复审 PASS-with-notes，遗留 N1/N2 已处理；待 CI（当前因 GitHub 账户计费无法启动，非代码原因）绿后合入。
-- 本票验证：`app/modules/cross/` 25 项全绿（票 02 新增 12 项：P01—P06 各 1—2 项、X03 冲突、超额拒绝、F1 刷新拦截、F2 重试恢复、F3 失败暂停）；连同订阅回归 81 passed。账单明细/收款人为契约形状替身（缺口同票 01 登记）。
+- 实现 / PR / 合入：已合入。PR [#268](https://github.com/DrErwin/hackerthon-bank-agent/pull/268)（squash 9d4386e）。子代理初轮审查 FAIL（F1 刷新死代码/F2 重试死循环/F3 失败不暂停/F4 退订依赖未实现，均实证复现）全部修复后复审 PASS-with-notes，N1/N2 小修一并入。期间一次误推事故（并发会话切走共享工作区致远程分支被推平、PR 被自动关闭）已当日恢复分支并重开 PR，未影响代码内容。
+- 本票验证：`app/modules/cross/` 25 项全绿（票 02 新增 12 项：P01—P06、X03 冲突、超额拒绝、F1 刷新拦截、F2 重试恢复、F3 失败暂停）；连同订阅回归 81 passed。账单明细/收款人为契约形状替身（缺口同票 01 登记）。P04 语义以失败退订在采用单如实列出并要求显式继续实现（见票据评论与 PR 审查记录）。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
