@@ -7,6 +7,7 @@
 
 | 日期 | 交付 | 提交 / 证据 | 边界与未做 |
 |---|---|---|---|
+| 10-24 | **联动平台底座七票实施**（v05-cross-platform 01/02/03/04/06/07/08） | PR [#256](https://github.com/DrErwin/hackerthon-bank-agent/pull/256)/[#257](https://github.com/DrErwin/hackerthon-bank-agent/pull/257)/[#258](https://github.com/DrErwin/hackerthon-bank-agent/pull/258)/[#259](https://github.com/DrErwin/hackerthon-bank-agent/pull/259)/[#260](https://github.com/DrErwin/hackerthon-bank-agent/pull/260)+[#261](https://github.com/DrErwin/hackerthon-bank-agent/pull/261)/[#262](https://github.com/DrErwin/hackerthon-bank-agent/pull/262)/[#263](https://github.com/DrErwin/hackerthon-bank-agent/pull/263)（均 CI 绿）。公共模型+契约 §5.4 修订；应用库 v5（父子关系/D1 资金安排原子接缝/预算占用串行/受控资料）；受控子任务派发与恢复+D1 普通转账提交前暂停（银行零写入）；通用 children 端点；银行库 v4 原子对象+核销流水对手方回填；B10—B13/B20—B22 服务与网关默认拒绝写入+响应丢失故障；F36 配送受控录入。每票子代理审查（发现的 2 个必须项均已修复复测）+票面回交 | 票 05/09 阻塞于 v05-cross-business（未代写）；D1 错误呈现 source/field 偏差待转账负责人适配；Ringo 安全审查、前端接入、E2E、真人签核未做；合入前后端全量 1469 passed |
 | 10-24 | 联动后续工作交接 | [执行交接](../../../.scratch/v05-cross-platform/handoff.md)：补齐票一收口步骤、九票顺序、跨包开始条件、决策分工及可转交指令 | 交接文档已准备；未代执行者接票，未实施代码或运行 E2E |
 | 10-24 | 联动票 01 约定裁定材料 | [裁定稿](../../../.scratch/v05-cross-platform/01-decision.md)、[字段与样例](../../../.scratch/v05-cross-platform/01-contract-detail.md)；源码核对确认复用部分完成状态及配送 F36 | Erwin 已确认 D1/D2 业务规则，具体契约及必要安全确认仍待完成；未实现公共模型、未运行模型测试/E2E，不代表开发票完成 |
 | 10-24 | 第一个联动包接包与九票细化 | Erwin 本人明确接受；[执行交接](../../../.scratch/v05-cross-platform/handoff.md)与九票增加输入输出、边界及验证步骤 | 公共约定/安全审阅待确认；具体执行者由 Erwin 指派；代码和 E2E 未启动 |
@@ -23,7 +24,7 @@
 
 | 事项 | 负责人 | 状态 |
 |---|---|---|
-| 跨场景联动：业务能力、评测与前端接入 | 周恩宇（业务）、梁爽/六水（前端）；公共及模拟银行依赖 Erwin，安全 Ringo | **规格、六包及 21 张规划票已发布，实施未开工**。PM 已确认减支→养老金→生日的联调顺序；Erwin 已接第一个包并细化九票；待公共约定收口、具体执行指派及其他包接包。三个场景 E2E 均缺实现，生日另缺生活服务及冻结资金能力 |
+| 跨场景联动：业务能力、评测与前端接入 | 周恩宇（业务）、梁爽/六水（前端）；公共及模拟银行依赖 Erwin，安全 Ringo | **平台底座包 9 票中 7 票已合入**（公共模型/存储/派发/API/银行/配送，见上表）；票 05/09 与真实联动装配阻塞于 v05-cross-business 包（未接未实施）；安全/前端/业务/E2E/银行专项五包未接。三个场景 E2E 均缺实现，生日另缺业务编排接入（银行能力已具备） |
 | 生产检测器装配（[#160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)） | Ringo / 平台 | v0.4 起 deferred，未做 |
 | 安全样例扩充（[#215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)） | Ringo | 首批 56 条已提交；**PM 2026-10-24 决定只扩充样例、不再做候选模型比较** |
 | 200% 缩放、完整读屏、真机软键盘 | 前端 | 未做 |
@@ -32,7 +33,7 @@
 
 ## 三、验收标准进度
 
-1. **既有业务与三个联动目标的正常及关键异常 E2E**：转账、账单、订阅已在 v0.4 验证（含例外）；三个生活目标的 PRD 与用例设计已重写，**联动实现及 E2E 未开始，本条未达成**。
+1. **既有业务与三个联动目标的正常及关键异常 E2E**：转账、账单、订阅已在 v0.4 验证（含例外）；联动平台底座（公共模型/存储/派发/API/银行/配送）已合入但业务编排与页面未接，三主线 E2E 未开始，**本条未达成**。
 2. **安全评测证明确认、权限、注入防御和隐私边界**：离线全量 20 Passed / 0 Failed / 337 Blocked、真实模型批次 A 24 轮、页面回归 24/24 已有证据；批次 B/C 解门验证与安全侧真人复核仍缺，**部分达成**。
 3. **演示环境可重置、结果可重复**：本机演示库可重置，证据按票归档；尚未形成独立的"可重置 + 可重复"验收记录，**部分达成**。
 4. **已知限制和遗留问题有明确记录**：v0.4 例外 E1—E10 与本页剩余项均已登记，**达成**。
@@ -44,5 +45,6 @@
 
 ## 五、验证状态
 
+- 2026-10-24（联动平台底座七票）：分票验证——contracts 81、storage 38（应用库 31+银行库 38 分列计 37+新增）、agent_platform 238、api 175、services 59 passed；#258 合入前后端全量 `1460 passed`、#260/#262 期间全量 `1469 passed`；PR #256—#263 CI 全绿。
 - 2026-10-23（#254 rebase 后、推送前）：后端 `1431 passed / 0 failed`、mockbank `14 passed`、前端 `70 passed`、`npm run build` 通过、链接与空白检查通过；#253/#254 的 PR CI 与 main 推送 CI 均绿。
 - 本轮验证为 AI 代行执行与整理，**不是真人审查、不是 Ringo 专业安全签核**；用户最终体验验收与 200% 缩放/读屏未做。
