@@ -161,6 +161,9 @@ class ScriptedPorts:
         return self.bank.transactions(context, account_id, start_at, end_at)
 
     def check_cancel(self, context, plan, *, revision=None):
+        if plan.mandate_id in getattr(self.bank, "blocked_mandates", ()):
+            return GateAnswer(decision=SecurityDecisionCode.BLOCK,
+                              reason_code="HIGH_RISK", operation_id=str(uuid4()))
         state = self.gate_states.get(context.task_id)
         if state is None:
             interaction = InteractionRequest(

@@ -12,10 +12,11 @@ inside the child task: adopting a plan approves nothing by itself.
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from hashlib import sha256
 from uuid import uuid4
 
+from app.contracts.bank import SavedPayee
 from app.contracts.bills import BillScope, BillSummarizeInput
 from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossScenario, CrossStartInput
@@ -26,8 +27,9 @@ from app.contracts.tasks import (
 )
 
 from . import plan
+from .plan import money, month_range
+from .pension import PensionFlow
 
-BEIJING = timezone(timedelta(hours=8))
 _CHANNEL = "cross_state"
 _TERMINAL = {"succeeded", "failed", "cancelled", "partially_succeeded"}
 
@@ -36,26 +38,14 @@ _EXPENSE_WORDS = ("减支", "减少", "省钱", "省一点", "不用的", "不�
 _PENSION_WORDS = ("养老金", "退休金", "生活费安排", "每月安排", "工资安排")
 _BIRTHDAY_WORDS = ("生日", "过生", "祝寿", "寿宴")
 
-SUPPORTED = (("减少不用的开销（查签约、逐项退订）", CrossScenario.EXPENSE_REDUCTION),)
+SUPPORTED = (
+    ("减少不用的开销（查签约、逐项退订）", CrossScenario.EXPENSE_REDUCTION),
+    ("安排本月养老金（明确资金范围与留存，逐笔转账）", CrossScenario.MONTHLY_ARRANGEMENT),
+)
 
 _CATEGORY_LABELS = {"dining": "餐饮", "transport": "交通", "medical": "医疗",
                     "shopping": "购物", "housing": "居住", "transfer": "转账",
                     "other": "其他"}
-
-
-def money(fen: int) -> str:
-    return f"{fen / 100:.2f}"
-
-
-def month_range(now: datetime, months_ago: int) -> tuple[datetime, datetime]:
-    """One complete calendar month in Beijing time, counted back from ``now``."""
-
-    local = now.astimezone(BEIJING)
-    index = local.year * 12 + local.month - 1 - months_ago
-    next_index = index + 1
-    start = datetime(index // 12, index % 12 + 1, 1, tzinfo=BEIJING)
-    end = datetime(next_index // 12, next_index % 12 + 1, 1, tzinfo=BEIJING)
-    return start, end
 
 
 def _actor(context: TrustedContext) -> tuple[str, str, str]:
@@ -76,8 +66,6 @@ def infer_scenario(goal: str) -> CrossScenario | None:
 
 
 def _unsupported_note(scenario: CrossScenario | None) -> str:
-    if scenario is CrossScenario.MONTHLY_ARRANGEMENT:
-        return "养老金安排还在准备中（本组票 02），暂时不能办理。"
     if scenario is CrossScenario.BIRTHDAY:
         return "生日办理需要先接通安全执行能力（安全组票 01），暂时不能办理。"
     return ""
@@ -213,13 +201,29 @@ class CrossEntry:
     def _new_state(self, trusted, request_id: str, goal: str, digest: str,
                    scenario: CrossScenario | None) -> dict:
         inferred = scenario or infer_scenario(goal)
-        if inferred is None or inferred is not CrossScenario.EXPENSE_REDUCTION:
+        if inferred is None or inferred not in (
+                CrossScenario.EXPENSE_REDUCTION, CrossScenario.MONTHLY_ARRANGEMENT):
             # Nothing is decided for an unsupported or ambiguous goal; the user
             # picks from what this module can really run today.
             return {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
                     "request_id": request_id, "goal_digest": digest, "goal": goal,
                     "scenario": None, "unsupported": inferred,
                     "choices": {}, "interaction_id": None, "result": None}
+        if inferred is CrossScenario.MONTHLY_ARRANGEMENT:
+            steps = [
+                {"step_id": "accounts", "action": "transfer.list_accounts", "kind": "read",
+                 "depends_on": []},
+                {"step_id": "subscriptions", "action": "subscription.list_subscriptions",
+                 "kind": "read", "depends_on": []},
+                {"step_id": "bills_details", "action": "bills.summarize", "kind": "read",
+                 "mode": "details", "depends_on": ["accounts"]},
+            ]
+            state = plan.new_state(trusted, request_id, inferred.value, digest, steps)
+            state["goal"] = goal
+            state["inventory"] = None
+            state["bills"] = None
+            state["pension"] = None
+            return state
         steps = [
             {"step_id": "accounts", "action": "transfer.list_accounts", "kind": "read",
              "depends_on": []},
@@ -262,6 +266,10 @@ class CrossEntry:
         if choice not in state.get("choices", {}):
             if response.get("text"):
                 # Free text names no target: menus are built from bank facts only.
+                # In the pension flow, typed numbers answer the current amount
+                # or funds-scope question; the program still verifies facts.
+                if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
+                    return PensionFlow(self, state).apply_text(trusted, response["text"])
                 return self._reask(trusted, state)
             raise ValueError("INVALID_OPTION")
         picked = state["choices"][choice]
@@ -269,9 +277,19 @@ class CrossEntry:
         state["interaction_id"] = None
         if state.get("scenario") is None:
             return self._choose_goal(trusted, state, picked)
+        if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
+            return PensionFlow(self, state).apply(trusted, picked)
         return self._apply_pick(trusted, state, picked)
 
     def _reask(self, trusted, state) -> ModuleResult:
+        if "steps" in state:
+            # A child still holding the plan's single response slot wins over a
+            # fresh menu: re-offering choices here could bump the plan revision
+            # and strand the in-flight confirmation (review note 1).
+            self._reconcile(state, trusted)
+            holding = plan.holding_step(state)
+            if holding is not None:
+                return self._holding_view(trusted, state, holding)
         if state.get("scenario") is None:
             return self._ask_goal(trusted, state)
         return self._ask_pick(trusted, state)
@@ -305,11 +323,16 @@ class CrossEntry:
         plan.reconcile(state, self.harness, trusted)
         self._record_outcomes(state)
 
+    def _advance_pension(self, trusted, state) -> ModuleResult:
+        return PensionFlow(self, state).advance(trusted)
+
     def _advance(self, trusted, state) -> ModuleResult:
         """Reconcile durable children, run what is ready, then ask or report."""
 
         if "steps" not in state:
             return self._ask_goal(trusted, state)  # no plan yet: clarify first
+        if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
+            return self._advance_pension(trusted, state)
         self._reconcile(state, trusted)
         self._collect_read_facts(state)
         holding = plan.holding_step(state)
@@ -366,6 +389,17 @@ class CrossEntry:
         action = step["action"]
         if action == "transfer.list_accounts":
             child_input = StartTransferInput(request_id=request_id, intent_text="查询本人账户")
+        elif action == "transfer.list_payees":
+            child_input = StartTransferInput(request_id=request_id, intent_text="查询保存的收款人")
+        elif action == "transfer.start_transfer":
+            child_input = StartTransferInput(
+                request_id=request_id,
+                intent_text=f"转给{step['payee_name']}（养老金安排第{step['step_id'].split(':')[1]}笔）",
+                payee=SavedPayee(kind="saved", payee_id=step["payee_id"]),
+                amount_fen=step["amount_fen"],
+                payer_account_id=(state.get("pension") or {}).get("payer"))
+            record["label"] = f"转给{step['payee_name']}"
+            record["amount_fen"] = step["amount_fen"]
         elif action == "subscription.list_subscriptions":
             child_input = SubscriptionListInput(request_id=request_id,
                                                 intent_text="盘点当前签约代扣")
@@ -374,12 +408,18 @@ class CrossEntry:
             ids = [item["account_id"] for item in account_ids]
             now = self.clock()
             scope_start, scope_end = month_range(now, 1)
-            compare_start, compare_end = month_range(now, 2)
-            child_input = BillSummarizeInput(
-                scope=BillScope(account_ids=ids, start_at=scope_start, end_at=scope_end),
-                comparison_scope=BillScope(account_ids=ids, start_at=compare_start,
-                                           end_at=compare_end),
-                mode="summary")
+            if step.get("mode") == "details":
+                scope_start, scope_end = month_range(now, 0)
+                child_input = BillSummarizeInput(
+                    scope=BillScope(account_ids=ids, start_at=scope_start, end_at=scope_end),
+                    mode="details")
+            else:
+                compare_start, compare_end = month_range(now, 2)
+                child_input = BillSummarizeInput(
+                    scope=BillScope(account_ids=ids, start_at=scope_start, end_at=scope_end),
+                    comparison_scope=BillScope(account_ids=ids, start_at=compare_start,
+                                               end_at=compare_end),
+                    mode="summary")
         elif action == "subscription.cancel_subscription":
             item = self._inventory_item(state, step["subscription_id"])
             child_input = SubscriptionCancelInput(
@@ -462,7 +502,7 @@ class CrossEntry:
 
     # ------------------------------------------------------------------ picking
 
-    def _ask_pick(self, trusted, state) -> ModuleResult:
+    def _ask_pick(self, trusted, state, *, pension_mode: bool = False) -> ModuleResult:
         done = set(self._already_cancelled(state))
         remaining = [item for item in self._cancellable(state)
                      if item["subscription_id"] not in done]
@@ -484,16 +524,20 @@ class CrossEntry:
             choices.append((label, {"kind": "cancel_item",
                                     "subscription_id": item["subscription_id"]}))
         if state["receipts"] or state["unknown"]:
-            choices.append(("保留其余项目，出总回执", {"kind": "finish"}))
+            choices.append(("保留其余项目，出总回执" if not pension_mode else
+                            "退订到这里，继续安排资金", {"kind": "finish"}))
         else:
-            choices.append(("都不退，保留全部", {"kind": "finish"}))
+            choices.append(("都不退，直接安排资金" if pension_mode else "都不退，保留全部",
+                            {"kind": "finish"}))
         if remaining:
-            if not state["receipts"]:
+            if not state["receipts"] and not pension_mode:
                 lines.append("想退订的项目请逐项选择；每项退订前还会有一次确认。")
             prompt = "\n".join(lines)
             asked = self._ask(trusted, state, prompt, choices)
             return asked.model_copy(update={"data": plan.build_view(state, prompt)})
         if state["receipts"] or state["unknown"]:
+            if pension_mode:
+                return self._advance_pension(trusted, state)
             return self._receipt(trusted, state)
         extra = []
         if suspected:
@@ -505,6 +549,12 @@ class CrossEntry:
                           "\n".join(lines + extra + ["当前没有可在线退订的签约。"]))
 
     def _evidence_line(self, state: dict) -> str:
+        accounts_record = plan.step_state(state, "accounts")
+        if accounts_record.get("status") is TaskStatus.FAILED:
+            # bills depends on accounts: with accounts failed it never runs, and
+            # saying "still querying" would be untrue (review note 3).
+            return ("本人账户暂时查不到，账单对比本次不可用；"
+                    "以下结论只基于签约盘点。")
         bills = state.get("bills")
         if bills is None:
             return "账单对比还在查询中。"
@@ -520,6 +570,10 @@ class CrossEntry:
 
     def _apply_pick(self, trusted, state, picked: dict) -> ModuleResult:
         if picked["kind"] == "finish":
+            if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
+                if isinstance(state.get("pension"), dict):
+                    state["pension"]["phase"] = "basis"
+                return self._advance_pension(trusted, state)
             return self._receipt(trusted, state)
         if picked["kind"] != "cancel_item":
             raise ValueError("INVALID_OPTION")
@@ -534,6 +588,86 @@ class CrossEntry:
         return self._advance(trusted, state)
 
     # ----------------------------------------------------------------- closeout
+
+    def _pension_summary_lines(self, state: dict) -> tuple[list[str], int, bool]:
+        """Shared receipt facts: per-transfer truth, cancels, retained amount."""
+
+        pension = state.get("pension") or {}
+        lines, transferred, unknown = [], 0, False
+        for step in state["steps"]:
+            if not step["step_id"].startswith("transfer:"):
+                continue
+            record = plan.step_state(state, step["step_id"])
+            amount, name = step.get("amount_fen", 0), step.get("payee_name", "")
+            status = record.get("status")
+            if status is TaskStatus.SUCCEEDED:
+                transferred += amount
+                lines.append(f"已转给 {name} {money(amount)} 元。")
+            elif status is TaskStatus.NEEDS_ATTENTION:
+                unknown = True
+                lines.append(f"转给 {name} {money(amount)} 元的结果待核实"
+                             f"（原任务 {(record.get('child_task_id') or '')[:8]}…），"
+                             "核实前不继续其他转账。")
+            elif status is TaskStatus.FAILED:
+                lines.append(f"转给 {name} {money(amount)} 元没有办成"
+                             f"（{record.get('message') or '转账模块返回失败'}），"
+                             "后续转账已暂停。")
+        for receipt in state["receipts"]:
+            cycle = "每月" if receipt["cycle"] == "monthly" else "每年"
+            lines.append(f"已退订 {receipt['service_name']}：{money(receipt['amount_fen'])}元/{cycle}，"
+                         f"自 {receipt['effective_stop_at']} 起不再自动扣费。")
+        if pension.get("base_fen") is not None:
+            debits = self._known_debits_fen(state) if pension.get(
+                "includes_debits") is False else 0
+            protected = (pension.get("reserve_fen") or 0) + debits
+            retained = pension["base_fen"] - protected - transferred
+            note = (f"（留存之外已保护未来代扣 {money(debits)} 元）" if debits else "")
+            lines.append(f"资金范围 {money(pension['base_fen'])} 元；留存 "
+                         f"{money(pension.get('reserve_fen') or 0)} 元{note}；"
+                         f"已转出 {money(transferred)} 元；未转出留在账户 "
+                         f"{money(retained)} 元。")
+        return lines, transferred, unknown
+
+    @staticmethod
+    def _known_debits_fen(state: dict) -> int:
+        """Live known-debits total, same calibration as the adopted view (N2)."""
+
+        settled = ({receipt["subscription_id"] for receipt in state.get("receipts", [])}
+                   | {entry["subscription_id"] for entry in state.get("unknown", [])})
+        return sum(item.get("amount_fen", 0)
+                   for item in (state.get("inventory") or [])
+                   if item.get("status") == "active"
+                   and item.get("source_type") == "mandate"
+                   and item.get("can_cancel_in_bank")
+                   and item.get("subscription_id") not in settled)
+
+    def _receipt_pension(self, trusted, state, *, stopped: bool = False) -> ModuleResult:
+        lines, transferred, unknown = self._pension_summary_lines(state)
+        pension = state.get("pension") or {}
+        if unknown:
+            # D2: an unsettled write keeps the whole arrangement open.
+            return self._view(trusted, state,
+                              "已停止新增办理，资金仍待核实：\n" + "\n".join(lines) +
+                              "\n未知笔核实前，本账户的资金安排不解除。")
+        succeeded_any = bool(transferred) or bool(state["receipts"])
+        if stopped:
+            status = TaskStatus.PARTIALLY_SUCCEEDED if succeeded_any else TaskStatus.CANCELLED
+            head = "部分完成，后续已停止：" if succeeded_any else "已停止办理。"
+            if succeeded_any:
+                lines.append("您叫停后，未办理的转账都没有提交。")
+            return self._done(trusted, state, status, head + "\n".join(lines))
+        lines.append("本次安排的转账已全部办完，资金安排已解除。")
+        return self._done(trusted, state, TaskStatus.SUCCEEDED, "\n".join(lines))
+
+    def _close_arrangement_if_any(self, state: dict) -> None:
+        pension = state.get("pension") or {}
+        if pension.get("arrangement_id"):
+            try:
+                self.harness.application.close_arrangement(
+                    state["actor"][0], state["actor"][1], pension["arrangement_id"])
+            except ValueError:
+                pass  # already closed or superseded; the bank facts remain the truth
+            pension["arrangement_id"] = None
 
     def _closeout(self, trusted, state, *, stop_reason: str) -> ModuleResult:
         """Stop everything not executed; keep real outcomes (D2)."""
@@ -556,6 +690,14 @@ class CrossEntry:
                 self._reconcile(state, trusted)
         self._reconcile(state, trusted)
         self._collect_read_facts(state)
+        if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
+            lines, _transferred, unknown = self._pension_summary_lines(state)
+            if unknown:
+                return self._view(trusted, state,
+                                  "已停止新增办理，资金仍待核实：\n" + "\n".join(lines) +
+                                  "\n未知笔核实前，本账户的资金安排不解除。")
+            self._close_arrangement_if_any(state)
+            return self._receipt_pension(trusted, state, stopped=True)
         if state["receipts"]:
             return self._receipt(trusted, state, stopped=True)
         return self._done(trusted, state, TaskStatus.CANCELLED,
@@ -598,6 +740,7 @@ class CrossEntry:
     def _record_outcomes(self, state: dict) -> None:
         """Move finished cancel children into receipts / unknown bookkeeping."""
 
+        self._reclassify_unknown(state)
         for step in state["steps"]:
             if not step["step_id"].startswith("cancel:"):
                 continue
@@ -616,6 +759,7 @@ class CrossEntry:
                     state["receipts"].append({
                         "subscription_id": subscription_id,
                         "service_name": item.get("service_name") or receipt.get("service_name"),
+                        "merchant_name": item.get("merchant_name") or receipt.get("merchant_name"),
                         "amount_fen": receipt.get("amount_fen"),
                         "cycle": receipt.get("cycle"),
                         "effective_stop_at": (stop[:10] if isinstance(stop, str) else stop),
@@ -629,6 +773,42 @@ class CrossEntry:
                     "service_name": item["service_name"],
                     "child_task_id": record.get("child_task_id"),
                 })
+
+    @staticmethod
+    def _reclassify_unknown(state: dict) -> None:
+        """An unknown cancel that later resolved keeps its verified truth (review note 2).
+
+        A re-verified success becomes a receipt; a settled failure or cancellation
+        stops being reported as pending. Conservatism is for unsettled facts only.
+        """
+
+        still_unknown = []
+        for entry in state["unknown"]:
+            step = next((s for s in state["steps"]
+                         if s.get("subscription_id") == entry["subscription_id"]), None)
+            record = plan.step_state(state, step["step_id"]) if step else {}
+            status = record.get("status")
+            if status is TaskStatus.SUCCEEDED and isinstance(record.get("result"), dict):
+                operation = (record["result"].get("operation") or {})
+                receipt = operation.get("receipt") or {}
+                item = record["result"].get("selected_item") or {}
+                if receipt and item and entry["subscription_id"] not in {
+                        r["subscription_id"] for r in state["receipts"]}:
+                    stop = receipt.get("effective_stop_at")
+                    state["receipts"].append({
+                        "subscription_id": entry["subscription_id"],
+                        "service_name": item.get("service_name") or receipt.get("service_name"),
+                        "merchant_name": item.get("merchant_name") or receipt.get("merchant_name"),
+                        "amount_fen": receipt.get("amount_fen"),
+                        "cycle": receipt.get("cycle"),
+                        "effective_stop_at": (stop[:10] if isinstance(stop, str) else stop),
+                        "child_task_id": record.get("child_task_id"),
+                    })
+                continue
+            if status in (TaskStatus.NEEDS_ATTENTION, None):
+                still_unknown.append(entry)
+            # FAILED / CANCELLED: dropped from unknown — already refused, never pending.
+        state["unknown"] = still_unknown
 
     # --------------------------------------------------------------- entry seams
 

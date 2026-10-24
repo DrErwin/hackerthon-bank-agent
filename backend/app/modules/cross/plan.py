@@ -10,6 +10,26 @@ not in how a plan advances, pauses, resumes or closes out.
 
 from __future__ import annotations
 
+
+from datetime import datetime, timedelta, timezone
+
+BEIJING = timezone(timedelta(hours=8))
+
+
+def money(fen: int) -> str:
+    return f"{fen / 100:.2f}"
+
+
+def month_range(now: datetime, months_ago: int) -> tuple[datetime, datetime]:
+    """One complete calendar month in Beijing time, counted back from ``now``."""
+
+    local = now.astimezone(BEIJING)
+    index = local.year * 12 + local.month - 1 - months_ago
+    next_index = index + 1
+    start = datetime(index // 12, index % 12 + 1, 1, tzinfo=BEIJING)
+    end = datetime(next_index // 12, next_index % 12 + 1, 1, tzinfo=BEIJING)
+    return start, end
+
 from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossStep, CrossTaskView
 
@@ -62,7 +82,7 @@ def add_step(state: dict, step: dict) -> None:
 
 
 def step_state(state: dict, step_id: str) -> dict:
-    return state["step_state"][step_id]
+    return state["step_state"].get(step_id, {})
 
 
 def deps_met(state: dict, step: dict) -> bool:
