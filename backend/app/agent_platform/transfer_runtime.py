@@ -402,9 +402,13 @@ class TransferRuntime:
         # module nor authorize that module's bank write.
         self.subscription = None
         self.authorize_cancel: Callable[..., bool] | None = None
+        # v05-cross-platform/09: the birthday wiring (BirthdayRuntime) attaches
+        # its live-claim authorizer here; unwired stays deny-all at the gateway.
+        self.birthday = None
         self.gateway = BankGateway(
             bank, authorize_transfer=self._authorize_bank, authorize_face=authorize_face,
             authorize_cancel=self._authorize_bank_cancel,
+            authorize_birthday=self._authorize_birthday,
         )
         self.payee_references = ControlledPayeeReferences(
             self.snapshots, self._verify_controlled_payee, self._task,
@@ -555,6 +559,13 @@ class TransferRuntime:
             and _PAYEE.validate_python(payload["payee"]) == payee
             and payload["amount_fen"] == amount_fen
         )
+
+    def _authorize_birthday(self, *args):
+        # Unwired stays deny-all at the gateway; BirthdayRuntime attaches the
+        # live-claim authorizer (v05-cross-platform/09).
+        if self.birthday is None:
+            return False
+        return self.birthday.authorize_birthday(*args)
 
     def _authorize_bank(self, *args) -> bool:
         try:
