@@ -12,7 +12,7 @@ inside the child task: adopting a plan approves nothing by itself.
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from hashlib import sha256
 from uuid import uuid4
 
@@ -27,7 +27,7 @@ from app.contracts.tasks import (
 )
 
 from . import plan
-from .plan import BEIJING, money, month_range
+from .plan import money, month_range
 from .pension import PensionFlow
 
 _CHANNEL = "cross_state"
