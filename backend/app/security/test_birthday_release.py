@@ -393,6 +393,11 @@ def test_normal_ending_releases_only_the_remainder(tmp_path):
     outcome = rig.finalizer.finalize(rig.ending_context(authorization), "user_cancelled")
     assert outcome.status == "released"
     assert outcome.released_amount_fen == 50000 - 19900
+    assert outcome.remaining_fen == 0
+    assert outcome.consumed_total_fen == 19900
+    assert "已消费 199.00 元" in outcome.decision.message
+    assert "已释放 301.00 元" in outcome.decision.message
+    assert "仍冻结 0.00 元" in outcome.decision.message
     assert outcome.authorization.status == "completed"
     row = rig.bank.store.get_freeze("U1", freeze_id)
     assert row["original_amount_fen"] - row["captured_total_fen"] - row["released_total_fen"] == 0
@@ -462,6 +467,8 @@ def test_zero_remainder_completes_without_a_release_write(tmp_path):
     outcome = rig.finalizer.finalize(rig.ending_context(authorization), "security_stop")
     assert outcome.status == "nothing_to_release"
     assert outcome.authorization.status == "completed"
+    assert outcome.consumed_total_fen == 50000
+    assert "已消费 500.00 元" in outcome.decision.message
     assert rig.bank_calls == []
     from app.storage.database import connect
     with connect(rig.bank.store.path) as connection:

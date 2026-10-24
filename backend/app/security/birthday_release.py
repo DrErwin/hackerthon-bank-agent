@@ -64,7 +64,12 @@ class ReleaseOutcome:
     release_operation_id: UUID | None
     released_amount_fen: int | None
     remaining_fen: int | None
+    consumed_total_fen: int | None
     evidence_refs: list[str] = field(default_factory=list)
+
+
+def _yuan(fen: int) -> str:
+    return f"{fen / 100:.2f} 元"
 
 
 def grant_release_authorization(
@@ -304,6 +309,7 @@ class LimitedReleaseFinalizer:
         operation_id: UUID | None = None,
         released_amount_fen: int | None = None,
         remaining_fen: int | None = None,
+        consumed_total_fen: int | None = None,
         snapshot_ref: str | None = None,
         risk: RiskLevel | None = None,
         evidence_refs: list[str] | None = None,
@@ -331,6 +337,7 @@ class LimitedReleaseFinalizer:
             release_operation_id=operation_id,
             released_amount_fen=released_amount_fen,
             remaining_fen=remaining_fen,
+            consumed_total_fen=consumed_total_fen,
             evidence_refs=evidence_refs or [],
         )
 
@@ -673,6 +680,7 @@ class LimitedReleaseFinalizer:
                 evidence_refs=evidence,
             )
         remaining = facts.remaining_fen
+        consumed = facts.captured_total_fen
         if remaining == 0:
             try:
                 authorization = _update(
@@ -691,8 +699,13 @@ class LimitedReleaseFinalizer:
                 context, action, authorization, status="nothing_to_release",
                 code=SecurityDecisionCode.BLOCK, reasons=["ZERO_REMAINING_NO_RELEASE"],
                 rules=["zero-remaining-no-release"],
-                message="冻结余额为零，无需释放。",
-                remaining_fen=0, evidence_refs=evidence,
+                message=(
+                    f"冻结余额为零，无需释放：已消费 {_yuan(facts.captured_total_fen)}，"
+                    f"已释放 {_yuan(facts.released_total_fen)}，仍冻结 {_yuan(remaining)}。"
+                ),
+                remaining_fen=remaining,
+                consumed_total_fen=facts.captured_total_fen,
+                evidence_refs=evidence,
             )
         if remaining > authorization.max_amount_fen:
             return self._stop(
@@ -799,14 +812,24 @@ class LimitedReleaseFinalizer:
                     released_amount_fen=(receipt.released_amount_fen if receipt else None),
                     evidence_refs=evidence,
                 )
+            released_fen = receipt.released_amount_fen if receipt else None
+            receipt_remaining = receipt.remaining_fen if receipt else None
+            message = "已按限定授权释放未消费冻结余额。"
+            if receipt is not None:
+                message = (
+                    f"已按限定授权释放未消费冻结余额：已消费 {_yuan(consumed)}，"
+                    f"已释放 {_yuan(receipt.released_amount_fen)}，"
+                    f"仍冻结 {_yuan(receipt.remaining_fen)}。"
+                )
             return self._stop(
                 context, action, authorization, status="released",
                 code=SecurityDecisionCode.ALLOW, reasons=["SECURITY_CHECK_PASSED"],
                 rules=["limited-release-submitted-exact-remainder"],
-                message="已按限定授权释放未消费冻结余额。",
+                message=message,
                 operation_id=operation_id,
-                released_amount_fen=(receipt.released_amount_fen if receipt else None),
-                remaining_fen=(receipt.remaining_fen if receipt else None),
+                released_amount_fen=released_fen,
+                remaining_fen=receipt_remaining,
+                consumed_total_fen=consumed,
                 snapshot_ref=snapshot_ref, risk=RiskLevel.LOW,
                 evidence_refs=evidence + [str(operation_id)],
             )
