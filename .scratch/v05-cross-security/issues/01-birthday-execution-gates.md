@@ -91,14 +91,15 @@ Core scenarios: XL-B05—B07、X05—X08；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：实现完成于分支 `v05-security-01-birthday-gates`（基线 `fedce40`，仅 `backend/app/security/`）：`state.py` 新增 `FreezeReleaseAuthorization` 记录与持久化（表 `security_release_authorizations`，只增不改既有方法）；新模块 `birthday_policy.py`（冻结工具声明、MEDIUM/LOW 风险规则、§3.5 条款）与 `birthday_release.py`（授权授予、冻结结果绑定、限定收尾执行器、`authorize_birthday_write` 银行回调）。PR 见审查记录；合入状态以 PR 为准。
+- 实现 / PR / 合入：实现完成于分支 `feat/security/birthday-release-gates`（基线 `fedce40`，rebase 至 `2bfd687`，仅 `backend/app/security/`）：`state.py` 新增 `FreezeReleaseAuthorization` 记录与持久化（表 `security_release_authorizations`，只增不改既有方法）；新模块 `birthday_policy.py`（冻结工具声明、MEDIUM/LOW 风险规则、§3.5 条款）与 `birthday_release.py`（授权授予、冻结结果绑定、限定收尾执行器、`authorize_birthday_write` 银行回调）。[PR #272](https://github.com/DrErwin/hackerthon-bank-agent/pull/272)；CI 作业 0 步骤即失败，与 #268 相同的 GitHub 账户计费阻塞（非代码原因，已在 PR 留言并附本地等价验证）；合入状态以 PR 为准。
 - 本票验证：2026-10-24，`backend/.venv`。新增 `test_birthday_release.py`（27 条：授予 5、绑定 5（含冻结响应丢失按原编号绑定激活）、收尾 17（含旧轮次拒绝、任务状态读取失败））与 `test_birthday_policy.py`（购买路径 11：确认→中风险双因子→执行、冻结/下单/核销三动作全链路真实银行写入、未批零写入、参数篡改 CONFIRMATION_STALE、终止后仅限定收尾等），41 passed（真实 MockBankService + BankGateway 层）。回归：`app/security/` 424 passed；转账/订阅/审计（transfer、subscription、agent_platform runtime、audit）184 passed；后端全量 1538 passed（修复前基线，修复后 security 目录复跑 424 passed）。
 - AI 审查（子代理）：2026-10-24 完成一轮，结论"暂不可合入"：blocking 1（bind_freeze_result 不接受网关 get_operation 的 OperationFound 包装，冻结响应丢失后授权永远无法激活）+ major 2（end_reason 丢弃、收尾不核验当前轮次）+ minor 5。已全部修复：B-1 解包 OperationFound 并补"冻结响应丢失→finalize 回查绑定→释放恰一次"测试；M-1 end_reason 以 `end_reason:<原因>` 进入收尾裁决 evidence_refs（快照内关联由平台 09 装配，AuthorizationSnapshot 为冻结契约无该字段）；M-2 LimitedReleaseFinalizer 增加可选 `current_demo_round` 缝隙，记录轮次非当前轮即 STALE_ROUND 拒绝并附测试；minor：freeze_id 入 evidence_refs、下单/核销全链路测试、任务状态读取失败测试、删除未用参数；`claim_release_execution` 不自证授权有效（前置不变量在 finalizer，与 claim_execution 对确认的校验不对称）留作 Erwin 签核知悉项。
+- AI 复审（子代理，提交 04545ec/43c4200）：**结论"可合入"**——B-1 两条链（finalize 回查链与 bind 直传链）经独立复现脚本与真实链路测试验证；M-1 表示法可接受；M-2 缝隙设计正确；minor 全落实；复审独立复跑 新增 41 passed、security 424×3、回归 392 passed。遗留非阻塞 R-1/R-2 已随本票处理（R-1 依赖登记补"finalize 必须传 current_demo_round"；R-2 测试装备默认超时调大、仅响应丢失用例收紧），R-3 为复审撞上 rebase 中间态、已随 43c4200 解决。合入前待 Erwin 本人安全签核（含规则差异 5 点、end_reason 表示法、claim_release_execution 知悉项）。
 - 规则差异与决定：① `bank.release_frozen` 不注册为模型工具，模型发起的释放被 registered-tools-only 拒绝，仅受控收尾路径可释放；② 释放授权绑定 (user, session, round, task, account, freeze_operation_id, confirmation, max_amount)，状态机 pending_freeze→active/invalid、active→completed/invalid，篡改任何身份字段即 OPERATION_CONFLICT；③ 收尾前置：任务已结束（task_state_resolver=True）+ 本任务无 processing/unknown 在途 + B13 实时余额；余额 0 不提交零金额释放；余额超确认上限暂停不超额释放；④ 释放未知/失败仅沿原 operation_id 回查，不换号重做；⑤ 授权回调按（身份、操作编号、动作名、活跃 allow claim）绑定，参数绑定依赖银行同编号参数摘要与 claim 的 parameters_ref——回调不传参数是网关接口现状，如需回调级参数核对属网关/平台单目录补齐，已在模块 docstring 与 PR 说明登记。
 - Erwin 本人安全审阅：未取得（待 PR 审查时一并裁定上述 5 点）。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
-- 跨目录依赖登记：无新增公共缺口；平台 09 装配时将 `authorize_birthday_write(state)` 接入 BankGateway、在冻结确认作答后调 `grant_release_authorization`、冻结结果后调 `bind_freeze_result`、任务结束时调 `LimitedReleaseFinalizer.finalize`（网关 authorize_birthday 回调如需可见参数，回提供方单独补齐）。
+- 跨目录依赖登记：无新增公共缺口；平台 09 装配时将 `authorize_birthday_write(state)` 接入 BankGateway、在冻结确认作答后调 `grant_release_authorization`、冻结结果后调 `bind_freeze_result`、任务结束时调 `LimitedReleaseFinalizer.finalize`——**finalize 装配时必须传 `current_demo_round`**（缝隙可选，缺省 None 时旧轮次防护不生效，复审 R-1）；网关 authorize_birthday 回调如需可见参数，回提供方单独补齐。
 
 ## Comments
 

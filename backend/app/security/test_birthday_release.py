@@ -153,7 +153,7 @@ def approved_freeze_confirmation(
 class Rig:
     """Real bank + gateway + security state wired for release acceptance."""
 
-    def __init__(self, tmp_path, *, ended=True):
+    def __init__(self, tmp_path, *, ended=True, gateway_timeout_seconds=2.0):
         self.clock = Clock()
         self.path = tmp_path / "application.sqlite3"
         self.state = SQLiteSecurityState(self.path)
@@ -165,7 +165,7 @@ class Rig:
             BankAccount("BA1", "U1", "class_i", "active", 200000, 0, 0),
         )
         self.gateway = BankGateway(
-            self.bank, transfer_timeout_seconds=0.15,
+            self.bank, transfer_timeout_seconds=gateway_timeout_seconds,
             authorize_birthday=authorize_birthday_write(self.state),
         )
         self.decisions: list = []
@@ -612,7 +612,9 @@ def test_state_failure_at_claim_time_performs_no_bank_write(tmp_path):
 
 
 def test_lost_release_response_resolves_by_original_id(tmp_path):
-    rig = Rig(tmp_path)
+    # Only this fault-injection case needs the tight timeout; the default Rig
+    # keeps a comfortable margin so ordinary writes never flake under load.
+    rig = Rig(tmp_path, gateway_timeout_seconds=0.15)
     _, _, authorization, _ = rig.active_authorization()
     rig.bank.birthday.arm_response_loss("U1")
     outcome = rig.finalizer.finalize(rig.ending_context(authorization), "user_cancelled")
