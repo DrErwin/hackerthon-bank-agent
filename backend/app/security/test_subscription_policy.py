@@ -160,7 +160,7 @@ def test_missing_subscription_permission_denies_the_cancel(monkeypatch):
     current = policy_for(LOW_SIGNALS)
     assert DemoSecurityPolicy._permissions == frozenset({
         "transfer.start", "transfer.read", "transfer.submit", "bills.read",
-        "subscription.read", "subscription.cancel"})
+        "subscription.read", "subscription.cancel", "cross.start"})
     monkeypatch.setattr(
         DemoSecurityPolicy, "_permissions",
         frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read"}),

@@ -9,6 +9,7 @@ from app.contracts.common import OperationLevel, Phase, RiskLevel
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
 from app.modules.bills.manifest import MANIFEST as BILLS_MANIFEST
+from app.modules.cross.manifest import CROSS_MANIFEST
 from app.modules.bills.reads import PRIVATE_TOOLS as BILLS_PRIVATE_TOOLS
 from app.modules.transfer.manifest import MANIFEST, PRIVATE_TOOLS
 from app.services.mock_bank.verification import AdminContext
@@ -167,6 +168,31 @@ def test_bills_public_capability_is_whitelisted_for_the_demo_scope():
     assert not policy.authorize_capability(
         context, declaration.model_copy(update={"required_permissions": ["bills.export"]}),
     )
+
+
+def test_cross_public_capability_is_whitelisted_with_a_frozen_declaration():
+    """Platform 05 wiring needs the cross entry authorized; the snapshot stays
+    security-owned so a module release cannot drift the gate open (v05 stage)."""
+    policy, _ = make_policy(lambda *_: evidence())
+    context = TrustedContext(
+        user_id=USER, session_id="session-1", task_id="task-1", run_id="run-1",
+        parent_task_id=None, demo_round_id=ROUND,
+    )
+    declaration = CROSS_MANIFEST.capabilities[0]
+    assert declaration.name == "cross.start_task"
+    assert policy.authorize_capability(context, declaration)
+    # Field drift in the module declaration equals a policy change.
+    for drifted in ({"timeout_ms": declaration.timeout_ms + 1},
+                    {"operation_level": OperationLevel.MODIFY},
+                    {"side_effect": True},
+                    {"required_permissions": []}):
+        assert not policy.authorize_capability(
+            context, declaration.model_copy(update=drifted))
+    # And outside the demo scope it stays closed.
+    assert not policy.authorize_capability(
+        context.model_copy(update={"user_id": "other-user"}), declaration)
+    assert not policy.authorize_capability(
+        context.model_copy(update={"demo_round_id": "old-round"}), declaration)
 
 
 def test_admin_face_authorization_uses_a_separate_configured_admin_identity():
