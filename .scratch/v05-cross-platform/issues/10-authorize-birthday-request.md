@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/services/bank_gateway/`
 
-Status: in_review — 实现与网关目录验证、双分支组合预检已完成（2026-10-24），待 Erwin 审查合入。
+Status: done — 2026-10-24 Erwin 批准合入，PR #273 squash 合入 main（`e8e2555`，先于 PR #272）；合并后 main 定向复测通过，安全侧释放载荷精确绑定随之生效。
 
 Package accepted by: Erwin
 
@@ -49,7 +49,7 @@ authorize_birthday 回调在现有（可信身份、操作编号、动作名）�
 
 ## Delivery record
 
-- 实现 / PR / 合入：分支 `feat/services/authorize-birthday-request`（基线 `fa40d45`，仅 `backend/app/services/bank_gateway/` + 同目录测试）：`_birthday_write` 增收 request 并透传给 authorize_birthday，B10/B11/B12/B21 四个写动作各自传入类型化请求。[PR #273](https://github.com/DrErwin/hackerthon-bank-agent/pull/273)；CI 受 GitHub 账户计费阻塞（同 #268/#272，非代码原因）；合入状态以 PR 为准。
+- 实现 / PR / 合入：分支 `feat/services/authorize-birthday-request`（基线 `fa40d45`，仅 `backend/app/services/bank_gateway/` + 同目录测试）：`_birthday_write` 增收 request 并透传给 authorize_birthday，B10/B11/B12/B21 四个写动作各自传入类型化请求。[PR #273](https://github.com/DrErwin/hackerthon-bank-agent/pull/273) 已于 2026-10-24 经 Erwin 批准 squash 合入 main（`e8e2555`）；CI 受 GitHub 账户计费阻塞（同 #268/#272，非代码原因，本地等价验证已记录）。
 - 本票验证：2026-10-24，`backend/.venv`：`app/services/` 60 passed，新增 test_authorize_birthday_receives_the_typed_request（回调收到本次请求、金额可断言；拒绝路径银行零写入：冻结余额不变、bank_operations 仅剩已放行一条）。
 - 组合预检：本地将本分支合入 PR #272 分支后同跑 `app/security/` + 网关生日套件，433 passed——网关四参回调与安全侧释放载荷精确绑定真实联动通过；两 PR 合入顺序任意（互为前向兼容），合入后精确绑定自动生效。
 - 联合 E2E：不因本票单独通过。
