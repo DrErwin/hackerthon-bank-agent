@@ -28,6 +28,7 @@ from app.contracts.tasks import (
 
 from . import plan
 from .plan import money, month_range
+from .birthday import BirthdayFlow
 from .pension import PensionFlow
 
 _CHANNEL = "cross_state"
@@ -36,11 +37,12 @@ _TERMINAL = {"succeeded", "failed", "cancelled", "partially_succeeded"}
 _EXPENSE_WORDS = ("减支", "减少", "省钱", "省一点", "不用的", "不用了", "不必要的", "开销",
                   "扣费", "自动扣费", "退订", "订阅", "会员")
 _PENSION_WORDS = ("养老金", "退休金", "生活费安排", "每月安排", "工资安排")
-_BIRTHDAY_WORDS = ("生日", "过生", "祝寿", "寿宴")
+_BIRTHDAY_WORDS = ("生日", "过生", "祝寿", "寿宴", "蛋糕", "花束", "花和蛋糕")
 
 SUPPORTED = (
     ("减少不用的开销（查签约、逐项退订）", CrossScenario.EXPENSE_REDUCTION),
     ("安排本月养老金（明确资金范围与留存，逐笔转账）", CrossScenario.MONTHLY_ARRANGEMENT),
+    ("给家人安排生日（真实商品、冻结、按订单付款）", CrossScenario.BIRTHDAY),
 )
 
 _CATEGORY_LABELS = {"dining": "餐饮", "transport": "交通", "medical": "医疗",
@@ -66,17 +68,18 @@ def infer_scenario(goal: str) -> CrossScenario | None:
 
 
 def _unsupported_note(scenario: CrossScenario | None) -> str:
-    if scenario is CrossScenario.BIRTHDAY:
-        return "生日办理需要先接通安全执行能力（安全组票 01），暂时不能办理。"
     return ""
 
 
 class CrossEntry:
     """Implements the registry's task-entry protocol for the cross module."""
 
-    def __init__(self, harness, saver, trace, clock):
+    def __init__(self, harness, saver, trace, clock, birthday_ports_factory=None):
         self.harness, self.saver, self.trace = harness, saver, trace
         self.clock = clock
+        # The platform (v05-cross-platform/09) supplies the real birthday seam;
+        # without it the birthday flow fails honestly instead of improvising.
+        self.birthday_ports_factory = birthday_ports_factory
 
     # ---------------------------------------------------------------- checkpoint
 
@@ -202,13 +205,26 @@ class CrossEntry:
                    scenario: CrossScenario | None) -> dict:
         inferred = scenario or infer_scenario(goal)
         if inferred is None or inferred not in (
-                CrossScenario.EXPENSE_REDUCTION, CrossScenario.MONTHLY_ARRANGEMENT):
+                CrossScenario.EXPENSE_REDUCTION, CrossScenario.MONTHLY_ARRANGEMENT,
+                CrossScenario.BIRTHDAY):
             # Nothing is decided for an unsupported or ambiguous goal; the user
             # picks from what this module can really run today.
             return {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
                     "request_id": request_id, "goal_digest": digest, "goal": goal,
                     "scenario": None, "unsupported": inferred,
                     "choices": {}, "interaction_id": None, "result": None}
+        if inferred is CrossScenario.BIRTHDAY:
+            steps = [
+                {"step_id": "accounts", "action": "transfer.list_accounts", "kind": "read",
+                 "depends_on": []},
+            ]
+            state = plan.new_state(trusted, request_id, inferred.value, digest, steps)
+            state["goal"] = goal
+            state["inventory"] = None
+            state["bills"] = None
+            state["pension"] = None
+            state["birthday"] = None
+            return state
         if inferred is CrossScenario.MONTHLY_ARRANGEMENT:
             steps = [
                 {"step_id": "accounts", "action": "transfer.list_accounts", "kind": "read",
@@ -262,6 +278,17 @@ class CrossEntry:
             raise ValueError("INVALID_ARGUMENT")
         if "interaction_id" in response and response["interaction_id"] != state.get("interaction_id"):
             raise ValueError("INTERACTION_STALE")
+        if (state.get("scenario") == CrossScenario.BIRTHDAY.value
+                and (response.get("choice") in {"approve", "cancel"}
+                     or response.get("cancel") is True)):
+            flow = self._birthday_flow(state)
+            if flow is not None and (flow.b.get("pending")
+                                     or response.get("choice") == "cancel"
+                                     or response.get("cancel") is True):
+                result = flow.answer_gate(trusted, response)
+                state["result"] = result.model_dump(mode="json")
+                self._save(trusted, None, state)
+                return result
         choice = response.get("selected_option_id") or response.get("choice")
         if choice not in state.get("choices", {}):
             if response.get("text"):
@@ -270,6 +297,10 @@ class CrossEntry:
                 # or funds-scope question; the program still verifies facts.
                 if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
                     return PensionFlow(self, state).apply_text(trusted, response["text"])
+                if state.get("scenario") == CrossScenario.BIRTHDAY.value:
+                    flow = self._birthday_flow(state)
+                    if flow is not None:
+                        return flow.apply_text(trusted, response["text"])
                 return self._reask(trusted, state)
             raise ValueError("INVALID_OPTION")
         picked = state["choices"][choice]
@@ -279,6 +310,10 @@ class CrossEntry:
             return self._choose_goal(trusted, state, picked)
         if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
             return PensionFlow(self, state).apply(trusted, picked)
+        if state.get("scenario") == CrossScenario.BIRTHDAY.value:
+            flow = self._birthday_flow(state)
+            if flow is not None:
+                return flow.apply(trusted, picked)
         return self._apply_pick(trusted, state, picked)
 
     def _reask(self, trusted, state) -> ModuleResult:
@@ -326,11 +361,25 @@ class CrossEntry:
     def _advance_pension(self, trusted, state) -> ModuleResult:
         return PensionFlow(self, state).advance(trusted)
 
+    def _birthday_flow(self, state):
+        if not self.birthday_ports_factory:
+            return None
+        from .birthday import BirthdayFlow
+        return BirthdayFlow(self, state, self.birthday_ports_factory(None))
+
+    def _advance_birthday(self, trusted, state) -> ModuleResult:
+        if not self.birthday_ports_factory:
+            return self._done(trusted, state, TaskStatus.FAILED,
+                              "生日办理的执行接缝尚未装配（平台 09），本次无法办理。")
+        return BirthdayFlow(self, state, self.birthday_ports_factory(trusted)).advance(trusted)
+
     def _advance(self, trusted, state) -> ModuleResult:
         """Reconcile durable children, run what is ready, then ask or report."""
 
         if "steps" not in state:
             return self._ask_goal(trusted, state)  # no plan yet: clarify first
+        if state.get("scenario") == CrossScenario.BIRTHDAY.value:
+            return self._advance_birthday(trusted, state)
         if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
             return self._advance_pension(trusted, state)
         self._reconcile(state, trusted)
@@ -690,6 +739,11 @@ class CrossEntry:
                 self._reconcile(state, trusted)
         self._reconcile(state, trusted)
         self._collect_read_facts(state)
+        if state.get("scenario") == CrossScenario.BIRTHDAY.value:
+            flow = self._birthday_flow(state)
+            if flow is not None:
+                return flow.stop(trusted, stop_reason)
+            return self._done(trusted, state, TaskStatus.CANCELLED, "已停止办理。")
         if state.get("scenario") == CrossScenario.MONTHLY_ARRANGEMENT.value:
             lines, _transferred, unknown = self._pension_summary_lines(state)
             if unknown:
@@ -833,12 +887,12 @@ class CrossEntry:
         return result
 
 
-def register_cross(harness, clock):
-    """Platform assembly (v05-cross-platform/05) calls this to mount the module."""
+def register_cross(harness, clock, birthday_ports_factory=None):
+    """Platform assembly (v05-cross-platform/05/09) calls this to mount the module."""
 
     from .manifest import CROSS_MANIFEST
 
     def factory(trusted, saver, trace):
-        return CrossEntry(harness, saver, trace, clock)
+        return CrossEntry(harness, saver, trace, clock, birthday_ports_factory)
 
     harness.registry.register_module(CROSS_MANIFEST, factory)

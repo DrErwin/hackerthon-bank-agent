@@ -497,11 +497,10 @@ def test_ambiguous_goal_is_clarified_and_unsupported_goals_are_honest(tmp_path):
         None, lambda: NOW)
     birthday = birthday_entry.start(birthday_holder, CrossStartInput(
         request_id=uuid4(), goal="给妈妈过个生日"))
-    assert birthday.status is TaskStatus.WAITING_INPUT
-    assert "生日办理需要先接通安全执行能力" in birthday.message
-    declined = birthday_entry.resume(birthday_holder,
-                                     {"selected_option_id": option_id(birthday, "先不办理")})
-    assert declined.status is TaskStatus.CANCELLED
+    # Without the platform birthday seam (ticket 09) the flow fails honestly
+    # instead of improvising a purchase.
+    assert birthday.status is TaskStatus.FAILED
+    assert "执行接缝尚未装配" in birthday.message
 
     # A clarified goal builds the real plan; the clarified choice, not the
     # ambiguous first guess, decides what runs.
