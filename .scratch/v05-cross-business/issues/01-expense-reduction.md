@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 阶段承接）
 
 Directory: `backend/app/modules/cross/`
 
-Status: in_review — G1 已闭合（PR #264/#266），实现已提 PR #269 待审查合入；账单入口类型化输入缺口仍在账单侧。
+Status: delivered — 已合入（PR #269，squash 7609976，2026-10-24）；账单入口类型化输入缺口仍在账单侧，平台 05/09 装配与 E2E 另行。
 
 Package accepted by: Erwin
 
@@ -72,9 +72,10 @@ Core scenarios: XL-S01—S05、X01—X04；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：已实现并提 PR [#269](https://github.com/DrErwin/hackerthon-bank-agent/pull/269)（重建自被连带关闭的 #267；G1 前置 #264/#266 已合入）。审查与合入另行回填。
+- 实现 / PR / 合入：已合入。PR [#269](https://github.com/DrErwin/hackerthon-bank-agent/pull/269)（squash 7609976，2026-10-24；重建自被连带关闭的 #267），CI 绿。
 - 本票验证：`app/modules/cross/` tier-1（真实平台接缝：注册表/dispatch_child/resume_child/父子持久化 + 订阅真实入口）与 tier-2（真实运行时组合：真实确认服务/安全门/模拟银行走完一笔优酷退订并出部分完成回执）通过；覆盖 XL-S01—S05、X02/X03/X04 关键分支。账单步骤以契约形状替身（账单入口类型化输入缺口在账单侧，未代改）。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
+- 审查：子代理审查 PASS-with-notes（无 blocker；边界/三条铁律/回执口径逐项通过）。三条 minor（holding 时不出新菜单、unknown 重新归类、账单不可用如实说明）已修复并随 PR #268 合入主线；note 级（拒绝项回执明细、already_cancelled 边缘、疑似扫描覆盖文案）转后续票/装配票。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
 ## Comments
