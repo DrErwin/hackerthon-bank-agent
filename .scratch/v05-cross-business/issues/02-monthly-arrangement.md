@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 阶段承接）
 
 Directory: `backend/app/modules/cross/`
 
-Status: blocked — 等待本组 01 的公共计划骨架及真实公开调用接通；安全审查另记。
+Status: in_review — 骨架已在票 01 PR #269 交付；本票实现已提 PR #268 待审查合入。
 
 Package accepted by: Erwin
 
@@ -70,8 +70,8 @@ Core scenarios: XL-P01—P06、X02—X05；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已实现并提 PR [#268](https://github.com/DrErwin/hackerthon-bank-agent/pull/268)（base 为票 01 分支，票 01 合入后重定基 main）。审查与合入另行回填。
+- 本票验证：`app/modules/cross/` 21 项全绿，票 02 新增 8 项覆盖 P01—P06、X03 冲突与超额拒绝；账单明细/收款人为契约形状替身（缺口同票 01 登记）。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
