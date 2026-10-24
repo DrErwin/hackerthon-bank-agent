@@ -1,14 +1,17 @@
 """Scenario-05 task entry: checkpointed constraints only, never raw chat text.
 
-The platform supplies ``StartTransferInput`` for every module; this entry uses only
-``request_id`` and ``intent_text`` and turns them into bank-matched decisions before
-anything is persisted. Confirmation and verification stay owned by the security gate:
-this entry just reports the gate's own pending step back to the frontend.
+The chat path supplies ``StartTransferInput`` and this entry uses only
+``request_id`` and ``intent_text``; a parent task may instead hand over the
+declared logical inputs ``SubscriptionListInput`` / ``SubscriptionCancelInput``
+(G1), whose structured fields replace chat parsing. Bank matching, confirmation
+and verification stay owned by the security gate: this entry just reports the
+gate's own pending step back to the frontend.
 """
 
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from hashlib import sha256
 import json
 import logging
@@ -18,7 +21,9 @@ from uuid import uuid4
 
 from app.contracts.common import SecurityDecisionCode, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
-from app.contracts.subscription import SubscriptionItem
+from app.contracts.subscription import (
+    SubscriptionCancelInput, SubscriptionItem, SubscriptionListInput,
+)
 from app.contracts.tasks import ModuleResult
 from .ports import plan_from_payload
 from .service import SubscriptionError, SubscriptionService
@@ -95,19 +100,37 @@ class SubscriptionEntry:
         result = ModuleResult.model_validate(state["result"])
         return result.model_copy(update={"run_id": context.run_id})
 
-    def _new_state(self, trusted: TrustedContext, request: StartTransferInput, digest: str) -> dict:
-        return {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
+    def _new_state(self, trusted: TrustedContext, request, digest: str) -> dict:
+        intent = request.intent_text
+        base = {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
                 "request_id": str(request.request_id), "intent_digest": digest,
-                "mode": "cancel" if wants_cancel(request.intent_text) else "list",
-                "batch": any(word in request.intent_text for word in _BATCH_WORDS),
-                "mandate_id": named_mandate_id(request.intent_text),
-                "risk": risk_observations(request.intent_text),
-                "reminder_days": 30, "waiting": None, "selected": None, "candidates": [],
+                "reminder_days": 30, "account_ids": None, "status_filter": "all",
+                "waiting": None, "selected": None, "candidates": [],
                 "operation_id": None, "pending_cancel": None,
                 "cancel_revision": 0, "frozen_action": None}
+        if isinstance(request, SubscriptionListInput):
+            # S01's declared logical input: structure the caller already verified
+            # replaces chat parsing; the module still owns bank matching.
+            base.update(mode="list", batch=False, mandate_id=None, risk=[],
+                        account_ids=list(request.account_ids) if request.account_ids else None,
+                        status_filter=request.status_filter,
+                        reminder_days=request.reminder_days)
+            return base
+        if isinstance(request, SubscriptionCancelInput):
+            base.update(mode="cancel", batch=False, mandate_id=None,
+                        risk=risk_observations(intent),
+                        selected=request.subscription_id,
+                        account_ids=[request.account_id] if request.account_id else None)
+            return base
+        base.update(mode="cancel" if wants_cancel(intent) else "list",
+                    batch=any(word in intent for word in _BATCH_WORDS),
+                    mandate_id=named_mandate_id(intent),
+                    risk=risk_observations(intent))
+        return base
 
-    def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None) -> ModuleResult:
-        if not isinstance(request, StartTransferInput):
+    def start(self, trusted: TrustedContext, request, *, thread_id=None) -> ModuleResult:
+        legal = (StartTransferInput, SubscriptionListInput, SubscriptionCancelInput)
+        if not isinstance(request, legal):
             return self.service.failed(trusted, "INVALID_ARGUMENT")
         saved, state = self._load(trusted, thread_id)
         digest = sha256(request.intent_text.encode("utf-8")).hexdigest()
@@ -121,7 +144,9 @@ class SubscriptionEntry:
         else:
             state = self._new_state(trusted, request, digest)
             self._save(trusted, thread_id, state)
-        result = self._advance(trusted, state, utterance=request.intent_text)
+        utterance = (request.merchant_hint or request.intent_text
+                     if isinstance(request, SubscriptionCancelInput) else request.intent_text)
+        result = self._advance(trusted, state, utterance=utterance)
         state["result"] = result.model_dump(mode="json")
         self._save(trusted, thread_id, state)
         return result
@@ -161,7 +186,10 @@ class SubscriptionEntry:
                  utterance: str | None = None, selected: str | None = None) -> ModuleResult:
         try:
             if state["mode"] == "list":
-                result = self.service.inventory(trusted, reminder_days=state["reminder_days"])
+                result = self.service.inventory(
+                    trusted, reminder_days=state["reminder_days"],
+                    account_ids=state.get("account_ids"),
+                    status_filter=state.get("status_filter") or "all")
                 return self.service.list_task(trusted, result, reminder_days=state["reminder_days"])
             return self._cancel_step(trusted, state, utterance=utterance, selected=selected)
         except SubscriptionError as error:
@@ -192,6 +220,16 @@ class SubscriptionEntry:
             batch_requested=bool(state.get("batch")) and state.get("selected") is None,
             reminder_days=state["reminder_days"])
         if resolution.kind == "candidates":
+            offered = resolution.candidates
+            account_filter = state.get("account_ids")
+            if account_filter is not None:
+                # A typed cancel may narrow one account; the narrower menu is the
+                # module's honest offer, and an empty one is "nothing to cancel".
+                offered = tuple(item for item in offered if item.account_id in account_filter)
+                if not offered:
+                    return self.service.completed(trusted, self.service.not_found_message(),
+                                                  list_result=resolution.list_result)
+            resolution = replace(resolution, candidates=offered)
             state["candidates"] = [item.subscription_id for item in resolution.candidates]
             state["waiting"] = "input"
             return self.service.waiting_input(trusted, resolution)
