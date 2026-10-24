@@ -208,6 +208,40 @@ def test_gateway_denies_birthday_writes_without_authorization(tmp_path):
     assert [item.product_id for item in soon.products] == ["p_flower"]
 
 
+def test_capture_keeps_b08_returnable_with_counterparty_facts(tmp_path):
+    bank = bank_with_account(tmp_path)
+    gate = gateway(bank)
+    who = context()
+    frozen = ok_write(gate.freeze_funds(who, op(), FreezeFundsInput(
+        account_id="BA1", amount_fen=50000, reason="生日")))
+    freeze_id = frozen.receipt.freeze_id
+    order = ok_write(gate.create_order(who, op(), CreateOrderInput(
+        product_id="p_flower", quantity=1, expected_total_fen=19900,
+        delivery=delivery(_now() + timedelta(hours=30)))))
+    paid = ok_write(gate.capture_frozen(who, op(), CaptureFrozenInput(
+        freeze_id=freeze_id, amount_fen=19900, merchant_id="m_flower",
+        merchant_name="邻里花店", purpose="生日鲜花", category=Category.SHOPPING,
+        order_id=order.receipt.order.order_id)))
+    # B08 returns the consumption as a complete fact, not a bank-unavailable gap.
+    flows = bank.list_transactions(who.user_id, "BA1", _now() - timedelta(minutes=1),
+                                   _now() + timedelta(minutes=1))
+    assert flows.kind == "ok"
+    row = flows.data.transactions[0]
+    assert row.transaction_id == paid.receipt.transaction_id
+    assert row.counterparty_name == "邻里花店"
+    assert row.summary == "生日鲜花"
+    assert row.category is Category.SHOPPING
+    assert row.nature == "consumption"
+    # A replay with a different address on the same operation number conflicts.
+    changed = gate.create_order(who, order.operation_id, CreateOrderInput(
+        product_id="p_flower", quantity=1, expected_total_fen=19900,
+        delivery=DeliveryInput(recipient_name="李四", phone="13900005678",
+                               address="另一个地址 2 号",
+                               deliver_by=_now() + timedelta(hours=30))))
+    assert isinstance(changed, QueryFailure)
+    assert changed.error.code == "OPERATION_CONFLICT"
+
+
 def test_response_loss_fault_is_recoverable_by_b14(tmp_path):
     bank = MockBankService(MockBankStore(tmp_path / "bank.sqlite3"), demo_secret=b"s" * 32,
                            slow_seconds=0.3)

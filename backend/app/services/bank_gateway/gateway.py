@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Callable
 from uuid import UUID
@@ -92,6 +93,10 @@ class BankGateway:
             return future.result(timeout=self._transfer_timeout_seconds)
         except TimeoutError:
             return QueryFailure(kind="error", error=BankError(code="CALL_TIMEOUT", details={}))
+        except ValueError:
+            return QueryFailure(kind="error", error=BankError(code="OPERATION_CONFLICT", details={}))
+        except sqlite3.Error:
+            return QueryFailure(kind="error", error=BankError(code="BANK_UNAVAILABLE", details={}))
 
     def freeze_funds(self, context: TrustedContext, operation_id: UUID, request: FreezeFundsInput):
         birthday = self._bank.birthday

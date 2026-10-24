@@ -201,7 +201,7 @@ class MockBirthdayBank:
     def _freeze_row(self, user_id: str, freeze_id: str):
         row = self.store.get_freeze(user_id, freeze_id)
         if row is None:
-            return None, _error("RECORD_NOT_FOUND", target="freeze")
+            return None, _error("RECORD_NOT_FOUND")
         remaining = (row["original_amount_fen"] - row["captured_total_fen"]
                      - row["released_total_fen"])
         return (row, remaining), None
@@ -233,7 +233,7 @@ class MockBirthdayBank:
             order = self.store.get_order(context.user_id, order_id)
             if order is None:
                 return self._store_failure(context, operation_id, action, parameters,
-                                           _error("RECORD_NOT_FOUND", target="order"), at)
+                                           _error("RECORD_NOT_FOUND"), at)
             product = self._product(order["product_id"])
             # Amount, merchant and category must match the bank's own order facts.
             if (amount_fen != order["total_fen"] or merchant_id != order["merchant_id"]
@@ -260,7 +260,11 @@ class MockBirthdayBank:
             [(row["account_id"], account.version, book, frozen)],
             [(transaction_id, row["account_id"], amount_fen, "outflow", "consumption",
               category.value, at.isoformat())],
-            (FreezeCapture(freeze_id, amount_fen, transaction_id, order_id, at.isoformat()),),
+            (FreezeCapture(
+                freeze_id=freeze_id, amount_fen=amount_fen, transaction_id=transaction_id,
+                order_id=order_id, paid_at=at.isoformat(), counterparty_id=merchant_id,
+                counterparty_name=merchant_name, summary=purpose,
+            ),),
         )
         return self._after_write(context.user_id, result)
 
@@ -308,7 +312,7 @@ class MockBirthdayBank:
     def get_freeze(self, user_id: str, freeze_id: str):
         row = self.store.get_freeze(user_id, freeze_id)
         if row is None:
-            return _error("RECORD_NOT_FOUND", target="freeze")
+            return _error("RECORD_NOT_FOUND")
         return QueryOk(kind="ok", data=FreezeView(
             freeze_id=row["freeze_id"], account_id=row["account_id"],
             original_amount_fen=row["original_amount_fen"],
@@ -342,9 +346,13 @@ class MockBirthdayBank:
         rejected = self._prepare(context, operation_id)
         if rejected is not None:
             return rejected
+        # The digest covers the raw delivery facts too: the same operation number
+        # with a different address is a conflict, never a silent replay (§2).
         parameters = {"product_id": product_id, "quantity": quantity,
                       "expected_total_fen": expected_total_fen,
-                      "deliver_by": delivery.deliver_by.isoformat()}
+                      "deliver_by": delivery.deliver_by.isoformat(),
+                      "delivery": {"recipient_name": delivery.recipient_name,
+                                   "phone": delivery.phone, "address": delivery.address}}
         action = "bank.create_order"
         prior = self._stored(context.user_id, operation_id, action, parameters)
         if prior is not None:
@@ -396,7 +404,7 @@ class MockBirthdayBank:
     def get_order(self, user_id: str, order_id: str):
         row = self.store.get_order(user_id, order_id)
         if row is None:
-            return _error("RECORD_NOT_FOUND", target="order")
+            return _error("RECORD_NOT_FOUND")
         return QueryOk(kind="ok", data=OrderResult(order=OrderView(
             order_id=row["order_id"], product_id=row["product_id"], quantity=row["quantity"],
             merchant_id=row["merchant_id"], merchant_name=row["merchant_name"],
