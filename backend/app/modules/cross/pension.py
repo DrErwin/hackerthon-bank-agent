@@ -1,0 +1,477 @@
+"""Monthly pension arrangement: funds scope, living reserve, per-transfer execution.
+
+Ticket v05-cross-business/02 on the shared plan skeleton. Every money figure is
+a bank fact or a user-adopted number the server recorded — the model proposes
+nothing effective here. D1 runs through the storage arrangement seam: one
+adopted arrangement per payer account, adopted before the first transfer and
+closed only when the chosen steps and their closeout are all verified. An
+unknown transfer keeps the arrangement active and blocks the rest (never a
+silent retry). Cancelling a future debit never adds to this month's funds
+(P05): the base is income or balance read before any cancel.
+"""
+
+from __future__ import annotations
+
+import re
+from uuid import uuid4
+
+from app.contracts.bank import SavedPayee
+from app.contracts.bills import BillScope, BillSummarizeInput
+from app.contracts.common import TaskStatus
+from app.contracts.cross import ArrangementView, CrossScenario
+from app.contracts.platform import StartTransferInput
+from app.contracts.subscription import SubscriptionListInput
+
+from . import plan
+from .plan import money
+
+_AMOUNT = re.compile(r"^\s*(\d+)(?:[.．](\d{1,2}))?\s*(?:元|块钱?|块)?\s*$")
+
+
+def parse_amount_fen(text) -> int | None:
+    """Strict yuan text to fen; anything else asks again instead of guessing."""
+
+    if not isinstance(text, str):
+        return None
+    found = _AMOUNT.match(text)
+    if not found:
+        return None
+    return int(found.group(1)) * 100 + int((found.group(2) or "").ljust(2, "0"))
+
+
+class PensionFlow:
+    """Owns the monthly_arrangement phases on top of the shared plan skeleton."""
+
+    def __init__(self, entry, state: dict):
+        self.entry, self.state = entry, state
+        self.pension = state.setdefault("pension", {
+            "phase": "facts", "basis": None, "base_fen": None,
+            "income_transaction_ids": [], "payer": None,
+            "reserve_fen": None, "includes_debits": None,
+            "known_debits_fen": None, "allocations": [], "arrangement_id": None,
+            "pre_cancel": False, "accounts": [], "payees": [],
+        })
+
+    # ------------------------------------------------------------------ helpers
+
+    def _inventory(self) -> list[dict]:
+        return self.state.get("inventory") or []
+
+    def _upcoming_total(self):
+        if self.pension["known_debits_fen"] is None:
+            return sum(item.get("amount_fen", 0) for item in self._inventory()
+                       if item.get("status") == "active"
+                       and item.get("source_type") == "mandate"
+                       and item.get("can_cancel_in_bank"))
+        return self.pension["known_debits_fen"]
+
+    def _income_transactions(self) -> list[dict]:
+        record = plan.step_state(self.state, "bills_details")
+        result = record.get("result")
+        if not isinstance(result, dict):
+            return []
+        return [row for row in result.get("transactions") or []
+                if row.get("direction") == "transfer_in"]
+
+    def _balance(self, account_id: str):
+        for account in self.pension["accounts"]:
+            if account.get("account_id") == account_id:
+                return account.get("available_balance_fen")
+        return None
+
+    def _protected(self) -> int:
+        reserve = self.pension["reserve_fen"] or 0
+        debits = self._upcoming_total() if self.pension["includes_debits"] is False else 0
+        if self.pension["includes_debits"] is None:
+            debits = 0
+        return reserve + debits
+
+    def _transferred(self) -> int:
+        total = 0
+        for step in self.state["steps"]:
+            if not step["step_id"].startswith("transfer:"):
+                continue
+            record = plan.step_state(self.state, step["step_id"])
+            if record.get("status") is TaskStatus.SUCCEEDED:
+                total += step["amount_fen"]
+        return total
+
+    def _distributable(self) -> int:
+        return self.pension["base_fen"] - self._protected()
+
+    def _remaining(self) -> int:
+        return self._distributable() - self._transferred()
+
+    def view(self) -> ArrangementView:
+        from app.contracts.bills import BillScope as Scope
+        now = self.entry.clock()
+        window_start, window_end = month_range(now, 0), None
+        start, end = month_range(now, 0)
+        return ArrangementView(
+            arrangement_id=self.pension["arrangement_id"] or f"arr_{self.state['actor'][2]}",
+            plan_revision=self.state["plan_revision"],
+            payer_account_id=self.pension["payer"],
+            funds_basis=self.pension["basis"] or "available_balance",
+            income_transaction_ids=list(self.pension["income_transaction_ids"]),
+            base_fen=self.pension["base_fen"],
+            living_reserve_fen=self.pension["reserve_fen"] or 0,
+            reserve_includes_known_debits=bool(self.pension["includes_debits"]),
+            upcoming_debit_scope=Scope(
+                account_ids=[self.pension["payer"]], start_at=start, end_at=end),
+            known_debits_fen=self._upcoming_total(),
+            protected_fen=self._protected(),
+            distributable_fen=self._distributable(),
+            facts_as_of=now,
+            adopted=self.pension["arrangement_id"] is not None,
+        )
+
+    # ------------------------------------------------------------------ advance
+
+    def advance(self, trusted) -> object:
+        entry, state = self.entry, self.state
+        entry._reconcile(state, trusted)
+        entry._collect_read_facts(state)
+        self._collect_pension_facts()
+        holding = plan.holding_step(state)
+        if holding is not None:
+            return entry._holding_view(trusted, state, holding)
+        ready = plan.next_step(state)
+        while ready is not None and ready["kind"] == "read":
+            entry._dispatch(trusted, state, ready)
+            entry._reconcile(state, trusted)
+            entry._collect_read_facts(state)
+            self._collect_pension_facts()
+            holding = plan.holding_step(state)
+            if holding is not None:
+                return entry._holding_view(trusted, state, holding)
+            ready = plan.next_step(state)
+        if ready is not None and ready["kind"] == "write":
+            if ready["step_id"].startswith("transfer:"):
+                problem = self._preflight(trusted, ready)
+                if problem is not None:
+                    return problem
+            entry._dispatch(trusted, state, ready)
+            entry._reconcile(state, trusted)
+            holding = plan.holding_step(state)
+            if holding is not None:
+                return entry._holding_view(trusted, state, holding)
+        return self._phase_view(trusted)
+
+    def _collect_pension_facts(self) -> None:
+        accounts = plan.step_state(self.state, "accounts")
+        if accounts.get("status") is TaskStatus.SUCCEEDED and isinstance(
+                accounts.get("result"), dict):
+            self.pension["accounts"] = accounts["result"].get("accounts") or []
+        if self.pension["known_debits_fen"] is None:
+            record = plan.step_state(self.state, "subscriptions")
+            if record.get("status") is TaskStatus.SUCCEEDED:
+                self.pension["known_debits_fen"] = self._upcoming_total()
+        payees = plan.step_state(self.state, "payees")
+        if payees.get("status") is TaskStatus.SUCCEEDED and isinstance(
+                payees.get("result"), dict):
+            self.pension["payees"] = payees["result"].get("payees") or []
+
+    # ------------------------------------------------------------------ preflight
+
+    def _preflight(self, trusted, step: dict):
+        """Refresh facts before each transfer; never auto-lower a shortfall."""
+
+        entry, state = self.entry, self.state
+        refresh_id = f"accounts_refresh:{step['step_id']}"
+        if refresh_id not in plan.step_ids(state):
+            plan.add_step(state, {"step_id": refresh_id,
+                                  "action": "transfer.list_accounts", "kind": "read",
+                                  "depends_on": []})
+            entry._dispatch(trusted, state, plan.next_step(state) or
+                            next(s for s in state["steps"] if s["step_id"] == refresh_id))
+            entry._reconcile(state, trusted)
+            self._collect_pension_facts()
+        balance = self._balance(self.pension["payer"])
+        if balance is not None and balance < step["amount_fen"]:
+            return entry._ask(trusted, state,
+                              f"账户当前可用余额 {money(balance)} 元，不够支付这笔 "
+                              f"{money(step['amount_fen'])} 元转账。留存与已成功转账保持不变，"
+                              "不会自动改小金额。您可以先核实账户，或停止剩余办理。",
+                              [("停止剩余办理", {"kind": "pension_stop"}),
+                               ("我已核实，重试这笔", {"kind": "pension_retry",
+                                                      "step_id": step["step_id"]})])
+        if self._remaining() < step["amount_fen"]:
+            return entry._ask(trusted, state,
+                              f"按已采用的范围与留存，本次还可转 {money(self._remaining())} 元，"
+                              f"不够支付 {money(step['amount_fen'])} 元；留存不会被自动降低。"
+                              "请选择停止剩余办理，或说明要如何调整。",
+                              [("停止剩余办理", {"kind": "pension_stop"})])
+        return None
+
+    # ------------------------------------------------------------------ phases
+
+    def _phase_view(self, trusted):
+        phase = self.pension["phase"]
+        handler = {
+            "facts": self._ask_payer, "pre_cancel": self._ask_pre_cancel,
+            "basis": self._ask_basis, "reserve": self._ask_reserve,
+            "reserve_debits": self._ask_reserve_debits,
+            "destination": self._ask_destination, "amount": self._ask_amount,
+            "adopt": self._ask_adopt, "running": self._running_view,
+        }[phase]
+        return handler(trusted)
+
+    def _ask_payer(self, trusted):
+        accounts = self.pension["accounts"]
+        if len(accounts) <= 1:
+            self.pension["payer"] = accounts[0]["account_id"] if accounts else None
+            self.pension["phase"] = "pre_cancel"
+            return self._ask_pre_cancel(trusted)
+        choices = [(f"{a['display_name']} · {a['account_masked']}（可用 "
+                    f"{money(a['available_balance_fen'])} 元）",
+                    {"kind": "pension_payer", "account_id": a["account_id"]})
+                   for a in accounts]
+        return self.entry._ask(trusted, self.state,
+                               "这张安排要用哪张本人账户？", choices)
+
+    def _ask_pre_cancel(self, trusted):
+        cancellable = self.entry._cancellable(self.state)
+        if not cancellable:
+            self.pension["phase"] = "basis"
+            return self._ask_basis(trusted)
+        self.pension["phase"] = "pre_cancel"
+        return self.entry._ask(trusted, self.state,
+                               "安排资金前，要不要先看看有哪些不用了的自动扣费？"
+                               "先退订不影响本次安排的资金范围。",
+                               [("先看看可退订的扣费", {"kind": "pension_pre_cancel"}),
+                                ("不用，直接安排资金", {"kind": "pension_skip_cancel"})])
+
+    def _ask_basis(self, trusted):
+        incomes = self._income_transactions()
+        income_total = sum(row["amount_fen"] for row in incomes)
+        balance = self._balance(self.pension["payer"]) or 0
+        choices = []
+        if incomes:
+            choices.append((f"本月实际入账合计 {money(income_total)} 元",
+                            {"kind": "pension_basis", "basis": "selected_income"}))
+        choices.append((f"当前可用余额 {money(balance)} 元",
+                        {"kind": "pension_basis", "basis": "available_balance"}))
+        return self.entry._ask(trusted, self.state,
+                               "本次安排的资金范围以哪个为准？（金额以银行记录为准）",
+                               choices)
+
+    def _ask_reserve(self, trusted):
+        return self.entry._ask(trusted, self.state,
+                               f"本月生活费要留多少？（本次可安排范围 "
+                               f"{money(self.pension['base_fen'])} 元；可输入金额，如“1500元”）",
+                               [("不留存，全部安排", {"kind": "pension_reserve",
+                                                      "fen": 0})])
+
+    def _ask_reserve_debits(self, trusted):
+        debits = self._upcoming_total()
+        if not debits:
+            self.pension["includes_debits"] = True
+            self.pension["phase"] = "destination"
+            return self._ask_destination(trusted)
+        return self.entry._ask(trusted, self.state,
+                               f"未来 30 天已知代扣合计 {money(debits)} 元。这部分要算进"
+                               "生活费留存里吗？",
+                               [("算进留存（不再另加）", {"kind": "pension_debits",
+                                                          "includes": True}),
+                                ("不算，留存之外另加保护", {"kind": "pension_debits",
+                                                            "includes": False})])
+
+    def _ask_destination(self, trusted):
+        if "payees" not in plan.step_ids(self.state):
+            plan.add_step(self.state, {"step_id": "payees",
+                                       "action": "transfer.list_payees", "kind": "read",
+                                       "depends_on": []})
+            return self.entry._advance_pension(trusted, self.state)
+        payees = [p for p in self.pension["payees"]
+                  if p.get("payee_id")] or []
+        choices = [(f"转给 {p['name_masked']}（{p['account_masked']}）",
+                    {"kind": "pension_payee", "payee_id": p["payee_id"],
+                     "name": p["name_masked"]}) for p in payees]
+        choices.append(("去向已选好，开始办理", {"kind": "pension_adopt"}))
+        remaining = self._remaining()
+        prompt = (f"本次还可安排 {money(remaining)} 元。要转给哪位收款人？"
+                  "（逐笔选择，每笔转账前还会有确认）")
+        if not payees:
+            prompt = "您还没有保存的收款人，暂时无法新增转账去向。可以停止本次安排。"
+            choices = [("停止本次安排", {"kind": "pension_stop"})]
+        return self.entry._ask(trusted, self.state, prompt, choices)
+
+    def _ask_amount(self, trusted):
+        target = self.pension["allocations"][-1]
+        return self.entry._ask(trusted, self.state,
+                               f"转给 {target['name']} 多少元？（还可安排 "
+                               f"{money(self._remaining())} 元，可输入金额）",
+                               [("不转了，去掉这笔", {"kind": "pension_drop_last"})])
+
+    def _ask_adopt(self, trusted):
+        view = self.view()
+        lines = [f"资金范围 {money(view.base_fen)} 元"
+                 f"（{'本月实际入账' if view.funds_basis == 'selected_income' else '当前可用余额'}）；",
+                 f"生活费留存 {money(view.living_reserve_fen)} 元"
+                 + (f"，其中已含未来代扣 {money(view.known_debits_fen)} 元"
+                    if view.reserve_includes_known_debits and view.known_debits_fen else ""),
+                 f"可安排 {money(view.distributable_fen)} 元，共 "
+                 f"{len(self.pension['allocations'])} 笔转账，合计 "
+                 f"{money(sum(a['amount_fen'] for a in self.pension['allocations']))} 元。",
+                 "采用后开始逐笔办理；每笔转账仍会单独确认。"]
+        self.pension["phase"] = "adopt"
+        return self.entry._ask(trusted, self.state, "\n".join(lines),
+                               [("采用并开始办理", {"kind": "pension_adopt"}),
+                                ("取消，不办理", {"kind": "pension_stop"})])
+
+    def _running_view(self, trusted):
+        state = self.state
+        pending = [step for step in state["steps"]
+                   if step["step_id"].startswith("transfer:")
+                   and plan.step_state(state, step["step_id"]).get("status") is None]
+        unknown = any(plan.step_state(state, step["step_id"]).get("status")
+                      is TaskStatus.NEEDS_ATTENTION
+                      for step in state["steps"] if step["step_id"].startswith("transfer:"))
+        failed = any(plan.step_state(state, step["step_id"]).get("status") is TaskStatus.FAILED
+                     for step in state["steps"] if step["step_id"].startswith("transfer:"))
+        if unknown:
+            return self.entry._receipt_pension(trusted, state)
+        if failed:
+            # A failed transfer pauses the remaining ones; the user decides.
+            return self.entry._view(
+                trusted, state,
+                "有一笔转账没有办成，后续转账已暂停。已成功的保留，不会自动重办。",
+                active=None, child_id=None)
+        if not pending:
+            self.entry._close_arrangement_if_any(state)
+            return self.entry._receipt_pension(trusted, state)
+        return self.entry._receipt_pension(trusted, state)
+
+    # ------------------------------------------------------------------ choices
+
+    def apply(self, trusted, picked: dict):
+        entry, state, pension = self.entry, self.state, self.pension
+        kind = picked["kind"]
+        if kind == "pension_payer":
+            pension["payer"] = picked["account_id"]
+            pension["phase"] = "pre_cancel"
+            return entry._advance_pension(trusted, self.state)
+        if kind == "pension_pre_cancel":
+            pension["pre_cancel"] = True
+            return entry._ask_pick(trusted, state, pension_mode=True)
+        if kind == "pension_skip_cancel":
+            pension["phase"] = "basis"
+            return entry._advance_pension(trusted, self.state)
+        if kind == "pension_basis":
+            pension["basis"] = picked["basis"]
+            if picked["basis"] == "selected_income":
+                incomes = self._income_transactions()
+                pension["income_transaction_ids"] = [row["transaction_id"] for row in incomes]
+                pension["base_fen"] = sum(row["amount_fen"] for row in incomes)
+            else:
+                pension["base_fen"] = self._balance(pension["payer"])
+            pension["phase"] = "reserve"
+            return self._ask_reserve(trusted)
+        if kind == "pension_reserve":
+            pension["reserve_fen"] = picked["fen"]
+            pension["phase"] = "reserve_debits"
+            return entry._advance_pension(trusted, self.state)
+        if kind == "pension_debits":
+            pension["includes_debits"] = picked["includes"]
+            pension["phase"] = "destination"
+            return entry._advance_pension(trusted, self.state)
+        if kind == "pension_payee":
+            pension["allocations"].append({"payee_id": picked["payee_id"],
+                                           "name": picked["name"], "amount_fen": None})
+            pension["phase"] = "amount"
+            return self._ask_amount(trusted)
+        if kind == "pension_drop_last":
+            pension["allocations"].pop()
+            pension["phase"] = "destination"
+            return entry._advance_pension(trusted, self.state)
+        if kind == "pension_adopt":
+            return self._adopt(trusted)
+        if kind == "pension_stop":
+            return entry._closeout(trusted, state, stop_reason="user_cancelled")
+        if kind == "pension_retry":
+            record = plan.step_state(state, picked["step_id"])
+            record["status"] = None  # allow the preflight to run again
+            return entry._advance_pension(trusted, self.state)
+        raise ValueError("INVALID_OPTION")
+
+    def apply_text(self, trusted, text: str):
+        pension = self.pension
+        if pension["phase"] == "reserve":
+            fen = parse_amount_fen(text)
+            if fen is None or fen > pension["base_fen"]:
+                return self._ask_reserve(trusted)
+            pension["reserve_fen"] = fen
+            pension["phase"] = "reserve_debits"
+            return self.entry._advance_pension(trusted, self.state)
+        if pension["phase"] == "amount" and pension["allocations"]:
+            fen = parse_amount_fen(text)
+            remaining = self._remaining()
+            if fen is None or fen <= 0 or fen > remaining:
+                return self._ask_amount(trusted)
+            pension["allocations"][-1]["amount_fen"] = fen
+            pension["phase"] = "destination"
+            return self.entry._advance_pension(trusted, self.state)
+        if pension["phase"] == "basis":
+            # A spoken range is a candidate; the bank facts decide (XL-P02).
+            claimed = parse_amount_fen(text)
+            incomes = self._income_transactions()
+            income_total = sum(row["amount_fen"] for row in incomes)
+            balance = self._balance(self.pension["payer"]) or 0
+            if claimed is None:
+                return self._ask_basis(trusted)
+            correction = []
+            if claimed != income_total and claimed != balance:
+                correction.append(f"您说的 {money(claimed)} 元与银行记录不一致："
+                                  f"本月实际入账 {money(income_total)} 元，"
+                                  f"当前可用余额 {money(balance)} 元。以哪个为准？")
+            prompt = "\n".join(correction) if correction else "请选择资金范围："
+            return self.entry._ask(trusted, self.state, prompt,
+                                   self._basis_choices(income_total, balance))
+        # Text in other phases never names a money target (bank facts only).
+        return self._phase_view(trusted)
+
+    def _basis_choices(self, income_total, balance):
+        choices = []
+        if income_total:
+            choices.append((f"本月实际入账合计 {money(income_total)} 元",
+                            {"kind": "pension_basis", "basis": "selected_income"}))
+        choices.append((f"当前可用余额 {money(balance)} 元",
+                        {"kind": "pension_basis", "basis": "available_balance"}))
+        return choices
+
+    # ------------------------------------------------------------------ adoption
+
+    def _adopt(self, trusted):
+        from app.contracts.cross import AdoptedArrangement
+
+        entry, state, pension = self.entry, self.state, self.pension
+        view = self.view()
+        now = entry.clock()
+        record = AdoptedArrangement(
+            arrangement_id=view.arrangement_id, user_id=state["actor"][0],
+            demo_round_id=state["actor"][1], source_task_id=state["actor"][2],
+            plan_revision=state["plan_revision"], payer_account_id=pension["payer"],
+            funds_basis=view.funds_basis,
+            income_transaction_ids=list(pension["income_transaction_ids"]),
+            base_fen=pension["base_fen"], living_reserve_fen=pension["reserve_fen"] or 0,
+            upcoming_debit_scope=view.upcoming_debit_scope,
+            known_debits_fen=view.known_debits_fen, adopted_at=now,
+            adoption_interaction_id=state.get("interaction_id") or str(uuid4()),
+            status="active",
+        )
+        try:
+            entry.harness.application.acquire_arrangement(record)
+        except Exception:
+            return entry._ask(trusted, state,
+                              "这张账户已有正在办理的资金安排。需先完成、调整或结束原安排，"
+                              "也可以换一张账户。查询不受影响。",
+                              [("停止本次安排", {"kind": "pension_stop"})])
+        pension["arrangement_id"] = record.arrangement_id
+        for index, allocation in enumerate(pension["allocations"], 1):
+            plan.add_step(state, {
+                "step_id": f"transfer:{index}", "action": "transfer.start_transfer",
+                "kind": "write", "payee_id": allocation["payee_id"],
+                "payee_name": allocation["name"], "amount_fen": allocation["amount_fen"],
+                "depends_on": []})
+        pension["phase"] = "running"
+        return entry._advance_pension(trusted, self.state)
