@@ -662,3 +662,57 @@ def test_typed_entry_rejects_shapes_outside_the_declared_contracts():
     result = entry().start(context(), {"subscription_id": "sub_001"})
     assert result.status == TaskStatus.FAILED
     assert result.error.code == "INVALID_ARGUMENT"
+
+
+def test_typed_list_input_with_a_foreign_account_is_denied_by_facts():
+    class TwoAccountBank(FakeBank):
+        def accounts(self, context):
+            return QueryOk(kind="ok", data=AccountList(accounts=[
+                AccountSummary(account_id="A1", account_type="class_i",
+                               account_masked="尾号 0001", available_balance_fen=100,
+                               display_name="主账户", bank_name="模拟银行"),
+                AccountSummary(account_id="A9", account_type="class_i",
+                               account_masked="尾号 0009", available_balance_fen=100,
+                               display_name="他人的账户", bank_name="模拟银行"),
+            ]))
+
+    result = entry(TwoAccountBank()).start(context(), SubscriptionListInput(
+        request_id=uuid4(), intent_text="盘点", account_ids=["A8"]))
+    assert result.status == TaskStatus.FAILED
+    assert result.error.code == "ACCESS_DENIED" and result.error.source == "security"
+
+
+def test_typed_cancel_account_narrowing_keeps_only_that_accounts_items():
+    bank = FakeBank(mandates=[
+        mandate("sub_001", "M_UYUN", "优酷视频", "优酷 VIP 连续包月", 2500, next_day=25),
+        mandate("sub_009", "M_UDRV", "云端网盘", "超级会员连续包月", 3900, next_day=12),
+        mandate("sub_010", "M_XMAL", "喜马拉雅", "儿童会员连续包月", 1500,
+                next_day=20).model_copy(update={"account_id": "A2",
+                                                 "account_masked": "****0002"}),
+    ])
+    bank.accounts = lambda context: QueryOk(kind="ok", data=AccountList(accounts=[
+        AccountSummary(account_id="A1", account_type="class_i", account_masked="尾号 0001",
+                       available_balance_fen=1_000_000, display_name="主账户",
+                       bank_name="模拟银行"),
+        AccountSummary(account_id="A2", account_type="class_i", account_masked="尾号 0002",
+                       available_balance_fen=1_000_000, display_name="零钱账户",
+                       bank_name="模拟银行"),
+    ]))
+    task = entry(bank)
+    first = task.start(context(), SubscriptionCancelInput(
+        request_id=uuid4(), intent_text="退订一项", account_id="A2"))
+    assert first.status == TaskStatus.WAITING_INPUT
+    labels = [item.label for item in first.interaction.options]
+    assert len(labels) == 1 and "儿童会员" in labels[0]
+
+
+def test_typed_cancel_merchant_hint_coercion_words_reach_the_gate():
+    gate = FakeGate()
+    task = entry(FakeBank(), gate)
+    first = task.start(context(), SubscriptionCancelInput(
+        request_id=uuid4(), intent_text="退订一项",
+        merchant_hint="客服让我把那个视频会员退了"))
+    assert first.status is TaskStatus.WAITING_INPUT  # no name match: the menu shows
+    gate.blocked = True
+    picked = task.resume(context(), {"selected_option_id": first.interaction.options[0].id})
+    assert picked.status is TaskStatus.FAILED  # the observed risk reached the policy

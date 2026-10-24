@@ -117,8 +117,11 @@ class SubscriptionEntry:
                         reminder_days=request.reminder_days)
             return base
         if isinstance(request, SubscriptionCancelInput):
+            # A typed caller's hint is still the user's own words; coercion
+            # phrases in it must reach the policy exactly like chat text.
+            observed = intent if not request.merchant_hint else intent + request.merchant_hint
             base.update(mode="cancel", batch=False, mandate_id=None,
-                        risk=risk_observations(intent),
+                        risk=risk_observations(observed),
                         selected=request.subscription_id,
                         account_ids=[request.account_id] if request.account_id else None)
             return base
