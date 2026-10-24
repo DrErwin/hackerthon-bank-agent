@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 银行助手 · v0.4 前端 E2E 旅程画板</title>
+<style>
+  :root {
+    --ink: #243642;
+    --ink-soft: #55646c;
+    --paper: #f4eee1;
+    --card: #fffdf7;
+    --line: #d8d0be;
+    --real: #2f6b4f;
+    --eval: #39698c;
+    --comp: #7a6a55;
+    --amber: #a8752a;
+    --red: #a8443a;
+    --violet: #6b5b95;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: fixed; inset: 0 0 auto 0; height: 64px;
+    display: flex; align-items: center; gap: 16px; padding: 0 16px;
+    background: rgba(250, 246, 238, .94);
+    backdrop-filter: blur(8px);
+    border-bottom: 2px solid #ded5c4;
+    z-index: 60;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 260px; }
+  .mark {
+    width: 38px; height: 38px; flex: none; border-radius: 11px;
+    background: #1f6f5c; color: #fff; display: grid; place-items: center;
+    font-weight: 800; font-size: 18px; transform: rotate(-4deg);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, .16);
+  }
+  .brand h1 { font-size: 16px; margin: 0; letter-spacing: .3px; }
+  .brand p { margin: 2px 0 0; font-size: 11.5px; color: #6d7a80; }
+  .lens { display: flex; gap: 6px; flex: 1; justify-content: center; flex-wrap: nowrap; }
+  .lens button {
+    border: 1.5px solid #c9c1b0; background: #fffdf8; color: #3a4a52;
+    border-radius: 999px; padding: 7px 13px; font-size: 12.5px; cursor: pointer; font-weight: 600;
+    white-space: nowrap;
+  }
+  .lens button:hover { background: #f3ead9; }
+  .lens button.on { background: #243642; color: #fffdf3; border-color: #243642; }
+  .tools { display: flex; align-items: center; gap: 10px; }
+  .zoom {
+    display: flex; align-items: center; gap: 1px;
+    border: 1.5px solid #c9c1b0; border-radius: 999px; background: #fffdf8; padding: 2px;
+  }
+  .zoom button { width: 28px; height: 28px; border: 0; background: transparent; font-size: 15px; cursor: pointer; border-radius: 999px; }
+  .zoom button:hover { background: #eee5d6; }
+  .zoom span { min-width: 46px; text-align: center; font-size: 12px; color: #5b6a72; font-variant-numeric: tabular-nums; }
+  .help { font-size: 11px; color: #7c8589; max-width: 172px; line-height: 1.35; }
+
+  /* ---------- board ---------- */
+  #stage {
+    position: fixed; top: 64px; left: 0; right: 0; bottom: 0; overflow: hidden; cursor: grab;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(60, 80, 90, .15) 1px, transparent 1.4px) 0 0 / 26px 26px,
+      linear-gradient(180deg, #f7f2e7, #efe8d9);
+  }
+  #stage.dragging { cursor: grabbing; }
+  #world {
+    position: absolute; top: 0; left: 0; width: 2380px; height: 4500px;
+    transform-origin: 0 0;
+    transition: transform .38s cubic-bezier(.2, .7, .2, 1);
+    will-change: transform;
+  }
+  #stage.dragging #world { transition: none; }
+
+  .lane {
+    position: absolute; left: 20px;
+    border-radius: 24px; border: 2px dashed var(--lane-line); background: var(--lane-bg);
+  }
+  .annotation {
+    position: absolute; max-width: 380px; font-size: 13px; line-height: 1.6;
+    color: #6a5b45; transform: rotate(-1.6deg); font-weight: 600; pointer-events: none;
+  }
+  .annotation::before { content: "✎ "; color: #b07d2b; }
+  .annotation::after {
+    content: ""; display: block; height: 3px; width: 70px; margin-top: 7px; border-radius: 2px;
+    background: repeating-linear-gradient(90deg, #b07d2b 0 8px, transparent 8px 13px);
+  }
+  .lane[data-lane="transfer"] { --lane-bg: #edf5f4; --lane-line: #9dbfb6; --lane-ink: #23645a; }
+  .lane[data-lane="bills"]    { --lane-bg: #f2f6ea; --lane-line: #a9c08d; --lane-ink: #4c6b32; }
+  .lane[data-lane="cross"]    { --lane-bg: #f8f1e3; --lane-line: #cdab72; --lane-ink: #875f1e; }
+  .lane[data-lane="mobile"]   { --lane-bg: #f3eff8; --lane-line: #b3a1cd; --lane-ink: #5d4d86; }
+  .lane-head { position: absolute; left: 22px; top: 12px; right: 22px; display: flex; align-items: baseline; gap: 12px; }
+  .lane-head h2 { margin: 0; font-size: 23px; letter-spacing: .5px; color: var(--lane-ink); }
+  .lane-head p { margin: 0; font-size: 12.5px; color: #68757a; }
+  .lane-head .badge {
+    margin-left: auto; font-size: 11px; font-weight: 800; letter-spacing: .4px;
+    color: var(--lane-ink); border: 1.5px solid var(--lane-line); border-radius: 999px; padding: 2px 10px;
+    background: rgba(255, 255, 255, .55);
+  }
+  .rowlabel {
+    position: absolute; font-size: 12.5px; font-weight: 700; letter-spacing: .3px;
+    color: #5a6a70; background: #fffdf6; border: 1px solid #d8d0be; border-radius: 8px;
+    padding: 3px 10px; box-shadow: 1px 1px 0 rgba(0, 0, 0, .05); white-space: nowrap;
+  }
+
+  /* ---------- nodes ---------- */
+  .node {
+    position: absolute; width: 300px; height: 324px;
+    background: var(--card); border: 2px solid #2a3a42; border-radius: 16px;
+    padding: 12px 14px; text-align: left; cursor: pointer; color: inherit;
+    box-shadow: 5px 6px 0 rgba(42, 58, 66, .13);
+    transition: transform .15s, box-shadow .15s;
+    display: flex; flex-direction: column;
+  }
+  .node:hover { transform: translateY(-3px); box-shadow: 6px 9px 0 rgba(42, 58, 66, .18); }
+  .node.active { outline: 3px solid #e08a2e; outline-offset: 3px; }
+  .kick { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #71808a; font-weight: 700; letter-spacing: .3px; }
+  .step {
+    display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+    background: #243642; color: #fff; font-size: 11px; font-weight: 800; flex: none;
+  }
+  .node h3 { margin: 6px 0 8px; font-size: 15.5px; line-height: 1.25; letter-spacing: .2px; min-height: 39px; }
+  .shot {
+    height: 150px; border-radius: 10px; border: 1px solid #d9d1bf;
+    background-size: cover; background-position: top center; background-color: #eef1f2;
+    flex: none;
+  }
+  .shot.bottom { background-position: bottom center; }
+  .shot.zoom { background-size: 185%; background-position: 50% 94%; }
+  .desc {
+    margin: 8px 0 0; font-size: 11.6px; line-height: 1.45; color: #55646c;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 50px;
+  }
+  .foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 8px; gap: 6px; }
+  .tag { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+  .tag.real { background: #e4f2e9; border-color: #9dc7ad; color: #1f5c40; }
+  .tag.eval { background: #e6eff6; border-color: #a6c3d8; color: #24506f; }
+  .tag.comp { background: #efeae0; border-color: #c8b99f; color: #6b5636; }
+  .tag.mobile { background: #efe9f6; border-color: #bcaed6; color: #55417e; }
+  .branch { font-size: 10.5px; color: #8a6a2f; font-weight: 800; }
+
+  .node.noimg .quote {
+    margin-top: 8px; height: 150px; border: 1.5px dashed #cdb98f; border-radius: 10px;
+    background: #fff8e8; padding: 10px 11px; font-size: 12px; line-height: 1.55; color: #6b5324;
+    overflow: hidden; flex: none;
+  }
+  .node.noimg .quote b { display: block; font-size: 12.5px; margin-bottom: 4px; color: #58431a; }
+
+  .node.phone { width: 250px; height: 566px; padding: 10px 10px 12px; }
+  .node.phone .shot { height: 430px; background-size: contain; background-repeat: no-repeat; background-position: center top; background-color: #e2e8ec; }
+  .node.phone h3 { font-size: 14px; min-height: 20px; }
+  .node.phone .desc { min-height: 34px; -webkit-line-clamp: 2; font-size: 11.4px; }
+  .node.phone .foot { padding-top: 6px; }
+
+  .shot.double { display: flex; gap: 6px; background: transparent; border: 0; height: 150px; }
+  .shot.double div { flex: 1; border: 1px solid #d9d1bf; border-radius: 8px; background-size: cover; background-position: top center; background-color: #eef1f2; }
+  .shot.double span { position: absolute; font-size: 10px; }
+
+  /* ---------- edges ---------- */
+  #edges { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .edge { fill: none; stroke-width: 2.4; stroke-linecap: round; }
+  .edge.main { stroke: #2b3a42; }
+  .edge.continue { stroke: #b07d2b; stroke-dasharray: 8 6; }
+  .edge.stop { stroke: #b04a3a; stroke-dasharray: 8 6; }
+  .edge.side { stroke: #7d8a90; stroke-dasharray: 4 7; }
+  .edge.recover { stroke: #39698c; stroke-dasharray: 11 6; }
+  .edge-label {
+    position: absolute; transform: translate(-50%, -50%);
+    font-size: 10.5px; font-weight: 800; letter-spacing: .2px;
+    background: #fbf7ee; border: 1.4px solid #b9b09e; border-radius: 999px; padding: 1px 8px;
+    color: #4b5a62; white-space: nowrap; box-shadow: 1px 1px 0 rgba(0, 0, 0, .06);
+  }
+  .edge-label.continue { border-color: #c69a4b; color: #7d5a17; }
+  .edge-label.stop { border-color: #c17a6f; color: #8a3a30; }
+  .edge-label.side { border-color: #a9b2b6; color: #5f6c72; }
+  .edge-label.recover { border-color: #8bb0c9; color: #2c5a7c; }
+
+  /* ---------- lens dimming ---------- */
+  body[data-lens="transfer"] .node:not([data-lane="transfer"]),
+  body[data-lens="transfer"] .lane:not([data-lane="transfer"]),
+  body[data-lens="transfer"] .annotation:not([data-lane="transfer"]),
+  body[data-lens="transfer"] .rowlabel:not([data-lane="transfer"]),
+  body[data-lens="transfer"] .edge-label:not([data-lane="transfer"]),
+  body[data-lens="transfer"] .edgegroup:not([data-lane="transfer"]) { opacity: .1; pointer-events: none; }
+  body[data-lens="bills"] .node:not([data-lane="bills"]),
+  body[data-lens="bills"] .lane:not([data-lane="bills"]),
+  body[data-lens="bills"] .annotation:not([data-lane="bills"]),
+  body[data-lens="bills"] .rowlabel:not([data-lane="bills"]),
+  body[data-lens="bills"] .edge-label:not([data-lane="bills"]),
+  body[data-lens="bills"] .edgegroup:not([data-lane="bills"]) { opacity: .1; pointer-events: none; }
+  body[data-lens="cross"] .node:not([data-lane="cross"]),
+  body[data-lens="cross"] .lane:not([data-lane="cross"]),
+  body[data-lens="cross"] .annotation:not([data-lane="cross"]),
+  body[data-lens="cross"] .rowlabel:not([data-lane="cross"]),
+  body[data-lens="cross"] .edge-label:not([data-lane="cross"]),
+  body[data-lens="cross"] .edgegroup:not([data-lane="cross"]) { opacity: .1; pointer-events: none; }
+  body[data-lens="mobile"] .node:not([data-lane="mobile"]),
+  body[data-lens="mobile"] .lane:not([data-lane="mobile"]),
+  body[data-lens="mobile"] .annotation:not([data-lane="mobile"]),
+  body[data-lens="mobile"] .rowlabel:not([data-lane="mobile"]),
+  body[data-lens="mobile"] .edge-label:not([data-lane="mobile"]),
+  body[data-lens="mobile"] .edgegroup:not([data-lane="mobile"]) { opacity: .1; pointer-events: none; }
+  .node, .lane, .annotation, .rowlabel, .edge-label, .edgegroup { transition: opacity .25s; }
+
+  /* ---------- drawer ---------- */
+  #drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 94vw);
+    background: #fffdf7; border-left: 3px solid #243642;
+    box-shadow: -14px 0 40px rgba(30, 40, 45, .18);
+    transform: translateX(105%); transition: transform .3s cubic-bezier(.2, .7, .2, 1);
+    z-index: 80; display: flex; flex-direction: column;
+  }
+  body.drawer-open #drawer { transform: none; }
+  .drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 13px 18px; border-bottom: 1px dashed #d8cfbd; }
+  .drawer-head .where { font-size: 12px; color: #70808a; font-weight: 700; }
+  .drawer-head button { border: 1.5px solid #c9c1b0; background: #fffdf8; border-radius: 999px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+  .drawer-body { overflow: auto; padding: 14px 18px 30px; }
+  .drawer-body h2 { font-size: 20px; margin: 12px 0 4px; line-height: 1.3; }
+  .drawer-body .sub { font-size: 12px; color: #70808a; margin: 0 0 12px; }
+  .drawer-body img { width: 100%; border: 1px solid #d8cfbd; border-radius: 10px; cursor: zoom-in; background: #eef1f2; display: block; }
+  .drawer-body .openfull { display: block; margin-top: 4px; font-size: 11.5px; color: #39698c; text-align: right; text-decoration: none; }
+  .drawer-body .quote { margin: 6px 0 0; border: 1.5px dashed #cdb98f; border-radius: 10px; background: #fff8e8; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: #6b5324; }
+  .drawer-body h4 { font-size: 11.5px; letter-spacing: 1px; color: #9a8459; margin: 18px 0 5px; }
+  .drawer-body p { font-size: 13.5px; line-height: 1.65; color: #3c4c55; margin: 0; }
+  .drawer-body .src { font-size: 11.5px; color: #7d8a90; border-top: 1px dashed #ddd4c2; padding-top: 10px; margin-top: 18px; line-height: 1.5; }
+  .drawer-body .cap { font-size: 11.5px; color: #7d8a90; margin: 4px 0 10px; }
+
+  /* ---------- legend / hint / lightbox ---------- */
+  #legend {
+    position: fixed; left: 16px; bottom: 16px; z-index: 45;
+    background: rgba(255, 253, 247, .95); border: 2px solid #2a3a42; border-radius: 14px;
+    box-shadow: 4px 5px 0 rgba(42, 58, 66, .14); padding: 9px 12px; font-size: 11px; color: #4b5a62;
+    display: flex; gap: 16px; max-width: calc(100vw - 420px);
+  }
+  #legend .col { display: flex; flex-direction: column; gap: 3px; }
+  #legend .col b { font-size: 10.5px; letter-spacing: .5px; color: #7a6a55; margin-bottom: 1px; }
+  .swatch { display: inline-block; width: 20px; height: 0; border-top: 3px solid #2b3a42; vertical-align: middle; margin-right: 6px; }
+  .swatch.ds { border-top-style: dashed; }
+  .swatch.amber { border-top-color: #b07d2b; }
+  .swatch.red { border-top-color: #b04a3a; }
+  .swatch.blue { border-top-color: #39698c; }
+  #hint {
+    position: fixed; right: 16px; bottom: 16px; z-index: 45;
+    background: #243642; color: #fdf8ec; border-radius: 999px; padding: 8px 14px;
+    font-size: 11.5px; box-shadow: 3px 4px 0 rgba(0, 0, 0, .2); opacity: .94;
+  }
+  #lightbox {
+    position: fixed; inset: 0; background: rgba(22, 32, 38, .88); display: none;
+    align-items: center; justify-content: center; z-index: 100; padding: 3vh 3vw; cursor: zoom-out;
+  }
+  #lightbox.show { display: flex; }
+  #lightbox img { max-width: 100%; max-height: 94vh; border-radius: 8px; background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+
+  @media (max-width: 1180px) {
+    .help { display: none; }
+    .brand { min-width: 0; }
+    .brand p { display: none; }
+    #legend { max-width: calc(100vw - 32px); flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body data-lens="transfer">
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">银</span>
+    <div>
+      <h1>前端 E2E 旅程画板</h1>
+      <p id="statline">v0.4 完整前端 · 真实接口 · 2026-10-21</p>
+    </div>
+  </div>
+  <nav class="lens" aria-label="按业务线聚焦">
+    <button data-lens="all">总览</button>
+    <button data-lens="transfer" class="on">转账业务线</button>
+    <button data-lens="bills">账单业务线</button>
+    <button data-lens="cross">安全与恢复</button>
+    <button data-lens="mobile">手机适老</button>
+  </nav>
+  <div class="tools">
+    <div class="zoom" role="group" aria-label="缩放">
+      <button id="zoom-out" aria-label="缩小">−</button>
+      <span id="zoom-pct">60%</span>
+      <button id="zoom-in" aria-label="放大">+</button>
+      <button id="fit" aria-label="适应窗口" title="适应当前业务线">⤢</button>
+    </div>
+    <div class="help">拖动空白处平移 · 滚轮上下 · Ctrl+滚轮缩放<br />点卡片看大图与分叉说明</div>
+  </div>
+</header>
+
+<div id="stage" aria-label="E2E 旅程画板">
+  <div id="world">
+    <svg id="edges" viewBox="0 0 2380 4500" aria-hidden="true"></svg>
+  </div>
+</div>
+
+<aside id="drawer" aria-label="步骤详情" aria-hidden="true">
+  <div class="drawer-head">
+    <span class="where" id="drawer-where"></span>
+    <button id="drawer-close" aria-label="关闭详情">关闭 ✕</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<div id="legend">
+  <div class="col">
+    <b>连线</b>
+    <span><i class="swatch"></i>主线（顺利办完）</span>
+    <span><i class="swatch ds amber"></i>分叉 · 可继续</span>
+    <span><i class="swatch ds red"></i>分叉 · 终止/重试</span>
+    <span><i class="swatch ds"></i>换一种结果</span>
+    <span><i class="swatch ds blue"></i>刷新 / 恢复 / 横切</span>
+  </div>
+  <div class="col">
+    <b>卡片标签</b>
+    <span><i class="swatch" style="border-color:#2f6b4f"></i>真实接口 E2E</span>
+    <span><i class="swatch" style="border-color:#39698c"></i>评测浏览器</span>
+    <span><i class="swatch" style="border-color:#a8752a"></i>组件 / 契约测试</span>
+    <span><i class="swatch" style="border-color:#6b5b95"></i>手机视口实测</span>
+  </div>
+</div>
+<div id="hint">← 拖动平移 · Ctrl+滚轮缩放 · 点卡片看大图</div>
+<div id="lightbox" aria-hidden="true"><img alt="截图大图" /></div>
+
+<script>
+/* ======================= 数据 ======================= */
+const W = 2380;
+const H = 4500;
+const NODE_W = 300;
+const NODE_H = 324;
+const PHONE_W = 250;
+const PHONE_H = 566;
+const COL = 380;
+const LEFT = 60;
+
+const LANES = [
+  {
+    id: "transfer", top: 0, height: 860, width: 2320,
+    title: "转账业务线",
+    sub: "一句话发起 → 确认门 → 验证码 → 银行结果 → 刷新只读",
+    badge: "真实接口",
+    rows: [
+      { y: 90, label: "① 正常路径：一句话办一笔转账" },
+      { y: 470, label: "② 分叉：取消 / 修改 / 输错 / 重新获取 / 高风险" }
+    ]
+  },
+  {
+    id: "bills", top: 880, height: 2000, width: 1980,
+    title: "账单业务线",
+    sub: "四个功能共用同一套底盘：自然语言 → 选账户 → 结果卡（前端只展示，不补造）",
+    badge: "真实接口",
+    rows: [
+      { y: 970, label: "① 消费汇总（这个月花了多少）" },
+      { y: 1350, label: "② 明细查询（餐饮 / 转账）" },
+      { y: 1730, label: "③ 异常核对（这笔钱我不认识）" },
+      { y: 2110, label: "异常核对的另一种结果" },
+      { y: 2490, label: "④ 月度报告（给我出一份这个月的账单）" }
+    ]
+  },
+  {
+    id: "cross", top: 2900, height: 860, width: 1980,
+    title: "安全与恢复（横切）",
+    sub: "刷新、断线、登录过期、结果待核实：这些保护横切所有业务线",
+    badge: "横切能力",
+    rows: [
+      { y: 2990, label: "任何一步都可能遇到" },
+      { y: 3370, label: "入口、回滚与证据口径" }
+    ]
+  },
+  {
+    id: "mobile", top: 3780, height: 690, width: 1980,
+    title: "手机适老化 · 390×844",
+    sub: "票 05 实测：正文 ≥16、可点 ≥48、无横向溢出；PASS_WITH_WAIVERS（0 硬失败）",
+    badge: "手机实测",
+    rows: [{ y: 3870, label: "同一套流程在手机视口逐屏实测" }]
+  }
+];
+
+const TAG_TEXT = { real: "真实接口 E2E", eval: "评测浏览器", comp: "组件 / 契约", mobile: "手机视口实测" };
+
+const NODES = [
+  /* ---------------- 转账业务线 ---------------- */
+  {
+    id: "t1", lane: "transfer", row: 0, col: 0, num: "1", sub: "转账 · 第 1 步", title: "打开就是聊天",
+    tag: "real", img: "assets/transfer-welcome.png", pos: "top",
+    desc: "打开网站就是聊天窗口：顶部显示「演示用户 · 已连接」，助手先打招呼，并给出可以照着说的例子。",
+    user: "打开网址即可，不用找菜单，也不用登录。",
+    system: "自动建立演示会话、连上后端、加载当前对话；顶栏显示连接状态。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · local-demo 后端 + GLM + 模拟银行 · 1280×900"
+  },
+  {
+    id: "t2", lane: "transfer", row: 0, col: 1, num: "2", sub: "转账 · 第 2 步", title: "用大白话说需求",
+    tag: "real", img: "assets/transfer-welcome.png", pos: "bottom-zoom",
+    desc: "在底部输入框写「给妈妈转500元，主账户A1」，点「发送」。不用选菜单，也不用手填表单。",
+    user: "在底部输入框输入一句自然语言，点「发送」。",
+    system: "消息受理后模型只负责理解需求；金额、账号等关键信息要等确认单再逐项核对。",
+    branch: "信息有歧义时，先弹「补充信息」选项卡让用户自己点选，不替用户默认选择。",
+    src: "真实接口 E2E · 2026-10-21 补拍（同一张欢迎页的下半屏：示例句 + 输入框）"
+  },
+  {
+    id: "t3", lane: "transfer", row: 0, col: 2, num: "3", sub: "转账 · 第 3 步", title: "动钱先过确认门",
+    tag: "real", img: "assets/transfer-confirm.png", pos: "top",
+    desc: "系统生成确认单：转出账户、金额、收款人、收款银行、手续费、到账方式、风险提示逐项列出。确认必须在卡片上点按钮，在聊天里说「确认」不算数。",
+    user: "逐项核对后点「确认办理」；不对就点「修改」或「取消」。",
+    system: "确认单来自服务端，是提交银行的唯一入口；按钮连点两次也只提交一次（票 05 实测）。",
+    branch: "取消 → 一分钱不动；修改 → 旧单作废、修改要求放进输入框重新来。",
+    src: "真实接口 E2E（票 05 回归）· 1280×900"
+  },
+  {
+    id: "t4", lane: "transfer", row: 0, col: 3, num: "4", sub: "转账 · 第 4 步", title: "确认之后还要验证码",
+    tag: "real", img: "assets/transfer-verify.png", pos: "top",
+    desc: "确认后进入验证：6 位验证码只填在专用框里，不要发到聊天里；演示环境可点「点这里查看」拿到演示码。",
+    user: "点「点这里查看」→ 输入 6 位验证码 → 点「提交验证码」。",
+    system: "验证码由安全门校验；填错只提示重输，不会提交银行。",
+    branch: "输错 → 提示重输；重新获取 → 旧码作废、截止时间不变。",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "t5", lane: "transfer", row: 0, col: 4, num: "5", sub: "转账 · 第 5 步", title: "结果只认银行返回",
+    tag: "real", img: "assets/transfer-result.png", pos: "top",
+    desc: "办理结果卡由银行回执生成：转账成功、金额 ¥500.00、收款人、银行、手续费、交易号。前端不自己算结果，也不补造金额。",
+    user: "等待结果，核对金额和交易号。",
+    system: "安全门放行后由银行执行；页面只展示银行返回的结果。",
+    branch: "失败时显示「这笔钱没有转出去」，不会显示成功。",
+    src: "真实接口 E2E（票 05 回归）· 1280×900"
+  },
+  {
+    id: "t6", lane: "transfer", row: 0, col: 5, num: "6", sub: "转账 · 第 6 步", title: "刷新也不会重复办理",
+    tag: "real", img: "assets/transfer-reload.png", pos: "top",
+    desc: "办完后刷新：原任务以只读方式恢复，「已确认办理」、按钮全部不可点，不会重复提交银行。",
+    user: "刷新页面或重新进入。",
+    system: "页面先恢复原任务和记录，不自动重发；交易号等结果保持只读。",
+    branch: "如果任务还没办完，会先出现「有一项没办完的任务」（见下方横切保障）。",
+    src: "真实接口 E2E（票 05 回归）· 刷新后 0 个可用按钮 · 1280×900"
+  },
+  {
+    id: "b1", lane: "transfer", row: 1, col: 2, num: "↳", sub: "转账 · 分叉", title: "取消：一分钱不动",
+    tag: "real", img: "assets/transfer-cancelled.png", pos: "top",
+    desc: "点「取消」后：这笔转账已取消，没有提交给银行；确认单转为只读记录，只留痕不执行。",
+    user: "在确认单上点「取消」。",
+    system: "任务终止为「已取消」，不进入验证、不调用银行。",
+    branch: "之后可以重新发起一笔新的转账。",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "b2", lane: "transfer", row: 1, col: 3, num: "↳", sub: "转账 · 分叉", title: "修改：旧单作废，重新来",
+    tag: "real", img: "assets/transfer-modify.png", pos: "top",
+    desc: "点「修改」并填写要调整的内容：旧确认单先取消，修改要求自动放进输入框；用户核对后重新发送，再走一遍确认门。",
+    user: "点「修改」→ 填要改的内容 →「取消旧确认并准备修改」→ 检查输入框后重新发送。",
+    system: "旧确认单作废、不会直接改金额；新需求重新生成确认单。",
+    branch: "适合「金额不对 / 收款人不对」的场景。",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "b3", lane: "transfer", row: 1, col: 4, num: "↳", sub: "转账 · 分叉", title: "验证码输错：提示重输",
+    tag: "real", img: "assets/transfer-code-wrong.png", pos: "top",
+    desc: "输错验证码时页面提示「验证码不对，请再输一次」，不会提交银行；可以继续输入或点「重新获取验证码」。",
+    user: "看清提示，重新输入 6 位数字或重新获取。",
+    system: "安全门校验拦截，输入框清空、提交按钮重新等待 6 位数字；不产生资金动作。",
+    branch: "重试仍有次数与时限约束，以服务端返回为准。",
+    src: "真实接口 E2E · 2026-10-21 补拍（故意输错一次）· 1280×900"
+  },
+  {
+    id: "b4", lane: "transfer", row: 1, col: 5, num: "↳", sub: "转账 · 分叉", title: "重新获取验证码",
+    tag: "real", img: "assets/transfer-demo-code.png", pos: "top",
+    desc: "点「重新获取验证码」：旧验证码作废、截止时间不变；演示环境可以在页面上点「点这里查看」看到演示码。",
+    user: "没收到或输错太多次时重新获取，再输入新码。",
+    system: "挑战换新、旧码失效；验证仍在原任务内继续，不重新发起转账。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "b5", lane: "transfer", row: 1, col: 1, num: "↳", sub: "转账 · 分叉", title: "高风险：安全直接拦下",
+    tag: "real", img: "assets/transfer-highrisk.png", pos: "top",
+    desc: "示例：给妈妈转 502 元（演示用高风险场景）→ 安全检查直接拒绝，不生成确认单、不提交银行；页面显示红色的「这笔钱没有转出去」和原因说明。",
+    user: "收到风险提示和原因，资金没有动。",
+    system: "风险场景由服务端演示事实决定，不是前端判断、也不是金额阈值；原始消息不能改写场景事实。",
+    branch: "另一种安全分支：中风险会追加模拟人脸验证（需管理员演示端配合）。",
+    src: "真实接口 E2E · 2026-10-21 补拍（演示事实场景 502）· 1280×900"
+  },
+
+  /* ---------------- 账单业务线 ---------------- */
+  {
+    id: "s1", lane: "bills", row: 0, col: 0, num: "1", sub: "账单 · 消费汇总", title: "问一句就能看账",
+    tag: "real", img: "assets/bills-summary-choice.png", pos: "top",
+    desc: "输入「这个月花了多少」→ 系统先问「请选择要查询的本人账户」，列出主账户、储蓄账户和「所有本人账户」，不会替用户默认选。",
+    user: "输入问题，点「发送」；在选项里点自己要查的账户。",
+    system: "模型只理解意图与范围；查询由账单模块执行，结果只来自接口。",
+    branch: "账户范围每次都让用户自己点，避免默认查错账户。",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "s2", lane: "bills", row: 0, col: 1, num: "2", sub: "账单 · 消费汇总", title: "汇总卡：钱花在哪",
+    tag: "real", img: "assets/bills-summary.png", pos: "top",
+    desc: "选账户后生成消费汇总：净额、消费支出 / 退款 / 转出 / 转入、笔数、覆盖账户、分类占比、数据时间，全部来自接口。",
+    user: "看总额、分类占比和数据时间。",
+    system: "前端只做展示映射；不重算金额、不合并账户。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "d1", lane: "bills", row: 1, col: 0, num: "1", sub: "账单 · 明细查询", title: "换一类：看看餐饮明细",
+    tag: "real", img: "assets/bills-detail-choice.png", pos: "top",
+    desc: "输入「看看这个月的餐饮明细」→ 同样先选账户；不同问法对应不同功能，但底盘完全一致。",
+    user: "换一句话表达想看的内容，再点账户范围。",
+    system: "同一套任务卡与账户选择，只由账单模块决定返回哪种明细。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "d2", lane: "bills", row: 1, col: 1, num: "2", sub: "账单 · 明细查询", title: "明细卡：一笔一笔核对",
+    tag: "real", img: "assets/bills-detail.png", pos: "top",
+    desc: "每行显示金额、性质 / 分类和时间；商户名原样展示，账号按后台打码原样展示，前端不再加工。",
+    user: "逐行核对消费；有疑问可以换个分类或金额再看。",
+    system: "明细来自接口；退款显示「退款」、转账显示「转账」，不再一律叫「收入」。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "d3", lane: "bills", row: 1, col: 2, num: "↳", sub: "账单 · 明细查询", title: "同样逻辑看转账明细",
+    tag: "real", img: "assets/bills-detail-transfer.png", pos: "top",
+    desc: "换成转账分类：12 笔，对方账号打码（如 ****0002）原样显示，条数 / 金额 / 时间与接口逐行一致。",
+    user: "想看哪一类就说哪一类。",
+    system: "同一张明细卡，只由接口返回的类别决定内容。",
+    branch: "—",
+    src: "真实接口 E2E（票 04 联调证据）· 1280×900"
+  },
+  {
+    id: "a1", lane: "bills", row: 2, col: 0, num: "1", sub: "账单 · 异常核对", title: "说清疑问，先选核对范围",
+    tag: "real", img: "assets/bills-anomaly-range.png", pos: "top",
+    desc: "输入「这笔钱我不认识，是不是扣错了」→ 系统先问核对的时间范围（本月 / 近三个月），再继续确认。",
+    user: "说清楚是哪笔、什么时候，按选项确认查询范围。",
+    system: "引导先把范围问清楚，避免拿错数据下结论。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "a2", lane: "bills", row: 2, col: 1, num: "2", sub: "账单 · 异常核对", title: "先列出原范围流水",
+    tag: "real", img: "assets/bills-anomaly-listing.png", pos: "top",
+    desc: "金额、类别或商户线索有歧义时，系统建议先列出原范围流水，再让用户指认具体哪一笔；不会凭一句话就下结论。",
+    user: "点「列出原范围流水」。",
+    system: "把「核对哪一笔」交还给用户确认，而不是猜。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "a3", lane: "bills", row: 2, col: 2, num: "3", sub: "账单 · 异常核对", title: "选账户",
+    tag: "real", img: "assets/bills-anomaly-account.png", pos: "top",
+    desc: "再次确认查哪些账户（主账户 / 储蓄账户 / 所有本人账户），同样由用户自己点。",
+    user: "点选账户范围。",
+    system: "沿用同一套账户选择卡，不替用户默认选择。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "a4", lane: "bills", row: 2, col: 3, num: "4", sub: "账单 · 异常核对", title: "从候选流水点出那一笔",
+    tag: "real", img: "assets/bills-anomaly-candidate.png", pos: "top",
+    desc: "列出候选交易（时间、金额、对方、打码账号），用户点选要核对的那一笔（例如 500 元、王**）。",
+    user: "在候选里点最像的那一笔。",
+    system: "候选来自接口；选中后带着交易号进入核对。",
+    branch: "点错了可以取消这次办理，重新发起。",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "a5", lane: "bills", row: 2, col: 4, num: "5", sub: "账单 · 异常核对", title: "办理结果：只提示，不动钱",
+    tag: "real", img: "assets/bills-anomaly.png", pos: "top",
+    desc: "命中「夜间交易」规则：给出提示、建议和相关交易号；其他规则数据不足时用中文原因说明。整块 0 个操作按钮，只提示、不代用户执行、不编造金额。",
+    user: "看清提示与建议；有疑问按建议打银行客服电话。",
+    system: "规则结论来自账单模块；前端只展示，不补造理由、不假装正常。",
+    branch: "另一种结果：没有命中 → 显示「没有发现需要留意的交易」（见下方）。",
+    src: "真实接口 E2E（票 04 联调证据）· 夜间规则真实命中 + 数据不足中文原因"
+  },
+  {
+    id: "a6", lane: "bills", row: 3, col: 4, num: "↳", sub: "账单 · 另一种结果", title: "没有发现异常（附已知遗留）",
+    tag: "real", img: "assets/bills-anomaly-clear.png", pos: "top",
+    desc: "规则没有命中时显示「没有发现需要留意的交易」。但规则数据不足时仍是成功色——这是票 04 审查第 1 条、PM 决定保留现状的已知遗留项，页面上仍会写「数据不足」和原因。",
+    user: "看到「没有发现」不代表一定安全，页面会同时标出数据不足的规则。",
+    system: "前端不做二次判断；数据不足与「已核对未命中」分开呈现。",
+    branch: "遗留项已记录在票 04，后续版本再改。",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 该笔仅规则 1 数据不足（本人转账关系未确认）· 1280×900"
+  },
+  {
+    id: "r1", lane: "bills", row: 4, col: 0, num: "1", sub: "账单 · 月度报告", title: "要一份完整报告",
+    tag: "real", img: "assets/bills-report-choice.png", pos: "top",
+    desc: "输入「给我出一份这个月的账单」→ 先选账户；报告不是「办理结果」卡，而是一张单独的报告卡。",
+    user: "说清楚要报告，点选账户范围。",
+    system: "报告由账单模块生成，前端用报告卡呈现。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+  {
+    id: "r2", lane: "bills", row: 4, col: 1, num: "2", sub: "账单 · 月度报告", title: "报告卡：只给结论和汇总",
+    tag: "real", img: "assets/bills-report.png", pos: "top",
+    desc: "统计范围、消费净额、分类、月均消费 / 统计天数 / 口径、报告生成时间、口播摘要；卡内没有任何原始明细、商户名或交易号。",
+    user: "看汇总结论和口播摘要，可分享给家人。",
+    system: "报告卡与明细卡是两种卡：报告不泄露原始明细。",
+    branch: "月均口径写清「按统计天数折算，每月 30 天；不预测未来实际支出」。",
+    src: "真实接口 E2E · 2026-10-21 补拍 · 1280×900"
+  },
+
+  /* ---------------- 横切：安全与恢复 ---------------- */
+  {
+    id: "x1", lane: "cross", row: 0, col: 0, num: "↺", sub: "安全与恢复 · 刷新 / 重新进入", title: "任务没办完就离开 / 重新进入",
+    tag: "real", img: "assets/transfer-recovery-gate.png", pos: "top",
+    desc: "登录过期或重新进入后，如果有一项任务还没办完，页面显示「有一项没办完的任务」，不会自动继续，避免重复操作。截图就是重新进入后的恢复门。",
+    user: "先看提示，再点「查看原任务」。",
+    system: "页面只恢复原任务状态；不会自动重跑、不会重新提交。恢复门里的原因显示为机器码 SESSION_RECONFIRMATION_REQUIRED（可读性问题，本次未改，如实标注）。",
+    branch: "也可以放弃这次任务（状态以服务端为准）。",
+    src: "真实接口 E2E · 2026-10-21 补拍：确认单待确认时清掉会话并重新进入 · 1280×900"
+  },
+  {
+    id: "x2", lane: "cross", row: 0, col: 1, num: "↺", sub: "安全与恢复 · 恢复", title: "点「查看原任务」后恢复",
+    tag: "real", img: "assets/transfer-recovery-readable.png", pos: "top",
+    desc: "点「查看原任务」后：原任务恢复，没有创建新任务、没有重新提交；页面显示「刷新前的任务 · 已处理 · 只读」，并回到原来的确认单。",
+    user: "点「查看原任务」，再核对记录。",
+    system: "恢复由服务端重新签发当前会话的确认单；页面回到原任务继续核对，旧按钮不会自动提交。",
+    branch: "—",
+    src: "真实接口 E2E · 2026-10-21 补拍（恢复后页面）· 1280×900"
+  },
+  {
+    id: "x3", lane: "cross", row: 0, col: 2, num: "!", sub: "安全与恢复 · 登录过期", title: "登录过期：重新进入",
+    tag: "eval", img: "assets/cross-expired.png", pos: "top",
+    desc: "登录过期时顶部红色横幅「演示登录已过期，旧的按钮已经不能再点」，点「点这里重新进入」后先查看原任务，不会重复提交。",
+    user: "点「点这里重新进入」，再看原任务。",
+    system: "过期后旧按钮全部失效；重新进入只恢复查看，不重放操作。",
+    branch: "对应评测样本 TF-OBS-06（浏览器实测）。",
+    src: "评测浏览器证据 · 离线固定规划器 + 真实安全门/银行 · 1400×1000（evals/transfer）"
+  },
+  {
+    id: "x4", lane: "cross", row: 0, col: 3, num: "!", sub: "安全与恢复 · 旧快照", title: "旧步骤不会复活",
+    tag: "eval", img: "assets/cross-stale.png", pos: "top",
+    desc: "已经结束的旧步骤显示「已结束 · 只读」；迟到的旧快照回来时，按钮不会重新变成可点。",
+    user: "看到「已结束 · 只读」就别再点了。",
+    system: "前端按任务最新状态渲染；旧交互不会覆盖新状态。",
+    branch: "对应评测样本 TF-OBS-04 / 07（浏览器实测）。",
+    src: "评测浏览器证据 · TF-OBS-07 · 1400×1000（evals/transfer）"
+  },
+  {
+    id: "x5", lane: "cross", row: 0, col: 4, num: "◇", sub: "安全与恢复 · 例外", title: "结果待核实（未真实复现）",
+    tag: "comp", noimg: true,
+    note: "「结果还在核实」<br /><b>结果待核实</b><br />这笔办理的结果我暂时没查到，我没有再提交一次。<br /><br />［查询原操作］<br />查询只看原来那笔的结果，不会重新提交。",
+    desc: "银行结果暂时没回来时会显示「结果待核实」，只能「查询原操作」、不会重新提交。真实组合无法构造这个故障，由组件/契约测试覆盖，如实记为未覆盖。",
+    user: "看到「结果待核实」时点「查询原操作」，不要重复发起。",
+    system: "真实 local-demo 里银行与服务同进程、没有故障注入入口，无法构造「结果未知」；页面行为由组件/契约测试覆盖。",
+    branch: "PM 已按例外接受；没有用 stub 冒充真实联调。",
+    src: "组件/契约测试覆盖 · 票 05 明确列为未覆盖例外"
+  },
+  {
+    id: "x6", lane: "cross", row: 1, col: 0, num: "◇", sub: "入口与回滚", title: "主入口与回滚路径",
+    tag: "real", double: ["assets/route-root.png", "assets/route-legacy.png"],
+    desc: "主入口 / 已换成完整前端；/legacy 保留旧简易前端用于回滚；/admin 管理入口不变。",
+    user: "正常用户打开 /；需要回滚时访问 /legacy。",
+    system: "/v04、/v04/gallery、/v04/admin 旧路径仍可用；/admin 真实管理入口不变。",
+    branch: "左右两张图：左边完整前端，右边旧简易前端（回滚依据）。",
+    src: "真实接口 E2E（票 05 路由探测）· 1280×900"
+  },
+  {
+    id: "x7", lane: "cross", row: 1, col: 1, num: "◇", sub: "证据口径", title: "三种卡片标签怎么看",
+    tag: "comp", noimg: true,
+    note: "<b>真实接口 E2E</b>：local-demo 后端 + GLM + 模拟银行，真实页面补拍。<br /><b>评测浏览器</b>：离线固定规划器 + 真实安全门/银行，浏览器实测（0 次模型调用）。<br /><b>组件/契约</b>：真实组合无法构造的故障，由组件/契约测试覆盖。",
+    desc: "本画板里的每一张卡片都标了证据类型；数字和例外口径以票 04 / 05 与 PM 验收记录为准。",
+    user: "先看标签，再看内容。",
+    system: "没有把组件态截图冒充真实联调，也没有把待核实场景说成已覆盖。",
+    branch: "—",
+    src: "票 04 / 05 证据目录与 PM 2026-10-21 验收记录"
+  },
+
+  /* ---------------- 手机适老 ---------------- */
+  {
+    id: "m1", lane: "mobile", row: 0, col: 0, num: "1", sub: "手机 · 390×844", title: "欢迎页（手机）",
+    tag: "mobile", img: "assets/mobile-welcome.png", pos: "top", phone: true,
+    desc: "手机上同样先看到助手打招呼和示例句，底部输入框在视口内。",
+    user: "打开网址即可。",
+    system: "适配 390 宽：无横向滚动，输入栏常驻底部。",
+    branch: "—",
+    src: "真实接口 E2E 手机视口 · 票 05 适老化走查 · 390×844"
+  },
+  {
+    id: "m2", lane: "mobile", row: 0, col: 1, num: "2", sub: "手机 · 390×844", title: "确认单（手机）",
+    tag: "mobile", img: "assets/mobile-confirm.png", pos: "top", phone: true,
+    desc: "确认单在手机上整屏显示，金额加粗、按钮 ≥48px，逐项可核对。",
+    user: "逐项核对后点按钮。",
+    system: "与桌面同一套卡片与安全逻辑。",
+    branch: "—",
+    src: "真实接口 E2E 手机视口 · 票 05 适老化走查 · 390×844"
+  },
+  {
+    id: "m3", lane: "mobile", row: 0, col: 2, num: "3", sub: "手机 · 390×844", title: "验证码（手机）",
+    tag: "mobile", img: "assets/mobile-verify.png", pos: "top", phone: true,
+    desc: "6 个验证码输入格、提交按钮和「重新获取」在手机上都能点到。",
+    user: "输入 6 位数字后提交。",
+    system: "验证码只进专用框，不经过聊天。",
+    branch: "—",
+    src: "真实接口 E2E 手机视口 · 票 05 适老化走查 · 390×844"
+  },
+  {
+    id: "m4", lane: "mobile", row: 0, col: 3, num: "4", sub: "手机 · 390×844", title: "账单汇总（手机）",
+    tag: "mobile", img: "assets/mobile-bills-summary.png", pos: "top", phone: true,
+    desc: "账单汇总在手机上不横向溢出，金额和分类可读。",
+    user: "上下滚动查看。",
+    system: "卡片内边距 20px、间距 16px（按 v0.1 规范数值）。",
+    branch: "—",
+    src: "真实接口 E2E 手机视口 · 票 05 适老化走查 · 390×844"
+  },
+  {
+    id: "m5", lane: "mobile", row: 0, col: 4, num: "5", sub: "手机 · 390×844", title: "账单报告（手机）",
+    tag: "mobile", img: "assets/mobile-bills-report.png", pos: "top", phone: true,
+    desc: "报告卡在手机上完整呈现，没有原始明细泄露。",
+    user: "上下滚动查看汇总。",
+    system: "与桌面同一份报告数据。",
+    branch: "—",
+    src: "真实接口 E2E 手机视口 · 票 05 适老化走查 · 390×844"
+  }
+];
+
+const ANNOTATIONS = [
+  { lane: "bills", x: 980, y: 1000, text: "不替用户默认选账户：查错账户，后面就全都看错了。" },
+  { lane: "bills", x: 1220, y: 1380, text: "前端只展示接口字段：条数 / 金额 / 分类 / 时间原样，不合并、不重算。" },
+  { lane: "bills", x: 900, y: 2520, text: "报告卡 ≠ 明细卡：报告里只有汇总，没有原始明细、商户名和交易号。" },
+  { lane: "cross", x: 1000, y: 3400, text: "断线、过期、刷新都是真实工程问题：页面先恢复状态，再让用户决定。" }
+];
+
+const EDGES = [
+  { from: "t1", to: "t2", label: "说需求", kind: "main" },
+  { from: "t2", to: "t3", label: "生成确认单", kind: "main" },
+  { from: "t3", to: "t4", label: "确认办理", kind: "main" },
+  { from: "t4", to: "t5", label: "验证通过", kind: "main" },
+  { from: "t5", to: "t6", label: "刷新页面", kind: "recover" },
+  { from: "t3", to: "b1", label: "取消", kind: "continue" },
+  { from: "t3", to: "b2", label: "修改", kind: "continue" },
+  { from: "t4", to: "b3", label: "输错一次", kind: "stop" },
+  { from: "t4", to: "b4", label: "重新获取", kind: "side" },
+  { from: "t2", to: "b5", label: "高风险 502", kind: "stop" },
+  { from: "s1", to: "s2", label: "选账户", kind: "main" },
+  { from: "d1", to: "d2", label: "选账户", kind: "main" },
+  { from: "d2", to: "d3", label: "换个分类", kind: "side" },
+  { from: "a1", to: "a2", label: "本月", kind: "main" },
+  { from: "a2", to: "a3", label: "列出流水", kind: "main" },
+  { from: "a3", to: "a4", label: "选账户", kind: "main" },
+  { from: "a4", to: "a5", label: "点第 2 笔", kind: "main" },
+  { from: "a5", to: "a6", label: "没命中", kind: "side" },
+  { from: "r1", to: "r2", label: "选账户", kind: "main" },
+  { from: "x1", to: "x2", label: "查看原任务", kind: "recover" },
+  { from: "m1", to: "m2", label: "下一步", kind: "recover" },
+  { from: "m2", to: "m3", label: "下一步", kind: "recover" },
+  { from: "m3", to: "m4", label: "下一步", kind: "recover" },
+  { from: "m4", to: "m5", label: "下一步", kind: "recover" }
+];
+
+/* ======================= 渲染 ======================= */
+const laneById = Object.fromEntries(LANES.map((l) => [l.id, l]));
+const nodeById = Object.fromEntries(NODES.map((n) => [n.id, n]));
+const branchCount = {};
+for (const e of EDGES) {
+  if (["continue", "stop", "side"].includes(e.kind)) branchCount[e.from] = (branchCount[e.from] || 0) + 1;
+}
+const nodeRects = {};
+
+function esc(text) {
+  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function nodeRect(n) {
+  const lane = laneById[n.lane];
+  const row = lane.rows[n.row];
+  const w = n.phone ? PHONE_W : NODE_W;
+  const h = n.phone ? PHONE_H : NODE_H;
+  return { x: LEFT + n.col * COL, y: row.y, w, h };
+}
+
+function renderBoard() {
+  const world = document.getElementById("world");
+  const svg = document.getElementById("edges");
+
+  for (const lane of LANES) {
+    const el = document.createElement("div");
+    el.className = "lane";
+    el.dataset.lane = lane.id;
+    el.dataset.zone = "lane";
+    el.style.top = lane.top + "px";
+    el.style.height = lane.height + "px";
+    el.style.width = (lane.width || 2320) + "px";
+    el.innerHTML =
+      '<div class="lane-head"><h2>' + esc(lane.title) + "</h2><p>" + esc(lane.sub) +
+      '</p><span class="badge">' + esc(lane.badge) + "</span></div>";
+    world.appendChild(el);
+
+    for (const row of lane.rows) {
+      const label = document.createElement("div");
+      label.className = "rowlabel";
+      label.dataset.lane = lane.id;
+      label.dataset.zone = "rowlabel";
+      label.style.left = LEFT + "px";
+      label.style.top = row.y - 34 + "px";
+      label.textContent = row.label;
+      world.appendChild(label);
+    }
+  }
+
+  for (const note of ANNOTATIONS) {
+    const el = document.createElement("div");
+    el.className = "annotation";
+    el.dataset.lane = note.lane;
+    el.dataset.zone = "annotation";
+    el.style.left = note.x + "px";
+    el.style.top = note.y + "px";
+    el.textContent = note.text;
+    world.appendChild(el);
+  }
+
+  for (const n of NODES) {
+    const rect = nodeRect(n);
+    nodeRects[n.id] = rect;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "node" + (n.phone ? " phone" : "") + (n.noimg ? " noimg" : "");
+    button.dataset.id = n.id;
+    button.dataset.lane = n.lane;
+    button.style.left = rect.x + "px";
+    button.style.top = rect.y + "px";
+    const tag = '<span class="tag ' + n.tag + '">' + TAG_TEXT[n.tag] + "</span>";
+    const branches = branchCount[n.id] ? '<span class="branch">↳ ' + branchCount[n.id] + " 条分叉</span>" : "";
+    let media;
+    if (n.phone) {
+      media = '<div class="shot" style="background-image:url(' + n.img + ')"></div>';
+    } else if (n.double) {
+      media = '<div class="shot double"><div style="background-image:url(' + n.double[0] + ')"></div><div style="background-image:url(' + n.double[1] + ')"></div></div>';
+    } else if (n.noimg) {
+      media = '<div class="quote">' + (n.note || esc(n.desc)) + "</div>";
+    } else {
+      media = '<div class="shot ' + (n.pos === "bottom" ? "bottom" : n.pos === "bottom-zoom" ? "bottom zoom" : "") + '" style="background-image:url(' + n.img + ')"></div>';
+    }
+    button.innerHTML =
+      '<div class="kick"><span class="step">' + esc(n.num) + "</span><span>" + esc(n.sub) + "</span></div>" +
+      "<h3>" + esc(n.title) + "</h3>" + media +
+      '<p class="desc">' + esc(n.desc) + "</p>" +
+      '<div class="foot">' + tag + branches + "</div>";
+    button.addEventListener("click", () => {
+      if (suppressClick) { suppressClick = false; return; }
+      openDrawer(n.id);
+    });
+    world.appendChild(button);
+  }
+
+  // 连线
+  const NS = "http://www.w3.org/2000/svg";
+  const defs = document.createElementNS(NS, "defs");
+  const colors = { main: "#2b3a42", continue: "#b07d2b", stop: "#b04a3a", side: "#7d8a90", recover: "#39698c" };
+  for (const [kind, color] of Object.entries(colors)) {
+    const marker = document.createElementNS(NS, "marker");
+    marker.setAttribute("id", "arrow-" + kind);
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("refX", "8");
+    marker.setAttribute("refY", "5");
+    marker.setAttribute("markerWidth", "7");
+    marker.setAttribute("markerHeight", "7");
+    marker.setAttribute("orient", "auto-start-reverse");
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+    path.setAttribute("fill", color);
+    marker.appendChild(path);
+    defs.appendChild(marker);
+  }
+  svg.appendChild(defs);
+
+  for (const e of EDGES) {
+    const a = nodeRects[e.from];
+    const b = nodeRects[e.to];
+    if (!a || !b) continue;
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "edgegroup");
+    g.dataset.lane = nodeById[e.from].lane;
+    let d;
+    let labelAt;
+    const sameRow = Math.abs(a.y - b.y) < 2;
+    if (sameRow) {
+      const x1 = a.x + a.w;
+      const y1 = a.y + a.h / 2;
+      const x2 = b.x - 8;
+      const y2 = b.y + b.h / 2;
+      d = "M " + x1 + " " + y1 + " C " + (x1 + 70) + " " + y1 + ", " + (x2 - 70) + " " + y2 + ", " + x2 + " " + y2;
+      labelAt = { x: (x1 + x2) / 2, y: (y1 + y2) / 2 - 16 };
+    } else {
+      const x1 = a.x + a.w / 2;
+      const y1 = a.y + a.h;
+      const x2 = b.x + b.w / 2;
+      const y2 = b.y - 8;
+      d = "M " + x1 + " " + y1 + " C " + x1 + " " + (y1 + 60) + ", " + x2 + " " + (y2 - 60) + ", " + x2 + " " + y2;
+      labelAt = { x: (x1 + x2) / 2 + 8, y: (y1 + y2) / 2 };
+    }
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("class", "edge " + e.kind);
+    path.setAttribute("d", d);
+    path.setAttribute("marker-end", "url(#arrow-" + e.kind + ")");
+    g.appendChild(path);
+    svg.appendChild(g);
+
+    if (e.label) {
+      const label = document.createElement("div");
+      label.className = "edge-label " + e.kind;
+      label.dataset.lane = nodeById[e.from].lane;
+      label.dataset.zone = "edge-label";
+      label.style.left = labelAt.x + "px";
+      label.style.top = labelAt.y + "px";
+      label.textContent = e.label;
+      world.appendChild(label);
+    }
+  }
+
+  const realCount = NODES.filter((n) => n.tag === "real").length;
+  const branchCountTotal = EDGES.filter((e) => ["continue", "stop", "side"].includes(e.kind)).length;
+  document.getElementById("statline").textContent =
+    "v0.4 完整前端 · " + NODES.length + " 个页面状态 · " + branchCountTotal + " 条分叉 · " + realCount + " 个真实接口证据";
+}
+
+/* ======================= 交互 ======================= */
+const stage = document.getElementById("stage");
+const world = document.getElementById("world");
+const pct = document.getElementById("zoom-pct");
+const drawer = document.getElementById("drawer");
+const drawerBody = document.getElementById("drawer-body");
+const drawerWhere = document.getElementById("drawer-where");
+const lightbox = document.getElementById("lightbox");
+const view = { x: 0, y: 0, z: 0.6 };
+let suppressClick = false;
+let activeId = null;
+
+function applyView() {
+  world.style.transform = "translate(" + view.x + "px," + view.y + "px) scale(" + view.z + ")";
+  pct.textContent = Math.round(view.z * 100) + "%";
+}
+
+function fitRect(rect) {
+  const vw = stage.clientWidth;
+  const vh = stage.clientHeight;
+  const pad = 70;
+  let z = Math.min((vw - pad * 2) / rect.w, (vh - pad * 2) / rect.h);
+  z = Math.max(0.16, Math.min(1, z));
+  view.z = z;
+  view.x = (vw - rect.w * z) / 2 - rect.x * z;
+  view.y = (vh - rect.h * z) / 2 - rect.y * z;
+  applyView();
+}
+
+function focusLens(lens) {
+  document.body.dataset.lens = lens;
+  document.querySelectorAll(".lens button").forEach((b) => b.classList.toggle("on", b.dataset.lens === lens));
+  if (lens === "all") {
+    fitRect({ x: 0, y: 0, w: W, h: H });
+    return;
+  }
+  const lane = laneById[lens];
+  const vw = stage.clientWidth;
+  const vh = stage.clientHeight;
+  const laneW = lane.width || 2320;
+  const z = Math.min((vw - 90) / laneW, 1);
+  view.z = z;
+  view.x = (vw - laneW * z) / 2 - 20 * z;
+  view.y = 26 - lane.top * z;
+  applyView();
+}
+
+document.querySelectorAll(".lens button").forEach((button) => {
+  button.addEventListener("click", () => focusLens(button.dataset.lens));
+});
+document.getElementById("fit").addEventListener("click", () => {
+  const lens = document.body.dataset.lens;
+  focusLens(lens === "all" ? "all" : lens);
+});
+function zoomAt(clientX, clientY, factor) {
+  const rect = stage.getBoundingClientRect();
+  const px = clientX - rect.left;
+  const py = clientY - rect.top;
+  const wx = (px - view.x) / view.z;
+  const wy = (py - view.y) / view.z;
+  const next = Math.max(0.14, Math.min(1.6, view.z * factor));
+  view.x = px - wx * next;
+  view.y = py - wy * next;
+  view.z = next;
+  applyView();
+}
+document.getElementById("zoom-in").addEventListener("click", () => {
+  const rect = stage.getBoundingClientRect();
+  zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1.22);
+});
+document.getElementById("zoom-out").addEventListener("click", () => {
+  const rect = stage.getBoundingClientRect();
+  zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1 / 1.22);
+});
+
+let drag = null;
+stage.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  drag = { x: event.clientX, y: event.clientY, vx: view.x, vy: view.y, moved: false };
+  suppressClick = false;
+  stage.classList.add("dragging");
+  stage.setPointerCapture(event.pointerId);
+});
+stage.addEventListener("pointermove", (event) => {
+  if (!drag) return;
+  const dx = event.clientX - drag.x;
+  const dy = event.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+  view.x = drag.vx + dx;
+  view.y = drag.vy + dy;
+  applyView();
+});
+function endDrag(event) {
+  if (!drag) return;
+  suppressClick = drag.moved;
+  drag = null;
+  stage.classList.remove("dragging");
+  if (event && stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+}
+stage.addEventListener("pointerup", endDrag);
+stage.addEventListener("pointercancel", endDrag);
+stage.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  if (event.ctrlKey || event.metaKey) {
+    zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * 0.0018));
+  } else {
+    view.x -= event.deltaX;
+    view.y -= event.deltaY;
+    applyView();
+  }
+}, { passive: false });
+
+function markActive(id) {
+  if (activeId) {
+    const prev = document.querySelector('.node[data-id="' + activeId + '"]');
+    if (prev) prev.classList.remove("active");
+  }
+  activeId = id;
+  if (id) {
+    const el = document.querySelector('.node[data-id="' + id + '"]');
+    if (el) el.classList.add("active");
+  }
+}
+
+function openDrawer(id) {
+  const n = nodeById[id];
+  if (!n) return;
+  markActive(id);
+  const lane = laneById[n.lane];
+  drawerWhere.textContent = lane.title + " · " + n.title;
+  const tag = '<span class="tag ' + n.tag + '">' + TAG_TEXT[n.tag] + "</span>";
+  let media = "";
+  if (n.phone) {
+    media = '<img src="' + n.img + '" alt="' + esc(n.title) + ' 截图" /><a class="openfull" href="' + n.img + '" target="_blank" rel="noopener">在新标签打开原图 ↗</a>';
+  } else if (n.double) {
+    media = '<img src="' + n.double[0] + '" alt="主入口截图" /><p class="cap">主入口 /：完整前端</p><img style="margin-top:8px" src="' + n.double[1] + '" alt="回滚路径截图" /><p class="cap">回滚路径 /legacy：旧简易前端</p><a class="openfull" href="' + n.double[0] + '" target="_blank" rel="noopener">在新标签打开原图 ↗</a>';
+  } else if (n.noimg) {
+    media = '<div class="quote">' + (n.note || esc(n.desc)) + "</div>";
+  } else {
+    media = '<img src="' + n.img + '" alt="' + esc(n.title) + ' 截图" /><a class="openfull" href="' + n.img + '" target="_blank" rel="noopener">在新标签打开原图 ↗</a>';
+  }
+  drawerBody.innerHTML =
+    '<div style="display:flex;gap:8px;align-items:center">' + tag + '<span style="font-size:12px;color:#8a7a5c">' + esc(n.sub) + "</span></div>" +
+    "<h2>" + esc(n.title) + "</h2>" +
+    '<p class="sub">' + esc(media === "" ? "" : "") + "</p>" + media +
+    "<h4>用户看到 / 要做什么</h4><p>" + esc(n.desc) + "</p>" +
+    (n.user ? "<h4>用户操作</h4><p>" + esc(n.user) + "</p>" : "") +
+    (n.system ? "<h4>系统在背后做什么</h4><p>" + esc(n.system) + "</p>" : "") +
+    (n.branch ? "<h4>分叉 / 边界</h4><p>" + esc(n.branch) + "</p>" : "") +
+    '<div class="src">证据：' + esc(n.src || "") + "<br />数字与例外口径以票 04 / 05 与 PM 2026-10-21 验收记录为准。</div>";
+  drawer.setAttribute("aria-hidden", "false");
+  document.body.classList.add("drawer-open");
+  if (n.phone || n.noimg) {
+    const img = drawerBody.querySelector("img");
+    if (img) img.addEventListener("click", () => showLightbox(img.src));
+  } else if (!n.double) {
+    const img = drawerBody.querySelector("img");
+    if (img) img.addEventListener("click", () => showLightbox(img.src));
+  } else {
+    drawerBody.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => showLightbox(img.src)));
+  }
+}
+
+function closeDrawer() {
+  document.body.classList.remove("drawer-open");
+  drawer.setAttribute("aria-hidden", "true");
+  markActive(null);
+}
+document.getElementById("drawer-close").addEventListener("click", closeDrawer);
+
+function showLightbox(src) {
+  lightbox.querySelector("img").src = src;
+  lightbox.classList.add("show");
+  lightbox.setAttribute("aria-hidden", "false");
+}
+lightbox.addEventListener("click", () => {
+  lightbox.classList.remove("show");
+  lightbox.setAttribute("aria-hidden", "true");
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    if (lightbox.classList.contains("show")) {
+      lightbox.classList.remove("show");
+      lightbox.setAttribute("aria-hidden", "true");
+    } else {
+      closeDrawer();
+    }
+  }
+});
+
+renderBoard();
+focusLens("transfer");
+window.addEventListener("resize", () => { /* 保持当前视图，不强行重排 */ });
+</script>
+</body>
+</html>

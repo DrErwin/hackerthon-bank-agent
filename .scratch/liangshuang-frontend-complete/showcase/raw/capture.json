@@ -1,0 +1,14 @@
+{
+  "capturedAt": "2026-10-20T18:42:04.376Z",
+  "error": "Waiting failed",
+  "results": [
+    {
+      "flow": "entry",
+      "ok": true
+    },
+    {
+      "flow": "transfer-cancel",
+      "ok": true
+    }
+  ]
+}

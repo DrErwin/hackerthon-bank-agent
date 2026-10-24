@@ -1,0 +1,202 @@
+[
+  {
+    "pr": 52,
+    "source_head": "461d539db6abb4ff1fd2c714ac8c6a3504317a18",
+    "rebased_head": "461d539db6abb4ff1fd2c714ac8c6a3504317a18",
+    "base": "baca81233e725ee1d1d47fa8020a8acb5ff4221d",
+    "merge_commit": "4d1fd3e4ad0934b4a44afed1e266b7f64cec490f",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-03T20:48:32Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37152751883/job/111289814013",
+        "name": "Repository checks",
+        "startedAt": "2026-10-03T20:46:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 53,
+    "source_head": "3b390c4afc51297f886c3aa8389b42e84396491c",
+    "rebased_head": "3b390c4afc51297f886c3aa8389b42e84396491c",
+    "base": "4d1fd3e4ad0934b4a44afed1e266b7f64cec490f",
+    "merge_commit": "29fc65e58cbab6ddd87b47d0fbbc314e420be8a4",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:35:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37189318625/job/111398002944",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:33:40Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 56,
+    "source_head": "b9e8025ea7db23d22bbcac5c3a917926b541ad87",
+    "rebased_head": "b9e8025ea7db23d22bbcac5c3a917926b541ad87",
+    "base": "29fc65e58cbab6ddd87b47d0fbbc314e420be8a4",
+    "merge_commit": "e4993f9b7bb11ab79bfa56620a530437c08af02b",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:38:38Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37189478620/job/111398483150",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:36:39Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 64,
+    "source_head": "9ac63054026d4972ff536a6d2b1eca37738729da",
+    "rebased_head": "9ac63054026d4972ff536a6d2b1eca37738729da",
+    "base": "e4993f9b7bb11ab79bfa56620a530437c08af02b",
+    "merge_commit": "ddcf5b192d74e705b7933867cbc4ea5389853a39",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:41:41Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37189631701/job/111398936990",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:39:34Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 55,
+    "source_head": "eca0ddf843a9c978a1336954edf8c5671b56ccc2",
+    "rebased_head": "2a6366c34830450ead1128d0f3f8458a975f5a40",
+    "base": "ddcf5b192d74e705b7933867cbc4ea5389853a39",
+    "merge_commit": "6b19e915a345689ce629f35f9f6375780d8d347b",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:44:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37189782430/job/111399375656",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:42:22Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 54,
+    "source_head": "6d53860f8fadf47f0877a4faa4ceba194e54a72d",
+    "rebased_head": "66fa7ae95b040976cdb61261e4d44e02ec720439",
+    "base": "6b19e915a345689ce629f35f9f6375780d8d347b",
+    "merge_commit": "ade5393648508f89c9f944efa544f4ca97982378",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:47:17Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37189921648/job/111399784033",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:44:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 58,
+    "source_head": "0e540af97495665ecb38bbb0e7b9014b5c5d5e25",
+    "rebased_head": "e5f9384e596c11ce4e5f19b78a0588aaca42662f",
+    "base": "ade5393648508f89c9f944efa544f4ca97982378",
+    "merge_commit": "086891cfb14f835cf9a29f6fe1876b31c7cea91c",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:50:44Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37190078187/job/111400238456",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:48:27Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 57,
+    "source_head": "d4e919037e81e259360e8c4bb51cd2d039bf3c00",
+    "rebased_head": "d4e919037e81e259360e8c4bb51cd2d039bf3c00",
+    "base": "086891cfb14f835cf9a29f6fe1876b31c7cea91c",
+    "merge_commit": "bf45957451c51327778f3e04a28e66fb0aeb11b2",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:54:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37190277711/job/111400810104",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:51:35Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 51,
+    "source_head": "58740f541a6777f87490593a91515e4a2efda28a",
+    "rebased_head": "a43d350a8524c346e7338085d3986bec701a4cc8",
+    "base": "bf45957451c51327778f3e04a28e66fb0aeb11b2",
+    "merge_commit": "86b158eb9db94d9b4352ab1262bea54d7f571f0d",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T08:58:06Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37190437617/job/111401289151",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:54:39Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  },
+  {
+    "pr": 59,
+    "source_head": "44bee0be4fe7a4f362ce38e80d3083bc56848cf3",
+    "rebased_head": "a1702ffb80c7ac8421761ffccc3b405da1f0c165",
+    "base": "86b158eb9db94d9b4352ab1262bea54d7f571f0d",
+    "merge_commit": "a8218ffd2fdb777a9c9382bed9f3ff5cd3f29524",
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-04T09:01:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/37190648846/job/111401913089",
+        "name": "Repository checks",
+        "startedAt": "2026-10-04T08:58:39Z",
+        "status": "COMPLETED",
+        "workflowName": "Repository checks"
+      }
+    ],
+    "approval": "user-exempted-ringo-20261004"
+  }
+]

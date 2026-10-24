@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: blocked（跨包依赖）— 平台侧前置（票 05、08）已全部合入（#276/#263）；银行能力（07，#262）与生日安全门（安全 01，#272）已就绪；仅剩直接前置 v05-cross-business/03（生日编排）未实施——其自身前置（本组 01、安全 01）均已合入，待其实施合入后本票解锁。
+Status: delivered — 真实装配已合入（PR #279，squash 99d6c84，2026-10-24；前置微票 #277 verify 接缝、#278 顺序确认先行合入）；B28 故障配置装配未做（见残留），E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -45,9 +45,9 @@ Core scenarios: XL-B01、B05—B06、X07—X08；定义见[共享规格 §5](../
 
 ## Acceptance criteria
 
-- [ ] 真实银行网关、执行器、联动工具、受控引用和演示种子在运行环境完整装配，无测试替身代替业务。
-- [ ] 能力/工具声明和实际调用一致，每个敏感动作均走安全门；父子/操作/订单/冻结可追溯。
-- [ ] 取消和安全终止后的恢复只推进必要收尾，未知不得变成新的购买；旧 S/P 入口不回归。
+- [x] 真实银行网关、执行器、联动工具、受控引用和演示种子在运行环境完整装配，无测试替身代替业务。（birthday_runtime.py 真实 ports：安全门/双因子/executor/网关 live-claim/限定释放；全链测试直驱 entry 无替身；旧 S/P 入口由 agent_platform 245 项回归覆盖）
+- [x] 能力/工具声明和实际调用一致，每个敏感动作均走安全门；父子/操作/订单/冻结可追溯。（BIRTHDAY_TOOLS 冻结快照；三写动作各经确认+双因子；授权快照+参数双 evidence、源冻结确认回填；操作/冻结/订单落库可查）
+- [x] 取消和安全终止后的恢复只推进必要收尾，未知不得变成新的购买；旧 S/P 入口不回归。（停止场景：蛋糕零提交、301 按原授权释放；未知按原编号回查不换号）
 
 ## 实施交接：把生日服务与安全规则真正接起来
 
@@ -68,8 +68,11 @@ Core scenarios: XL-B01、B05—B06、X07—X08；定义见[共享规格 §5](../
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #279](https://github.com/DrErwin/hackerthon-bank-agent/pull/279)，squash 提交 `99d6c84`（2026-10-24）。交付：`birthday_runtime.py`（BirthdayTaskPorts 真实实现）、`transfer_runtime.py` _authorize_birthday 接缝、`local_demo.py` 装配、`test_birthday_runtime_wiring.py`（3 项全链）。
+- 前置微票：装配核对发现两个跨目录缺口，按先例开票先行合入——[v05-cross-business/04 verify 接缝](../../v05-cross-business/issues/04-verify-seam.md)（#277）、[v05-cross-security/04 顺序确认](../../v05-cross-security/issues/04-sequential-confirmations.md)（#278）。
+- 本票验证：`app/agent_platform/` 245 passed（新增 3 项全链：500→199+268→释放33 全账实核对；停止场景 301 限定释放；无授权零写入）；分套件全量 1583 passed；CI 计费阻塞口径同前。
+- 审查：子代理审查 A—G 全 PASS、无必须修复项；4 条建议（current_demo_round 接入、保守终态默认 FAILED、revision 持久单调、死代码清理）已全部采纳。
+- **残留（如实）**：B28 演示故障配置未装配（`arm_response_loss` 仅单测使用）——真实装配上的「未知回查」全链验证归 cross E2E 包；chat/planner 链未端到端归 E2E；D1 错误呈现偏差待转账侧。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 

@@ -1,0 +1,25 @@
+{
+  "capturedAt": "2026-10-20T19:04:34.404Z",
+  "results": [
+    {
+      "flow": "modify",
+      "ok": true,
+      "seconds": 15
+    },
+    {
+      "flow": "verifyWrong",
+      "ok": false,
+      "error": "Waiting failed: 180000ms exceeded"
+    },
+    {
+      "flow": "recovery",
+      "ok": false,
+      "error": "等待确认单超时"
+    },
+    {
+      "flow": "highrisk",
+      "ok": true,
+      "seconds": 186
+    }
+  ]
+}

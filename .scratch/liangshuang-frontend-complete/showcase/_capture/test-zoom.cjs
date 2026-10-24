@@ -1,0 +1,25 @@
+const puppeteer = require("puppeteer-core");
+const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+const URL = "file:///D:/hackerthon-bank-agent/.scratch/liangshuang-frontend-complete/showcase/index.html";
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  const browser = await puppeteer.launch({ executablePath: EDGE, headless: true, args: ["--lang=zh-CN", "--allow-file-access-from-files"], defaultViewport: { width: 1600, height: 1000 } });
+  const page = await browser.newPage();
+  await page.goto(URL, { waitUntil: "load", timeout: 60000 });
+  await sleep(900);
+  const a = await page.$eval("#zoom-pct", (el) => el.textContent);
+  await page.click("#zoom-in");
+  await sleep(400);
+  const b = await page.$eval("#zoom-pct", (el) => el.textContent);
+  await page.keyboard.down("Control");
+  await page.mouse.move(800, 500);
+  await page.mouse.wheel({ deltaY: -240 });
+  await page.keyboard.up("Control");
+  await sleep(400);
+  const c = await page.$eval("#zoom-pct", (el) => el.textContent);
+  await page.click("#fit");
+  await sleep(500);
+  const d = await page.$eval("#zoom-pct", (el) => el.textContent);
+  console.log("zoom:", a, "-> zoom-in:", b, "-> ctrl-wheel:", c, "-> fit:", d);
+  await browser.close();
+})();

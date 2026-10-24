@@ -12,7 +12,7 @@ Owner: Erwin（2026-10-24 阶段分工：v0.5 剩余安全工作由 Erwin 承接
 
 Directory: `backend/app/security/`
 
-Status: in_review — 实现+测试完成，待审查合入。
+Status: done — 2026-10-24 子代理审查全 PASS 后 PR #278 squash 合入 main（`6fec1e8`）；security 427 passed，CI 计费阻塞口径。
 
 Core scenarios: XL-B01（生日多商品逐笔下单）；定义见[共享规格 §5](../../v05-cross-linkage/spec.md)。
 
@@ -32,9 +32,9 @@ None（#272 已合入）。
 
 ## Delivery record
 
-- 实现 / PR / 合入：待合入。
-- 本票验证：见 PR。
-- 审查：待子代理审查。
+- 实现 / PR / 合入：已合入。[PR #278](https://github.com/DrErwin/hackerthon-bank-agent/pull/278)，squash 提交 `6fec1e8`（2026-10-24）。
+- 本票验证：`app/security/` 427 passed（新增顺序确认测试：processing 并行仍拒 → settled 放行且 version 递增）。
+- 审查：子代理审查 A—F 全 PASS、无必须修复项（unknown 终结变体与 revision 负路径为非阻塞备注）。
 
 ## Comments
 

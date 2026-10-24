@@ -12,7 +12,7 @@ Owner: Erwin（2026-10-24 阶段分工承接）
 
 Directory: `backend/app/modules/cross/`
 
-Status: in_review — 实现+测试完成，待审查合入。
+Status: done — 2026-10-24 子代理审查全 PASS 后 PR #277 squash 合入 main（`1a8082d`）；cross 44 passed，CI 计费阻塞口径。
 
 Core scenarios: XL-B01 验证步；定义见[共享规格 §5](../../v05-cross-linkage/spec.md)。
 
@@ -33,9 +33,9 @@ None（#274、#272 均已合入）。
 
 ## Delivery record
 
-- 实现 / PR / 合入：待合入。
-- 本票验证：`app/modules/cross/` 44 passed（新增 1 项接缝测试）。
-- 审查：待子代理审查。
+- 实现 / PR / 合入：已合入。[PR #277](https://github.com/DrErwin/hackerthon-bank-agent/pull/277)，squash 提交 `1a8082d`（2026-10-24）。
+- 本票验证：`app/modules/cross/` 44 passed（新增接缝测试：持有→空重放零重复→resume 完成、granted 恰一次）。
+- 审查：子代理审查 A—G 全 PASS、无必须修复项；两条非阻断建议转平台 09 装配记录与后续微票。
 
 ## Comments
 
