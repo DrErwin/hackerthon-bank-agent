@@ -200,23 +200,38 @@ _SUBSCRIPTION_PRIVATE_TOOLS = (
     ),
 )
 
+# Security-owned snapshot of the cross module's public entry, deliberately
+# independent of its manifest: a cross release that changes any field must
+# update this table through a policy review, not drift through silently.
+_CROSS_CAPABILITIES = (
+    CapabilityDefinition(
+        name="cross.start_task", input_schema_ref="CrossStartInput",
+        output_schema_ref="ModuleResult[CrossTaskView]", required_permissions=["cross.start"],
+        operation_level=OperationLevel.READ, side_effect=False, confirmation_policy="none",
+        timeout_ms=60_000, retry_policy="none", handler_ref="cross.entry.start",
+    ),
+)
+
 
 class DemoSecurityPolicy:
     """Callbacks for a single configured demo user and the server's current round."""
 
-    policy_version = "v04-local-demo-read-6"
+    policy_version = "v05-local-demo-cross-1"
     # Bills read access follows the v0.4 interim policy (Issue #137, PM proxy):
     # low-risk own-account queries; frozen declarations are compared for full
     # equality, so any field drift in the module equals a policy change.
     # Issues #177 and #187 add separate frozen L03 and L02 declarations.
     # Issue #191 classifies both subscription cancellation boundaries as
     # sensitive so every allow decision must carry an authorization snapshot.
+    # v05-cross-security/03 (stage follow-up for platform 05) whitelists the
+    # cross entry's public start; the module stays read-only at this seam and
+    # every sensitive child action keeps its own gate.
     _permissions = frozenset({"transfer.start", "transfer.read", "transfer.submit", "bills.read",
-                              "subscription.read", "subscription.cancel"})
+                              "subscription.read", "subscription.cancel", "cross.start"})
     _capabilities = {item.name: item for item in (
         *_TRANSFER_CAPABILITIES, _BILLS_READ_CAPABILITY, _BILLS_REPORT_CAPABILITY,
         _BILLS_ANOMALY_CAPABILITY,
-        *_SUBSCRIPTION_CAPABILITIES)}
+        *_SUBSCRIPTION_CAPABILITIES, *_CROSS_CAPABILITIES)}
     _private_tools = {item.name: item for item in (
         *_TRANSFER_PRIVATE_TOOLS, *_BILLS_READ_TOOLS, *_SUBSCRIPTION_PRIVATE_TOOLS)}
 
