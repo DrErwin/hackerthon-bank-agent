@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: blocked（跨包依赖）— 平台侧前置（票 01/02/03）已合入；直接前置 v05-cross-business/01（减支编排和共用计划骨架，Erwin 本阶段承接包）尚未实施合入，本票不能在平台目录代写 cross 业务。
+Status: delivered — 真实组合装配已合入（PR #276，squash 9b421a2，2026-10-24；前置 #269/#268/#275 均已合入）；CI 因账户计费未运行，本地 agent_platform 242 passed 兜底；三主线 E2E 另行记录。
 
 Package accepted by: Erwin
 
@@ -43,9 +43,9 @@ Core scenarios: XL-S01、XL-P01、X01、X07；定义见[共享规格 §5](../../
 
 ## Acceptance criteria
 
-- [ ] 自然表达三个生活目标时进入已注册 cross；尚未实现目标明确受阻，不伪装成功。
-- [ ] 真实账单/订阅/转账工厂及上下文在同一运行环境可调用，父子事件可追溯。
-- [ ] 未注册能力、伪造范围或绕过安全门零业务写入；原单业务入口仍能办理。
+- [x] 自然表达三个生活目标时进入已注册 cross；尚未实现目标明确受阻，不伪装成功。（减支/养老金经 planner 公共目录路由到 cross.start_task（#268 后养老金已交付，票面允许演进）；生日明确受阻、零子任务零写入；测试 3 项）
+- [x] 真实账单/订阅/转账工厂及上下文在同一运行环境可调用，父子事件可追溯。（真实 local_demo 组合：子任务经真实工厂派生、task_relations 可追溯、订阅盘点真实返回；账单类型化输入缺口在业务侧如实 failed 不伪装——已登记 cross-business 待办）
+- [x] 未注册能力、伪造范围或绕过安全门零业务写入；原单业务入口仍能办理。（读阶段 submitted_ledger_count==0；同组合下普通转账走到确认单；授权链经 #275 白名单）
 
 ## 实施交接：第一次接上真实联动模块
 
@@ -65,8 +65,10 @@ Core scenarios: XL-S01、XL-P01、X01、X07；定义见[共享规格 §5](../../
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现 / PR / 合入：已合入。[PR #276](https://github.com/DrErwin/hackerthon-bank-agent/pull/276)，squash 提交 `9b421a2`（2026-10-24）。交付：`local_demo.py` register_cross 装配、`test_cross_runtime_wiring.py`（真实组合 3 项）。
+- 本票验证：`app/agent_platform/` 242 passed（新增 3 项，含 test_local_demo 回归）；子代理审查 A—F 全 PASS、无必须修复项（过时注释/恒真断言已修正）。
+- 前置补齐：装配核对发现 DemoSecurityPolicy 无 cross.start_task 白名单（跨目录缺口），按 #264 先例开 [v05-cross-security/03](../../v05-cross-security/issues/03-cross-start-policy.md)（PR #275）先行合入。
+- CI：账户计费阻塞（组织已知口径），本地全量测试兜底，恢复后 main 推送自动补跑。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 

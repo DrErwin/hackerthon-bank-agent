@@ -12,7 +12,7 @@ Owner: Erwin（2026-10-24 阶段分工：v0.5 剩余安全工作由 Erwin 承接
 
 Directory: `backend/app/security/`
 
-Status: in_progress — 实现+测试完成，待审查合入。
+Status: done — 2026-10-24 子代理审查全 PASS 后 PR #275 squash 合入 main（`98bb75f`）；CI 因账户计费未运行（见下），以本地 security 426 passed + 关联套件兜底。
 
 Core scenarios: XL-S01；定义见[共享规格 §5](../../v05-cross-linkage/spec.md)。
 
@@ -32,9 +32,10 @@ None（独立微票；平台 05 的直接前置由本票补齐）。
 
 ## Delivery record
 
-- 实现 / PR / 合入：待合入。
-- 本票验证：`app/security/` 426 passed（新增 cross 白名单测试；三个硬编码旧权限集/版本的既有测试同步更新）。
-- 审查：待子代理审查。
+- 实现 / PR / 合入：已合入。[PR #275](https://github.com/DrErwin/hackerthon-bank-agent/pull/275)，squash 提交 `98bb75f`（2026-10-24）。
+- 本票验证：`app/security/` 426 passed；`modules/bills/test_anomaly_integration.py`+`agent_platform/test_subscription_runtime.py` 28 passed。
+- 审查：子代理审查 A—F 全 PASS、无必须修复项；按阶段分工由 Erwin 代行审查记录，真人 Ringo 签核不由此票代签。
+- CI：GitHub Actions 因账户计费失败自 #272 起无法启动（组织已知，跟踪文档 2bfd687 已记口径）；按该口径以本地全量测试兜底。
 - 真人安全签核：未由本票代签；按 2026-10-24 阶段分工由 Erwin 代行审查时分别记录。
 
 ## Comments
