@@ -22,14 +22,14 @@ Core scenarios: P01/P02/P07/P08/P11；[P01—P11验证框架](../spec.md#6-testi
 ## Acceptance criteria
 
 - [ ] quantity透传到CreateOrderInput；行小计与可信原服务单价/数量一致；送达时间与确认及银行回执一致。
-- [ ] 原未升级单件调用的省略quantity=1/每商品一项语义兼容；新协议显式quantity及稳定项缺失不默默回落，旧在途参数与映射不猜测改写。
+- [ ] 旧代码已显式quantity=1，不凭字段存在判升级；后台旧绑定、每商品一项及原操作/参数唯一对应可核验时兼容旧显式1/省略1。quantity>1或后台已有新item/operation绑定却缺身份时不降级旧键；协议来源/唯一映射不明blocked，旧已办/未知沿保存原号，不猜测重建或重发。
 - [ ] 确认和验证摘要展示数量、原单价、行小计、时间、商品/商户、账户；冻结保留限定释放条款；配送仅掩码。
 - [ ] Cross稳定执行项与product_id分开；动作键/查项/_enriched/原参数回查共同使用稳定项和attempt，未变项不因plan_revision变化重建。
 - [ ] 已付花与新同款花的item/attempt/order/capture身份不同；原失败/成功/未知记录不被同商品键覆盖；action_revision基于保留的完整历史单调。
 - [ ] 同一未撤离attempt的同参重放/未知查询保留原操作；合法撤离后的新attempt不能复活旧操作，即使参数碰巧相同。
 - [ ] 核销展示绑定已创建订单与其原创建参数，不拿新报价改旧单；不影响PR296订单来源门、既有199/268路径及原号恢复。
 - [ ] 旧任务不能唯一映射执行项时不猜测或覆盖，保留原事实；局部无法修改如实记限制，不当整条要求完成。
-- [ ] 优先复用operation_id作一次动作attempt身份；check返回的原号由Cross pending保存，execute在新协议中明确回传并核对，requery始终原号；新旧签名/单件兼容须Cross确认，不只按“当前同商品”挑动作。
+- [ ] 复用operation_id作attempt身份已获Cross727045d §7认可，不新增第二UUID；具体接口仍待核对。check后所有分支（含非冻结ALLOW直交）均须在execute前持久捕获原号/item/参数绑定；新协议execute显式回传，requery始终原号，不按“当前同商品”重挑；冻结ALLOW仍按原规则拒绝。
 - [ ] 本目录保留原动作不可变参数；完整确认/必要验证授权版本由安全02提供后联合核对实际可回读，不在01跨目录仿造历史存储。数量接线可单独验证，编辑历史边界未就绪仍blocked；旧可变ID/版本不能代替历史，秘密/配送原文不进普通快照。
 - [ ] 与Cross明确check回交后如何捕获原operation/参数版本/确认版本；execute及grant/bind只消费捕获绑定，不能从新计划的当前商品/freeze键重挑。发布前的pending不能被普通resume读作已发布，具体由03/05及Cross08交付。
 

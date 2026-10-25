@@ -1,6 +1,6 @@
 # 三主线 E2E 与全面验收工作规格
 
-Status: in_progress — 2026-10-25 Erwin授权中控委派执行；沿用批准规划，实际运行按依赖启动。
+Status: planning-approved — 2026-10-25改为仅交E2E执行设计，真实执行已暂停；依赖就绪不自动续跑，Erwin后续自行实际执行。
 
 Owner: Erwin（v0.5阶段；委派AI执行）
 
@@ -31,7 +31,7 @@ Package: [v05-cross-linkage/packages/05-cross-e2e：三主线 E2E 与全面验�
 
 ## 接包与下一步
 
-2026-10-24责任转派后，2026-10-25 Erwin进一步授权中控分发剩余工作，包05据此委派启动。先准备，按实际页面与运行依赖逐条验收；不得跳过公共约定和必要安全审查。
+2026-10-24责任转派、2026-10-25曾正式启动并保留S01首批Failed；最新Erwin指令改为设计完成即停，撤回修复就绪后自动实跑的授权。后续由Erwin自行执行；以后如需再委派AI实跑，须用户明确要求、中控另派。当前唯一手工设计交接入口为[执行设计与缺口](manual-execution-handoff.md)，不因任何PR合入自动运行。
 
 本轮技能文件检查与能力限制见[准备快照](../../evals/cross/readiness-2026-10-25.md)。未重新生成规格/票据；沿用已批准26条设计，按[运行准备](../../evals/cross/runbook.md)、[覆盖映射](../../evals/cross/coverage-plan.md)及[证据模板](../../evals/cross/batch-template.md)执行。子代理独立规范/规格审查见[审查记录](review.md)。
 

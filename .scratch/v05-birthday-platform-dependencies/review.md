@@ -1,6 +1,6 @@
 # 平台提供条件：文档核查与双轴审查
 
-Status: g3_material_reviewed / implementation_blocked — 本轮G3依赖材料双轴复核通过；G1/G2/G3仍待决定/提供方确认，原四票及新增05全部planned/blocked；未实施。
+Status: g3_design_reviewed / implementation_blocked — 本轮初始/普通不可变源及旧单件兼容设计双轴复核通过；G1/G2及G3真实提供仍待闭合，原四票及新增05全部planned/blocked；未实施。本轮按停止线回交后即停。
 
 固定源码main：`af779df431a7f650851ffe3e2ede8b763dcdb1c5`。
 文档审查base：`dab17d030b4a4a481280d5cc5900176db38c9aeb`；只快进中控文档，没有运行代码变化。
@@ -56,3 +56,20 @@ Status: g3_material_reviewed / implementation_blocked — 本轮G3依赖材料�
 - 固定初审f6b653f（内容后保持不变，仅补提交原因为63efd2d28f01632809d63de5411c3a6c33022693）：Standards两项必修——03正式Blocked by/spec依赖表须纳入05、提交须有why正文；Spec PASS，必修0/建议0。两项均已修复，未改变政策或范围。
 - 修订`1bed96a4623345652c952226a44b54f516f6c6ae`双轴复核：Standards PASS，原2项必修关闭、剩余必修0/建议0；Spec保持PASS，必修0/建议0。两位均仅只读；此后只回填本记录。
 - 最终九份Markdown、76个本地链接/锚点、五票编号/blocked状态/围栏及diff空白检查通过，仓库链接检查通过。以上是文档静态证据，不是实现/运行/真人接受；本地提交后回交。
+
+## 301回交后的兼容差异（2026-10-25，当前补充）
+
+301已由独立PR303回交，本补充回原codex/v05-birthday-dependency-closeout分支，只改本组规划Markdown，不混入303。
+完整只读Cross本地727045d76ad84e7b2071410acfb022f2a8a0bc4c原稿（父a3b287c、blob8e0b7e8e）§7：记录operation_id作attempt已认可；修正“已指定quantity即新协议”的误判。现birthday._chosen_items/_plan_items已显式quantity=1，旧显式1/省略1须看后台旧绑定和唯一历史映射；quantity>1或后台新绑定缺身份不降级，来源不明blocked。check捕获也覆盖非冻结ALLOW直交分支，冻结ALLOW仍按旧规则拒绝。
+727核对c5959dd，不代表已核对本组d9f8b96的新增05和发布协议；不替Cross提前确认，不选择G1/G2或实施原01—04及新增05。此次仅内容/链接锚点/状态/格式检查，未跑程序、测试、模型或CI，不push、不建PR。
+固定补充提交`ddc77b9011bf94e775e2c1057449124934bfdbab`（base d9f8b96）独立复核：Standards PASS，必须项0/建议0；Spec PASS，必须项0/建议0。两位均仅静态只读，核对旧quantity=1、原号身份/原绑定、来源与未授权边界；未运行源码、测试、模型或CI，未改文件。此后仅回填本记录。
+最终九份Markdown、76个本地链接/锚点、五票编号与planned/blocked状态、围栏及整段diff空白核对通过，仓库链接检查通过。本地提交回交，不push；301的代码与CI证据保持在独立PR303，未混入本分支。
+
+## 固定896fd7e消费稿后的起始源设计（2026-10-25，当前轮）
+
+基线本地8cdc08f5a8419007b4385374199c2c4306016986；只读完整`896fd7e5d1728b1202818a212ffcb622a658d9b3`（父b2186709）两份原稿：`.scratch/v05-cross-business/birthday-g3-interface-review.md` blob a02f5b6ff08fe7ea4e046da4f71da5cc4a931e03、`issues/08-birthday-quantity-and-unexecuted-revision.md` blob28b8a4b68f85eae7ab5dca71302eb575c7f8592a。原稿不修改，不把§8最小方向接受等同实现或真人决定。
+仅本组spec/03/05/对账及本记录：同一窄封存支持无edit/source的首次根、无编辑的普通请求/原运行事件后继与真正编辑；03先预留可信原关联/接受版本/候选，05选完整首份胜者，03同次CAS发布ref/结果/版本/完成投影。明确根不造source/edit、普通缺源不冒充根、取消/异常/发布断点和旧put防覆盖；旧显式quantity=1的后台绑定/唯一历史条件承接8cdc，不按字段存在判升级。
+补未来P16/P17验收设计，不新建框架/公开字段/票，不实施01—05，不删完整确认/验证编辑要求或代定G1/G2。不混入PR303、不改任何业务/安全/银行/评测源、Cross票或共享进度。
+Erwin最新停止线：材料完成独立双轴审查、本地提交回交后即停；真实E2E由Erwin后续亲自安排，不自动启动S01或三主线真实E2E。已有301及原失败证据保留，本轮不跑源码、测试、模型或CI，不push、不合并/扩用CI例外。
+固定受审提交`e2b01e770e04d170e2db36a7f8e142965b7c10ca`（base8cdc08f）：独立Standards PASS，必须项0/建议0；独立Spec PASS（静态设计），必须项0/建议0。两位均核对固定Cross两稿、无前驱根/普通后继/真实编辑及旧单件边界；只静态读取，未运行产品、测试、模型、CI或改文件，审阅后停止。此后仅回填本记录。
+最终九份本组Markdown、79个本地链接/锚点、五票编号/围栏与planned/blocked状态，以及整段diff空白检查通过；仓库文档链接检查通过。本地提交回交后停止，不推送、不建实现PR、不启动真实E2E；不将本次静态PASS写成提供能力已实现或新消费确认。

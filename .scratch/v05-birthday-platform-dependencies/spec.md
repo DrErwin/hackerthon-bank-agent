@@ -19,6 +19,8 @@ Implementation assignee / accepted at: 未领取。
 - 已查main、所有本地/远端已取回refs的本组路径历史：新slug尚无票；原platform13/PR292、14/PR296虽未合仍占号，不在原组重占。Cross07/08与预算来源01/02均不改；原security01/04不是本次安全撤离交付。
 - **精确安全来源S-G2**：本地提交`bce306d07e429b8ce604dd8232fa58cd3836f0a3`，父`f21db3b00c6365132323f85b104c184a88aa4a20`，基线41c01ae；完整文件`.scratch/v05-birthday-security-review/review.md`，Git blob `53f9196dc9d2a16c1bc92b6235902b840fc3343a`。已通过`git show`读取；本轮读取时该文件尚不在所选main，按本地固定Git对象引用，不宣称远端可读，也不修改或复制覆盖原稿。它是AI安全评议，G2-A/B/C仍待Erwin本人决定，不能用原设计双轴PASS替代。
 - **精确消费方来源S-G3**：本地`e4cb7b7dad5ef78b31e52c64e845f7db8a55ea78`的`.scratch/v05-cross-business/birthday-g3-interface-review.md`，父c0752632f088857838661b13739ce2170466f0e6、产品基线2a070b9、blob`3ae7559a14f36b1e501f274b8d0f36baed510f33`。全文只读不改。其检查点P2已纳入[本组G3对账与提供条件](g3-reconciliation.md)，不把消费建议写成最终接口已确认。
+- **消费方兼容补充S-G3-7**：本地`727045d76ad84e7b2071410acfb022f2a8a0bc4c`同一完整文件§7，父a3b287c217d43a3663192896dd6d2d9fa833150e、blob`8e0b7e8ecef0e0e32d337fa71ca8e1f6b8eb7ad4`。全文只读；Cross已认可operation_id承担attempt，无需第二UUID，其他提供条件/具体签名未闭合。旧代码本已显式quantity=1，以下兼容判定据此修正；该版本尚未核对新增05/发布稿，不宣称727已确认d9f8b96，后续见S-G3-8。
+- **最终消费方向S-G3-8**：本地固定`896fd7e5d1728b1202818a212ffcb622a658d9b3`（父b21867097a19c5e55d4152842cca5871213486af）。完整评议文件blob`a02f5b6ff08fe7ea4e046da4f71da5cc4a931e03`、Cross08票blob`28b8a4b68f85eae7ab5dca71302eb575c7f8592a`均只读；§8接受d9f8b96窄封存/发布方向，明确尚缺无edit/source初始根及普通输入/事实/异常后继的同等保护。本轮补[初始与普通发布条件](g3-reconciliation.md#没有编辑请求的初始与普通状态)，保留8cdc08f已修正的旧显式quantity=1判定，03/05承接；不修改Cross原稿，不将设计接受写成能力已提供。
 
 ## 1. 现状：什么能复用，哪里真的缺
 
@@ -48,7 +50,7 @@ Implementation assignee / accepted at: 未领取。
 由[01：真实数量与稳定执行项装配](issues/01-quantity-item-binding.md)提供；Cross08仍负责候选、数量输入、计划核算与编辑业务。
 
 - 与Cross08先约定内部项快照：服务端稳定执行项标识（优先已有step_id/内部计划项）、product_id、quantity、服务单价、行小计、送达时间/受控配送引用；不新增公共字段。方案变更不是把所有未变项的身份重建。
-- 兼容现有尚未升级的单件调用：其省略quantity只代表原有1件语义、每商品一项约束；新数量/同款多项协议必须显式给出稳定执行项及quantity，不可缺字段后默默回落为1。旧在途/已办映射保留，无法唯一关联不猜测重签；接口切换与Cross08共同确认并验证原单件链路。
+- 兼容现有尚未升级的单件调用：旧代码本已显式quantity=1，也有省略后按1处理的路径，不能凭quantity字段存在判升级。只有后台可核验旧调用绑定、每商品一项且原操作/参数唯一对应时，才保留旧显式1或省略为1的语义；quantity>1或后台已进入新item/operation绑定时，缺身份不得降级旧键。来源/协议或唯一映射无法判定则blocked，旧已办/未知只沿保存原号查询，不猜测重建或重签。新协议仍须显式稳定项及quantity，客户端自报标记不构成可信协议来源。
 - 新替代项使用新执行项；同项未提交动作被合法撤离后，新参数有新attempt/operation/确认；原attempt不改写。未撤离attempt的同参重放/未知观察保持原attempt与operation；已撤离attempt即使参数相同也不能复活。不能只拼product_id或plan_revision。
 - _enriched、order/capture键、参数查找、原号观察必须都能唯一找到执行项/attempt；保留已成功、明确失败、未知及撤离的原记录，不覆盖旧键而失去原参数。已有旧任务无法唯一映射时不得猜测合并；仍保留历史，不能计作编辑覆盖完成。
 - 真正CreateOrderInput透传quantity，amount为服务单价×数量的行小计；银行仍是价格/可购/送达与执行结果真相源。报价变化交回Cross08重新采用，不在平台自动减量、改日期或补预算。
@@ -156,16 +158,18 @@ API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；
 
 优先保留BirthdayPorts现有order_check/order_execute/capture_check/capture_execute、GateAnswer.operation_id及WriteOutcome，不建立通用新授权框架：
 
-1. check输入项增加明确item_id/quantity/unit_price_fen，与原plan字段组成快照；返回现有operation_id，Cross在原pending检查点保存该次原号与稳定item_id，不再只记product_id。
+1. check输入项增加明确item_id/quantity/unit_price_fen，与原plan字段组成快照；返回现有operation_id，Cross在任何execute前持久保存该次原号与稳定item_id/参数绑定，不再只记product_id。包括非冻结动作ALLOW后直接_submit的分支，不能只在等待确认时保存；冻结ALLOW仍按原规则拒绝。
 2. 新协议的execute必须带回该次check所得operation_id及原项绑定（建议后台keyword参数；最终签名待Cross确认），平台核对它与当前未撤离attempt一致；不得按“最新相同商品”重挑operation。查询沿现有requery并带**精确原operation_id**；新替代项产生新原号，同一尝试恢复不换号。
    限定授权继续优先用现有grant_release/bind_freeze，但拟要求显式传递原pending.operation_id与原确认版本或等效冻结上下文（bind已有原号参数优先复用）；平台以捕获的原attempt校验，不能迟到后再按当前freeze键选取“原动作”。该兼容签名也待Cross核对。
-3. 旧未升级单件调用继续旧每商品唯一/quantity省略为1的既有语义；不能在新协议缺item_id/operation或已指定quantity时静默回落旧键。旧已办/未知映射只沿原号，不猜测重建；无法一一映射须回交具体兼容缺口。
+3. 旧显式quantity=1不等于新协议；旧显式1/省略为1只在后台旧绑定、每商品一项及原操作/参数唯一对应可核验时兼容。quantity>1或服务端已有新item/operation绑定的调用，缺身份不能静默回落旧键；协议来源或唯一映射不明则blocked。旧已办/未知只沿保存原号查，不猜测重建；本条不把quantity>1或客户端标记当新授权。
 4. 拟议Harness后台`begin_birthday_edit(trusted, input_request_id, interaction_id, selected_option_id)`只接G1专用入口；加载后台冻结事实并预留唯一ref。拟议Cross后台`enter_birthday_edit(trusted, edit_context, thread_id)`还须接精确源已发布ref和预留候选ref，返回后台包`edit_ref/source_checkpoint_ref/candidate_checkpoint_ref/ModuleResult`，不是自行发布。**两个方法当前均不存在，命名/签名及读取责任待双方核对。**edit_context不是普通resume字段、模型工具或客户端标记。
 5. Cross只写隔离待发布候选，03读取05首次胜者再CAS同次发布引用/结果/版本/完成投影。G3任务普通恢复和异常路径只读已发布ref；handoff未完成不推进旧动作，不能沿用默认latest。候选或CAS失败不宣布新input生效，完成请求只重放原胜者，取消/新会话/终态先胜后不得回挂孤立候选。详见[对账协议](g3-reconciliation.md#最小协议候选先预留后安全再隔离准备最后发布)。
 
 **对账例子**：原花item-A/order-A/capture-A已付199；蛋糕item-B的order-B尚未提交且合法撤离，换同款花建立item-C/order-C/capture-C，新花仅199、累计398。原A不改成quantity=2，B的撤离历史不删；原冻结500不变，无在途且全部结清后差额仍由银行事实核实。若B原操作已经明确银行失败且无订单，则保留B失败，走第二种依据提出C，不删除claim以凑第一种依据。
 
-G3等待Cross08核对：项ID是否可复用step_id；原operation承担attempt身份与execute显式回传的兼容签名；两种编辑依据/旧完整历史的读取责任；新input检查点及精确恢复。这里没有代替Cross确认，也不改其08/06票。
+Cross08的727045d §7已认可原operation承担attempt身份；step_id复用须稳定一一对应，不能拿现商品键硬充。execute显式回传、确认版本/冻结上下文读取与grant/bind具体签名、两种依据的实际提供、新input检查点/05封存及发布恢复仍待核对/交付。这里只记录消费方已作的局部认可，不代其确认全部G3，也不改其08/06票。
+
+896fd7e §8进一步接受05/发布的窄方向，尚非真实能力。05输入不再仅限edit/source：新生日及场景澄清起点以原task/start受理关联和版本预留无前驱根候选，无edit/source不伪造；普通输入/事实/异常转换沿原请求或原运行事件的持久关联，以最后已封存且已发布ref为源预留新候选。05封存完整首份胜者，03同次CAS发布完整ref/ModuleResult/版本/完成投影；所有根、普通和编辑状态发布后同等不可覆盖。根重试沿原start，普通缺源/历史不明不得伪装根或回latest，未发布转换不得被新普通调用越过；详细条件见上述初始与普通发布段。数量字段兼容与源保护分别满足，不互相豁免；不增加通用框架、公开字段或重复票。
 
 ## 5. 最小拆票与下游开始条件
 
@@ -175,7 +179,7 @@ G3等待Cross08核对：项ID是否可复用step_id；原operation承担attempt�
 | [02 安全撤离](issues/02-security-retire-unsubmitted.md) | security | G2本人安全审阅；提供无claim与claim原子竞争的窄拒绝接缝，不依赖Cross08完整实现 |
 | [03 原任务编辑交接](issues/03-platform-edit-handoff.md) | agent_platform | 01 + 02 + 05 + G3；与PR298同Harness改动按中控安排顺序。可用明确stand-in自验，真实Cross由08消费 |
 | [04 F10接入](issues/04-api-edit-entry.md) | api | 03 + G1；不代做预算来源API02，也不将其未合当成商品编辑的业务依赖，具体同文件顺序交中控 |
-| [05 候选不可变封存](issues/05-immutable-edit-checkpoint.md) | storage | 静态源码证实的窄缺口；与03/08先约定ref/绑定，交付后03方可验证单胜者/发布。无需等03/08代码先完成 |
+| [05 候选不可变封存](issues/05-immutable-edit-checkpoint.md) | storage | 同一窄能力封存G3初始无前驱根、普通输入/事实/异常后继及编辑候选；与03/08先约定ref/可信转换绑定，交付后03方可验证单胜者/发布。无需等03/08代码先完成 |
 
 原01—04及新增05全部planned/blocked，实施还需中控明确授权；03的真实前置补05。G1/G2-A/B/C/G3不闭合不能把确认或验证等待态编辑标完成。若本人选首批收窄，验证码/验证等待仍blocked，原完整需求不删；本稿不激活任何票。
 Cross08的数量/安全节点局部可在01接口稳定且实施获授权后推进；整票仍需02→03→04接入与原等待态组合验证；个人预算路径另等原cross06及其既有依赖。
@@ -202,7 +206,11 @@ Cross08的数量/安全节点局部可在01接口稳定且实施获授权后推�
 | P12 / Q03/Q06 | 精确ID仍可能被同namespace/channel-version覆盖；隔离候选不可变，旧put/put_writes不能绕过 |
 | P13 / Q03/Q06 | 同edit_ref跨进程双准备只返回同一持久胜者；候选写后任务CAS失败，普通/异常resume仍读已发布源且不推进旧动作 |
 | P14 / Q06 | 候选封存、发布CAS、receipt各断点；取消/终态/新会话/其他方案胜出则孤立候选不生效；历史重放不回挂旧input |
-| P15 / Q03/Q06 | 旧单件调用与旧任务ref区分；缺源ID/值绑定不回latest补证；check/execute/grant/bind捕获并回传同一原绑定 |
+| P15 / Q03/Q06 | 旧显式quantity=1/省略1且唯一映射可核验仍兼容；quantity>1或后台新绑定缺身份不降级、协议/映射不明blocked；缺源ID/值绑定不回latest补证；check含非冻结ALLOW直交分支及execute/grant/bind均捕获并回传原绑定 |
+| P16 / Q03/Q06 | 无edit_ref/无source的新生日及场景澄清根，首次写前预留原task/start关联；封存、CAS发布、同start重试及各断点均守同一根胜者，无旧源不暴露候选；旧缺ID/普通缺源不能冒充初始化 |
+| P17 / Q03/Q06 | 无编辑请求的普通输入/事实/异常更新绑定原请求或原运行事件/接受版本，从已封存已发布source准备新隔离候选；完整值/元数据/关联不被旧put/put_writes覆盖，CAS失败不活动、不重做外部写、重放不回挂旧输入；正常/异常记账均不取latest |
+
+P16/P17与既有P01—P15均为未来验收设计：先按票定向验证03/05边界，再由08/04接线后交既有E2E03承接。真实E2E由Erwin后续亲自安排；本轮完成设计与独立双轴回交后即停，不自动启动S01或三主线真实E2E、不实施生日01—05。
 
 实施时分开记录平台局部、真实安全/银行装配、HTTP、页面/模型E2E和本人安全接受。本轮只做内容、链接/锚点、编号、格式、diff空白检查，不运行测试、模型、全量或CI。
 

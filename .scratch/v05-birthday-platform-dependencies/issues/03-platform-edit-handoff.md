@@ -12,12 +12,14 @@ Implementation assignee / accepted at: 未领取。
 Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)、[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)及本人所选G2完整条件；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)核对[候选G3快照/接口](../spec.md#g3最小内部快照候选待cross08逐项核对不是公共新模型)；中控授权。[PR #298](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)已合主线6ce7fb0，保留其预算来源边界，不在本轮整理原PR。
 
 新增真实提供前置：[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)。现有精确读/CAS可复用，但不可变候选和原子发布策略尚未交付；[G3对账](../g3-reconciliation.md)为待核对方案，不是已实现保证。
-Core scenarios: P02/P03/P04/P05/P06/P07/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
+Core scenarios: P02—P17；[P01—P17验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 
 ## What to build
 
 专用后台入口从原任务重读目标和绑定，调用安全02；只有撤离成功或原号已核实的无订单/无在途明确失败，才能由Cross08进入原任务新input。
 平台保存撤离/编辑关联与恢复事实，不在普通resume响应中接受模型自报“已安全退出”。不实施Cross的方案编辑业务。
+
+同一G3保存接缝还须为初始/普通状态建立不可变已发布源，不限专用编辑：新生日及先澄清后转生日的起点，在首次Cross状态写前以原task/start受理CAS预留根候选；初始无edit_ref/source，不伪造编辑或前驱。普通输入/事实/异常后继复用原请求或原运行事件及接受版本的持久关联、绑定上次已封存已发布source，再预留新候选；05封存首份完整胜者后，本目录同次task CAS发布ref/结果/版本/完成投影。具体条件见[三类来源及发布](../g3-reconciliation.md#没有编辑请求的初始与普通状态)，不建立通用调度框架或新实施票。
 
 ## Acceptance criteria
 
@@ -43,9 +45,13 @@ Core scenarios: P02/P03/P04/P05/P06/P07/P08/P09/P10/P11；[P01—P11验证框架
 - [ ] Cross只按源ref准备隔离候选，05封存胜者；同次task CAS发布胜出checkpoint_id、snapshot完整ref、ModuleResult、新revision及完成投影。不能先写最新检查点再把任务CAS当隔离。
 - [ ] G3普通start/resume/异常分支同样使用已发布ref；handoff中只读原结果/待核对，不推进旧动作。取消按真实原操作收尾；取消/终态/新会话胜出则不得发布候选。
 - [ ] 精确读取仍须不可变内容保障；旧task.checkpoint_id、namespace和原状态不能唯一核验时编辑blocked，不回latest、不新补hash伪证或重编号。
+- [ ] 初始根的原task/start关联和接受版本在首次状态准备前持久预留；核实从未发布Cross状态才允许无前驱。无edit_ref/source不妨碍05封存真实初始根，但不得把普通缺源、旧任务缺ID当首次初始化；先场景澄清后转生日也具备同等起点。
+- [ ] 普通输入、事实回读及异常转换都预留原转换关联/新候选、绑定不可变已发布source；05选完整胜者，03同次CAS发布完整ref/对应结果/新版本/完成投影。普通和异常记账不沿latest、恢复不拿新run_id/最新revision重造原转换，不因持久失败重做银行写。
+- [ ] 根封存或首次发布失败不暴露候选；无旧published_ref只用现有初始化失败/待核对表现，按原根关联恢复，不从latest补源。同任务未发布转换未结束时，不推进另一转换越过原受理；取消/终态/会话变化或其他合法写入胜出则旧CAS拒绝。已发布根及普通后继继续不可覆盖。
+- [ ] 旧显式quantity=1或省略1只在后台旧绑定、每商品一项及原操作/参数唯一对应可核验时兼容；字段存在不判新协议。quantity>1或后台新绑定缺身份不得降级，来源/唯一映射不明blocked；数量兼容不豁免上面的源保护。
 
 ## Verification / downstream
 
 实施后真实Harness与安全02/隔离银行检查等待确认/验证、两种并发胜序和各持久断点；Cross未接线时可用明示stand-in测试平台边界。
 API04与Cross08消费；真实联合验收复用原E2E03。G1未收口前不宣称公开入口可用。
-本轮不编码、不跑测试/模型/CI。
+新增P16/P17只交初始根/普通后继、发布失败/重试/并发的验收设计，P15旧单件边界保持。本轮不编码、不跑测试/模型/CI；真实E2E由Erwin后续亲自安排，材料独立双轴回交后即停。
