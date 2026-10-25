@@ -1,10 +1,14 @@
 # F10 个人预算采用来源：最小前置设计
 
-Status: design_reviewed / research_only — 双轴设计审查通过，待中控决定最小实施票；本文不是实施授权。
+Status: implementation_dispatched — 双轴设计审查通过；中控依既有委派授权激活平台01，API02等01稳定合入后顺序派发。尚无实现或E2E完成证据。
 
 Owner: Erwin（中控授权本执行对话调查与设计）
 
 Accepted at: 2026-10-25
+
+## 中控执行记录（2026-10-25）
+
+采用本设计的最小两票拆分：平台01交“核查运行装配遗留与检测器待决项”对话（01a1718a-26a3-7523-a0bf-2591d8e83618），完成当前289合入准备后在独立worktree顺序实施；API02保留blocked，等01接口稳定且合入后交原来源设计对话。无需新增storage票，PR293不变。这是既定“用户原F10明确采用”规则的实施分派，不新增风险放行政策，不代替Erwin的代码合入或最终安全接受。下文“本轮只研究”等表述描述已完成的设计阶段。
 
 Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银行](../v05-cross-linkage/packages/01-platform-bank.md)
 

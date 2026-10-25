@@ -1,4 +1,4 @@
-# 02：原 F10 输入身份接入平台来源（建议）
+# 02：原 F10 输入身份接入平台来源
 
 Ticket ID: v05-budget-adoption-origin/02
 
@@ -6,15 +6,17 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 
 Spec: [预算采用来源最小设计](../spec.md)
 
-Type: 开发建议，未授权实施
+Type: 开发（已确认拆分，实施等待前置）
 
 Owner: Erwin
 
 Directory: `backend/app/api/`
 
-Status: proposed_not_activated
+Status: blocked
 
 Blocked by: [v05-budget-adoption-origin/01：平台可信来源与恢复](01-platform-origin.md) 提供稳定接口并实际合入；中控明确派发。
+
+Planned execution thread: `01a171b0-4bf1-7571-bf2c-7c85c404329d`（原来源设计对话），GPT-6.1-sol/high。中控2026-10-25确认两票顺序；本票尚未进入编码，不与恢复503诊断混为一个API修复。
 
 Core scenarios: O01—O08，定义见规格。
 

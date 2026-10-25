@@ -1,4 +1,4 @@
-# 01：预算 F10 来源持久化与受控恢复（建议）
+# 01：预算 F10 来源持久化与受控恢复
 
 Ticket ID: v05-budget-adoption-origin/01
 
@@ -6,15 +6,17 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 
 Spec: [预算采用来源最小设计](../spec.md)
 
-Type: 开发建议，未授权实施
+Type: 开发
 
 Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: proposed_not_activated
+Status: ready — 中控已激活，平台执行对话先结束PR289合入准备，再顺序实施
 
-Blocked by: 中控确认本组规格与最小票拆分；无需新增 storage 表或 #293 的 API 变更。
+Blocked by: 同目录PR289当前合入准备结束；无需新增 storage 表或等待 #293 的 API 变更。
+
+Execution thread: `01a1718a-26a3-7523-a0bf-2591d8e83618`，GPT-6.1-sol/high；2026-10-25中控依Erwin既有分派授权正式派发。完成后分别调用规范轴与规格轴子代理审查，必须项修复后复验；不自行合并。
 
 Core scenarios: O01—O08，定义见规格；预算业务语义仍由 cross06 实施。
 
