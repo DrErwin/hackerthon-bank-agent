@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: in_progress — 2026-10-25 中控正式续派实施；293/298/299及288/289前置已实际合入。开发完成与E2E验收分别记录。
+Status: developed / local_verified / E2E_pending / CI_blocked — 2026-10-25；[Draft PR #305](https://github.com/DrErwin/hackerthon-bank-agent/pull/305)交回，未合并。
 
 Planning assignee: Erwin 授权执行对话 01a17183-271b-7663-9517-f31a994de51d
 
@@ -56,6 +56,8 @@ Core scenarios: XL-B07；回归 XL-B01/B03/B05/B06、XL-X02—X05，见[共享�
 
 ## Acceptance criteria
 
+以下为最终验收清单，保持待Erwin实际E2E签收；已实现与局部证据、双轴审查结果见[实施记录](../implementation-06.md)，不以勾选代替实际验收。
+
 - [ ] constraints 保留且纳入完整请求冲突检查；已有预算/日期/账户/引用不丢失或伪造默认值。
 - [ ] adopt/modify/decline 经真实 F10 来源、当前交互、当前计划和原 scope/purpose/limit 快照共同核验。
   裸文本、模型代答、仅 task revision、旧交互或改快照不能生成 AdoptedBudget。
@@ -81,5 +83,7 @@ Core scenarios: XL-B07；回归 XL-B01/B03/B05/B06、XL-X02—X05，见[共享�
 - 设计：本票、规格、24组测试框架完成；双轴子代理设计审查通过，Spec初轮两项必须项已修并复审；未实施。
   详见[设计审查记录](../budget-design-review.md)。
 - 上述为设计期历史。当前代码与验证见[实施证据](../implementation-06.md)；[E2E验收设计](../budget-e2e-acceptance-design.md)完成，实际E2E未运行。
+- 代码head`caaa5d6`：Cross 90 passed/3 deselected，输入接口58 passed；双轴复审必须项清零。实际E2E未运行。
+- PR #305已创建并挂执行对话，CI因GitHub billing未启动而Blocked，无本票例外、不自行合并。
 - 本轮未改 storage/API/platform、安全规则、共享跟踪、completion 或包总状态；未创建 GitHub Issue。
 - AI 设计审查不替代 Erwin/Ringo 真人安全批准或 PM 验收。

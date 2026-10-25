@@ -1,7 +1,9 @@
 # business/06 实施与交付证据
 
-Status: implementing / review_pending — 2026-10-25；本轮开发必要验证，E2E设计完成后停，实际验收由Erwin后续运行。
-Worktree: `v05-cross-budget-06`；branch `codex/v05-cross-business-06`；基线main `1b3afec5336e5906f87259c7b1c903823cc574e1`。
+Status: developed / local_verified / E2E_pending / CI_blocked — 2026-10-25；本轮开发必要验证，E2E设计完成后停，实际验收由Erwin后续运行。
+Worktree: `v05-cross-budget-06`；branch `codex/v05-cross-business-06`；创建基线main `1b3afec5336e5906f87259c7b1c903823cc574e1`；已同步最新main `8925d547eeb19d2e203faed72549e60c5e8a313a`。
+代码审查与最终Cross测试head：`caaa5d605e27eeabf445050d418c9fd48ccc77eb`；后续仅本票交付记录。
+PR：[Draft #305](https://github.com/DrErwin/hackerthon-bank-agent/pull/305)，已挂当前执行对话，未合并。
 Owner: Erwin授权执行对话；只改Cross及本票材料，不修改shared tracker/completion。
 
 ## 真实前置与范围
@@ -40,10 +42,10 @@ Owner: Erwin授权执行对话；只改Cross及本票材料，不修改shared tr
 
 | 范围 / 命令尾部 | 结果 | 独立basetemp |
 |---|---|---|
-| `-m pytest backend/app/modules/cross -q -k 'not receipts_match_real_bank and not controlled_delivery_http' --tb=short` | 84 passed, 3 deselected；含26个个人预算用例 | `C:/Users/57652/AppData/Local/Temp/v05-budget06-regression-04` |
+| `-m pytest backend/app/modules/cross -q -k 'not receipts_match_real_bank and not controlled_delivery_http' --tb=short` | 90 passed, 3 deselected；含32个个人预算用例 | `C:/Users/57652/AppData/Local/Temp/v05-budget06-final-regression-02` |
 | `-m pytest backend/app/agent_platform/test_budget_inputs.py backend/app/api/test_budget_inputs_api.py -q --tb=short` | 58 passed；既有平台来源与API输入接口回归，不是生日资金E2E | `C:/Users/57652/AppData/Local/Temp/v05-budget06-interface-01` |
 
-新增26个用例覆盖完整constraints冲突、零本次上限、真实F10/模型拒绝、modify/decline/旧交互、写后崩溃与取消后只读补原结果、
+新增32个用例覆盖完整constraints冲突、零本次上限、真实F10/模型拒绝、modify/decline/旧交互、写后崩溃与取消后只读补原结果、
 冻结前pending、未知取消、未核实释放保留、L01不稳定、无引用绑定、旧版本占用、并发首次采用/抢额度、消费入账交错、
 closed账单延迟/范围外历史、缺跨任务结算投影、冻结后新采用及真实L01只读接线。BG框架剩余跨主体/会话、页面及完整资金故障组合按E2E设计后续执行，不声称24组所有运行层均通过。
 
@@ -60,4 +62,27 @@ closed账单延迟/范围外历史、缺跨任务结算投影、冻结后新采�
 - P2 写后中断原任务卡死：历史hook仍只读、返回attempt预存事实；普通当前任务恢复核对准确持久采用后给新继续交互。
   写前中断另签新候选再F10，不复用失效来源；取消/新计划/历史原响应不被恢复钩子覆盖。
 
-新增局部复现与回归后重新双轴审查；最终成绩与结论在收口时补记。AI审查不替本人安全/PM验收。
+整组第一次复验89 passed/1 failed/3 deselected发现BG23重显原确认前未即时绑定新预算实际remainder；
+补一次公开refresh后，相关5项通过，最终整组90 passed/3 deselected。保留上述发现，不以初轮审查通过代替最终测试。
+
+### Standards
+
+独立子代理静态审查`8925d54...195dfe8`、修复增量`195dfe8..1c63225`及最终`1c63225..caaa5d6`：
+0必须修复、0单列建议；公开契约/确认与银行事实/单目录符合，未要求无价值重构。未运行测试或访问共享库。
+
+### Spec
+
+独立子代理初轮4项必须修复，`1c63225`复审清零；独立局部8 passed/24 deselected，
+目录`C:/Users/57652/AppData/Local/Temp/v05-budget06-spec-rereview-01`；最终`caaa5d6`增量静态确认无新增必须项。
+历史hook只读，普通当前恢复给新的明确交互；最终刷新不改原pending/操作/交互，不触发银行资金写入。
+
+两轴最终必须项均为0，分别报告，AI结果不替Erwin/Ringo本人安全批准、PM接受或实际E2E。
+
+## CI与交回状态
+
+[CI run 40201393209](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40201393209)，head`1c63225`：
+Repository checks显示failure，但steps为空；check-run annotation明确账号付款失败或spending limit需提高，job未启动。
+这是CI Blocked，不是代码测试通过；不自行rerun，不沿用293/299的第三批例外。最终提交状态以PR实时checks为准。
+
+代码和必要局部验证完成，E2E验收设计完成、实际未运行，停在本票交回；后续由Erwin处理实际验收/CI条件及最终合入。
+不据此启动08、G3、平台01—05或改shared tracker/completion。
