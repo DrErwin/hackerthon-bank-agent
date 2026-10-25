@@ -16,7 +16,7 @@ from datetime import datetime
 from hashlib import sha256
 from uuid import uuid4
 
-from app.contracts.bank import SavedPayee
+from app.contracts.bank import OwnPayee, SavedPayee
 from app.contracts.bills import BillScope, BillSummarizeInput
 from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossScenario, CrossStartInput
@@ -452,7 +452,9 @@ class CrossEntry:
             child_input = StartTransferInput(
                 request_id=request_id,
                 intent_text=f"转给{step['payee_name']}（养老金安排第{step['step_id'].split(':')[1]}笔）",
-                payee=SavedPayee(kind="saved", payee_id=step["payee_id"]),
+                payee=(OwnPayee(kind="own", account_id=step["target_account_id"])
+                       if step.get("target_account_id") is not None
+                       else SavedPayee(kind="saved", payee_id=step["payee_id"])),
                 amount_fen=step["amount_fen"],
                 payer_account_id=(state.get("pension") or {}).get("payer"))
             record["label"] = f"转给{step['payee_name']}"
