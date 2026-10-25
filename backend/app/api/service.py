@@ -27,6 +27,7 @@ from app.contracts.api import (
 from app.contracts.bills import BillDetails, BillReport, SpendingSummary
 from app.contracts.bank import AccountList, PayeeList
 from app.contracts.common import DisplayField, TaskStatus
+from app.contracts.cross import CrossTaskView
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ConfirmationView, ExecutionSecurityContext, VerificationView
 from app.contracts.subscription import SubscriptionTaskView
@@ -1528,6 +1529,70 @@ class ApiService:
         if not task.interaction or task.interaction.kind != "input" or task.interaction.interaction_id != interaction_id:
             raise ApiProblem(409, "INTERACTION_STALE")
         return task
+
+    def budget_input_record(self, identity, task_id, request_id):
+        """Private platform facts, never a source field supplied by the client."""
+        task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+        if task is None or task.snapshot.get("capability_name") != "cross.start_task":
+            return None
+        return self.runtime.harness.budget_input_record(self.trusted(identity, task_id), request_id)
+
+    def provide_task_input(self, identity, task_id, request):
+        # History must precede current_input_task: a recorded attempt can have
+        # become needs_attention / interaction=None after its business write.
+        record = self.budget_input_record(identity, task_id, request.request_id)
+        if record is None:
+            task = self.current_input_task(identity, task_id, request.interaction_id)
+            response = self.input_response(task, request)
+            saved = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+            view = (CrossTaskView.model_validate(task.data)
+                    if saved and saved.snapshot.get("capability_name") == "cross.start_task"
+                    and isinstance(task.data, dict) and task.data.get("budget") is not None else None)
+            budget_candidate = (view is not None and view.budget is not None
+                                and not view.budget.adopted and view.budget.budget_ref is None)
+            if request.selected_option_id is None or not budget_candidate:
+                return self.continue_task(identity, task_id, response)
+        elif request.text is not None or request.selected_option_id is None:
+            raise ApiProblem(400, "INVALID_OPTION")
+
+        trusted = self.trusted(identity, task_id, new_run=True)
+        try:
+            completed = self.runtime.harness.resume_budget_input(
+                trusted, input_request_id=request.request_id,
+                interaction_id=request.interaction_id, selected_option_id=request.selected_option_id,
+            )
+        except ValueError as exc:
+            if str(exc) in {"BUDGET_INPUT_NOT_CURRENT", "BUDGET_CANDIDATE_REQUIRED", "BUDGET_INPUT_STALE"}:
+                raise ApiProblem(409, "INTERACTION_STALE") from None
+            raise
+        link = self.link(identity, task_id, mutate=True)
+        original = TaskView(**completed.result.model_dump(), module="cross",
+            thread_id=link["thread_id"], demo_round_id=identity.demo_round_id,
+            snapshot_at=now(), task_revision=completed.task_revision,
+            cancel_requested=bool(link["cancel_requested"]))
+        self._publish_budget_input(identity, task_id, completed.origin_id)
+        return original
+
+    def _publish_budget_input(self, identity, task_id, origin_id):
+        """Publish the current card atomically; HTTP returns the frozen completion.
+
+        History reconciliation must not broadcast an old plan as current. Stable
+        publication ids prevent duplicate messages after a lost API receipt.
+        """
+        task = self.task_view(identity, task_id)
+        namespace = UUID(origin_id)
+        message = self.message_view(task.thread_id, task.message, "assistant", task_id,
+                                    str(uuid5(namespace, "input-message")), identity)
+        events = [self.stream_event(identity, task.thread_id, "task_updated", task, task,
+                                   str(uuid5(namespace, "input-task-updated")))]
+        if task.interaction:
+            from app.contracts.api import InteractionRequired
+            events.append(self.stream_event(identity, task.thread_id, "interaction_required",
+                InteractionRequired(task_id=task_id, interaction=task.interaction), task,
+                str(uuid5(namespace, "input-interaction"))))
+        events.append(self.stream_event(identity, task.thread_id, "message_completed", message,
+                                        event_id=str(uuid5(namespace, "input-message-completed"))))
+        self.store.publish_budget_input(task, message, events)
 
     def revise_draft(self, identity, task_id, revision, fields, *, publish=True):
         """Edit only the currently owned, unsubmitted ordinary-transfer draft."""

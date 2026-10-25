@@ -6,17 +6,17 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 
 Spec: [预算采用来源最小设计](../spec.md)
 
-Type: 开发（已确认拆分，实施等待前置）
+Type: 开发
 
 Owner: Erwin
 
 Directory: `backend/app/api/`
 
-Status: blocked
+Status: in_progress — 中控2026-10-25正式派发；平台01已由PR #298合入 main 6ce7fb03a3765df00773885953151619c43f52c7。
 
-Blocked by: [v05-budget-adoption-origin/01：平台可信来源与恢复](01-platform-origin.md) 提供稳定接口并实际合入；中控明确派发。
+Blocked by: None（平台01已实际合入，中控开始信号已收到）；真实cross06/AdoptedBudget及完整生日验收仍属后续依赖。
 
-Planned execution thread: `01a171b0-4bf1-7571-bf2c-7c85c404329d`（原来源设计对话），GPT-6.1-sol/high。中控2026-10-25确认两票顺序；本票尚未进入编码，不与恢复503诊断混为一个API修复。
+Execution thread: `01a171b0-4bf1-7571-bf2c-7c85c404329d`（原来源设计对话）。Accepted by: Erwin委派本对话；Accepted at: 2026-10-25。独立managed worktree v05-budget-f10-api；分支 codex/v05-budget-f10-api；基线6ce7fb03。只改API与本票材料，不包含恢复503诊断、生日编辑G1/04、共享跟踪或completion。
 
 Core scenarios: O01—O08，定义见规格。
 
