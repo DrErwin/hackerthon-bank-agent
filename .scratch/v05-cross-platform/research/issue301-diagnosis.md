@@ -34,7 +34,7 @@ Harness按该候选查registry，以原intent_text构造StartTransferInput，未
 5. 补记录候选回放测试后，同文件`-k recorded_wrong_candidate -q --tb=short`：1 passed，3.70秒，真实模块/银行组合配脚本候选，验证派发归因。
 6. 修后真实GLM路由，同文件`-k live_life_goal_routing -q -s --tb=short`：13 passed、6 deselected，109.30秒（该进程在新增回放测试前已收集）。原句+3种减支改写、3种明确退订（含缺商户/明确只办一项）、2种只读查询、澄清、养老金、生日和转账均符合预期；见[修后JSONL](../evidence/issue301/postfix.jsonl)。model.py SHA256 `3d164e0cdad36fecd26972253d8c7058c2a711fb55729f41b52b540ba425e744`。
 
-真实探针仅显式设置BANK_ROUTING_LIVE_CONFIG与BANK_ROUTING_LIVE_EVIDENCE时运行，默认跳过；配置只在本地加载，data_directory替换为每例独立临时路径，其余模型及风险事实保持。只调用真实harness.understand，不调用业务start或能力factory；模型暴露工具仍只有提议/继续/回复。每例数据库银行操作0、业务任务0；此调用路径没有银行写提交或结算，未进入确认/验证。输出只含自然输入、路由、模型名、代码哈希、耗时和零计数，无凭据/授权头/验证码。
+真实探针由BANK_ROUTING_LIVE_CONFIG显式启用，默认跳过；可选BANK_ROUTING_LIVE_EVIDENCE指定JSONL归档，本轮两者均设置。配置只在本地加载，data_directory替换为每例独立临时路径，其余模型及风险事实保持。只调用真实harness.understand，不调用业务start或能力factory；模型暴露工具仍只有提议/继续/回复。每例数据库银行操作0、业务任务0；此调用路径没有银行写提交或结算，未进入确认/验证。输出只含自然输入、路由、模型名、代码哈希、耗时和零计数，无凭据/授权头/验证码。
 
 两份JSONL及模型源码哈希见[manifest](../evidence/issue301/manifest.json)。原失败批次、修前失败和修后小样分开保存；不修改原评测期望或源证据。
 
