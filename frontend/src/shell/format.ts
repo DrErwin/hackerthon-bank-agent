@@ -1,3 +1,4 @@
+import type { TaskStatus } from "../contracts";
 import type { ShellTask, Tone } from "./types";
 
 export function newRequestId(): string {
@@ -19,18 +20,18 @@ export interface StatusLabel {
   text: string;
 }
 
-export function taskStatusLabel(task: ShellTask): StatusLabel {
-  switch (task.status) {
+export function statusLabel(status: TaskStatus, interactionKind?: string | null): StatusLabel {
+  switch (status) {
     case "running":
       return { tone: "pending", icon: "…", text: "正在办理" };
     case "waiting_input":
       return { tone: "pending", icon: "✎", text: "等您补充" };
     case "waiting_approval":
-      return task.interaction?.kind === "verification"
+      return interactionKind === "verification"
         ? { tone: "pending", icon: "◆", text: "等您验证" }
         : { tone: "pending", icon: "?", text: "等您确认" };
     case "needs_attention":
-      return { tone: "warning", icon: "!", text: task.error?.source === "security" ? "安全核对暂停" : "结果待核实" };
+      return { tone: "warning", icon: "!", text: "结果待核实" };
     case "succeeded":
       return { tone: "success", icon: "✓", text: "已办结" };
     case "partially_succeeded":
@@ -40,6 +41,14 @@ export function taskStatusLabel(task: ShellTask): StatusLabel {
     case "cancelled":
       return { tone: "neutral", icon: "−", text: "已取消" };
   }
+}
+
+export function taskStatusLabel(task: ShellTask): StatusLabel {
+  const label = statusLabel(task.status, task.interaction?.kind);
+  // A security pause is not an unknown bank result; the card says which one it is.
+  return task.status === "needs_attention" && task.error?.source === "security"
+    ? { ...label, text: "安全核对暂停" }
+    : label;
 }
 
 export function isTerminal(task: ShellTask): boolean {

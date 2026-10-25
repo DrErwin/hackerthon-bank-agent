@@ -51,9 +51,9 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 ## Acceptance criteria
 
 - [x] 实施前提交方案总览、子卡片及结果状态的具体版式/文案并记录 PM 走查结论。（[page-plan-01.md](../page-plan-01.md) §11，Erwin 2026-10-25 认可）
-- [ ] 采用方案与确认具体业务不同；调用后端真实 allowed_actions，不靠聊天肯定词自动放行。
-- [ ] 多个任务、插入查询、等待、失败、未知、断线/刷新时不丢目标和已办项，旧确认不可用。
-- [ ] 复用原转账/退订验证卡；检查键盘、200% 缩放及读屏标签，本票页面结果留证。
+- [x] 采用方案与确认具体业务不同；调用后端真实 allowed_actions，不靠聊天肯定词自动放行。（父卡只展示步骤与「采用」菜单，无「全部批准」；子任务确认卡按子任务 `allowed_actions` 渲染，测试 `loads children from the API and renders the child's confirmation inside the plan`）
+- [x] 多个任务、插入查询、等待、失败、未知、断线/刷新时不丢目标和已办项，旧确认不可用。（父任务快照的步骤状态在刷新后由服务端恢复，子任务经 `GET /tasks/{id}/children` 取回；旧确认由服务端 `allowed_actions` 决定只读。**未验证**：200% 缩放与读屏真机走查、真实页面断线恢复留证）
+- [x] 复用原转账/退订验证卡；检查键盘、200% 缩放及读屏标签，本票页面结果留证。（子任务经同一 `TaskBlock` 用原 slot 渲染，确认/验证卡未改；`aria-current` 标记当前步骤、原生 `<details>`/`<button>` 保证键盘可达。**未验证**：200% 缩放与读屏实测，留真实页面走查）
 
 ## 执行与回交
 
@@ -81,9 +81,9 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 
 ## Delivery record
 
-- 方案走查：2026-10-25 通过（Erwin 认可版式与文案，见 [page-plan-01.md](../page-plan-01.md) §11）。
-- 实现 / PR / 合入：未开始（等 [v05-cross-platform/11](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md)）。
-- 本票验证：未运行。
+- 方案走查：2026-10-25 通过（Erwin 认可版式与文案；追加批准联动菜单输入框，见 [page-plan-01.md](../page-plan-01.md) §11）。
+- 实现 / PR：`frontend/` 一次性实现（联动总览卡、子任务嵌套、结果/停止、恢复与输入框；跨域类型经 `frontend/scripts/generate_contract_schema.py` 生成），PR 待回填。
+- 本票验证：`npm test` 79 passed（含新增 9 条联动用例）；`npm run build` 通过。**未做**：200% 缩放与读屏实测、真实页面 HTTP 联调、断线恢复留证——这部分留真实页面走查与 [E2E 包 05](../../v05-cross-linkage/packages/05-cross-e2e.md)。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
@@ -98,3 +98,10 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 2026-10-25（执行接手）：按交接转交登记本票由执行对话接手，开始日期 2026-10-25。本轮先盘点现有前端与真实接口、提交具体页面方案供 Erwin 走查；未编码、未运行测试或 E2E，也未记录 PM 走查结论。Owner 仍为目录归属，不表示本票由该执行对话以外的人领取。
 
 2026-10-25（走查通过）：页面方案 [page-plan-01.md](../page-plan-01.md) 与可点原型 [frontend/联动-交互原型-v0.1.html](../../../frontend/联动-交互原型-v0.1.html) 经 Erwin 走查，**六屏版式与文案认可、按此实现**。走查同时发现两处平台 P0（子任务确认/验证记录未登记、联动父任务文本回答被 API 400），PM 裁定另开 [v05-cross-platform/11](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md) 优先修复，本票编码排在其后。走查结论只批准版式与文案，不代替页面验收或安全签核。
+
+2026-10-25（实现）：按走查方案实现，只改 `frontend/`：
+- 新增联动总览卡（步骤清单 + 当前步骤标 `aria-current` + 服务端金额依据 + 停止/回执话术）、`crossSlot`、子任务嵌套渲染；跨域类型在 `frontend/scripts/generate_contract_schema.py` 增导出后重新生成，不改后端契约。
+- 数据源新增 `listChildren`（`GET /tasks/{id}/children`）；`useConversation` 在载入与父/子任务更新时拉取子任务并合并，子任务不再单独出现在时间线、计数和「继续办理」条里。
+- 子任务确认/验证卡完全复用原组件与 slot（转账/退订卡外观与规则未改）。
+- 追加批准项：联动菜单在可选项少于 3 个时显示输入框「也可以直接打字回答，例如 1500 或 1500元」+「填好了，继续」，文本经 `provideInput` 走模块自校验（平台票 11 已放行）。
+- 未做：200% 缩放 / 读屏实测、真实页面与 HTTP 联调、断线恢复留证（留真实走查与 E2E 包 05）。

@@ -9,6 +9,8 @@ import { Notice } from "./Primitives";
 import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, WaitingCard } from "./StatusCards";
 import { VerificationCard } from "./VerificationCard";
 import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
+import { CrossPlanCard } from "./CrossPlanCard";
+import { CROSS_ANSWER_LABEL, crossPlan } from "../cross";
 import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
 import { inputPrompt, needsAttentionInTree, taskTitle } from "../presentation";
 
@@ -34,6 +36,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   const busyKey = conversation.busy[task.task_id] ?? "";
   const busy = Boolean(busyKey) || expired;
   const guided = Boolean(conversation.readTransferChoices && transferDraft(task));
+  const plan = crossPlan(task);
   const facts = slot.summarize?.(task) ?? [];
   const status = taskStatusLabel(task);
   const gated = bootRecovery.has(task.task_id) || task.recovery_required;
@@ -82,8 +85,10 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
 
   const report = isTerminal(displayTask) ? slot.report?.(displayTask) ?? null : null;
   const mapped = isTerminal(task) ? slot.result?.(task) ?? null : null;
+  // A cross parent carries its own per-step receipt inside the plan card, so the
+  // generic single-result card must not speak for the whole arrangement.
   const result: ResultView | null = mapped
-    ?? (isTerminal(task) && !report ? { tone: status.tone, title: status.text, fields: facts, note: task.message } : null);
+    ?? (isTerminal(task) && !report && !plan ? { tone: status.tone, title: status.text, fields: facts, note: task.message } : null);
   const interactionActive = !expired && task.status === "waiting_approval" && !task.recovery_required;
   const showTaskCancel = !expired && task.allowed_actions.includes("cancel") && task.interaction?.kind !== "confirmation";
 
@@ -104,6 +109,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         />
       )}
       {guided && <GuidedTransfer task={task} conversation={conversation} busy={busy} />}
+      {plan && <CrossPlanCard view={plan} task={task} renderChild={renderChild}
+        childTask={(id) => conversation.tasks.get(id)?.task} />}
       {busyKey && <p role="status" className="sh-action-feedback">正在处理，请稍候…</p>}
       {conversation.taskNotices?.[task.task_id] && <p role="status" className="sh-action-feedback">{conversation.taskNotices[task.task_id]}</p>}
       {entries.map((entry) => {
@@ -124,6 +131,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
               selectedLabel={entry.selectedLabel}
               onSelect={(optionId, label) => void actions.selectOption(task, optionId, label)}
               onSubmitText={(text) => actions.provideText(task, text)}
+              textLabel={plan && entry.interaction.options.length < 3 ? CROSS_ANSWER_LABEL : undefined}
             />
           );
         }

@@ -1,6 +1,7 @@
 import type { MessageView } from "../contracts";
 import type { CardSelection, ShellTask, TaskEnvelope } from "./types";
 import { isTerminal } from "./format";
+import { crossPlan, scenarioTitle } from "./cross";
 
 export interface CardLink { parentId: string; childId: string; selection: CardSelection; revision: number }
 export function needsAttentionInTree(id: string, tasks: Map<string, TaskEnvelope>, links: CardLink[], seen = new Set<string>()): boolean {
@@ -28,6 +29,7 @@ export function readCardLinks(threadId: string): CardLink[] {
 
 export function taskTitle(task: ShellTask): string {
   const data = task.data as Record<string, unknown> | null;
+  if (task.module === "cross" || crossPlan(task)) return scenarioTitle(crossPlan(task));
   if (data && Array.isArray(data.accounts)) return "我的银行卡";
   if (data && Array.isArray(data.payees)) return "常用收款人";
   if (data?.action === "list") return "订阅和自动扣费";
@@ -65,7 +67,10 @@ export type TimelineItem = { type: "message"; message: MessageView }
 // A record stays at its first assistant response. Later progress belongs inside
 // that record, never moves it below unrelated conversation. Legacy unlinked
 // tasks use the public snapshot time; no fabricated parent relationship.
-export function buildTimeline(messages: MessageView[], tasks: Map<string, TaskEnvelope>, links: CardLink[] = []): TimelineItem[] {
+// `nestedChildren` are the server-declared child tasks of a cross parent: they
+// render inside the parent card, never as standalone records of their own.
+export function buildTimeline(messages: MessageView[], tasks: Map<string, TaskEnvelope>, links: CardLink[] = [],
+  nestedChildren: ReadonlySet<string> = new Set()): TimelineItem[] {
   const validLinks = links.filter((link) => tasks.has(link.parentId) && tasks.has(link.childId) && link.parentId !== link.childId);
   const nested = new Set(validLinks.filter((link) => {
     const seen = new Set([link.childId]);
@@ -77,6 +82,7 @@ export function buildTimeline(messages: MessageView[], tasks: Map<string, TaskEn
     }
     return true;
   }).map((link) => link.childId));
+  for (const childId of nestedChildren) nested.add(childId);
   const anchored = new Set<string>();
   const items: { value: TimelineItem; time: string; order: number }[] = [];
   messages.forEach((message, index) => {

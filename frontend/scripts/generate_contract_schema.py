@@ -41,6 +41,7 @@ from app.contracts.bills import (  # noqa: E402
     TransactionCandidates,
 )
 from app.contracts.security import ConfirmationView, VerificationView  # noqa: E402
+from app.contracts.cross import CrossTaskView  # noqa: E402
 from app.contracts.tasks import TaskView, TransferTaskView  # noqa: E402
 
 PUBLIC_MODELS = {
@@ -48,6 +49,7 @@ PUBLIC_MODELS = {
     "AccountList": AccountList,
     "PayeeList": PayeeList,
     "SubscriptionTaskView": SubscriptionTaskView,
+    "CrossTaskView": CrossTaskView,
     "SessionView": SessionView,
     "ThreadView": ThreadView,
     "MessageAccepted": MessageAccepted,
