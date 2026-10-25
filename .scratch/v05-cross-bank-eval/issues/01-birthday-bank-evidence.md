@@ -63,7 +63,7 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 - 实现：`evals/mockbank/test_birthday_bank_eval.py`；[银行事实和覆盖证据](../../../evals/mockbank/birthday-evidence.md)、[原始JUnit](../../../evals/mockbank/birthday-results.xml)。分支 `codex/v05-cross-bank-eval-01`，代码提交 `15a3480`，独立 worktree（本机）`C:/Users/57652/.codex/worktrees/v05-cross-bank-eval-01/hackerthon-bank-agent`。[PR #290](https://github.com/DrErwin/hackerthon-bank-agent/pull/290) 已提交并附本对话，交中控排队；未自行合并。
 - 本票验证：最终银行/服务/存储合跑 **149 passed, 4 xfailed in 46.34s**（其中生日37通过、4项strict xfail为未满足轮次要求）；`--runxfail -k old_round_objects`实跑4 failed，保留缺口不算通过。完整后端1588 passed in 893.93s。专项及完整后端范围分别记录，不将任何一项当作页面E2E。
 - AI独立审查：Standards轴初审要求回填交付记录；Spec轴发现跨轮次覆盖缺口及同一记录问题。已补失败探针、回填事实并保持跨轮次验收blocked；二轮指出预期失败捕获过宽和拒绝回执比较问题，均修正。两位子代理最终复审确认 **0项剩余必须修复**。复审代码 `e50284a` rebase后为 `15a3480`（只引入主线前端/文档更新，银行/评测内容相同）。AI审查通过不替代银行跨轮次验收或真人批准。
-- CI：PR创建时尚待运行/完成，最终检查状态由中控合入前核对；新增生日文件不在现工作流显式旧银行文件命令中，不能由CI绿推断新增专项已在CI执行。
+- CI：2026-10-25 实查 head `1fb213b` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40167839557/job/121092416355) 为 failure，job尚未启动；GitHub原因为近期账号付款失败或消费额度需要提高。属于Actions账号环境阻塞，不是已运行的测试失败；不能写CI绿。新增生日文件不在现工作流显式旧银行文件命令中，不能由将来CI绿推断新增专项已在CI执行。中控合入前复核最终head及账号问题。
 - 银行事实可提供给包05作为B13/B14/B22/B08及账本对照；包05真实故障依赖B28装配（平台09已交付时明确残留），完整轮次隔离还依赖新缺口核对/修复。未发起真实模型、HTTP或页面E2E，未签真人安全/PM接受。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。

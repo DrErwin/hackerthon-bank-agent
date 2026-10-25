@@ -59,3 +59,5 @@ python -m pytest -q ../evals/mockbank app/services app/storage --junitxml=../eva
 独立 Standards 首审：0 项代码必须修复，1 项交付记录需回填；复跑生日37项通过。独立 Spec 首审：银行事实可信，发现上述跨轮次部分覆盖及交付记录待回填；复跑37项通过。已补四项可重复失败探针并如实标 blocked，未越界修公共代码。二轮审查要求缩窄预期失败异常、允许正确拒绝的失败回执，均已修正：仅 `OldRoundObjectAllowed` 会被标为已知缺口，其他断言或服务错误正常失败。最终复审、PR及 CI 状态见本票交付记录。本报告不宣布包06或 v0.5 已验收。
 
 最终两轴复审均 **0项剩余必须修复**；[PR #290](https://github.com/DrErwin/hackerthon-bank-agent/pull/290) 已提交，由中控决定合入，未自行合并。最终代码rebase到 `9a479ea4414635772fdb723c02b0fc70b76a1a55`，只新增主线前端及中控文档更新，银行实现与本轮验证相同。
+
+CI实查：head `1fb213b` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40167839557/job/121092416355) 为failure且job未启动。GitHub报账号付款失败或消费额度需提高；记录为Actions账号环境阻塞，不能记为CI通过，也不是已经运行的测试失败。后续仅回填文档，不改变本地代码证据；中控合入前复核最终head与账号状态。
