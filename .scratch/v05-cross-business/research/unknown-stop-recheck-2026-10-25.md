@@ -57,8 +57,14 @@ Status: verified — PR #288 已有停止修复覆盖，不新增业务票或修
 ## 运行与审查记录
 
 - 三条直接银行故障路径 + #289 原生日装配回归：**8 passed in 53.68s**。
-- 四条最终探针与组合模块回归：待回填。
-- 子代理审查与独立复验：待回填。
+- 四条最终探针：**4 passed in 38.61s**。组合 `modules/cross` + 平台生日装配 + 四条探针，
+  **66 passed in 132.92s (0:02:12)**；运行同一探针源文件，不复制或修改生产代码。
+- 独立 Standards 子代理：PASS，必须项 0、建议 0；独立运行配置开关冻结路径，
+  **1 passed, 3 deselected in 15.47s**，复跑后工作区干净。
+- 独立 Spec 子代理：PASS，无新增必须修复项；独立运行完整四条探针，
+  **4 passed in 41.52s**。还仅在进程内加载 PR #289 的旧 BirthdayFlow 做对照，
+  **1 failed, 3 deselected in 16.08s**，准确捕获 waiting_approval 而非 cancelled；未改源码。
+  两轴结论均为：#288 + #289 组合覆盖已报告缺陷，不应重复建修复票/PR。
 - 原有 PR 的 CI 计费阻塞记录不因本轮测试变绿；本轮未做真实模型、HTTP/页面 E2E、真人安全或 PM 验收。
 
 可复跑命令：在上述组合 worktree 根目录设置 `PYTHONPATH=<该worktree>/backend`，用项目已有
