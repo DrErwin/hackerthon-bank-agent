@@ -92,3 +92,10 @@ G1 由 Erwin 的平台工作线承接平台 03 后续修正，按能力核对真
 阶段归属：Erwin 承接 v0.5 包 03/05，本次明确领取 03。审查由 Erwin 按现有流程组织并记录实际人选，安全由 Erwin 本阶段代行审查；v0.5 收口交接接口、证据及遗留，后续分派以项目跟踪为准，长期目录归属不自动改变。
 
 2026-10-24 已检查 to-spec、to-tickets、implement、code-review 文件均存在；读取前两者全文并按本次授权手工采用规格/拆票流程。to-spec/to-tickets 带 disable-model-invocation，且本会话无对应命令，不声称已调用斜杠命令。仓库安装基线为 mattpocock/skills@d81f3a183412e71a5b1e84ca21bc1a35eea03a60；已有本机文件来源未复核，不覆盖安装。粒度、目录和 E2E 检查面已经 PM 批准，本轮沿用；实施时再核对 implement/code-review 的可用性。
+
+## 2026-10-25 个人预算接入专项设计（不启动实施）
+
+下一空闲票为 [v05-cross-business/06：生日个人预算采用、版本与冻结前占用](issues/06-adopted-budget-integration.md)。
+详细[规格](budget-integration-spec.md)与[测试框架](budget-integration-tests.md)仅补本轮可审查设计；
+#293 验证/合入、平台真实 F10 采用来源接缝及中控明确续派前保持 blocked，不把存储 revision 当采用授权。
+本节不重写此前实施/验收历史，不修改共享跟踪或版本完成状态。
