@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生日安排 · 票02页面走查原型</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#111827;background:#f5f6f8;font-size:18px;line-height:1.6;--orange:#ff6a00;--line:#d0d5dd;--warn:#b54708;--success:#067647}
+*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit;color:inherit;max-width:100%}button,a,summary,input,select{min-height:48px}button{border:1px solid #98a2b3;background:white;border-radius:10px;padding:10px 18px;cursor:pointer;font-weight:650}button.primary{background:var(--orange);border-color:var(--orange);min-height:56px}button:disabled{background:#f2f4f7;color:#475467;border-color:var(--line);cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid #111827;outline-offset:3px}a{color:#944000}h1,h2,h3,p{margin:0}h1{font-size:1.2rem}h2{font-size:1.55rem;line-height:1.4}h3{font-size:1.15rem}p+p{margin-top:10px}small,.hint{font-size:.9rem;color:#374151}.top{background:white;border-bottom:1px solid var(--line);padding:14px 22px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}.logo{background:var(--orange);padding:3px 9px;border-radius:9px;margin-right:8px}.ribbon{padding:12px 20px;background:#fff4e5;color:#7a2e0e;border-bottom:1px solid #fedf89}.review{padding:16px;border:1px dashed #98a2b3;border-radius:12px;background:#fff;max-width:820px;margin:20px auto}.review label{display:block;font-weight:700}.review select{width:100%;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:8px}.review .buttons{margin-top:8px}main{max-width:820px;margin:auto;padding:0 16px 32px;overflow-wrap:anywhere}.bubble{background:#fff1e6;border:1px solid #ffd5b0;border-radius:14px 14px 4px 14px;padding:14px 20px;max-width:85%;margin:24px 0 18px auto}.record{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}.head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}.badge{padding:3px 10px;background:#fff1e6;border:1px solid #ffc999;border-radius:8px;font-weight:700;font-size:.9rem}.promise{margin:16px 0;padding:12px 16px;border-left:4px solid var(--orange);background:#fff8f2}.panel{border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:18px}.active{border:2px solid #c65300;background:#fffcf9}.notice{padding:14px 16px;background:#fff4e5;border-left:4px solid var(--warn);margin:16px 0}.success{border-color:var(--success);background:#ecfdf3}.buttons{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}.buttons>*{flex:1 1 190px}.fields{margin:16px 0 0}.field{display:grid;grid-template-columns:minmax(100px,1fr) minmax(120px,1.7fr);gap:12px;padding:10px 0;border-bottom:1px solid #eaecf0}.field dt{color:#374151}.field dd{margin:0;font-weight:650}.money{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}.money>div{border:1px solid var(--line);padding:14px;border-radius:10px;background:#fafafa}.money strong{display:block;font-size:1.45rem;font-variant-numeric:tabular-nums}.money span{display:block;color:#374151}.order{border-top:1px solid var(--line);padding:16px 0}.order:first-of-type{margin-top:12px}.steps{padding-left:26px;margin:18px 0}.steps li{padding:8px}.form label{display:block;margin:16px 0 6px;font-weight:650}.form input,.form textarea{width:100%;padding:12px;border:1px solid #667085;border-radius:8px;background:white}.form textarea{min-height:110px;resize:vertical}.product{display:flex;gap:16px;align-items:start;justify-content:space-between;border-top:1px solid var(--line);padding:18px 0;flex-wrap:wrap}.product>div{flex:1 1 220px}.product button{flex:0 1 auto}.product strong{display:block}.product .price{font-size:1.25rem;font-weight:750}.quiet{color:#374151}.line{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}summary{cursor:pointer;padding:12px 0;font-weight:650}details>p{margin:10px 0}dialog{border:1px solid #98a2b3;border-radius:16px;margin:0 0 0 auto;height:100dvh;max-height:100dvh;width:min(560px,100%);max-width:100%;padding:24px;overflow:auto;color:#111827}dialog::backdrop{background:#11182788}dialog .buttons{position:sticky;top:0;background:#fff;margin:0 0 22px;padding-bottom:12px}dialog h2{font-size:1.35rem}.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.skip{position:absolute;top:-200px;background:white;padding:16px;z-index:10}.skip:focus{top:4px}.review-note{max-width:820px;margin:0 auto 24px;padding:16px;font-size:.9rem}.support{padding:14px;background:#f2f4f7;border-radius:10px;margin-top:16px}
+@media(max-width:620px){.top{padding:12px}.review{margin:12px}.record{padding:16px}.head{display:block}.badge{display:inline-block;margin-top:10px}.money{grid-template-columns:1fr}.field{grid-template-columns:1fr;gap:2px}.buttons>*{flex-basis:100%}.bubble{max-width:94%}.panel{padding:14px}.product{gap:8px}h2{font-size:1.3rem}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+<a class="skip" href="#record-title">跳到当前办理</a>
+<header class="top"><h1><span class="logo" aria-hidden="true">银</span>银行智能助理</h1><span>生日安排 · 页面走查</span></header>
+<div class="ribbon" role="note"><strong>独立原型 · 所有数据均为示意 · 视觉尚未验证</strong>　没有连接银行，不会保存配送原文，不会下单或扣款。刷新仅重开当前示意画面。</div>
+<nav class="review" aria-label="走查控制，不属于正式页面">
+ <label for="scene">走查控制：选择要看的情形</label><select id="scene"></select>
+ <div class="buttons"><button id="prev">上一种情形</button><button id="next">下一种情形</button></div>
+ <p id="scenario-note" class="hint"></p><p class="hint">下面每次切换都是独立示意快照；金额与结果不承接上一画面。画面内按钮也只用于走查。</p>
+</nav>
+<main><div class="bubble">给妈妈准备生日，预算 500 元，10 月 30 日前送到。</div>
+ <article class="record" aria-labelledby="record-title"><div class="head"><h2 id="record-title" tabindex="-1">准备妈妈的生日</h2><span id="badge" class="badge"></span></div>
+ <p class="promise">采用方案只是先定下怎么办；冻结、下单和付款，仍会分别请您确认。</p>
+ <div id="content"></div>
+ </article>
+</main>
+<div id="announce" class="sr" role="status" aria-live="polite" aria-atomic="true"></div>
+<aside class="review-note"><details><summary>审阅说明与能力边界（非用户页面）</summary><p>沿用票01聊天记录原地展开、历史折叠与长明细抽屉。每个页面是独立示意快照，按钮只切换画面。报价、资金状态和有效动作在正式实现中必须读取服务端。生日个人预算采用与冻结前占用后端已合入（#305），但页面实接、任意改数量和确认/验证等待态修改仍未实现，配送资料修改未提供；个人预算是否已采用只看服务端字段。不把本原型当 E2E。</p><p id="technical"></p><p>键盘预期：Tab 顺序依页面阅读顺序；状态切换聚焦标题并播报；抽屉 Escape 关闭且焦点返回。200% 浏览器缩放、真实读屏和真实恢复需分别留证，原型展示不构成验收。</p></details></aside>
+<dialog id="drawer" aria-labelledby="drawer-title"><div class="buttons"><button id="close-drawer" autofocus>关闭明细</button></div><h2 id="drawer-title">这次安排的办理明细 · 示意</h2><div id="drawer-content"></div></dialog>
+<script>
+// Throwaway review artifact: fixed server-shaped fixtures, no business eligibility rules, network or storage.
+const scenes=[
+ ['budget','预算与日期','补充信息','只收集本次上限和日期；个人预算是否已采用只看服务端结果，候选不冒充已采用。'],
+ ['delivery','配送专用表单','等您填写','配送原文仅在此表单内；模拟 F36 后自动衔接 F10。'],
+ ['delivery-link','资料已保存，衔接中断','待继续','F36 成功、F10 尚未成功；只续传内存中的引用。'],
+ ['products','选择商品','等您选择','候选以服务端 options 为准；每件目前固定 1 件。'],
+ ['adopt','采用整体安排','等您采用','这里没有资金确认；个人预算仅在服务端 adopted=true 时显示为已采用。'],
+ ['freeze','确认冻结','等您确认','冻结确认必须包含限定收尾条款；显示当前服务端确认内容。'],
+ ['order','确认创建订单','等您确认','冻结与下单分开；尚未付款。'],
+ ['payment','确认支付订单','等您确认','订单已创建，付款另行确认。'],
+ ['verify','验证码与人脸验证','等待验证','沿用既有双因子卡；原型没有让用户自行通过人脸的按钮。'],
+ ['quote','报价改变','重新核对','展示后端新价和选项；旧确认只读。'],
+ ['quantity','数量与未执行修改：现状边界','能力缺口','完整需求保留；当前后台固定 1 件，修改依赖尚未实施。'],
+ ['delivery-time','最晚送达时刻与送不到（拟议）','待后端提供','完整时刻要求保留；当前生日流程仅收日期，不能承诺18:00前送到。'],
+ ['edit-plan','数量组合与新方案（拟议）','待后端提供','拟议两束花398元；不代表实际可编辑或预算已通过。'],
+ ['edit-confirm','确认等待时申请修改（拟议）','已裁定·未实现','仅后台证实旧动作未提交且已安全封住后，才能显示新方案。'],
+ ['edit-verify','验证等待时申请修改（拟议）','已裁定·未实现','本人已裁定完整支持（含 G2-B 旧验证码例外）；实现尚未开始，页面仍禁用。'],
+ ['edit-inflight','修改遇到在途操作（拟议）','先核实原操作','无法证明未提交时不承诺改好，不用新操作替代未知旧操作。'],
+ ['edit-unpaid','已建订单未付款','原订单保留','已建未付款订单不能改成未办理；只能保留原事实，停止不撤单。'],
+ ['edit-failed','明确失败后提出替代（拟议）','待后端提供','须银行已证实无订单、无在途，保留失败记录后重新采用和确认。'],
+ ['stopped-empty','未冻结时停止','已停止','示意未执行资金操作；没有冻结、下单或付款。'],
+ ['stopped-before-order','已冻结，未下单时停止','已停止并收尾','示意银行核实释放500元，没有订单和付款。'],
+ ['stopped-unpaid','已建未付时停止','已停止并收尾','示意订单已创建未付款；释放冻结500元不代表取消订单。'],
+ ['unknown-freeze','冻结结果未知','结果待核实','核实原冻结，不新建冻结，不开始下单。'],
+ ['unknown-order','下单结果未知','结果待核实','核实原订单操作，不重复下单、不付款。'],
+ ['unknown-payment','付款结果未知','结果待核实','订单已知，付款未知；不填未付款、不推算余款。'],
+ ['stopping','停止后等待原结果','正在收尾','停止新增购买后，核实原付款，只做限定收尾。'],
+ ['stopping-freeze','冻结未知后停止','冻结待核实后收尾','冻结仍未知，不改写成已冻结500元，不说付款未知。'],
+ ['stopping-order','下单未知后停止','下单待核实后收尾','冻结已核实，下单仍未知；不标成付款待核实。'],
+ ['release','释放未核实或受阻','收尾待处理','没有已释放金额，不新增授权或释放确认。'],
+ ['stopped','部分购买后停止','部分完成','199 已消费、301 已释放；未办理与未付款分别展示。'],
+ ['complete','全部完成回执','已办结','500 冻结、467 消费、33 释放；不宣称现实送达。'],
+ ['offline','断线与刷新','连接中断','只读保留上次事实，所有办理按钮暂停。'],
+ ['recovery','重新登录后的恢复门','需要恢复','恢复原任务与批准付款分开；仅服务端要求恢复时出现。'],
+ ['failure','失败、无候选与安全暂停','暂不能继续','每个失败说明原因、是否动钱及下一步；没有绕过安全的继续按钮。']
+];
+const money=(f,c,r,left)=>`<dl class="money"><div><dt>本次已冻结</dt><dd><strong>${f}</strong></dd></div><div><dt>已消费</dt><dd><strong>${c}</strong></dd></div><div><dt>已释放</dt><dd><strong>${r}</strong></dd></div><div><dt>当前冻结余款</dt><dd><strong>${left}</strong></dd></div></dl>`;
+const fields=rows=>`<dl class="fields">${rows.map(([k,v])=>`<div class="field"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
+const btn=(label,target,primary=false)=>`<button type="button" ${primary?'class="primary"':''} data-to="${target}">${label}</button>`;
+const actions=(...b)=>`<div class="buttons">${b.join('')}</div>`;
+const panel=(title,body)=>`<section class="panel active"><h3>${title}</h3>${body}</section>`;
+const note=s=>`<p class="notice">${s}</p>`;
+const pastConfirmation=()=>`<details class="line"><summary>查看之前的确认内容（只读）</summary><p>示意：此前确认只对应当时的商品、数量、价格与配送资料。当前参数改变或确认失效后，不得再次使用。</p><button disabled>之前的确认已失效</button></details>`;
+const receipt=(name,order,pay)=>`<section class="order"><h3>${name}</h3>${fields([['订单',order],['付款',pay]])}</section>`;
+const detail=()=>`<button id="show-details">查看订单与资金明细</button>`;
+let current=new URLSearchParams(location.search).get('scene')||'products';
+let drawerTrigger;
+function view(key){
+ switch(key){
+ case 'budget': return panel('先定预算和日期',`<p>这只是本次安排的上限；还没有冻结或付款。</p><div class="form"><label for="budget-input">这次最多花多少元？</label><input id="budget-input" inputmode="decimal" value="500"><label for="date-input">希望哪天前送到？</label><input id="date-input" type="date" value="2026-10-30"></div>${note('金额和日期由服务端核对。个人预算是否出现、是否已采用由服务端决定：只有采用结果（adopted）为真才写“已采用”，并显示限额、账单已用、账单剩余、截至时间和版本；候选不写成生效。本次上限与个人预算分开。最晚送达时刻仍待后端提供，当前只有日期入口。')}${actions(btn('填好了，继续','delivery',true),btn('停止本次安排','stopped-empty'))}`);
+ case 'delivery': return panel('配送信息专用填写区',`<p id="delivery-help">请在这里填写。不要把收件人、电话或地址发到聊天里。本原型请只用虚构资料。</p><form id="delivery-form" class="form" aria-describedby="delivery-help"><label for="recipient">收件人</label><input id="recipient" name="recipient" autocomplete="off" required placeholder="请填虚构姓名"><label for="phone">联系电话</label><input id="phone" name="phone" type="tel" autocomplete="off" required placeholder="请填虚构电话"><label for="address">详细地址</label><textarea id="address" name="address" autocomplete="off" required placeholder="请填虚构地址"></textarea><div class="buttons"><button type="submit" class="primary">配送资料填好了，继续选商品</button>${btn('停止本次安排','stopped-empty')}</div></form><p class="hint line">提交后只显示掩码信息；您不用记住或抄写任何编号。</p>`);
+ case 'delivery-link': return panel('配送资料已收好，还没有继续到选品',`${fields([['收件人','示*'],['联系电话','****1234'],['地址','示意****']])}${note('刚才连接中断。资料不用再填，点下面继续。若服务端提示本次填写已失效，再重新填写。')}${actions(btn('继续到选商品','products',true))}`);
+ case 'products': return panel('还要添加商品吗？',`<p>已选：还没有。以下是服务端提供的候选（示意）。</p><div class="product"><div><strong>花店 · 康乃馨花束</strong><span class="price">¥199.00</span><p>数量：1 件</p></div>${btn('看选品后方案示意','adopt',true)}</div><div class="product"><div><strong>蛋糕店 · 生日蛋糕</strong><span class="price">¥268.00</span><p>数量：1 件</p></div>${btn('看选品后方案示意','adopt')}</div>${note('走查提示：候选按钮代表服务端单次选择，正式页面选择后会重新读取已选清单。下方可直接看两件都选好的方案。')}${actions(btn('看两件都选好的方案','adopt'),btn('数量或日期要改，怎么办','quantity'),btn('都不选，停止','stopped-empty'))}`);
+ case 'adopt': return panel('先核对这次安排',`${fields([['本次预算上限','¥500.00'],['希望送到日期','2026-10-30 前'],['商品（示意已选两件）','康乃馨 1 件 ¥199.00；蛋糕 1 件 ¥268.00'],['商品合计（示意服务端报价）','¥467.00'],['将要冻结','¥500.00（按本次上限，不按商品合计）'],['个人预算（可选，按服务端）','未采用（候选）/ 已采用：限额、账单已用、账单剩余、截至时间、版本'],['配送资料','已受控保存（只展示服务端允许的掩码或引用）']])}<p class="line">采用后，先请您确认冻结，再分别确认下单和付款。此时还没有动钱。采用个人预算只保存约束，也不是一笔付款。</p>${actions(btn('采用并开始办理','freeze',true),btn('取消，不办理','stopped-empty'))}`);
+ case 'freeze': return panel('请确认：冻结生日安排资金',`${fields([['付款账户','示意账户 · 尾号 8842'],['冻结金额','¥500.00'],['用途','本次生日安排']])}${note('限定收尾条款（示意）：安排完成或停止后，仅释放这次冻结中经银行核实、尚未消费的部分；不退回已经付款的钱，不取消已付款订单。不明结果先核实，不抢先释放。')}${actions(btn('确认冻结 ¥500.00','verify',true),btn('不冻结，停止','stopped-empty'))}${pastConfirmation()}`);
+ case 'order': return `${money('¥500.00','尚无付款事实','尚无释放事实','¥500.00')}${panel('请确认：创建这束花的订单',`${fields([['商品','康乃馨花束 · 1 件'],['本次报价','¥199.00'],['配送日期','2026-10-30 前'],['付款状态','尚未付款']])}<p class="line">这一步是下单。付款还会另外请您确认。</p>${actions(btn('确认创建订单','payment',true),btn('停止后续办理','stopped-before-order'))}`)}`;
+ case 'payment': return `${money('¥500.00','尚无付款事实','尚无释放事实','¥500.00')}${receipt('康乃馨花束','已创建 · 示意订单 01','未付款')}${panel('请确认：支付这笔订单',`${fields([['本次付款','¥199.00'],['付款来源','本次生日冻结资金'],['对应订单','示意订单 01']])}<p class="line">只确认这一笔付款，不批准其他订单。</p>${actions(btn('确认付款 ¥199.00','verify',true),btn('停止后续办理','stopped-unpaid'))}`)}${pastConfirmation()}`;
+ case 'verify': return panel('先完成这笔办理的身份验证',`<p>这是模拟验证画面。验证通过后，服务端才会继续原来的那一步。</p><ol class="steps"><li>短信验证码<div class="form"><label for="code">6 位验证码（请勿在原型输入真实验证码）</label><input id="code" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="仅示意，不提交"></div><button disabled>原型不提交验证码</button></li><li>模拟人脸核验：等待管理员完成<p class="hint">正式页面沿用现有管理员入口；这里没有“自行通过”按钮。</p></li></ol>${actions(btn('返回付款确认示意','payment'),btn('停止后续办理','stopping'))}`);
+ case 'quote': return panel('蛋糕报价变了，请重新核对',`${fields([['原报价','¥268.00'],['新报价','¥288.00'],['数量','1 件'],['已经付过的花束','¥199.00，保持原结果']])}<p class="line">旧确认不能批准新金额。按新价继续后，仍以服务端当前有效的确认或验证为准；超过限制时由服务端拒绝。</p>${actions('<button disabled>按新价 ¥288.00 继续（待读取服务端下一步）</button>',btn('停止剩余办理','stopped'))}<p class="hint line">本画面只展示新报价；实际继续动作和后续确认由服务端提供。</p>${pastConfirmation()}`);
+ case 'quantity': return panel('数量和未执行部分修改尚未接好',`<p>当前流程每件固定 1 件；目标仍是能选数量组合、改尚未执行的部分，也包括确认与验证等待时申请修改。</p>${note('这些要求没有取消。完整支持的语义已于 2026-10-25 裁定（含旧验证码例外），但平台与业务实现尚未开始，当前不能承诺改好了，也不能用停止后另开任务代替完整修改功能。')}${actions(btn('查看数量组合拟议页面','edit-plan'),btn('查看确认等待时修改','edit-confirm'),btn('查看验证等待时修改','edit-verify'))}`);
+ case 'edit-plan': return panel('重新核对尚未下单的部分 · 拟议',`${note('未实现能力示意，等后端提供当前可修改项及新方案。')}${fields([['原方案','康乃馨 1 束 · ¥199.00'],['拟修改为','康乃馨 2 束 · 单价 ¥199.00 · 小计 ¥398.00'],['希望送到日期','2026-10-30 前，由服务端重新核对'],['付款账户','原示意账户 · 尾号8842']])}<div class="buttons"><button disabled>数量：2（等后端提供）</button><button disabled>移除这项（等后端提供）</button><button disabled>采用新方案（等后端提供）</button></div><p class="line">新方案由服务端重算。未冻结时重核全方案；已冻结后保持原账户、原上限和原冻结，不追加冻结。已有消费、未改的待付款订单、新未下单项都须纳入后端核对。</p>${actions(btn('看部分完成后替换同款示意','edit-failed'),btn('看等待修改结果示意','edit-inflight'))}`);
+ case 'edit-confirm': return panel('想改这项，还需要先核实 · 拟议',`<p>您想把还没下单的一束花改成两束。</p>${note('当前未实现：申请修改不等于已经改好。后台要先确认原动作尚未提交，并使旧确认永久不能继续办理，才回到同一任务的新方案。')}${actions('<button disabled>申请修改尚未执行的部分（待提供）</button>',btn('看后台已开始办理的情况','edit-inflight'))}<p class="line">如果修改先成功，旧卡只读、新方案重新采用和逐项确认；如果后台先开始执行，先沿原记录核实。不能只把旧按钮藏起来。</p>`);
+ case 'edit-verify': return panel('正在验证时想修改 · 拟议',`<p>例如：正等待这笔动作的验证码，想改尚未执行的商品或数量。</p>${note('本人已于 2026-10-25 裁定完整支持（含 G2-B 旧验证码例外）；平台与业务实现均未开始，因此本页仍禁用。这是“已决定、未实现”，不是语义未定。')}${actions('<button disabled>申请修改尚未执行的部分（实现后提供）</button>')}<p class="line">后台确认旧动作和验证可安全退出后，才显示新方案、新确认及必要的新验证。已经失败、超时或终止的记录保留，不能靠修改绕过；无法确定先后时先核实原操作。</p>`);
+ case 'edit-inflight': return panel('原操作可能已在办理，暂不能修改 · 拟议',`<p>还不能证明原订单没有提交。先核实原办理结果，再显示允许的下一步。</p>${note('这时不显示“已改为两束”，不新建替代订单，不换编号重付。')}${actions(btn('看原下单结果待核实示意','unknown-order'),btn('看停止后等待核实示意','stopping-order'))}`);
+ case 'edit-unpaid': return `${money('¥500.00','暂无已核实消费总额','暂无已核实释放结果','以最新银行回执为准')}${receipt('康乃馨花束','已创建 · 示意订单01','未付款')}${panel('这个订单已经创建，不能直接修改',`<p>停止剩余办理不会取消这个订单，也不会把它改成“未办理”。如果继续原订单付款，仍需当前有效的单笔确认。</p><p class="line">只改其他尚未成单且无在途的部分；这张未付款原订单仍纳入后端资金核对。</p>${actions(btn('看原订单付款确认示意','payment'),btn('看资金收尾待处理示意','release'))}`)}`;
+ case 'edit-failed': return panel('明确失败后，重新提出替代 · 拟议',`${note('未实现能力示意：只有银行已证实原下单失败、没有订单也没有在途，才能提出新的替代项。')}${receipt('原花束','原订单01保留','原付款01已付 ¥199.00')}${receipt('原蛋糕尝试','银行明确失败，无订单、无在途（示意）','未付款；原失败与操作记录保留')}${fields([['拟替代','另一束同款花 · 1束 · ¥199.00'],['新旧身份','新花是新的一项；不把已付花改成2束'],['拟议累计消费','¥398.00，必须由后端核对']])}${actions('<button disabled>采用替代方案（待后端提供）')}<p class="line">替代方案重新采用、重新确认；原成功与失败都不覆盖。对照：原结果仍未知时不能提出替代，先核实原号。</p>`);
+ case 'unknown-freeze': return `${money('待核实','暂无可确认的消费事实','暂无释放事实','待核实')}${panel('冻结结果还没查到',`<p>本次没有重复冻结，核实前不会下单。</p>${actions(btn('核实原冻结结果（示意仍未知）','unknown-freeze',true),btn('停止新增办理，按原授权收尾','stopping-freeze'))}`)}`;
+ case 'unknown-order': return `${money('¥500.00','暂无可确认的消费事实','暂无释放事实','待核实')}${panel('下单结果还没查到',`<p>本次没有重复下单，也没有继续付款。保留原办理记录，先查清这一步。</p>${actions(btn('核实原下单结果（示意仍未知）','unknown-order',true),btn('停止新增办理，按原授权收尾','stopping-order'))}`)}`;
+ case 'unknown-payment': return `${money('¥500.00','付款待核实','暂无释放事实','待核实')}${receipt('康乃馨花束','已创建 · 示意订单 01','结果待核实，不能写成未付款')}${panel('付款结果还没查到',`<p>这笔没有再付一次。核实前不继续购买，也不抢先释放冻结资金。</p>${actions(btn('核实原付款结果（示意仍未知）','unknown-payment',true),btn('停止新增办理，按原授权收尾','stopping'))}`)}`;
+ case 'stopping': return `${money('¥500.00','付款待核实','待收尾','待核实')}${panel('已经停止新增购买，原付款还在核实',`<p>先查原来那笔付款，再按原授权收尾。不会新建订单或再付款；核实结果不会让已停止的购买重新开始。</p>${actions(btn('核实原操作后收尾（示意仍未知）','stopping',true))}`)}`;
+ case 'stopping-freeze': return `${money('冻结仍待核实','尚无付款事实','核实冻结后再收尾','待核实')}${panel('已停止新增办理，原冻结还在核实',`<p>原冻结结果仍未查到，不代表已经冻结500元。没有开始下单或付款。</p><p class="line">只核实原冻结；若银行证实有冻结，才按原限定授权收尾。无法核实前不新冻结，也不抢先释放。</p>${actions(btn('核实原冻结后收尾（示意仍未知）','stopping-freeze',true))}`)}`;
+ case 'stopping-order': return `${money('¥500.00','尚无付款事实','核实原下单后再收尾','待核实')}${panel('已停止新增购买，原下单还在核实',`<p>冻结500元已经核实；原订单是否创建仍待核实。没有继续付款，这不是付款结果未知。</p><p class="line">只查询原下单操作；若查到已建订单，保留订单未付款事实，不取消订单、不恢复购买，再按原授权受控收尾。</p>${actions(btn('核实原下单后收尾（示意仍未知）','stopping-order',true))}`)}`;
+ case 'delivery-time': return panel('服务赶不上您要求的时刻 · 拟议',`${note('完整时间要求尚未接入：当前流程只收日期，不能把日期符合当成18:00前能送到。')}${fields([['您希望最晚送到','2026-10-30 18:00（示意）'],['服务当前最早可送到','2026-10-30 20:00（示意服务事实）'],['限制原因','当前服务赶不上18:00前；不是已经安排成功']])}<p class="line">应由服务端解释限制并提供其他商品或时间方案。您可选择合适的方案后重新核对费用和确认；不会自动延后到20:00，也不会自行减数量或加预算。</p>${actions('<button disabled>查看能按时送到的候选（待提供）</button>','<button disabled>修改最晚送达时刻并重核方案（待提供）</button>',btn('停止未办理的示意安排','stopped-empty'))}<p class="support">提供目录：cross补精确时刻输入/新方案；agent_platform与银行接缝核对商品时间和确认展示；若需改公共输入语义先由契约负责人确认。原型不自行设计新的API。</p>`);
+ case 'release': return `${money('¥500.00','¥199.00','待核实','待核实')}${receipt('康乃馨花束','已创建 · 示意订单 01','已付款 ¥199.00')}${panel('剩余资金还没确认释放',`${note('收尾结果待核实或被服务端阻止。原因以服务端返回为准；暂不显示“已解冻”。')}<p>不再购买；不新增释放确认。当前若只有等待提示，就保留提示，不制造“再次释放”按钮。</p><p class="support">下一步：等待服务端回执；人工协助时请查看原办理明细。当前释放失败后的明确查询入口仍需后端确认。</p>${actions(detail())}`)}`;
+ case 'stopped': return `${note('已经停止新增办理。已经付过的不退回；未办理的不再开始。')}${money('¥500.00','¥199.00','¥301.00','¥0.00')}${receipt('康乃馨花束','已创建 · 示意订单 01','已付款 ¥199.00')}${receipt('蛋糕（未办理示意）','未创建','未付款，没有继续办理')}${actions(detail())}<p class="line">释放的是未消费冻结资金；这不表示退款、订单取消或商品已经送达。</p>`;
+ case 'complete': return `${money('¥500.00','¥467.00','¥33.00','¥0.00')}${receipt('康乃馨花束','已创建 · 示意订单 01','已付款 ¥199.00')}${receipt('生日蛋糕','已创建 · 示意订单 02','已付款 ¥268.00')}${note('以上是本次订单和资金回执，不代表商品已经送达。')}${actions(detail())}<p class="hint line">个人预算的已用/剩余按账单口径和截至时间显示；本次冻结余款不是个人预算剩余，两者不能互相替代。未采用则不显示“已采用”。</p>`;
+ case 'offline': return `${note('连接中断。以下是断线前最后一次记录，尚未获取最新结果。')}${receipt('康乃馨花束','上次已创建 · 示意订单 01','上次结果待核实')}${actions('<button disabled>连接恢复后再操作</button>',btn('模拟重新连接并读取快照','recovery',true))}<p class="line">刷新后先读取原任务，不用本地缓存冒充最新付款结果，也不重复提交。</p>`;
+ case 'recovery': return panel('重新登录后，先找回原任务',`<p>原订单和资金记录保留。恢复不会自动批准付款。请先恢复，再核对当前内容。</p>${fields([['原办理','生日安排 · 示意任务'],['最后已知','花束订单已创建，付款结果待核实']])}${actions(btn('恢复原任务并重新核对','unknown-payment',true))}<p class="line">只在服务端要求恢复时显示此入口。旧确认暂不可用，恢复后以最新内容为准。</p><button disabled>旧确认不可用</button>`);
+ case 'stopped-empty': return panel('已停止，本次没有办理',`<p>本画面示意：没有冻结资金，没有创建订单，也没有付款。没有退款或释放需要办理。</p>`);
+ case 'stopped-before-order': return `${money('¥500.00','¥0.00（银行已核实）','¥500.00','¥0.00')}${panel('已停止，冻结未消费资金已释放',`<p>示意银行核实：本次没有创建订单、没有付款，按原限定授权释放500元。</p><p class="line">这不是退款；没有已付款商品。</p>`)}`;
+ case 'stopped-unpaid': return `${money('¥500.00','¥0.00（银行已核实）','¥500.00','¥0.00')}${receipt('康乃馨花束','已创建 · 示意订单01（仍保留）','未付款')}${panel('已停止付款并完成资金收尾',`<p>示意银行核实：500元未消费冻结资金已释放。原订单没有取消，不能把已创建订单写成未办理。</p>${actions(detail())}`)}`;
+ case 'failure': return panel('先看原因，再决定下一步',`<section class="order"><h3>商品清单暂时查不到</h3><p>这是查询失败，不代表没有商品；本次示意尚未冻结或付款。</p>${actions(btn('重新查询商品（示意）','products',true))}</section><section class="order"><h3>商品已不可购买</h3><p>按服务端选项跳过这件或停止；不替换成另一件直接下单。</p>${actions(btn('查看停止后的结果示意','stopped'))}</section><section class="order"><h3>安全核对暂停</h3><p>已停止新增办理，不提供继续购买入口。已有订单与冻结资金是否待收尾，以银行回执为准。</p>${actions(btn('查看收尾待处理示意','release'))}</section><section class="order"><h3>确实没有候选商品</h3><p>只有服务端返回空候选时才显示“暂时没有可选商品”。本次不新增购买。</p></section>`);
+ }
+}
+function render(key,focus=false){
+ const item=scenes.find(s=>s[0]===key)||scenes[3];current=item[0];
+ document.getElementById('scene').value=current;
+ document.getElementById('badge').textContent=item[2];
+ document.getElementById('scenario-note').textContent=item[3];
+ document.getElementById('content').innerHTML=view(current);
+ document.getElementById('technical').textContent='当前画面：'+item[1]+'。操作均为本地示意切屏，无 HTTP 请求、无持久化。';
+ const url=new URL(location.href);url.searchParams.set('scene',current);window.history.replaceState(null,'',url);
+ document.getElementById('announce').textContent='已切换到'+item[1]+'，'+item[2]+'。所有数据为示意。';
+ if(focus)document.getElementById('record-title').focus({preventScroll:true});
+ const form=document.getElementById('delivery-form');if(form)form.addEventListener('submit',e=>{e.preventDefault();form.reset();render('products',true);document.getElementById('announce').textContent='示意：配送资料已受控保存，并自动衔接到选品。原文已从表单清除。';});
+ const trigger=document.getElementById('show-details');if(trigger)trigger.addEventListener('click',()=>{drawerTrigger=trigger;document.getElementById('drawer-content').innerHTML=fields([['示意任务','birthday-demo-02'],['示意订单','order-demo-01；order-demo-02（如有）'],['原操作','freeze-demo；capture-demo；release-demo（如有）'],['金额来源','示意银行事实；不从商品合计推算余款'],['配送原文','不进入抽屉、聊天、普通日志或前端存储']])+`<p class="line">正式页面仅列服务端实际返回的订单、操作与时间；未知字段显示待核实，不补零。停止后已创建未付款订单仍显示“已创建、未付款”，不能写“已取消”。</p>`;document.getElementById('drawer').showModal();});
+}
+document.getElementById('scene').innerHTML=scenes.map(([id,label])=>`<option value="${id}">${label}</option>`).join('');
+document.getElementById('scene').addEventListener('change',e=>render(e.target.value,true));
+document.getElementById('prev').addEventListener('click',()=>render(scenes[(scenes.findIndex(s=>s[0]===current)+scenes.length-1)%scenes.length][0],true));
+document.getElementById('next').addEventListener('click',()=>render(scenes[(scenes.findIndex(s=>s[0]===current)+1)%scenes.length][0],true));
+document.getElementById('content').addEventListener('click',e=>{const b=e.target.closest('[data-to]');if(b)render(b.dataset.to,true);});
+const drawer=document.getElementById('drawer');document.getElementById('close-drawer').addEventListener('click',()=>drawer.close());drawer.addEventListener('close',()=>drawerTrigger?.focus());
+render(current);
+</script>
+</html>
