@@ -58,11 +58,13 @@ npm run dev -- --host 127.0.0.1 --port 5265 --strictPort
 
 **必须使用case_runner的serve入口**：普通local_demo启动会额外播入默认工资6200元，不能作为本次5000元唯一入账的案例。case_runner只在构建运行时期间替换`seed_flow_history`的初始化数据，写入真实独立银行库；构建结束立即还原方法，再由原模型/HTTP/确认/安全门/模拟银行规则处理请求。没有mock模型输出、银行响应或安全决策。重复启动只INSERT OR IGNORE，不覆盖已取消签约、余额、原操作与检查点；种子/风险配置变化则需新批次。跨业务月份应重新prepare新批次，不能把旧月种子当本月事实。
 
-## 当前未解锁部分
+## 准备阶段历史缺口与当前状态
 
-1. [PR #284](https://github.com/DrErwin/hackerthon-bank-agent/pull/284)账单类型化输入及对应平台旧断言修复尚待合入核对，不能把账单失败兜底当S01完整比较。
-2. P01本人A5不是保存联系人：当前pension只从`transfer.list_payees`选去向，再以`SavedPayee`提交；真实联系人中没有A5。需cross业务线补本人账户去向，不能在本评测工具把A5伪造为联系人。
-3. P01入账读取：正式`BillDetails.transactions`沿用银行字段`direction="inflow"`、`nature="transfer"`；当前`PensionFlow._income_transactions`只认`transfer_in`，与真实契约不符。需cross业务线修复；不能在fixture中造非法direction或改成按余额来替代原场景。
+1. 原账单类型化输入及平台旧断言已由PR #284/#292合入；固定2a070b9不再以此为未合入阻塞。
+2. 以下为原准备阶段发现，已随PR #297合入修复；不再作为当前未交付：P01本人A5不是保存联系人：当前pension只从`transfer.list_payees`选去向，再以`SavedPayee`提交；真实联系人中没有A5。需cross业务线补本人账户去向，不能在本评测工具把A5伪造为联系人。
+3. 原准备阶段入账适配缺口已随PR #297合入；以下保留原发现：P01入账读取：正式`BillDetails.transactions`沿用银行字段`direction="inflow"`、`nature="transfer"`；当前`PensionFlow._income_transactions`只认`transfer_in`，与真实契约不符。需cross业务线修复；不能在fixture中造非法direction或改成按余额来替代原场景。
 4. 适用风险事实与文本处理仍按上节交安全/平台线核实。上述2/3是既定业务的接入缺陷，不是需要PM重定业务规则；具体修复票由中控关联/分派，本线不越界。
 
 实际运行时仍须从自然表达开始、逐项确认、保留父子任务/原操作/确认与银行次数，保留失败批次；本工具仅提供数据和服务入口，不是自动页面执行器或E2E报告。PM接受、真人安全签核、局部测试、真实模型、HTTP、页面和体验专项分别留证。
+
+2026-10-25已正式启动E2E01，S01首批实际失败在模型入口选择，见[失败证据](evidence/2026-10-25/s01-live-20261025-01.md)。不是上述账单/平台未合入，原失败未被准备/局部成绩替代。

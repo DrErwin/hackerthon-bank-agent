@@ -1,0 +1,63 @@
+- link "跳到对话内容":
+  - /url: "#sh-main"
+- banner:
+  - generic: 银
+  - heading "AI 银行助手" [level=1]
+  - paragraph: 演示用户
+  - status: 已连接
+- status: 已有 1 条助手回复。0 项等您补充，0 项需要您确认或验证，1 项已结束。请在对话中查看。
+- main:
+  - article:
+    - paragraph: 您好，我是您的银行小助手。您想办点什么？
+    - generic "常用服务":
+      - button "我要转账"
+      - button "我的账户"
+      - button "我的收款人"
+      - button "查看账单"
+      - button "自动扣费"
+    - paragraph: 可以这样说：「转给妈妈 500 块」、「给张阿姨转 200 元」、「这个月花了多少」、「看看这个月的餐饮明细」、「这笔钱我不认识，是不是扣错了」、「给我出一份这个月的账单」、「养老金到了，帮我安排本月的钱」、「最近钱怎么花得快，帮我处理不用的扣费」
+  - article:
+    - generic: 您说：
+    - paragraph: 最近钱怎么花得快，帮我处理不用的扣费
+    - time: 18:56
+  - article:
+    - button "订阅和自动扣费 已办结 收起" [expanded]:
+      - generic: 订阅和自动扣费
+      - generic: 已办结
+      - generic: 收起
+    - region "订阅与自动扣款":
+      - heading "订阅与自动扣款" [level=3]
+      - paragraph: 有 3 项自动扣费，近期合计 ¥84.00。
+      - paragraph: 这是查询时的记录。退订是否成功，请看该项目的办理结果。
+      - region "有效签约":
+        - generic "正在扣费（3）"
+        - strong: 优酷 VIP 连续包月
+        - generic: ¥25.00 / 月
+        - paragraph: 优酷视频 · ****0001
+        - paragraph: 下次扣费：2026/10/30
+        - button "取消「优酷 VIP 连续包月」"
+        - strong: 仍在使用的通信套餐
+        - generic: ¥20.00 / 月
+        - paragraph: 模拟通信 · ****0001
+        - paragraph: 下次扣费：2026/11/1
+        - button "取消「仍在使用的通信套餐」"
+        - strong: 超级会员连续包月
+        - generic: ¥39.00 / 月
+        - paragraph: 云端网盘 · ****0001
+        - paragraph: 下次扣费：2026/11/6
+        - button "取消「超级会员连续包月」"
+      - region "疑似周期扣款":
+        - generic "疑似周期扣款（0）"
+      - region "已退订":
+        - generic "已退订（1）"
+      - paragraph: 查询日期：2026/10/25
+      - button "重新查询最新资料"
+    - generic "查看办理说明"
+- button "回到最新消息 ↓"
+- complementary "办理须知":
+  - generic "安心办理：转钱前，先核对再确认"
+- generic: 输入您想办的事
+- textbox "输入您想办的事":
+  - /placeholder: 说说您想办什么…
+- button "发送" [disabled]
+- paragraph: 随时提问，已填资料会保留。验证码只填专用框。
