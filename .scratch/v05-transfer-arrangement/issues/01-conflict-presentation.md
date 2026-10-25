@@ -25,5 +25,6 @@ Verification: workflow 与真实 runtime 验证契约错误呈现、银行零写
 - 实现提交 a18c43a；真实 workflow 与 runtime 新增用例修复前 2 failed（source=security），修复后相关测试 68 passed（transfer 全目录 + platform/test_child_dispatch.py）。
 - 真实 runtime 通过原确认、验证码验证后返回正确平台错误，持久任务快照含相同 source/field/message；提交监视 0 次、银行流水为空、账户余额不变。运行环境为独立 tmp_path 数据库，规划器与风险策略为测试替身。
 - code-review 双轴子代理：Standards PASS（0 必须项）、Spec PASS（0 必须项），固定基线 640fe71...a18c43a。
-- 本地链接、差异空白检查通过；本轮账单 worktree 全量后端回归仍运行中，单独记录，不作为本票整套通过声明。[PR #285](https://github.com/DrErwin/hackerthon-bank-agent/pull/285) 的 CI 注释已确认：job 因账号付款/支出额度未启动，无步骤和测试日志，不记为 CI 通过。
+- 本地链接、差异空白检查通过；本轮账单 worktree 全量后端结果1603 passed / 3 failed，单独记录，不作为本票整套通过声明；其中平台旧缺口断言需平台线更新，2项20ms网关超时失败在本 worktree 单跑2 passed（8.95s）、账单 worktree 复跑2 passed（0.92s），原全量失败仍保留。[PR #285](https://github.com/DrErwin/hackerthon-bank-agent/pull/285) 的 CI 注释已确认：job 因账号付款/支出额度未启动，无步骤和测试日志，不记为 CI 通过。
+- 本 worktree 另复核原平台真实装配用例1 passed（不含账单修复）；Python编译、链接及差异空白检查通过。审查后只补证据与rebase，生产代码与a18c43a一致。
 - 真实模型、HTTP、页面 E2E、真人安全签核/PM 接受未执行；可解除 D1 错误呈现缺口，联合 E2E 另验。
