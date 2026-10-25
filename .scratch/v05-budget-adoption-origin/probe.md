@@ -57,4 +57,3 @@ print(json.dumps(outcomes,ensure_ascii=False,indent=2))
 实际输出关键项：F10 HTTP 200，伪造 source body HTTP 400；model_continuation HTTP 202；两者 module_response 均为 `[{"choice":"OPT_APPLY"}]`、重开任务均 succeeded、option_visible_to_planner 均 true、银行操作与流水计数均 [0,0]。snapshot_keys 均为 capability_name / completed_bill_scope / config_version / intent_text / request_id / result / trace_id，没有本次输入的来源记录。后者的请求回执另有 message-continuation，未进入 module response。
 
 首次探针对额外字段预期 422，但 API 将校验失败映射为 400，故中止；修正后完整探针退出码0。没有把首次中止算作通过，没有因此修改服务代码。
-
