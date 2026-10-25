@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/api/`
-Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；G1 已裁定（[记录](../g1-decision.md)），前置只剩 03 交付，未开始编码。
+Status: implemented — 2026-10-26 实施完成、提交 `4d71f00`（基于 03 分支），等 03 定稿后 rebase 并两轴审查；未合入、未跑真实 E2E。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: [本组03：原任务编辑交接](03-platform-edit-handoff.md)。G1 已由本人授权的执行对话按契约 §8 代行确认并记录（[G1 裁定](../g1-decision.md)：复用 F10 请求体 + 后端发布受控编辑选项，不新增端点；契约正文修订在本科 PR 一并补登）。与[v05-budget-adoption-origin/02：原F10输入身份接入平台来源](../../v05-budget-adoption-origin/issues/02-api-f10-origin.md)的同文件修改交中控顺序安排，不代做其能力，亦不冒称它是商品编辑的业务前置。
@@ -41,4 +41,18 @@ Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spe
 ## Verification / downstream
 
 实施后以真实HTTP+平台03+安全02验证新分支、精确拒绝、重复/竞争/回执中断和原任务新input；原Cross08接线与页面E2E分别留证。
-不提前实施预算来源API02/cross06、原前端02或总E2E03。本轮只文档核对，无测试/模型/CI。
+不提前实施预算来源API02/cross06、原前端02或总E2E03。
+
+## Delivery record（2026-10-26 本对话实施）
+
+- 实现：`backend/app/api/service.py`（`provide_task_input` 分流 → `birthday_edit_option` 用平台 03 `published_option` 判定后端发布选项 →
+  `begin_controlled_edit` 调 `begin_birthday_edit`；`birthday_edit_recovery` 请求级恢复判定；`birthday_edit_problem` 把内部拒绝码收敛到既有公共码）、
+  `backend/app/api/app.py`（F10 `retry_interrupted` 只在原 request 已有持久来源/受理事实时开启）、`backend/app/api/test_edit_entry.py`（15 例，
+  真实 FastAPI + 真实 local-demo composition）、`backend/app/api/README.md`；
+  `docs/contracts/公共契约-2026-09-23.md` 顶部修订记录区加 2026-10-26 一条（只加记录，未改冻结字段）。
+  分支 `codex/v05-birthday-api-edit-entry`（基于 03 的 `8e93485`），提交 `4d71f00`；等 03 定稿后 rebase，两轴审查后再提 PR。
+- 定向验证：`app/api` **217 passed**（原 202 例全绿 + 新增 15）、`app/agent_platform/test_birthday_edit_handoff.py` **45 passed**。未跑全量后端/真实模型/E2E/CI。
+- 如实边界（作者列出）：未补新 waiting_input 卡的 SSE 事件（以返回体冻结 TaskView 为准，避免回执恢复路径重复写事件）；
+  恢复判定读取同一应用库任务快照中的平台受理事实（03 未提供按 request 的只读入口，若改由平台提供需另开平台票）；
+  Cross 08 未接线期间点该选项按 03 既定语义返回 503；测试用明示 stand-in 补位根状态与候选准备（08 接线前）。
+- 两轴独立审查：**待 03 定稿 rebase 后进行**。
