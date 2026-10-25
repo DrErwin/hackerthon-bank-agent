@@ -6,7 +6,7 @@ Spec: [账单类型化输入入口](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/modules/bills/`
-Status: in_progress
+Status: review_pending
 Blocked by: None（现行公共模型、PR #264 平台派发已合入）
 Accepted by: Erwin 授权执行对话
 Accepted at: 2026-10-25
@@ -15,11 +15,16 @@ Verification: 公开工厂精确保留结构化参数；真实 Harness + 安全�
 
 ## Acceptance criteria
 
-- [ ] 三种输入分别经各自注册工厂运行，summary/details/comparison、异常三模式、报告目的符合既有服务契约。
-- [ ] 银行事实、读取权限、失败语义、原任务重试/恢复/重放未绕过。
-- [ ] 普通聊天路径不回归，其他能力输入和裸字典拒绝。
-- [ ] 独立子代理审查规范与原始规格，修复必须项，代码 PR 交中控排队合并。
+- [x] 三种输入分别经各自注册工厂运行，summary/details/comparison、异常三模式、报告目的符合既有服务契约。
+- [x] 银行事实、读取权限、失败语义、原任务重试/恢复/重放未绕过。
+- [x] 普通聊天路径不回归，其他能力输入和裸字典拒绝。
+- [x] 独立子代理审查规范与原始规格，修复必须项，代码 PR 交中控排队合并。
 
 ## Delivery record
 
-待验证；真实模型/HTTP/页面 E2E/真人接受未执行。
+- 代码提交：50c1ed2；完整参数直接交现有服务，未改公共契约或安全门。
+- 局部验证：`app/modules/bills/test_typed_entry.py` 18 passed，含 6 条真实 Harness 子任务 + 隔离 SQLite/安全执行器/种子银行路径，各含权限拒绝及银行零写入；规划器与 LOW 风险策略为替身。
+- 独立 code-review：Standards PASS（0 必须项），Spec PASS（0 必须项）；规格审查另独立复验 12 passed, 6 deselected。审查基线 e9517b8...50c1ed2。
+- 后端全量回归运行中，已出现一项失败，待核对；CI/PR 链接稍后补记。真实模型/HTTP/页面 E2E/真人接受未执行。
+- 可解锁：减支统计证据、养老金流水依据的联合 E2E；实际 E2E 接受仍由对应联调票验证。
+
