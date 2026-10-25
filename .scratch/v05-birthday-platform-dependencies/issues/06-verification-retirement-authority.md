@@ -6,7 +6,7 @@ Spec: [G2-B 权威胜序与提供方](../verification-authority.md)
 Type: 开发
 Owner: Erwin（v0.5 阶段统一负责）
 Directory: `backend/app/services/`
-Status: implemented — 2026-10-26 实施与两轴回修完成（规格轴 4/5 项复验闭合、第 5 项文档已回写；规范轴必须项已补 README），待合入；未跑真实链路。
+Status: done — 2026-10-26 实施、两轴独立审查闭合（规范轴回修后 PASS；规格轴 5 项必须修全部闭合）、PR #308 squash 合入 `d62d01d`；真实跨库联合/E2E 与验收未由本票完成。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 本人 2026-10-25 已裁定「完整支持 + 旧验证码例外 G2-B」（[本人裁定](../../v05-control/birthday-owner-decision.md)）；
@@ -70,7 +70,7 @@ Core scenarios: P09/P10；[P01—P17 验证框架](../spec.md#6-testing-decision
   `backend/app/services/bank_gateway/gateway.py`（纯转发）、`backend/app/services/README.md`、
   `backend/app/services/mock_bank/README.md`、`backend/app/services/bank_gateway/README.md`（逐接缝登记）、
   `backend/app/services/test_verification_retirement.py`。
-  分支 `codex/v05-birthday-verification-retirement`，提交 `be1c287`（实现）+ `57c755f`（回修）；PR 待审查闭合后提交。
+  分支 `codex/v05-birthday-verification-retirement`，提交 `ed21b13`（实现）+ `ac0f41b`（回修）；[PR #308](https://github.com/DrErwin/hackerthon-bank-agent/pull/308) squash 合入 `d62d01d`。
 - 定向验证：`app/services` **75 passed**（基线 60 + 新增 **15**）；调用方 `app/security`
   （427）+ `agent_platform/test_session_verification_reuse.py` 合计 **434 passed**；
   CI 同款 `evals/mockbank` **14 passed**。未跑真实跨库联合/E2E/全量 CI。
