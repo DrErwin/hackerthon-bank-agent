@@ -147,8 +147,13 @@ export function useConversation(source: ShellDataSource) {
         return next;
       });
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) expire();
-      // The parent card still shows the plan's own step states without the child views.
+      if (error instanceof ApiError && error.status === 401) {
+        expire();
+        return;
+      }
+      // The parent card still shows the plan's own step states, but the user must
+      // know this step's detail did not load and can retry reading it.
+      setPageError("这项安排的子步骤暂时没有读到，请重新读取办理记录。");
     }
   }, [expire, source]);
 

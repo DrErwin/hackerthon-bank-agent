@@ -1,6 +1,6 @@
 // Ticket v05-cross-frontend/01: the parent plan card, the child interaction it
 // nests, and the receipt. Server payloads only; no invented steps or amounts.
-import { cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ConfirmationView, CrossTaskView } from "../contracts";
 import { CrossPlanCard } from "./components/CrossPlanCard";
@@ -139,6 +139,10 @@ it("loads children from the API and renders the child's confirmation inside the 
   backend.user.listTasks = async () => [parentEnvelope];
   backend.user.listChildren = async (taskId: string) => taskId === parent.task_id ? [childEnvelope] : [];
   backend.user.getConfirmation = async () => CONFIRMATION;
+  const answer = vi.fn().mockResolvedValue({ ...child, status: "succeeded", interaction: null });
+  backend.user.answerConfirmation = answer;
+  const provideInput = vi.fn();
+  backend.user.provideInput = provideInput;
   const { result } = renderHook(() => useConversation(backend.user));
   await waitFor(() => expect(result.current.booting).toBe(false));
   await waitFor(() => expect(result.current.tasks.get(child.task_id)).toBeTruthy());
@@ -150,9 +154,18 @@ it("loads children from the API and renders the child's confirmation inside the 
       origin="real-api" conversation={{ ...result.current, bootRecovery: new Set<string>() }} />} />);
   expect(await screen.findByText("签约商户")).toBeTruthy();
   expect(screen.getByText("视频会员")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "确认办理" })).toBeTruthy();
-  // The parent plan is not approved by the child's answer; it stays a display of facts.
-  expect(screen.queryByRole("button", { name: "全部确认" })).toBeNull();
+  // The answer belongs to the child task: its confirmation goes out under the
+  // child's own record, never as a parent-level approval.
+  fireEvent.click(screen.getByRole("button", { name: "确认办理" }));
+  await waitFor(() => expect(answer).toHaveBeenCalledExactlyOnceWith("conf-1", expect.objectContaining({
+    confirmation_version: 1, choice: "approve",
+  })));
+  expect(provideInput).not.toHaveBeenCalled();
+  // No "approve everything" control is offered next to the plan.
+  const region = screen.getByRole("region", { name: "减少用不上的扣费安排" });
+  const approveAll = within(region).queryAllByRole("button")
+    .map((button) => button.textContent ?? "").filter((text) => /全部|批准/.test(text));
+  expect(approveAll).toEqual([]);
 });
 
 it("reads a parent's children from the documented endpoint", async () => {
@@ -172,7 +185,9 @@ const asking: ShellTask = {
     required_fields: ["cross_selection"], options: [{ id: "stop", label: "停止本次安排" }], record_ref: null,
   },
   allowed_actions: ["provide_input", "cancel"],
-  data: { ...plan, active_step_id: null, interaction_task_id: null },
+  // The real cross menus (`entry._ask`) carry no plan body; only the picker and the
+  // running/terminal states attach one. The page must work in both shapes.
+  data: null,
 };
 
 const askingEnvelope: TaskEnvelope = { task: { ...asking, module: "cross" }, module: "cross", timelineAt: asking.snapshot_at };
@@ -192,6 +207,8 @@ it("takes a typed answer on a cross menu and sends it as the module's text answe
   render(<Harness source={backend.user} />);
   // A reloaded pending plan asks the user to look before continuing; nothing is resubmitted.
   fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+  // The promise line shows even when the menu has no plan body (adopt screen).
+  expect(await screen.findByText(PLAN_PROMISE)).toBeTruthy();
   const label = await screen.findByText(CROSS_ANSWER_LABEL);
   expect(screen.getByText("停止本次安排")).toBeTruthy();
   const input = screen.getByLabelText(CROSS_ANSWER_LABEL);
@@ -215,4 +232,19 @@ it("does not put a text box on a cross menu that already offers enough choices",
   fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
   await screen.findByText("取消视频会员");
   expect(screen.queryByText(CROSS_ANSWER_LABEL)).toBeNull();
+});
+
+it("never marks a step as current when the server sends no interaction id", () => {
+  // The API serialises nulls, so an absent interaction id must not match the null
+  // child_task_id of steps that have not started yet.
+  const noTarget = {
+    ...plan,
+    active_step_id: null,
+    interaction_task_id: null,
+    steps: plan.steps.map((step) => ({ ...step, child_task_id: null })),
+  };
+  render(<CrossPlanCard view={noTarget} task={{ ...parent, status: "waiting_input" }}
+    childTask={() => undefined} />);
+  expect(screen.getAllByRole("listitem").map((item) => item.getAttribute("aria-current")))
+    .toEqual(plan.steps.map(() => null));
 });

@@ -37,6 +37,9 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   const busy = Boolean(busyKey) || expired;
   const guided = Boolean(conversation.readTransferChoices && transferDraft(task));
   const plan = crossPlan(task);
+  // Cross menus sometimes arrive without a plan body (the server only attaches the
+  // view while a step runs); the promise line must still show before "adopt".
+  const showPlanCard = Boolean(plan) || (task.module === "cross" && !isTerminal(task));
   const facts = slot.summarize?.(task) ?? [];
   const status = taskStatusLabel(task);
   const gated = bootRecovery.has(task.task_id) || task.recovery_required;
@@ -109,8 +112,12 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         />
       )}
       {guided && <GuidedTransfer task={task} conversation={conversation} busy={busy} />}
-      {plan && <CrossPlanCard view={plan} task={task} renderChild={renderChild}
-        childTask={(id) => conversation.tasks.get(id)?.task} />}
+      {showPlanCard && <CrossPlanCard view={plan} task={task} renderChild={renderChild}
+        childTask={(id) => conversation.tasks.get(id)?.task}
+        onQueryChild={(id) => {
+          const child = conversation.tasks.get(id)?.task;
+          if (child?.allowed_actions.includes("query")) void actions.queryResult(child);
+        }} />}
       {busyKey && <p role="status" className="sh-action-feedback">正在处理，请稍候…</p>}
       {conversation.taskNotices?.[task.task_id] && <p role="status" className="sh-action-feedback">{conversation.taskNotices[task.task_id]}</p>}
       {entries.map((entry) => {
@@ -131,7 +138,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
               selectedLabel={entry.selectedLabel}
               onSelect={(optionId, label) => void actions.selectOption(task, optionId, label)}
               onSubmitText={(text) => actions.provideText(task, text)}
-              textLabel={plan && entry.interaction.options.length < 3 ? CROSS_ANSWER_LABEL : undefined}
+              textLabel={task.module === "cross" && entry.interaction.kind === "input"
+                && entry.interaction.options.length < 3 ? CROSS_ANSWER_LABEL : undefined}
             />
           );
         }
