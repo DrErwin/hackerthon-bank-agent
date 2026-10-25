@@ -14,6 +14,7 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from app.audit.journal import AuditReader, AuditViewer, redact
 from app.audit.output_guard import probe_output, probe_secrets
 from app.agent_platform.bills_stub import register_bills_stub
+from app.agent_platform.birthday_edit import BirthdayEditError
 from app.agent_platform.model import ContinueProposal, ReplyOnly
 from app.agent_platform.input_privacy import has_chat_secret
 from app.contracts.audit import (
@@ -118,6 +119,31 @@ def safe_csv_cell(value):
     if not isinstance(value, str):
         return value
     return f"'{value}" if value.lstrip().startswith(CSV_FORMULA_OPENERS) else value
+
+
+# Ticket v05-birthday-platform-dependencies/04: the platform's controlled-edit
+# refusals are translated to existing public codes. Internal reasons (a replaced
+# attempt, an unknown/claimed original, a missing source) never leave the
+# platform; a claim that won first keeps the old action's rules and is verified
+# along its original operation, it is not edited.
+BIRTHDAY_EDIT_UNAVAILABLE = frozenset({
+    "DEPENDENCY_UNAVAILABLE", "CROSS_HANDOFF_UNAVAILABLE", "CROSS_UNAVAILABLE",
+    "AUDIT_UNAVAILABLE",
+})
+
+
+def birthday_edit_problem(exc: BirthdayEditError) -> ApiProblem:
+    """One truthful public refusal for any platform edit failure."""
+
+    if exc.code == "ACCESS_DENIED":
+        return ApiProblem(403, "ACCESS_DENIED")
+    if exc.code == "TASK_NOT_FOUND":
+        return ApiProblem(404, "NOT_FOUND")
+    if exc.code == "TASK_TERMINATED":
+        return ApiProblem(409, "TASK_TERMINATED")
+    if exc.code in BIRTHDAY_EDIT_UNAVAILABLE:
+        return ApiProblem(503, "DEPENDENCY_UNAVAILABLE")
+    return ApiProblem(409, "INTERACTION_STALE")
 
 
 class ApiService:
@@ -1537,7 +1563,86 @@ class ApiService:
             return None
         return self.runtime.harness.budget_input_record(self.trusted(identity, task_id), request_id)
 
+    def _birthday_handoff(self):
+        birthday = getattr(self.runtime, "birthday", None)
+        return getattr(birthday, "handoff", None) if birthday is not None else None
+
+    def birthday_edit_option(self, identity, task_id, request):
+        """The platform's current edit-option publication for this F10 request.
+
+        Read-only and backend-bound: the option was published with a task CAS and
+        bound to this task, current card, execution item, original operation and
+        confirmation version. A client-supplied option id alone never matches.
+        """
+        handoff = self._birthday_handoff()
+        if handoff is None or request.selected_option_id is None:
+            return None
+        try:
+            return handoff.published_option(
+                self.trusted(identity, task_id),
+                interaction_id=request.interaction_id,
+                option_id=request.selected_option_id,
+            )
+        except BirthdayEditError:
+            return None
+
+    def birthday_edit_recovery(self, identity, task_id, request):
+        """Only the exact original request with a durable platform edit record.
+
+        The platform writes the accepted edit record (with this request id and
+        card binding) into the task snapshot before it asks security to retire
+        the attempt; ticket 03 exposes the published option read-only but not a
+        request-keyed record read, so the API reads that same durable application
+        fact. Without it an interrupted F10 is never replayed as a new edit.
+        """
+        if request.selected_option_id is None or request.text is not None:
+            return None
+        if self.birthday_edit_option(identity, task_id, request) is None:
+            return None
+        task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
+        record = (task.snapshot or {}).get("birthday_edit") if task is not None else None
+        if not isinstance(record, dict):
+            return None
+        if (record.get("request_id") != str(request.request_id)
+                or record.get("interaction_id") != request.interaction_id
+                or record.get("option_id") != request.selected_option_id):
+            return None
+        return record
+
+    def begin_controlled_edit(self, identity, task_id, request):
+        """F10 controlled-edit diversion: one platform handoff, frozen TaskView.
+
+        The platform proves the card, retires the unsubmitted original attempt,
+        publishes one sealed winner and returns same task/new revision/new
+        interaction. This layer adds no state, permission or completion; a
+        refusal keeps the old card and is verified along the original operation.
+        """
+        trusted = self.trusted(identity, task_id)
+        try:
+            outcome = self._birthday_handoff().begin_birthday_edit(
+                trusted, request_id=request.request_id,
+                interaction_id=request.interaction_id,
+                option_id=request.selected_option_id,
+            )
+        except BirthdayEditError as exc:
+            raise birthday_edit_problem(exc) from None
+        link = self.link(identity, task_id, mutate=True)
+        task = self.runtime.application.get_task(
+            identity.user_id, identity.demo_round_id, task_id,
+        )
+        return TaskView(**outcome.result.model_dump(), module=self._task_module(task),
+            thread_id=link["thread_id"], demo_round_id=identity.demo_round_id,
+            snapshot_at=now(), task_revision=outcome.task_revision,
+            cancel_requested=bool(link["cancel_requested"]))
+
     def provide_task_input(self, identity, task_id, request):
+        # A backend-published birthday edit option takes the controlled handoff
+        # before the ordinary input checks: its card is a confirmation or
+        # verification, and the platform owns the card/binding verification.
+        if self.birthday_edit_option(identity, task_id, request) is not None:
+            if request.text is not None:
+                raise ApiProblem(400, "INVALID_OPTION")
+            return self.begin_controlled_edit(identity, task_id, request)
         # History must precede current_input_task: a recorded attempt can have
         # become needs_attention / interaction=None after its business write.
         record = self.budget_input_record(identity, task_id, request.request_id)

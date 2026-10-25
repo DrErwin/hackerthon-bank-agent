@@ -340,12 +340,15 @@ def create_app(runtime=None, config=None):
         with service.mutation_lock:
             service.identity(service.cookie(who.session_id))
             service.link(who, task_id, mutate=True)
-            # Only an exact durable budget origin makes an interrupted F10
-            # retryable. In particular, do not retry an ordinary input receipt.
+            # Only an exact durable budget origin or a birthday edit record this
+            # original request already accepted makes an interrupted F10
+            # retryable. Ordinary input receipts stay non-retryable.
             recorded = service.budget_input_record(who, task_id, body.request_id)
+            recoverable = (recorded is not None
+                           or service.birthday_edit_recovery(who, task_id, body) is not None)
             return mutation(service, who, request, body,
                 lambda: service.provide_task_input(who, task_id, body),
-                retry_interrupted=recorded is not None)
+                retry_interrupted=recoverable)
 
     @application.post("/api/v1/tasks/{task_id}/draft")
     def revise_draft(request: Request, task_id: str, body: ReviseDraftRequest,
