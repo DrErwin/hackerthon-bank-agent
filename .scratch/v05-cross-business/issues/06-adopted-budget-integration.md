@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: developed / local_verified / E2E_pending / CI_blocked — 2026-10-25；[Draft PR #305](https://github.com/DrErwin/hackerthon-bank-agent/pull/305)交回，未合并。
+Status: merged / E2E_pending — [PR #305](https://github.com/DrErwin/hackerthon-bank-agent/pull/305) 已于 2026-10-26 按中控批次合入 main（`5347dd7`，见[合入记录](../../v05-control/merge-batch-04-07-2026-10-25.md)）；真实采用链与 E2E 未跑，CI 计费仍 Blocked。
 
 Planning assignee: Erwin 授权执行对话 01a17183-271b-7663-9517-f31a994de51d
 

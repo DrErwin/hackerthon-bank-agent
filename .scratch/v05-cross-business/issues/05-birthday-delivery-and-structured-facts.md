@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: implemented — 2026-10-25 本票实现与两轴 AI 审查通过，PR #288 待中控合并；CI 账户计费阻塞，非版本验收完成。
+Status: merged — PR #288 已按中控批次于 2026-10-25 合入（合入记录见[merge-batch-01](../../v05-control/merge-batch-01.md)）；两轴 AI 审查通过、CI 计费阻塞；真实 E2E 与页面验收未由本票完成。
 
 Package accepted by: Erwin
 
@@ -65,7 +65,7 @@ Core scenarios: XL-B01、XL-B02、XL-B04、XL-B05、XL-B06；定义见[共享规
 
 ## Delivery record
 
-- 实现 / PR / 合入：已实现，PR [#288](https://github.com/DrErwin/hackerthon-bank-agent/pull/288)，未合并，交中控排队。
+- 实现 / PR / 合入：已实现，PR [#288](https://github.com/DrErwin/hackerthon-bank-agent/pull/288)，已于 2026-10-25 按中控批次合入 main（`421b344` 系列，见[合入记录](../../v05-control/merge-batch-01.md)）。
 - 本票验证：Cross 57 passed；本票测试文件 13 passed；MockBank 14 passed；链接/语法/差异空白通过。
   真实模拟银行完整与停止路径直接对账、HTTP 受控表单/引用推进均有证据。首次实现后端全量
   1600 passed（16m13s），审查回修后复验受影响 Cross 57 项；不是最终代码二次全量。
