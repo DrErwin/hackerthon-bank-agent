@@ -4,15 +4,15 @@ Package: v05-cross-linkage/packages/05-cross-e2e
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: planned
+Status: in_progress — 2026-10-25 中控委派启动E2E准备；按主线依赖启动真实运行；未验收
 
-Activation: 2026-10-24 Erwin 明确承接本阶段包 05；本次只领取包 03，本包保留未领取、未运行状态。
+Activation: 2026-10-25 Erwin授权中控分发剩余任务；本包由Erwin委派AI执行，非验收接受。
 
-Accepted by: 未记录
+Accepted by: Erwin（2026-10-25委派授权；AI代行执行）
 
-Accepted at: 未记录
+Accepted at: 2026-10-25
 
-Work spec: [共享规格](../spec.md)、[v05-cross-e2e 工作规格与独立票](../../v05-cross-e2e/spec.md)；均为规划交付，负责人接包待登记。
+Work spec: [共享规格](../spec.md)、[v05-cross-e2e 工作规格与独立票](../../v05-cross-e2e/spec.md)；沿用已批准规格，按实际依赖执行。
 
 Directory boundaries: evals/cross/
 
@@ -52,3 +52,7 @@ Directory boundaries: evals/cross/
 2026-10-24 最新阶段分工：v0.5 剩余执行工作全部由 Erwin 承担，含安全规则审阅、实现、前端与评测；原负责人不再是本阶段的等待对象。按单目录、单票、单分支/PR 交付。安全确认由 Erwin 本人按实际证据记录为 PM 代行审查/接受；AI 审查、自动化测试、PM 本人审查与历史要求的 Ringo 专业签核分别标注，不补写他人签名，不因转派豁免安全验证。期限至 v0.5 收口，届时交接接口、证据与遗留；后续版本按项目跟踪重新分派。
 
 已有领取和交付记录保留；本次是责任调整及下一步建议，不把未启动的包记为已开工或已验收。
+
+## 2026-10-25 中控委派
+
+本次委派以[中控调度表](../../v05-control/dispatch-2026-10-25.md)为准；上述10-24分工叙述为历史，当前已启动。领取和执行不等于包验收通过；执行对话负责本票证据，中控维护共享状态。
