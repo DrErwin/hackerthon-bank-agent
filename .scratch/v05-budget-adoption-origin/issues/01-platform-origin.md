@@ -12,11 +12,17 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: ready — 中控已激活，平台执行对话先结束PR289合入准备，再顺序实施
+Status: in_review — 平台实现与定向验证完成，待独立双轴审查及Erwin合入；不代表API/cross联调或安全接受
 
-Blocked by: 同目录PR289当前合入准备结束；无需新增 storage 表或等待 #293 的 API 变更。
+Blocked by: None（289已合入，296已整理；无需新增storage表或等待#293接口变更）
 
 Execution thread: `01a1718a-26a3-7523-a0bf-2591d8e83618`，GPT-6.1-sol/high；2026-10-25中控依Erwin既有分派授权正式派发。完成后分别调用规范轴与规格轴子代理审查，必须项修复后复验；不自行合并。
+
+Execution assignee: Codex，运行装配遗留线
+
+Accepted by: Erwin 授权 Codex 实施（中控续派）
+
+Accepted at: 2026-10-25
 
 Core scenarios: O01—O08，定义见规格；预算业务语义仍由 cross06 实施。
 
@@ -26,15 +32,19 @@ Core scenarios: O01—O08，定义见规格；预算业务语义仍由 cross06 �
 
 ## Acceptance criteria
 
-- [ ] 先核对并持久来源，失败零模块调用；禁止模型字段创建来源。
-- [ ] 核对当前等待输入、真实候选与原选项，记录 accepted_task_revision 与写后 dispatch_task_revision；不把 revision 当授权。
-- [ ] 私有读取只对当前专用输入/受控恢复有效，跨任务/线程/异常返回不串用句柄，snapshot 中存在历史来源不等于当前可用。
-- [ ] 同交互双请求、同号异参、旧候选和跨主体/会话/轮次均拒绝或仅返回原事实，不生成第二来源。
-- [ ] 原来源 + 稳定 cross attempt 支撑断点恢复，result 与 completed 投影在同次 CAS 中保存；缺 attempt 不重新推定已采用。
-- [ ] 首次/尚未采用的原写仍严格核对当前 input；已有采用事实的历史核实可处理 needs_attention / interaction=None，只补原结果，不激活来源/新写采用，取消/终态不继续新步骤。
-- [ ] 修改/取消/新会话等不能复活旧来源；API receipt 断点恢复所需输出稳定可读。
-- [ ] 提供 API 与 cross06 的调用样例，公共字段不变；设计若发现不能用现有持久接缝完成，先回中控，不跨目录写 storage。
+- [x] 先核对并持久来源，失败零模块调用；禁止模型字段创建来源。
+- [x] 核对当前等待输入、真实候选与原选项，记录 accepted_task_revision 与写后 dispatch_task_revision；不把 revision 当授权。
+- [x] 私有读取只对当前专用输入/受控恢复有效，跨任务/线程/异常返回不串用句柄，snapshot 中存在历史来源不等于当前可用。
+- [x] 同交互双请求、同号异参、旧候选和跨主体/会话/轮次均拒绝或仅返回原事实，不生成第二来源。
+- [x] 原来源 + 稳定 cross attempt 支撑断点恢复，result 与 completed 投影在同次 CAS 中保存；缺 attempt 不重新推定已采用（平台接缝由持久stand-in验证）。
+- [x] 首次/尚未采用的原写仍严格核对当前 input；已有采用事实的历史核实可处理 needs_attention / interaction=None，只补原结果，不激活来源/新写采用，取消/终态不继续新步骤。
+- [x] 修改/取消/新会话等不能复活旧来源；API receipt 断点恢复所需输出稳定可读。
+- [x] 提供 API 与 cross06 的调用样例，公共字段不变；设计若发现不能用现有持久接缝完成，先回中控，不跨目录写 storage。
 
 ## Verification
 
-实施时用真实 Harness/ApplicationStore + 临时数据库验证 O02—O07；模块 stand-in 可验证平台边界，但不能代替真实 cross06 的 adopt 验收。API 尚未接线时用专用后台方法验证；真实 F10 联调由 02 与 cross06/原 E2E 完成。本轮未写运行代码或运行上述测试。
+2026-10-25：真实 Harness/ApplicationStore、临时SQLite、checkpointer、任务锁/CAS验证 O02—O08 的平台边界。`test_budget_inputs.py`共35项，连同既有`test_harness.py`、`test_child_dispatch.py`、`test_fault_snapshot.py`共 **87 passed in 44.27s**。覆盖来源/attempt/采用/发布断点、重开、同号异参、同交互并发、会话切换、候选替换、普通模型续答和异常后句柄隔离。此前一轮86通过、1项测试夹具版本值不合法；修正夹具后上述87项通过。
+
+实现基线：`0930d6be59c728b9dc0ef4c4ef0b5430da12943e`。独立worktree：`v05-budget-origin-01/hackerthon-bank-agent`；分支：`codex/v05-budget-origin-01`。接入说明与API/cross样例见[专用预算F10来源接缝](../../../backend/app/agent_platform/budget-inputs-seam.md)。
+
+业务为明确标记的持久stand-in，仅证明平台边界，**不代替真实cross06/#293采用、HTTP receipt或生日E2E验收**。全量后端测试未启动，遵中控503/审计诊断独占全量槽位的安排排队；未自行豁免CI、合入或真人安全审阅。未改共享tracking/completion/包状态、API、storage、cross或#160政策。

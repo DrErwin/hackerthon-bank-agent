@@ -41,7 +41,7 @@ def candidate(who, *, interaction="I1", plan=1, limit=50000):
 @pytest.fixture
 def env(tmp_path):
     env = SimpleNamespace(path=tmp_path / "application.sqlite", calls=0, seen=[], reconciles=0,
-                          fail=None, copied=None, thread_origin="unset", callbacks=0)
+                          fail=None, copied=None, thread_origin="unset", nested=False)
     who = TrustedContext(user_id="U1", session_id="S1", task_id="T1", run_id="R1",
                          demo_round_id="D1", parent_task_id=None)
     env.who = who
@@ -75,6 +75,11 @@ def env(tmp_path):
             with ThreadPoolExecutor(max_workers=1) as pool:
                 env.thread_origin = pool.submit(copied.run, env.harness.budget_input_origin, trusted).result()
             assert env.harness.budget_input_origin(trusted.model_copy(update={"task_id": "OTHER"})) is None
+            if env.nested:
+                env.nested = False
+                return env.harness.resume(trusted, {"choice": "A", "origin_id": origin.origin_id})
+            if response.get("choice") == "M":
+                return candidate(trusted, interaction="I2", plan=2)
             if env.fail == "before_attempt":
                 raise RuntimeError("before attempt")
             _, state = self.state(thread_id)
@@ -228,6 +233,8 @@ def test_fault_result_does_not_refresh_revision_to_attempt_new_adoption(env, fai
         env.submit()
     dispatch_revision = env.record()["dispatch_task_revision"]
     assert env.task().status is TaskStatus.NEEDS_ATTENTION and env.task().revision > dispatch_revision
+    assert env.harness.budget_input_origin(env.who) is None
+    assert env.copied.run(env.harness.budget_input_origin, env.who) is None
     env.fail = None
     env.reopen()
     with pytest.raises(ValueError, match="BUDGET_INPUT_STALE"):
@@ -244,8 +251,11 @@ def test_adopted_history_recovers_from_attention_without_activating_source(env, 
     assert env.task().snapshot["result"]["interaction"] is None
     if terminal:
         task = env.task()
+        cancelled = ModuleResult.model_validate(task.snapshot["result"]).model_copy(update={
+            "status": TaskStatus.CANCELLED, "interaction": None, "allowed_actions": [],
+            "recovery_required": False, "recovery_reason": None})
         env.store.update_task("U1", "D1", "T1", task.revision, task.run_id, TaskStatus.CANCELLED,
-            task.checkpoint_id, task.snapshot)
+            task.checkpoint_id, {**task.snapshot, "result": cancelled.model_dump(mode="json")})
     status, previous = env.task().status, env.task().snapshot["result"]
     env.reopen()
     completed = env.submit(trusted=env.who.model_copy(update={"run_id": "R2"}))
@@ -323,3 +333,129 @@ def test_new_session_can_only_reconcile_history_not_reauthorize(env, adopted):
         with pytest.raises(ValueError, match="BUDGET_INPUT_STALE"):
             env.submit(trusted=newer)
         assert env.calls == 0
+
+
+def test_nested_ordinary_resume_does_not_inherit_the_dedicated_call(env):
+    env.nested = True
+    with pytest.raises(ValueError):  # Nested publication wins; the outer stale CAS cannot overwrite it.
+        env.submit()
+    assert env.calls == 2 and env.seen[0] is not None and env.seen[1] is None
+    assert env.record()["phase"] == "invalidated"
+    assert env.harness.budget_input_origin(env.who) is None
+
+
+def test_validated_model_option_still_has_no_dedicated_origin(env):
+    from .model import ContinueProposal
+
+    task = env.task()
+    env.store.update_task("U1", "D1", "T1", task.revision, task.run_id, task.status,
+                         task.checkpoint_id, task.snapshot)  # Published task revisions are positive.
+    summary = env.harness._session_context_summary(env.who)
+    assert "'id': 'A'" in summary
+    proposal = ContinueProposal(task_id="T1", task_revision=env.task().revision,
+                                action="provide_input", selected_option_id="A")
+    assert env.harness._validate_continuation(env.who, proposal) == proposal
+    env.harness.resume(env.who, {"choice": proposal.selected_option_id})
+    assert env.seen == [None] and env.record() is None
+
+
+@pytest.mark.parametrize("kind", ["interaction", "option", "no_candidate", "not_waiting"])
+def test_invalid_initial_input_creates_no_origin(env, kind):
+    if kind in {"no_candidate", "not_waiting"}:
+        task = env.task()
+        result = dict(task.snapshot["result"])
+        if kind == "no_candidate":
+            result["data"] = None
+        else:
+            result.update(status="needs_attention", interaction=None)
+        env.store.update_task("U1", "D1", "T1", task.revision, task.run_id,
+            TaskStatus(result["status"]), task.checkpoint_id, {**task.snapshot, "result": result})
+    with pytest.raises(ValueError):
+        env.submit(interaction="OLD" if kind == "interaction" else "I1",
+                   option="INVALID" if kind == "option" else "A")
+    assert env.calls == 0 and env.record() is None
+
+
+def test_caller_cannot_supply_a_source_or_candidate_digest(env):
+    with pytest.raises(TypeError):
+        env.submit(source="human", candidate_digest="forged")
+    assert env.calls == 0 and env.record() is None
+
+
+def test_source_cas_race_does_not_refresh_revision_or_call_module(env):
+    update = env.store.update_task
+
+    def competing_write(*args):
+        rival = {key: value for key, value in args[-1].items() if key != "budget_input_origins"}
+        update(*args[:-1], {**rival, "rival": True})
+        return update(*args)  # The original expected revision must fail.
+
+    with patch.object(env.store, "update_task", side_effect=competing_write):
+        with pytest.raises(ValueError):
+            env.submit()
+    assert env.calls == 0 and env.record() is None and env.task().snapshot["rival"]
+
+
+def test_candidate_replaced_after_source_write_is_rechecked_before_dispatch(env):
+    update = env.store.update_task
+    replaced = False
+
+    def replace_after_source(*args):
+        nonlocal replaced
+        saved = update(*args)
+        if not replaced and args[-1].get("budget_input_origins"):
+            replaced = True
+            newer = candidate(env.who, interaction="I2", plan=2)
+            update("U1", "D1", "T1", saved.revision, saved.run_id, newer.status, saved.checkpoint_id,
+                   {**saved.snapshot, "result": newer.model_dump(mode="json")})
+        return saved
+
+    with patch.object(env.store, "update_task", side_effect=replace_after_source):
+        with pytest.raises(ValueError, match="BUDGET_INPUT_STALE"):
+            env.submit()
+    assert env.calls == 0 and env.record()["phase"] == "invalidated"
+
+
+def test_ordinary_non_budget_input_is_unchanged(env):
+    task = env.task()
+    raw = task.snapshot["result"]
+    raw["data"] = None
+    raw["interaction"].update(required_fields=["amount_fen"], options=[])
+    env.store.update_task("U1", "D1", "T1", task.revision, task.run_id, task.status,
+                         task.checkpoint_id, {**task.snapshot, "result": raw})
+    result = env.harness.resume(env.who, {"text": "500"})
+    assert result.status is TaskStatus.WAITING_INPUT and env.seen == [None] and env.record() is None
+
+
+def test_a_valid_source_is_not_itself_budget_adoption(env):
+    result = env.submit(option="M")
+    assert result.result.status is TaskStatus.WAITING_INPUT
+    assert result.result.data["budget"]["adopted"] is False
+    assert env.seen[0] is not None and env.record()["selected_option_id"] == "M"
+    assert env.record()["phase"] == "completed"
+    assert env.record()["completion"]["attempt_ref"] is None
+
+
+@pytest.mark.parametrize("condition", ["expired", "cancelled"])
+def test_expired_or_cancelled_original_input_cannot_gain_a_new_origin(env, condition):
+    with patch.object(env.harness, "_resume", side_effect=RuntimeError):
+        with pytest.raises(RuntimeError):
+            env.submit()
+    if condition == "expired":
+        from app.storage.database import transaction
+
+        with transaction(env.path) as connection:
+            connection.execute("UPDATE sessions SET expires_at = ? WHERE session_id = 'S1'",
+                ((datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(),))
+        with pytest.raises(PermissionError, match="AUTH_REQUIRED"):
+            env.submit()
+    else:
+        task = env.task()
+        result = ModuleResult(task_id="T1", run_id="R1", status=TaskStatus.CANCELLED, data=None,
+            message="已停止", interaction=None, error=None, allowed_actions=[],
+            recovery_required=False, recovery_reason=None)
+        env.store.update_task("U1", "D1", "T1", task.revision, task.run_id, TaskStatus.CANCELLED,
+                             task.checkpoint_id, {**task.snapshot, "result": result.model_dump(mode="json")})
+        with pytest.raises(ValueError, match="BUDGET_INPUT_STALE"):
+            env.submit()
+    assert env.calls == 0 and env.harness.budget_input_origin(env.who) is None

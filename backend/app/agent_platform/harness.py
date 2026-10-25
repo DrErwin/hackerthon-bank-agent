@@ -33,11 +33,11 @@ from app.contracts.cross import CrossStartInput
 from app.contracts.platform import CapabilityDefinition, StartTransferInput, TrustedContext
 from app.contracts.subscription import SubscriptionCancelInput, SubscriptionListInput
 from app.contracts.tasks import ModuleError, ModuleResult, TransferTaskView
-from .budget_inputs import BudgetInputs
 from app.memory.adapter import MemoryAdapter, MemoryContext
 from app.storage.application import ApplicationStore, ArrangementConflictError, TaskRecord
 from app.storage.database import transaction
 
+from .budget_inputs import BudgetInputs
 from .model import ContinueProposal, Planner, ReplyOnly, TransferProposal
 from .input_privacy import has_chat_secret
 from .risk_conversation import RiskConversation

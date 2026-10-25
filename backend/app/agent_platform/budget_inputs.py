@@ -15,6 +15,8 @@ import json
 from threading import get_ident
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
 from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossTaskView
 from app.contracts.tasks import ModuleResult
@@ -141,7 +143,10 @@ class BudgetInputs:
                 or interaction.kind != "input" or interaction.interaction_id != interaction_id
                 or selected_option_id not in {item.id for item in interaction.options}):
             raise ValueError("BUDGET_INPUT_NOT_CURRENT")
-        view = CrossTaskView.model_validate(result.data)
+        try:
+            view = CrossTaskView.model_validate(result.data)
+        except ValidationError:
+            raise ValueError("BUDGET_CANDIDATE_REQUIRED") from None
         if view.budget is None or view.budget.adopted or view.budget.budget_ref is not None:
             raise ValueError("BUDGET_CANDIDATE_REQUIRED")
         candidate = {"plan_revision": view.plan_revision,
@@ -279,6 +284,12 @@ class BudgetInputs:
             # Ordinary resume and history reconciliation never enter this scope.
             dispatch = trusted.model_copy(update={"run_id": record["run_id"]})
             self.harness._authorize(dispatch, task.snapshot["capability_name"])
+            current = self._task(dispatch)
+            try:
+                self._strict(current, record, dispatch)
+            except ValueError:
+                self._invalidate(current, record)
+                raise
             call = _Call(self, get_ident(), record["origin_id"], request_id, _actor(dispatch))
             token = _CURRENT.set(call)
             try:
