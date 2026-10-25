@@ -41,6 +41,8 @@ def test_negated_cancellation_stays_read_only_even_under_cancel_candidate():
     ("优酷视频不想继续续订", "sub_001"),
     ("云端网盘不续费了", "sub_002"),
     ("别再扣优酷视频的钱了", "sub_001"),
+    ("请把不需要的优酷自动扣费停止", "sub_001"),
+    ("先查一下账单，帮我停止优酷的自动扣费", "sub_001"),
 ])
 def test_stop_and_future_renewal_requests_match_the_actual_mandate(text, mandate_id):
     task, bank, gate = registered_entry()
@@ -56,6 +58,12 @@ def test_stop_and_future_renewal_requests_match_the_actual_mandate(text, mandate
     "优酷的自动扣费取消了吗", "查一下优酷是否已经取消自动续费",
     "我只想了解不再续费的影响", "帮我看看优酷的退订记录", "我能取消优酷吗",
     "帮我查查有哪些自动扣费", "帮我看看这些扣费要不要处理", "别再问我这些扣费了",
+    "我不想让你停止优酷的自动扣费", "不要把优酷的自动扣费停止",
+    "不要把优酷的自动扣费取消了", "别把优酷的自动续费关掉",
+    "帮我查一下优酷停止自动扣费的日期", "请问优酷自动扣费能停止吗",
+    "优酷已经停止自动扣费了，帮我查一下", "优酷已经停止自动扣费了",
+    "优酷的自动扣费可以停止吗", "看看云端网盘的解约结果",
+    "我不需要把优酷的代扣停止", "不用把云端网盘的续费关闭", "我只是看优酷的取消信息",
 ])
 def test_denial_query_and_unclear_request_never_enter_confirmation(text):
     task, bank, gate = registered_entry()
@@ -65,7 +73,7 @@ def test_denial_query_and_unclear_request_never_enter_confirmation(text):
     assert bank.cancel_calls == 0
 
 
-@pytest.mark.parametrize("text", ["停止自动扣费", "以后不再续费", "全部停止自动扣费"])
+@pytest.mark.parametrize("text", ["停止自动扣费", "以后不再续费", "全部停止自动扣费", "把自动扣费都关"])
 def test_stop_without_one_target_requires_selection(text):
     task, bank, gate = registered_entry()
     result = task.start(context(), start_request(text))

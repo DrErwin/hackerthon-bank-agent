@@ -33,20 +33,24 @@ LOGGER = logging.getLogger(__name__)
 
 _TERMINAL = {"succeeded", "failed", "cancelled"}
 # Ending the mandate and declining future renewal/debits express the same action.
-_CANCEL_VERB = r"(?:退订|取消|关闭|关掉|关了|退了|退掉|解约|解除|停止|终止|停用|停扣|停了|停掉)"
+_CANCEL_VERB = r"(?:退订|取消|关闭|关掉|关了|都关|退了|退掉|解约|解除|停止|终止|停用|停扣|停了|停掉)"
 _NO_FUTURE_DEBIT = r"(?:(?:不再|不想再|不要再|别再|不想|不要)(?:继续|自动)?(?:续(?:费|订)?|扣(?:费|款)?)|不续费|不续订)"
 _CANCEL_EXPRESSION = rf"(?:{_CANCEL_VERB}|{_NO_FUTURE_DEBIT})"
 _CANCEL_INTENT = re.compile(_CANCEL_EXPRESSION)
-# A denial or an inquiry is not an instruction to end a mandate. Keep these
-# checks separate from "do not renew/debit again", which is a positive stop.
+# A denial applies across its clause (including "do not + target + stop").
+# Short "not" forms stay adjacent so a target like "unneeded debits" is not
+# itself treated as a denial. "Do not renew/debit again" remains a positive stop.
+_CLAUSE = r"[^，。！？；,.!?;\n]*"
 _NEGATED_CANCEL = re.compile(
-    rf"(?:不|不要|别|不用|不想|不必|不需要|暂不|先不|勿|不是(?:要|想))\s*"
-    rf"(?:(?:再|帮我|替我|给我|去|办理|进行)\s*)*{_CANCEL_VERB}")
-_READ_ONLY = re.compile(r"只(?:是|想|要|想要)?(?:查|看|了解|咨询)")
-_CLAUSE = r"[^，。！？；\n]*"
+    rf"(?:不要|别(?!的)|不想|不必|暂不|先不|勿|不是(?:要|想)|(?:不需要|不用)(?!的)){_CLAUSE}{_CANCEL_VERB}"
+    rf"|不\s*(?:(?:再|帮我|替我|给我|去|办理|进行)\s*)*{_CANCEL_VERB}")
+_READ_ONLY = re.compile(
+    rf"(?:查|看看|看一下|只(?:是|想|要|想要)?看|了解|咨询|请问){_CLAUSE}{_CANCEL_EXPRESSION}")
 _CANCEL_QUESTION = re.compile(
     rf"(?:怎么|如何|怎样|是否|是不是|有没有|能否|能不能|可不可以|可以帮我|我能){_CLAUSE}{_CANCEL_EXPRESSION}"
-    rf"|{_CANCEL_EXPRESSION}{_CLAUSE}(?:了吗|了没有|过吗|成功没|记录|状态|流程|方法|影响|后果)")
+    rf"|{_CANCEL_EXPRESSION}{_CLAUSE}(?:了吗|了没有|过吗|成功没|记录|状态|流程|方法|影响|后果)"
+    rf"|(?:能|可以){_CLAUSE}{_CANCEL_EXPRESSION}{_CLAUSE}(?:吗|么)"
+    rf"|(?:已经|已){_CLAUSE}{_CANCEL_VERB}{_CLAUSE}(?:了|成功|生效)")
 _BATCH_WORDS = ("全部", "所有", "统统", "都退", "都关", "一键", "全都")
 # Observed phrases from the user's own words; the security policy decides the risk level.
 _HIGH_RISK_PATTERNS = {
@@ -67,7 +71,7 @@ def wants_cancel(intent_text: str) -> bool:
     """The module decides what it does; the planner only routes to this module."""
 
     if (_NEGATED_CANCEL.search(intent_text) or _READ_ONLY.search(intent_text)
-                or _CANCEL_QUESTION.search(intent_text)):
+            or _CANCEL_QUESTION.search(intent_text)):
         return False
     return _CANCEL_INTENT.search(intent_text) is not None
 
