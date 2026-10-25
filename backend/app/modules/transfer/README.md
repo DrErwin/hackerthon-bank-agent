@@ -34,3 +34,9 @@ Harness 在存储完成同一用户、同一演示轮次的任务归属转换后
 ## 连续办理选项（bank-e2e-remediation/18）
 
 付款账户选项同时显示银行返回的可用余额，作为选择时的参考，余额判断仍归银行。资料补充与同名收款人选择阶段可通过原草稿更新金额、账户或已保存收款对象；新对象替换旧检索提示，不保留矛盾的收款来源。确认内容变化继续使旧确认失效，提交和未知结果仍不允许改交易参数。
+
+## v0.5 活动资金安排冲突
+
+实施票：[v05-transfer-arrangement/01：D1 安排冲突信息透传](../../../../.scratch/v05-transfer-arrangement/issues/01-conflict-presentation.md)。平台对其他入口的冲突支出返回 PAUSE / ARRANGEMENT_CONFLICT 时，转账保留平台 message，并按公共契约第5.4节呈现 `source=platform`、`field=payer_account_id`、相同 `error.reason`。任务仍为 needs_attention / recovery_required，未新增可执行按钮或放行路径。其他安全暂停及重复执行记录的原文案保持原行为。
+
+`test_arrangement_conflict.py` 使用隔离 SQLite/种子银行及真实转账运行时，在原确认、验证码验证后核对冲突结果及持久任务快照，并检查无银行提交、无账户流水、余额不变；规划器与风险策略沿用运行时测试替身，不代表真实模型、HTTP、页面 E2E 或真人签核。
