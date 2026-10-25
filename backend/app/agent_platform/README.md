@@ -61,3 +61,12 @@
 示例配置明确包含 A1 → 妈妈（银行收款人 A2）300/500/600 元普通场景，以及501/502元中高风险演示；账户、收款人、金额必须完全匹配配置。实际新收款人事实可提高风险，文本危险线索优先停止。未知文字、未配置参数和检测器失败暂停。设备等缺乏真实来源的维度仍明确来自虚构演示配置，不能称为生产风险事实。自定义本机配置须显式增加需要演示的金额，不自动给任意金额低风险。
 
 原长诈骗输入的 MODEL_UNDERSTANDING_FAILED 仍是待真实复验项；本地程序测试不替代票11的真实模型、React及银行联合验收。
+
+## 生日受控编辑与 G3 状态发布接缝（v05-birthday-platform-dependencies/03）
+
+`birthday_edit.py` 是平台侧唯一入口，不注册为模型工具。输入只有可信上下文与后端发布的原 F10 request/interaction/option；身份、目标、参数与版本一律取自原任务，不接受客户端自报 actor/editable/operation/候选 hash。
+
+- **受控编辑（A）**：生日确认/验证卡由 `BirthdayTaskPorts` 在返回交互时追加一个后端发布的受控编辑选项，并把 interaction/option/执行项/原 operation/action_revision/确认版本通过任务 CAS 持久化。`begin_birthday_edit` 的冻结顺序是：任务 CAS 预留 edit_ref、源已发布完整 ref（thread+namespace+id）与唯一候选 ref → 安全 02 受理 → 银行 06 退役旧尝试挑战 → 安全 02 封存（含审计，失败即停）→ Cross 08 只按源 ref 准备隔离候选 → 05 一次封存首份胜者 → 同一任务 CAS 发布胜出 checkpoint、snapshot 完整 published_ref、ModuleResult、新 revision 与完成投影。同参重放返回同一胜者；claim 先胜/未知、任务终止、会话变化、旧卡或异参一律不进编辑；撤离后检查点/CAS 失败时旧动作仍不能写，重试沿同一受理记录补发布。
+- **初始与普通状态（B）**：`publish_initial_state` 在首次 Cross 状态写前，以原 task/start 受理关联与接受版本预留无前驱 root 候选（无 edit_ref/source，不伪造前驱）；`publish_normal_state` 沿原 F10 请求或原运行事件的持久关联，绑定上次已封存且已发布的完整 source ref 预留普通候选。两者都由 05 封存首份完整胜者，再由本目录同一次任务 CAS 发布完整 ref/结果/新版本/完成投影。缺已发布源、旧任务缺 ID、thread 已有历史都不能冒充初始化；发布失败不暴露候选；已发布根/普通/编辑状态不可覆盖，后续状态另用隔离 namespace。
+- **Cross 侧**只实现 `CrossBirthdayHandoff.prepare(trusted, CandidateRequest) -> CrossCandidate`：读精确源 ref、返回完整候选内容，不得自行 `put` 预留 namespace（05 封存是唯一写入方）。票 08 未接线时该接缝以 `CROSS_HANDOFF_UNAVAILABLE` 明确 block；Cross 未接线期间用明示 stand-in 验证平台边界。API 04 的 F10 分流（`published_option()` / `is_published_edit_option()` 只读判断）与 Cross 08 的真实候选准备仍属各自目录，未在本票接线。
+- 测试：`app/agent_platform/test_birthday_edit_handoff.py` 用真实安全状态、06 真实银行验证与 05 真实 saver 加明示 Cross stand-in，覆盖冻结/下单/核销的确认与验证六种等待态、旧卡/异参/异会话/终止拒绝、claim 抢先与 M1 胜序、撤离后/候选封存后/回执丢失断点、root 首次发布、普通后继、普通缺源拒绝冒充根与发布失败不暴露候选。

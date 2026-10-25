@@ -40,6 +40,8 @@ from app.security.birthday_release import (
 from app.security.gate import DeterministicExecutor, SecurityError
 from app.security.state import SQLiteSecurityState, SecurityStateError
 
+from .birthday_edit import BirthdayHandoff, publish_edit_option
+
 
 def _yuan(fen) -> str:
     return f"{(fen or 0) / 100:.2f}"
@@ -160,6 +162,10 @@ class BirthdayRuntime:
         )
         self.authorize_birthday = authorize_birthday_write(self.state)
         self.current_demo_round = current_demo_round
+        # v05-birthday-platform-dependencies/03: the controlled edit handoff and
+        # G3 state publication seam. The Cross side (ticket 08) is not wired yet;
+        # without it the seam refuses instead of improvising a candidate.
+        self.handoff = BirthdayHandoff(runtime)
 
     def ports_factory(self, _trusted):
         """``register_cross`` calls this per advance; every ports method takes
@@ -511,6 +517,28 @@ class BirthdayTaskPorts:
             "release_authorization_id": release_authorization_id,
         })
 
+    def _publish_edit_option(self, trusted, key, parameters, action,
+                             interaction):
+        """Append the ticket-03 controlled edit option to one birthday card.
+
+        The publication fact (current interaction/option, execution item, original
+        operation/attempt and confirmation version) is persisted to the task
+        before the card can reach the user; a missing confirmation binding or a
+        failed CAS refuses the card instead of offering an unprovable edit.
+        """
+        if interaction is None:
+            return None
+        binding = self.runtime.facts.confirmation(
+            trusted, UUID(action["operation_id"]), int(action["action_revision"]))
+        return publish_edit_option(
+            self.runtime, trusted, interaction=interaction, item=key,
+            action_name=parameters["__action__"],
+            operation_id=action["operation_id"],
+            action_revision=int(action["action_revision"]),
+            confirmation_id=binding[0] if binding else None,
+            confirmation_version=binding[1] if binding else None,
+        )
+
     # ------------------------------------------------------------ ports API
 
     def products(self, context, request: ListProductsInput):
@@ -530,8 +558,10 @@ class BirthdayTaskPorts:
             self._security_context(context, action["operation_id"]), descriptor)
         if decision.decision in (SecurityDecisionCode.REQUIRE_CONFIRMATION,
                                  SecurityDecisionCode.REQUIRE_VERIFICATION):
-            return GateAnswer(decision.decision, action["operation_id"],
-                              interaction=decision.interaction)
+            return GateAnswer(
+                decision.decision, action["operation_id"],
+                interaction=self._publish_edit_option(
+                    context, key, parameters, action, decision.interaction))
         if decision.decision is SecurityDecisionCode.ALLOW:
             return GateAnswer(SecurityDecisionCode.ALLOW, action["operation_id"])
         return GateAnswer(decision.decision, action["operation_id"],
@@ -565,7 +595,10 @@ class BirthdayTaskPorts:
             outcome.decision.decision is SecurityDecisionCode.REQUIRE_VERIFICATION
         ):
             return PortsWrite(executed=False, state="verify_wait", result=None,
-                              operation_id=None, verify=outcome.decision.interaction)
+                              operation_id=None,
+                              verify=self._publish_edit_option(
+                                  context, key, parameters, action,
+                                  outcome.decision.interaction))
         result = outcome.result
         if isinstance(result, OperationResult):
             state = "completed" if result.operation_status is OperationStatus.SUCCEEDED \
