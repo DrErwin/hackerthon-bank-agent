@@ -147,9 +147,19 @@ task、interaction 和采用 option；后台生成绑定 user/session/round/task
 - 已核实但尚未出现在当前完整账单的消费 G：以真实 CaptureReceipt 的交易编号/金额及原操作关联逐笔证明，
   在账单出现前继续约束新增承诺；账单出现后从 G 移入 used，不能两边同时计。
   包括已 closed 记录中尚未对上的真实消费，不能因收尾结束就丢掉账单时差保护。
+- G 仅包含确实属于当前采用 scope 的消费；旧版本在别的月份/账户已发生的消费不永久计为 G。
+  用完整 L01 details 中的实际 account_id/occurred_at 核对；必要时对原采用 scope 请求公开 details
+  查原交易。原 scope 完全不相交可排除；部分重叠而缺少实际交易归属时暂停，不能猜归属或将缺失当0。
+  与此不同，O 仍按契约汇总同一 budget_id 各版本尚未关闭的 unconsumed，不能因旧 scope 而丢在途占用。
 - 为可恢复核对，commitment.operation_ids 保存原冻结及每笔核销 operation_id，settled_transaction_ids
-  只保存银行核实的真实交易；原任务保存对应安全脱敏回执/金额。核对通过公开原操作查询获取真实回执，
-  不读取另一业务的私有状态；没有可核对的金额/交易或旧记录来源不完整时阻止新增承诺，不将空当 0。
+  只保存银行核实的真实交易；原任务保存对应安全脱敏回执/金额。跨任务的可用主接缝是
+  ApplicationStore.get_task(可信 user/round, commitment.task_id) 中本模块的公开 ModuleResult/CrossTaskView：
+  只取 succeeded 的 bank.capture_frozen 行，用 operation_id、result_ref（transaction_id）和 amount_fen
+  与 commitment 交叉核对，不重复取汇总行，不读取别的业务私有状态。
+  这个公开投影证明交易/金额，不单独证明交易属于当前账户/期间，归属仍按上一条核对。
+  #289 的 BirthdayPorts.requery 仅查当前 task 的 _actions，不能在任务B用任务A的编号，或伪造 TrustedContext.task_id。
+  缺少完整可信事实时保留约束、暂停新增承诺，提示回原任务通过受控入口查询后再刷新。
+  若必须从当前任务直接读另一任务完整 CaptureReceipt，则另列平台可信查询前置，不能假称本票已有此接口。
 - 新增个人预算承诺 C 必须满足 C <= remaining - G - O。
   使用 register_budget_commitment 时 max_in_flight_fen = remaining - G；由其事务把其他和本任务的有效
   unconsumed 加上本次新 pending 再比较，不能先从 max_in_flight 再减 O 造成重复扣减。
