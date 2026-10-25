@@ -48,7 +48,7 @@ Verification: 真实 ports / 确认 / 双因子 / 执行器 / 银行，临时SQL
 - [x] OS02：本任务准备的下单候选没有获准执行claim，或绑定到别的任务创建操作时，不能用B14可读订单换权限。
 - [x] OS03：合法付款已经确认/双因子后，订单来源绑定失效仍在提交前拒绝，银行事实不变；无法核实原操作也不能继续扣款。
 - [x] OS04：本任务合法订单正常完成一次付款；响应未知沿原号回查，重启后仍可观察原结果，不重复扣款。原生日正常/停止/无装配/故障回查路径回归。
-- [ ] 两个独立子代理分别核对规范与原票/规格，必修项处理后独立PR；AI审查、CI、真实模型/HTTP/页面E2E与真人接受分别记录。
+- [x] 两个独立子代理分别核对规范与原票/规格，必修项0；独立PR回中控。AI审查、CI、真实模型/HTTP/页面E2E与真人接受分别记录。
 
 ## Delivery record
 
@@ -57,4 +57,6 @@ Verification: 真实 ports / 确认 / 双因子 / 执行器 / 银行，临时SQL
 - 实现：平台补范围授权回调；只认当前任务安全执行记录中的ALLOW创建操作，并核对同一operation_id的B14成功create_order回执/订单号。已有确认、验证不能补足来源；来源暂不可核实时沿用安全门DEPENDENCY_UNAVAILABLE暂停。金额/商户/银行轮次字段及风险政策均未改。
 - 定向验证：`app/agent_platform/test_birthday_order_scope.py app/agent_platform/test_birthday_runtime_wiring.py`，**13 passed in 58.70s**（8项本票反例/对照 + 5项既有生日装配）。隔离临时数据；真实ports/门/确认/双因子/执行器/银行，外部模型调用0。
 - 反例核对六类银行事实（accounts/freezes/orders/order_payments/ledger_entries/bank_operations）均未变化，未新增付款确认；提交前绑定失效同样零副作用。合法付款仅一次19900分，冻结剩余30100分；原编号回查/重启/重复观察无新扣款。
-- 差异空白、改动Python编译、项目链接检查通过。全量、双轴审查、PR进行中；真实模型/业务HTTP/页面E2E、CI通过及真人接受未完成。平台12/13与业务未知后取消修复仍各走原PR，不在本票混合。
+- 独立 Standards 轴 PASS，必须项0、建议0，独立新测试8 passed in 37.98s；独立 Spec/真实性轴 PASS，必须项0、建议0，独立新旧组合13 passed in 64.25s。无文件返修要求，AI结果不是安全负责人本人批准。
+- 模拟银行专项回归 `../evals/mockbank/test_mockbank_eval.py`：14 passed in 1.42s，临时数据库，无模型调用。
+- 差异空白、改动Python编译、项目及本票链接/锚点/围栏检查通过。全量、PR进行中；真实模型/业务HTTP/页面E2E、CI通过及真人接受未完成。平台12/13与业务未知后取消修复仍各走原PR，不在本票混合。
