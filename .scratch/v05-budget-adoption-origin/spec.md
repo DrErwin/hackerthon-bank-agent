@@ -43,7 +43,7 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 |---|---|---|
 | 原 F10 API | 既有 request_id、interaction_id、selected_option_id；身份来自 Cookie/服务端 | 保留原请求身份，不先降成 choice 再丢信息。会话、同源、任务归属及当前交互仍按原检查；选项和 text 不能混用。预算候选选项转到平台专用后台方法 |
 | 平台专用方法（建议 resume_budget_input） | TrustedContext + 原 input_request_id / interaction_id / selected_option_id | 从应用任务结果重新读取并固定候选，持久化来源，再在同一任务锁内执行模块；不接受客户端/模型 supplied source、candidate_digest、plan_revision 或 actor |
-| 平台当前调用读取（建议 budget_input_origin） | 只接可信 context；不接来自 choice 的 origin_id | 仅在本次专用 F10/受控原请求恢复的调用范围内，读取并再次核对持久记录，返回不可变来源投影；普通 resume、模型续答、查询和别的任务返回无事实 |
+| 平台当前调用读取（建议 budget_input_origin） | 只接可信 context；不接来自 choice 的 origin_id | 仅在本次专用 F10/仍满足首次采用条件的原请求恢复中返回可供新采用核验的不可变来源投影；已发生采用的历史核实不激活该投影，普通 resume、模型续答、查询和别的任务也无新采用来源 |
 | cross06 | 当前调用来源投影 + 自己保存的原候选/交互/选项映射 | 同时核对真实来源、adopt 选项、计划及范围/用途/限额快照，生成稳定 adoption_attempt，再调用 #293；原 task revision 不能替代这一串核对 |
 
 预算候选识别使用现有 CrossTaskView 的 plan_revision / budget（adopted=false、budget_ref=null），加当前 input 交互及其选项。不能凭 prompt/label 包含“采用”推断。cross06 需按自己的已确认设计把该候选发布到应用任务结果；当前 data=null 或缺候选时不得生成预算采用来源，只能继续普通输入/澄清。平台不判定哪个选项代表 adopt；只有 cross 的原受控映射决定它。
@@ -71,9 +71,9 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 
 ## 3. 持久化与调用顺序（建议，不实施）
 
-1. API 沿原 mutation 锁/receipt 核对请求；平台仍必须自己重新核对会话、任务、waiting_input、原交互、选项及候选，消除 API 检查后任务已变化的窗口。
+1. API 沿原 mutation 锁/receipt 核对请求。首次接受新来源、以及尚未发生采用且尝试原写的恢复，平台仍必须自己重新核对会话、任务、waiting_input、原交互、选项及候选，消除 API 检查后任务已变化的窗口。**历史核实先单独分流**：已有稳定原 attempt / 完成事实的精确请求，先核对历史绑定并只读准确采用记录；不以当前必须 waiting_input 为前置，也不激活新采用来源。现有 Harness 异常会存 needs_attention / interaction=None，因此这不是普通 entry.resume 的重试捷径。
 2. 在既有 Harness 任务锁内，按 accepted_task_revision 调用 ApplicationStore.update_task 的 CAS 持久保存 accepted 来源，保留原 snapshot 其他字段；同次写入把 dispatch_task_revision 固定为 accepted_task_revision+1（现有 update_task 的递增语义），不能为了记写后版本再写一次造成追版本循环。来源写入失败时不调用模块、不建立 adoption_attempt。
-3. 只在该专用方法的当前执行范围设置内部来源句柄，读取时核对持久记录/当前主体/当前任务/版本/候选；调用结束或异常必须清除当前句柄。不可由普通 resume 根据 snapshot 中“有一条来源”自动激活，也不可把 origin_id 放进模型可控 response 再当凭据。
+3. 只在该专用方法通过首次/仍可原写校验的当前执行范围设置内部来源句柄，读取时核对持久记录/当前主体/当前任务/版本/候选；调用结束或异常必须清除当前句柄。历史核实入口只把原 attempt 的历史关联交给 cross 的只读恢复分支，不借此提供新采用来源。不可由普通 resume 根据 snapshot 中“有一条来源”自动激活，也不可把 origin_id 放进模型可控 response 再当凭据。
 4. cross06 自己比较原采用映射、plan_revision 和完整候选；采用前先保存稳定 adoption_attempt，其中关联 origin_id 和 dispatch_task_revision（也是当时调用 #293 的 expected_task_revision）。同一个 attempt 的时间、预算编号、版本及 expected_task_revision 永不在重试中改写。
 5. 模块结果发布时，Harness 在同一次 update_task CAS 中保存 result 和该来源的 completed/completion 投影。不得用旧 snapshot 覆盖刚写的来源；异常路径也保留已写入来源和 checkpoint。预算已落库但结果未发布由 cross attempt 核实，不新建采用。
 6. API 完成原 receipt。UI/SSE 失败不撤销已发生的采用，也不能触发新版本。完成 receipt 存在时按原 receipt 返回；缺 receipt 的恢复按下一节处理。completion 的冻结 ModuleResult 含原 run_id，另保存原结果 task_revision；API 用它与原已核对链接构建原 TaskView，而非取当前 snapshot 新计划充当原结果。
@@ -89,13 +89,15 @@ Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银
 | 同交互用另一个请求 ID 再答 | 已有 accepted 归属时不得创建第二来源；completed 只认原完成事实，不能当新采用。可以返回原事实或当前卡片，不重写采用 |
 | accepted 已持久、尚未保存 attempt | 仅原请求的受控 F10 恢复可重新核对原完整候选；一致且原会话仍有效才继续。没有候选/版本已变则失效、回新交互 |
 | attempt 已存、预算未存 | 只在原会话/原来源/原 attempt 和原 dispatch_task_revision 仍有效时尝试原写；版本已变不得取最新 revision 重填重试 |
-| 预算已存、结果/receipt 未存 | cross 只核实原 attempt 对应准确记录、补发原结果；不得靠“accepted”重复新建预算。superseded 保留历史，不激活旧版 |
+| 预算已存、结果/receipt 未存 | 专用历史核实分支按原请求/来源/attempt 精确关联，只读核实准确记录并补原结果；不要求当前仍 waiting_input（异常可能已存 needs_attention / interaction=None），不激活来源、不新写采用。若准确记录不存在且任务版本/交互已变，回新交互，不能换 revision 继续写。superseded 保留历史，不激活旧版；取消/终态仅显示既有事实，不继续新步骤 |
 | completed 结果已存、API receipt 丢失 | 平台只返回完成投影、不再调用模块；API 重建首次受理结果并缓存（不存在首次已完成 HTTP 响应时不得借此返回当前新计划作为原结果） |
 | 普通 resume / 模型 provide_input / 伪造 source 或 origin_id | 没有本次可信来源，不能采用。旧 accepted 记录不能被这些路径借用；失败后不得刷新来源/版本再写 |
 | modify/重新规划/另一输入使候选或交互变化 | 未消费来源 invalidated，新候选必须重新 F10；completed 历史只读 |
 | 取消、终态、旧会话过期/切换、轮次重置 | 不能以旧来源进行新采用；已发生的采用事实按原记录查询，旧来源不随会话恢复获得新授权 |
 
 当前 API receipt 的 in-progress 默认会拒绝重放，因此 API 票须为上述 **已有持久来源的原预算请求** 加严格的恢复分支；不能给所有 F10 开 retry_interrupted=True。首次 receipt 已声明但没有来源时，缺乏可复用接受事实，保持受阻/新交互，不自动把未完成请求升格为授权。
+
+API 当前 current_input_task 也会拒绝 interaction=None，所以历史恢复必须在该普通“当前输入”校验之前，依据原 receipt/来源/attempt 的后台记录分流；没有这些证据仍走原拒绝。平台票提供只读历史核实接缝，cross06 负责识别自己的稳定 attempt 与准确 AdoptedBudget、复原原业务结果。新来源采用分支与历史结果核实分支不得共享“可以继续写”的状态。
 
 复用旧 receipt 的读路径也要再次检查原来源 user/session/round/task 绑定与现有访问规则。API receipt 的键不含 session，不得仅因命中同 user/round/request 就将旧会话未消费的采用当成新会话输入。这里不改变其他 F10、消息、银行未知操作和资金确认协议。
 
