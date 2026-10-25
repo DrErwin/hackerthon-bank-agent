@@ -30,11 +30,11 @@ Core scenarios: XL-B07；回归 XL-B01/B03/B05/B06、XL-X02—X05，见[共享�
 
 ## Blocked by
 
-- [v05-adopted-budget-storage/01：已采用预算持久化与改版](https://github.com/DrErwin/hackerthon-bank-agent/blob/codex/v05-adopted-budget-storage/.scratch/v05-adopted-budget-storage/issues/01-adoption-records.md)，
+- [v05-adopted-budget-storage/01：已采用预算持久化与改版](https://github.com/DrErwin/hackerthon-bank-agent/blob/d0ae73ee3f46a21595311dc236e744b241132652/.scratch/v05-adopted-budget-storage/issues/01-adoption-records.md)，
   [PR #293](https://github.com/DrErwin/hackerthon-bank-agent/pull/293)：接口已读，须验证完成并合入。
 - [v05-cross-business/05：受控配送与真实事实](05-birthday-delivery-and-structured-facts.md)，
   [PR #288](https://github.com/DrErwin/hackerthon-bank-agent/pull/288)：同目录顺序实施，不能覆盖未合交付。
-- [v05-cross-platform/12：未知响应装配与原 claim 观察](https://github.com/DrErwin/hackerthon-bank-agent/blob/codex/v05-platform12-birthday-response-loss/.scratch/v05-cross-platform/issues/12-birthday-response-loss-assembly.md)，
+- [v05-cross-platform/12：未知响应装配与原 claim 观察](https://github.com/DrErwin/hackerthon-bank-agent/blob/18a3f39bf137f26909b2bd1451a76f6958cd1920/.scratch/v05-cross-platform/issues/12-birthday-response-loss-assembly.md)，
   [PR #289](https://github.com/DrErwin/hackerthon-bank-agent/pull/289)：未知核实后才能验证完整释放。
 - 新发现的平台输入前置，尚未建票（中控分派）：真实 F10 采用必须有后台可信来源/原交互证明；
   当前用户 `/inputs` 与模型 provide_input 给 cross 的 choice 相同，单凭 option_id/任务版本不能证明真实采用。
@@ -70,7 +70,8 @@ Core scenarios: XL-B07；回归 XL-B01/B03/B05/B06、XL-X02—X05，见[共享�
 
 ## Delivery record
 
-- 设计：本票、规格、测试框架已起草，待子代理最终审查；未实施。
+- 设计：本票、规格、24组测试框架完成；双轴子代理设计审查通过，Spec初轮两项必须项已修并复审；未实施。
+  详见[设计审查记录](../budget-design-review.md)。
 - 本票代码/测试/真实模型/HTTP/页面 E2E：均未运行。
 - 本轮未改 storage/API/platform、安全规则、共享跟踪、completion 或包总状态；未创建 GitHub Issue。
 - AI 设计审查不替代 Erwin/Ringo 真人安全批准或 PM 验收。
