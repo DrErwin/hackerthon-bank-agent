@@ -165,3 +165,12 @@ SEC-T-003/004/005原话术及MAT-FRAUD-01各3轮，实际检测/终止专项12 P
 
 - gzip sha256: `e12ddeb13249455aa6d85f96d843288a44c375dc8b205137742e3cf744669eac`；解压 sha256: `d5d083b55061b19398ba86ef14e6047039f93f943758f7fe9e25ed39c3ef0dea`；解压字节数: 5666；code_revision: `7932eb4458797fec8e7559670d146dde19a6aebc`。
 - 判定口径：J01 提示含预置记忆（命中项+哈希，不落全量提示）/ J02 回复复述（关键词，AI 代行初判非真人签核）/ J03 无密钥凭据 / J04 真实调用数=1。
+
+## 2026-10-25 联动安全局部专项
+
+| 日期 | 入口 | 范围 | 状态分布 | 断言 | 报告文件（解压SHA256） |
+|---|---|---|---|---|---|
+| 2026-10-25 | 联动后端专项（无模型） | v05-cross-security/02 批次A，12组/34测试节点 | 局部34 Passed / 0 Failed；8项完整路径7 Blocked / 1 NotRun，整体BLOCKED | pytest未逐断言插桩，断言数未统计；34节点全部通过 | [批次A](evidence/2026-10-25/2026-10-25-offline-cross-special-batch-a.json.gz)（bcb43bcc57ecc9ab05dd7b6ade9cd232cdfeedb84f3cbe4b0e2dc1c267fb6e62） |
+| 2026-10-25 | 联动后端专项（无模型） | v05-cross-security/02 批次B，12组/34测试节点 | 局部34 Passed / 0 Failed；8项完整路径7 Blocked / 1 NotRun，整体BLOCKED | pytest未逐断言插桩，断言数未统计；34节点全部通过 | [批次B](evidence/2026-10-25/2026-10-25-offline-cross-special-batch-b.json.gz)（6ddd62c5aef3aca4f1ad80fb201e346327c834e834a90f32f370b04da69162af） |
+
+批次A在归属探针加强之前，批次B在确认answer与原记录不变断言加强后；报告源指纹分别保存。真实模型NOT_RUN、页面BLOCKED、Erwin本人安全审阅/PM接受UNVERIFIED。CS-01—12是后端准备与分层回归，不外推为三主线安全专项通过。固定风险和scripted部分见[cross-special说明](cross-special/README.md)。首次系统Python缺依赖收集失败，以及新探针首轮6通过/1测试断言失败，原因和调整已保留于该说明；没有改产品代码。

@@ -34,7 +34,7 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 
 ## Blocked by
 
-- [v05-cross-platform/09：生日工具、权限与演示装配](../../v05-cross-platform/issues/09-birthday-runtime-wiring.md)
+- [v05-cross-platform/09：生日工具、权限与演示装配](../../v05-cross-platform/issues/09-birthday-runtime-wiring.md)（已合入PR #279；未知故障装配仍是其已记录遗留）
 - [v05-cross-frontend/02：商品、配送和资金收尾页面](../../v05-cross-frontend/issues/02-birthday-ui.md)
 
 ## Start when
@@ -87,8 +87,8 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现：后端准备、可运行专项与分层计划已实现；PR待提交，未合入。完整真实专项仍blocked。
+- 本票验证：后端局部批次A/B各34 passed，真实模型未运行，页面/完整专项blocked；证据见下方及运行台账。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
@@ -110,7 +110,15 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 
 ### 局部批次 A（审查前）
 
-- [报告](../../../evals/security/evidence/2026-10-25-cross-special/batch-a.json)：34 passed、0 failed、0 collection errors；12个可运行检查组通过；真实模型NOT_RUN、页面BLOCKED、真人审阅UNVERIFIED，overall BLOCKED。报告受测基线为a1e8889及其source fingerprint；不等于34个完整业务场景。
+- [报告](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cross-special-batch-a.json.gz)：34 passed、0 failed、0 collection errors；12个可运行检查组通过；真实模型NOT_RUN、页面BLOCKED、真人审阅UNVERIFIED，overall BLOCKED。报告受测基线为a1e8889及其source fingerprint；不等于34个完整业务场景。
 - 新探针实际银行证据：冻结后取消，bank_operations 1→2、freezes 1→1、orders/order_payments均0，冻结余额50000→0分，冻结记录释放50000/核销0；终态后普通恢复未再写。
 - 系统Python缺依赖的收集失败与首轮6通过/1测试断言失败保留于cross-special README。后者实际程序明确拒绝CONFIRMATION_REQUIRED，测试改为断言该拒绝及零银行变化，产品代码未改。
 - 批次A之后加强四归属探针为真实确认answer尝试，并核对原可信确认未变化；后续批次另存，不覆盖A。
+
+### 独立审查与批次B
+
+- Standards子代理发现报告归档格式与台账缺失，已将A/B原JSON不改内容按日期gzip归档并登记run-log；解压SHA256已复核。
+- Spec子代理发现Delivery record历史占位与实际运行冲突，已明确局部实现/后端证据/完整专项阻塞分别记录。
+- [批次B](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cross-special-batch-b.json.gz)：加强为真实confirmation answer尝试后，34 passed/0 failed，12检查组通过；8项完整实接7 Blocked/1 NotRun，overall BLOCKED。未逐断言插桩，不将34节点等同于34条断言。
+
+- 两轴子代理最终复验均通过：归档/台账与票面事实一致性已修复，无剩余必须项。进一步在报告记录实际Python/依赖版本、独立数据库和端口方式，供复现核对。

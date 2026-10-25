@@ -10,6 +10,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 import hashlib
 import io
+from importlib.metadata import version
 import json
 from pathlib import Path
 import subprocess
@@ -92,6 +93,15 @@ def main():
         "ticket": plan["ticket"], "started_at_utc": started,
         "base_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "source_fingerprint_sha256": fingerprint.hexdigest(),
+        "environment": {
+            "python": sys.version.split()[0],
+            "packages": {name: version(name) for name in (
+                "pytest", "fastapi", "pydantic", "deepagents", "langgraph",
+                "langchain-openai", "uvicorn",
+            )},
+            "databases": "isolated pytest temporary directories",
+            "http_ports": "127.0.0.1 ephemeral, owned by each HTTP fixture",
+        },
         "pytest_exit_code": code, "test_totals": dict(Counter(r["outcome"] for r in tests)),
         "collection_errors": recorder.collection_errors,
         "overall": "FAILED" if code or any(c["status"] == "FAILED" for c in cases) else "BLOCKED",
