@@ -180,6 +180,7 @@ Cross08的727045d §7已认可原operation承担attempt身份；step_id复用须
 | [03 原任务编辑交接](issues/03-platform-edit-handoff.md) | agent_platform | 01 + 02 + 05 + G3；与PR298同Harness改动按中控安排顺序。可用明确stand-in自验，真实Cross由08消费 |
 | [04 F10接入](issues/04-api-edit-entry.md) | api | 03 + G1；不代做预算来源API02，也不将其未合当成商品编辑的业务依赖，具体同文件顺序交中控 |
 | [05 候选不可变封存](issues/05-immutable-edit-checkpoint.md) | storage | 同一窄能力封存G3初始无前驱根、普通输入/事实/异常后继及编辑候选；与03/08先约定ref/可信转换绑定，交付后03方可验证单胜者/发布。无需等03/08代码先完成 |
+| [06 银行验证侧挑战退役](issues/06-verification-retirement-authority.md) | services | 2026-10-26 核对 G2-B 后新增（[胜序设计](verification-authority.md)）；银行库单一权威判定「撤离先于失败」，任务级扫描忽略已退役挑战、拒绝对已退役尝试再建挑战。02 消费本票，06 先于 02 交付 |
 
 原01—04及新增05全部planned/blocked，实施还需中控明确授权；03的真实前置补05。G1/G2-A/B/C/G3不闭合不能把确认或验证等待态编辑标完成。若本人选首批收窄，验证码/验证等待仍blocked，原完整需求不删；本稿不激活任何票。
 Cross08的数量/安全节点局部可在01接口稳定且实施获授权后推进；整票仍需02→03→04接入与原等待态组合验证；个人预算路径另等原cross06及其既有依赖。

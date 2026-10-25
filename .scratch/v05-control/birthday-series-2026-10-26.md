@@ -23,6 +23,7 @@ Execution: Erwin 授权的执行对话（本对话，AI 代理），2026-10-26�
 | [v05-birthday-platform-dependencies/01 数量/稳定项/展示](../../v05-birthday-platform-dependencies/issues/01-quantity-item-binding.md) | `backend/app/agent_platform/` | 2026-10-26 | in_progress | 本对话首个实施票 |
 | [v05-birthday-platform-dependencies/05 候选不可变封存](../../v05-birthday-platform-dependencies/issues/05-immutable-edit-checkpoint.md) | `backend/app/storage/` | 2026-10-26 | in_progress | 与 01 并行（不同目录） |
 | [v05-birthday-platform-dependencies/02 安全原子撤离](../../v05-birthday-platform-dependencies/issues/02-security-retire-unsubmitted.md) | `backend/app/security/` | 2026-10-26 | claimed | G2-A/B/C 已由本人裁定；另需核对 G2-B 跨库权威胜序 |
+| [v05-birthday-platform-dependencies/06 银行验证侧挑战退役](../../v05-birthday-platform-dependencies/issues/06-verification-retirement-authority.md) | `backend/app/services/` | 2026-10-26 | claimed / blocked | 2026-10-26 核对 G2-B 后新增；见[胜序设计](../../v05-birthday-platform-dependencies/verification-authority.md)；先于 02 交付 |
 | [v05-birthday-platform-dependencies/03 平台编辑交接](../../v05-birthday-platform-dependencies/issues/03-platform-edit-handoff.md) | `backend/app/agent_platform/` | 2026-10-26 | claimed / blocked | 依赖 01+02+05；同目录待 01 完成后开工 |
 | [v05-birthday-platform-dependencies/04 F10 受控入口](../../v05-birthday-platform-dependencies/issues/04-api-edit-entry.md) | `backend/app/api/` | 2026-10-26 | claimed / blocked | 依赖 03 与 G1 契约确认 |
 | [v05-cross-business/08 数量与未执行调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md) | `backend/app/modules/cross/` | 2026-10-26 | claimed / blocked | 依赖 01 接口 + 02/03；个人预算路径另循 06 |
@@ -42,9 +43,9 @@ Execution: Erwin 授权的执行对话（本对话，AI 代理），2026-10-26�
 
 1. 平台 01（`agent_platform`）—— 本对话持有；同目录的后继 03 必须等 01 交付后才开工。
 2. 存储 05（`storage`）—— 与 01 并行，独立分支/worktree。
-3. 安全 02（`security`）—— 01/05 之后开始，独立分支/worktree；先核对 G2-B 跨库权威胜序。
-4. 若核实必须改 `services`（银行 verification 同任务失败/到期扫描）：沿本系列**新增最小单目录票**并顺序交付，
-   不让 02 越界，也不静默收窄成「只支持确认态」。发现新的**业务选择**才回问本人。
+3. 银行验证 06（`services`）—— 2026-10-26 核对后新增：G2-B 的「撤离先于失败」只能由银行库单一权威判定，
+   见[胜序设计](../../v05-birthday-platform-dependencies/verification-authority.md)；先于 02 交付。
+4. 安全 02（`security`）—— 06 之后开始，独立分支/worktree；消费 06 的退役事实，不跨目录改银行。
 5. 平台 03（`agent_platform`）—— 等 01 交付并释放目录后开工。
 6. API 04（`api`）—— 等 03 与 G1。
 7. Cross 08（`cross`）—— 等 01 的接口稳定（可先在 01 接口定型后设计，代码等 02/03）。
