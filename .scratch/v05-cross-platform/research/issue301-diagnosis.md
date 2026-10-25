@@ -38,6 +38,8 @@ Harness按该候选查registry，以原intent_text构造StartTransferInput，未
 
 两份JSONL及模型源码哈希见[manifest](../evidence/issue301/manifest.json)。原失败批次、修前失败和修后小样分开保存；不修改原评测期望或源证据。
 
+归档格式补核：初次本地提交bd40c96的JSONL使用Windows CRLF，整段git diff --check将其判为空白错误。现统一为UTF-8/LF并重算manifest，逐条解码JSON与原提交比较完全相同；原CRLF字节仍在bd40c96 Git对象中，原始PR300材料未改。探针固定LF输出；这不是重跑或改变观察值，model.py仍为上述同一哈希。
+
 ## 仍未证明
 
 本票证明了局部指令边界、实际派发归因及一次13样本真实路由结果，不是完整减支办理、真实HTTP/React页面、S02—S05、安全专业签核或PM体验接受。平台PR合入后由原E2E对话以新批次重跑S01；Issue301及E2E的最终关闭由中控按新证据判断。本票不自行合并或继承其他PR的CI例外。
