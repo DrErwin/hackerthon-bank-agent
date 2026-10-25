@@ -18,9 +18,9 @@
 
 `BillsAnomalyEntry` 使用现有 entry 协议，平台每次恢复创建新对象也可从 scoped checkpointer 接续，不依赖进程内候选缓存。
 
-- 只解析原始 `intent_text` / `request_id`。当前 Harness 的 `StartTransferInput.amount_fen`、收款人、账户字段均不成为账单事实或选择结果。
+- 聊天信封只解析原始 `intent_text` / `request_id`；工厂另接收 `DetectAnomaliesInput` 并按冻结模式原样交服务，locate 返回候选集。当前 Harness 的 `StartTransferInput.amount_fen`、收款人、账户字段均不成为账单事实或选择结果。
 - 缺少模式、月份或本人账户时逐项询问；单个本人账户也不替用户默认选择。明确“所有账户”才枚举全部本人账户。
-- 明确单月支持 `YYYY年M月`、`YYYY-MM`、本月/上月；周期扫描可明确选择“最近三个完整月份”。半月、单日、第二月份、模糊区间、年度等尚未支持的聊天约束先询问完整月份，不在询问前读取银行；任意结构化范围可通过 typed 服务使用。
+- 明确单月支持 `YYYY年M月`、`YYYY-MM`、本月/上月；周期扫描可明确选择“最近三个完整月份”。半月、单日、第二月份、模糊区间、年度等尚未支持的聊天约束先询问完整月份，不在询问前读取银行；任意结构化范围可通过 typed 服务或注册工厂使用。
 - 数值线索按整数分精确解析；多个金额、排除/大小关系、千位分隔或超过两位小数等不擅自取其中一部分。商户和渠道只接受带字段名的明确引号内容，字面值不当作金额或类别指令。无法精确解释时先由用户选择是否列出原范围流水。
 - 没有可用线索时，内部 `candidates(scope, clues=None)` 直接列出完整范围的银行流水，不伪造违反冻结模型的空 `TransactionClues`。
 - 一个候选可在原任务继续 single；多个候选返回 `waiting_input` 和真实 `TransactionCandidates`。随机 F10 option ID 仅映射至检查点中的 `(account_id, transaction_id)`，不能用前端金额、编号或“已验证”字段覆盖。选中后重新读取原范围，再读取该笔前三个月基线；保存过的展示数据不作为新事实。

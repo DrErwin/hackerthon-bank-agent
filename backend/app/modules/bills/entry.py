@@ -1,7 +1,7 @@
 """L01 task entry using the platform's scoped checkpointer and F10 option replies.
 
-The current harness supplies StartTransferInput even for a second module. Only
-intent_text/request_id are used here; transfer amounts/payees never become facts.
+Chat starts use StartTransferInput; registered callers may use the declared
+bills input model. Transfer amounts/payees never become bill facts.
 No new API, authentication state, or bank rule is defined in this module.
 """
 from __future__ import annotations
@@ -14,7 +14,9 @@ import re
 from typing import Callable
 from uuid import uuid4
 
-from app.contracts.bills import BillReport, BillScope, BillSummarizeInput
+from app.contracts.bills import (
+    BillDetails, BillReport, BillScope, BillSummarizeInput, GenerateReportInput, SpendingSummary,
+)
 from pydantic import ValidationError
 from app.contracts.common import Category, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
@@ -174,6 +176,10 @@ class BillsEntry:
                 result = result.model_copy(update={"data": BillReport.model_validate(result.data)})
             except (ValidationError, ValueError, TypeError):
                 return fail(context, BillsError("BILLS_RESULT_INVALID"))
+        if state.get("typed_request") is not None and result.status == TaskStatus.SUCCEEDED:
+            model = (BillReport if self.capability_name == "bills.generate_report" else
+                     BillDetails if state["typed_request"]["mode"] == "details" else SpendingSummary)
+            result = result.model_copy(update={"data": model.model_validate(result.data)})
         return result.model_copy(update={"run_id": context.run_id})
 
     def _wait(self, context, state, prompt, choices, reason):
@@ -190,6 +196,15 @@ class BillsEntry:
             recovery_required=False, recovery_reason=None)
 
     def _advance(self, context, state):
+        if state.get("typed_request") is not None:
+            request = state["typed_request"]
+            result = (self.service.generate_report(context, request)
+                      if self.capability_name == "bills.generate_report"
+                      else self.service.summarize(context, request))
+            if result.error and result.error.code in {"DEPENDENCY_UNAVAILABLE", "INCOMPLETE_FACTS"}:
+                return self._wait(context, state, result.message + "没有把失败当成零元账单。",
+                                  [("重新查询原范围", {"retry": True})], "retry")
+            return result
         if state["period"] is None:
             now = self.service.clock().astimezone(BEIJING)
             choices = []
@@ -254,19 +269,33 @@ class BillsEntry:
                               [("重新查询原范围", {"retry": True})], "retry")
         return result
 
-    def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None,
+    def start(self, trusted: TrustedContext, request: StartTransferInput | BillSummarizeInput | GenerateReportInput, *, thread_id=None,
               inherited_scope: BillScope | None = None) -> ModuleResult:
-        if not isinstance(request, StartTransferInput) or _SECRET.search(request.intent_text):
+        typed_model = (GenerateReportInput if self.capability_name == "bills.generate_report"
+                       else BillSummarizeInput)
+        if not isinstance(request, (StartTransferInput, typed_model)):
+            return fail(trusted, BillsError("INVALID_ARGUMENT"))
+        typed = isinstance(request, typed_model)
+        if not typed and _SECRET.search(request.intent_text):
             return fail(trusted, BillsError("INVALID_ARGUMENT"))
         saved, state = self._load(trusted, thread_id)
-        digest = sha256(request.intent_text.encode("utf-8")).hexdigest()
+        content = (typed_model.__name__ + request.model_dump_json() if typed else request.intent_text)
+        digest = sha256(content.encode("utf-8")).hexdigest()
+        request_id = None if typed else str(request.request_id)
         if state is not None:
             if state["session_id"] != trusted.session_id:
                 raise PermissionError("ACCESS_DENIED")
-            if state["request_id"] != str(request.request_id) or state["intent_digest"] != digest:
+            if state["request_id"] != request_id or state["intent_digest"] != digest:
                 raise ValueError("REQUEST_CONFLICT")
             if "result" in state:
                 return self._result(trusted, state)
+        elif typed:
+            state = {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
+                "request_id": request_id, "intent_digest": digest,
+                "typed_request": request.model_dump(mode="json"),
+                "period": (request.scope.start_at.isoformat(), request.scope.end_at.isoformat()),
+                "account_ids": list(request.scope.account_ids), "choices": {}, "wait_reason": None}
+            self._save(trusted, thread_id, state)
         else:
             # Persist only parsed constraints, not raw user text or model-produced bank facts.
             categories = [code.value for word, code in _CATEGORIES.items() if word in request.intent_text]

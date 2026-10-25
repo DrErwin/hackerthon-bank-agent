@@ -81,3 +81,13 @@ python -m pytest -q app/modules/bills/
 ## #136 票09：模块防重独立回归
 
 `test_module_start_replay_returns_saved_result_without_reads_or_checkpoints` 绕开 Harness，直接重建 `BillsEntry` 并重放同一请求，分别验证成功结果和账户选择等待结果：不重复读取银行、不新增 checkpoint，并仅将回执 `run_id` 更新为当前运行。删除 `BillsEntry.start` 内的已保存结果防重分支时，两项用例均须失败。`test_harness_replay_does_not_duplicate_bank_reads` 只声明平台层防重覆盖，不能替代上述模块用例。对应 [v04-ethan-bills-backend/09：模块防重用例补真实覆盖](../../../../.scratch/v04-ethan-bills-backend/issues/09-module-dedup-test-coverage.md)，来源 [Issue #136](https://github.com/DrErwin/hackerthon-bank-agent/issues/136)。
+
+## v0.5 类型化工厂入口
+
+实施票：[v05-bills-cross-input/01：账单公开工厂接收类型化输入](../../../../.scratch/v05-bills-cross-input/issues/01-typed-input.md)。三个注册工厂同时保留旧聊天信封，并分别接收 manifest 已声明的 `BillSummarizeInput`、`DetectAnomaliesInput`、`GenerateReportInput`。类型化调用直接保留完整 scope、comparison_scope、mode、category、clues、transaction ID 和 purpose，交原服务处理；不从这些字段推断身份、银行事实或权限。
+
+类型化 locate 按服务契约返回全部真实 `TransactionCandidates`，由调用者决定后续核对对象；single 按既有受控读取重新取得原交易，scan 只作周期扣款提示。普通聊天继续原有候选选择流程。结构化参数不经过聊天月份解析，也不被 inherited_scope 改写。
+
+类型化请求按任务内完整参数摘要防重，变更同一任务的输入返回 REQUEST_CONFLICT；重放返回原结果和原报告编号。临时取数失败可在原任务重试；跨会话仍先校验原身份，再由用户选择继续原范围并重新过读取权限。三入口都只读银行；报告分享目的不授予导出或分享权限。未提供额外认证、银行规则、API 或安全白名单。
+
+`test_typed_entry.py` 在公开工厂及真实 Harness.dispatch_child、SecurityGate、SQLite、BankGateway、种子银行接缝覆盖类型化正常/拒绝路径，规划器和 LOW 风险策略是明确替身；结果不代表真实模型、HTTP、页面 E2E 或真人接受。
