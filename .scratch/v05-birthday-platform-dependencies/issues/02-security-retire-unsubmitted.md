@@ -81,4 +81,8 @@ Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spe
   5. `birthday_release` 指针回写本体在 `agent_platform`，本票未跨目录改；迟到 grant 已被安全侧原子挡住，但 03 仍须在 `update_task` 前做原 attempt/CAS 比较。
   6. begin 只收 context/action（`ExecutionSecurityContext` 没有编辑 request 字段），原编辑 request 关联由 03 映射，未造新公共模型。
 - **未做**：03 平台编排、06 银行侧改动、真实跨库联合/E2E、全量后端/CI、独立安全审查与本人接受。
-- 两轴独立子代理审查（AI，非本人/Ringo 签核）：**进行中**，必须项闭合后再提交 PR。
+- 两轴独立子代理审查（AI，非本人/Ringo 签核）：
+  - **规范轴 PASS**，3 项合入前必须修（提交信息补本票号、rebase、补变更说明到 `security/README.md`）+ 5 条代码建议（审计外壳 run_id、store 守卫 revision 口径、终止判断错误优先级、SENSITIVE 前提说明等）。
+  - **规格轴 FAIL**，4 项必须修：**M1** `claim_execution` 对 `pending_proof` 也拒绝，与[权威 §2](../verification-authority.md)「任一步失败时旧动作仍按原规则处置（可被 claim 就照常执行）」冲突——会永久废掉已批准付款；**M2** begin/seal 未消费平台任务状态判定；**M3** seal 未比对 session；**M4** 旧确认重发/迟到批准/gate 重发未查撤离、可能先产出 `approved`/`ALLOW` 假象。
+- **M1 的处置（本对话决定并记录）**：**改代码对齐权威，不改权威、不改本人已裁定的语义**——`pending_proof` 期间的旧动作仍可按原规则被领取；领取发生即把该受理记录转为不可再封存，保证之后签发不出编辑依据。这是把实现修回设计，不是新的业务选择，不新增用户可见承诺。
+- 回修完成后需重跑 `app/security`、生日装配/Cross 生日与相关 API 用例，再两轴复验。
