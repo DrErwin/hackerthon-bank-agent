@@ -10,7 +10,7 @@ MANIFEST = ModuleManifest(
     owner="Erwin",
     description=(
         "S01 代扣盘点与 30 天续费提醒（B29 签约 + B08 扣款证据 + 契约 §5.9 疑似线索）；"
-        "S02 单笔本行签约代扣解约（确认门 + 会话级基础身份验证，逐笔、不可批量）"
+        "S02 单笔本行签约代扣解约 / 明确停止未来扣费（确认门 + 会话级基础身份验证，逐笔、不可批量）"
     ),
     implementation_kind="workflow",
     capabilities=[
