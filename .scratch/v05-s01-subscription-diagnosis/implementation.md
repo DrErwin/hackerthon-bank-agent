@@ -1,6 +1,6 @@
 # Issue #302 实施证据
 
-当前开发验证：132项通过；双轴最终复核与PR/CI结果待下文补充。
+当前开发验证：132项通过；双轴最终复核均PASS；PR/CI结果待下文补充。
 
 2026-10-25；票 [v05-s01-subscription-diagnosis/01：明确单项停止扣费不得静默降级为盘点](issues/01-untyped-action-clarification.md)；[规格](spec.md)。
 
@@ -52,3 +52,7 @@ D:/hackerthon-bank-agent/backend/.venv/Scripts/python.exe -m pytest -q app/modul
 固定 `a57e01ac9ce319b7c86dd17ff43f7c425cd7b17e`：此前剩余项闭合；Standards 指出收窄后果后缀使普通后果询问回归，Spec 指出时间/日期询问遗漏，各1项必须。六个公开工厂对照先 **6 failed / 27 passed in 3.61s**；按疑问词前后位置及“告诉/告知我”读请求类别修正，没有商户或整句特判。
 
 随后 rebase 到最新 main **1b3afec5336e5906f87259c7b1c903823cc574e1**（预算storage #293、API #299；未改subscription/agent_platform），再次运行同一定向命令：**132 passed in 21.24s**。当前XML为132例、0失败/错误/跳过；新Fake公开工厂55项、新真实Harness/隔离MockBank6项、既有71项。此前“最终”数字仅对应当轮，当前交付只以本段和当前XML为准。实际E2E未执行，方案已形成，开发回交后停止。
+
+## 最终独立复核
+
+Standards 与 Spec 均对固定 `1b3afec...baaa3af` 给出PASS，未处理必须项分别0；另各自独立复核12条和11条Fake公开工厂对照、取消提前调用均0。完整原话报告见[review.md](review.md)。独立AI审查与本地测试不等同负责人合入批准、CI绿或真实S01接受。
