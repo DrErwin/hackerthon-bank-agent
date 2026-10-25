@@ -64,3 +64,9 @@ Verification: 真实 ports / 确认 / 双因子 / 执行器 / 银行，临时SQL
 - 交付：[PR #296](https://github.com/DrErwin/hackerthon-bank-agent/pull/296)，base=`codex/v05-platform12-birthday-response-loss`，Draft。前序289合入后须按squash规则只保留本票提交再更新main。代码提交 `4a414ac`；后续仅回填审查/验证证据。未自行合并。
 - CI：head `ac31e2e` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40171713488/job/121103742255) 结论failure，注解明确账户付款/spending limit使job未启动，无测试执行证据；不代批例外。后续仅文档回填按路径过滤不主动触发/等待新CI。
 - 可解锁：评测/联调线在组合289+本票后，复验PR294内部旧订单付款反例应被拒绝。原归因报告/历史失败事实保持，不在本票改evals或声称普通页面注入曾可达；整体跨轮次/B26重置、页面、专业安全及PM接受仍分别验收。
+
+## 2026-10-25 前序合入后的依赖整理
+
+- 核对PR289已squash合入主线：`31e9f2743028e25503ab5894d6af9f72856b1ea8`。以保存的旧基线 `18a3f39` 为边界，只将本票三条提交接到该main；range-diff逐一相同，无语义改动，沿用原双轴审查。差异仅本票及两个agent_platform文件，没有重复带入平台12。
+- 整理后代码/证据提交为 `1efa9e9 / 9b8cafb / af6c2f3`；当前组合定向复验13 passed in 40.16s。未新增全量，原1599项保留原组合基线，不冒充此次新全量。
+- 更新原PR296到main，不新建PR；本票未获首批合入或计费例外授权，仍交中控审阅、不自行合并。此前“依赖289未合入”的记录保留为历史。
