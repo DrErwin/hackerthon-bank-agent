@@ -7,6 +7,7 @@
 
 | 日期 | 交付 | 提交 / 证据 | 边界与未做 |
 |---|---|---|---|
+| 10-25 | Erwin批准第二批五项及本批CI计费例外；生日平台依赖规划回交 | [第二批批准记录](../../../.scratch/v05-control/merge-batch-02.md)；平台本地f481f4b、[规格/四票](../../../.scratch/v05-birthday-platform-dependencies/spec.md)及双轴复审0必须项 | 五项按顺序同步核对中，批准不代记合入；平台四票仅规划，G1契约/G2本人安全/G3跨模块接口待收口，未实施或运行测试 |
 | 10-25 | 生日数量与未执行调整缺口核查及business/08拆票 | 源提交1d7f1fa；[缺口/最小规格](../../../.scratch/v05-cross-business/birthday-quantity-gap.md)、[08计划票](../../../.scratch/v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)、[独立审查](../../../.scratch/v05-cross-business/birthday-quantity-design-review.md)；两项规格必须项已修订，两轴复审清零 | 仅静态核查与Q01—Q10框架，未运行复现/测试/模型，未实施；平台提供方核查/拆票已续派，确认失效/执行项身份及06预算前置未闭合，页面与E2E未完成 |
 | 10-25 | 第二批五项同版本定向核对完成 | main608255f + #298/#284/#292/#295/#297，受测0aed529、材料37fb62f；156唯一节点通过、双轴0必须项；[合入材料](../../../.scratch/v05-control/merge-batch-02.md) | 待Erwin本批合入/CI例外批准，尚未合入；养老金资金仍暂停，API02/真实模型/页面E2E未完成 |
 | 10-25 | 五项支撑组合与只读合入材料回交 | 本地664c88b：#293/#296/#298/#294/#291同树160通过、两轴0必须项；只读材料078d89c、293补充1aca3ae分别经两轴复核，中控核对现有XML/哈希及293历史工具摘录 | 不是整版全量或预算真实接线；293原1607仅有历史工具输出、无当批独立JUnit/日志，v6回退限制待后续裁定；银行四xfail/B26和最终接受保留 |
