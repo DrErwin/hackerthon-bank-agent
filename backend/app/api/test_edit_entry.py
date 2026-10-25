@@ -29,13 +29,13 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 from fastapi.testclient import TestClient
 import pytest
 
 from app.agent_platform.birthday_edit import (
-    EDIT_OPTION_LABEL, CandidateRequest, CrossCandidate,
+    EDIT_OPTION_LABEL, BirthdayEditError, CandidateRequest, CrossCandidate,
 )
 from app.agent_platform.model import TransferProposal
 from app.agent_platform.test_birthday_runtime_wiring import (
@@ -86,13 +86,9 @@ class StandInCrossHandoff:
     def __init__(self, clock):
         self.clock = clock
         self.requests: list[CandidateRequest] = []
-        self.fail_next = False
 
     def prepare(self, trusted: TrustedContext, request: CandidateRequest) -> CrossCandidate:
         self.requests.append(request)
-        if self.fail_next:
-            self.fail_next = False
-            raise RuntimeError("cross candidate unavailable")
         interaction_id = str(uuid4())
         result = ModuleResult(
             task_id=trusted.task_id, run_id=trusted.run_id,
@@ -138,17 +134,20 @@ class World:
     runtime: object
     who: TrustedContext
     task_id: str
+    thread_id: str
     start_request: UUID
     delivery_ref: str
     card: ModuleResult
 
 
-@pytest.fixture(scope="module")
-def demo(tmp_path_factory):
-    # The real local-demo composition (real cross, security, saver and bank); the
-    # chat model is the repository's scripted test connector and is not consulted
-    # because the seeded task already carries its accepted proposal.
-    config = configuration(tmp_path_factory.mktemp("f10-edit-entry"))
+@pytest.fixture()
+def demo(tmp_path):
+    # One real local-demo composition per test: its own app, API store, bank,
+    # security state and SQLite files. No module-level App/DB is shared between
+    # tests, so a late test can never inherit another test's task/session state.
+    # The chat model is the repository's scripted test connector and is not
+    # consulted because the seeded task already carries its accepted proposal.
+    config = configuration(tmp_path)
     app = app_for(config, response_mode="none")
     with TestClient(app) as client:
         yield {"client": client, "api": app.state.api, "runtime": app.state.api.runtime}
@@ -210,7 +209,7 @@ def _build_world(demo, *, stage: str) -> World:
     client.cookies.set("bank_session", api.cookie(session_id))
     started = runtime.harness.handle_message(who, start_request, INTENT_TEXT)
     assert started.status is TaskStatus.WAITING_INPUT, started.message
-    world = World(client, api, runtime, who, task_id, start_request,
+    world = World(client, api, runtime, who, task_id, thread_id, start_request,
                   delivery_ref, started)
     if stage == "start":
         return world
@@ -293,6 +292,17 @@ def retirement_count(world: World) -> int:
         return connection.execute(
             "SELECT COUNT(*) FROM security_retirements WHERE task_id=?",
             (world.task_id,)).fetchone()[0]
+
+
+def thread_messages(world: World) -> list[dict]:
+    return world.client.get(
+        f"/api/v1/threads/{world.thread_id}/messages").json()["data"]["items"]
+
+
+def thread_events(world: World) -> list[dict]:
+    return [json.loads(row["event_json"]) for row in world.api.store.rows(
+        "SELECT event_json FROM api_events WHERE thread_id=? ORDER BY sequence",
+        (world.thread_id,))]
 
 
 def option_record(world: World) -> dict:
@@ -433,6 +443,9 @@ def test_a_published_edit_option_enters_the_same_task_waiting_input(world):
     assert after.revision == view["task_revision"]
     assert after.snapshot["result"]["interaction"]["interaction_id"] == \
         view["interaction"]["interaction_id"]
+    # The edit runs as a fresh run, like any ordinary F10 continuation.
+    assert view["run_id"] != before.run_id
+    assert after.run_id == view["run_id"]
     edit = after.snapshot["birthday_edit"]
     assert edit["published"]["task_revision"] == view["task_revision"]
     # The original item/attempt facts survive; the original attempt is retired
@@ -443,6 +456,68 @@ def test_a_published_edit_option_enters_the_same_task_waiting_input(world):
     confirmation = world.runtime.confirmations.get(
         world.runtime._context(world.who, None, None), old_card.record_ref)
     assert confirmation.decision == "pending"
+
+
+def test_the_accepted_edit_is_published_once_to_history_and_sse(world):
+    first = submit_edit(world)
+    assert first.status_code == 200, first.text
+    view = first.json()["data"]
+    task = stored_task(world)
+    namespace = UUID(task.snapshot["birthday_edit"]["edit_ref"])
+
+    replies = [item for item in thread_messages(world)
+               if item["role"] == "assistant"]
+    assert [item["message_id"] for item in replies] == [
+        str(uuid5(namespace, "input-message"))]
+    assert replies[0]["task_ids"] == [world.task_id]
+    assert "已受理修改" in replies[0]["text"]
+
+    by_id = {event["event_id"]: event for event in thread_events(world)}
+    updated = by_id[str(uuid5(namespace, "input-task-updated"))]
+    interaction = by_id[str(uuid5(namespace, "input-interaction"))]
+    completed = by_id[str(uuid5(namespace, "input-message-completed"))]
+    assert updated["payload"]["status"] == "waiting_input"
+    assert updated["payload"]["task_revision"] == view["task_revision"]
+    assert interaction["payload"]["interaction"]["interaction_id"] == \
+        view["interaction"]["interaction_id"]
+    assert completed["payload"]["message_id"] == \
+        str(uuid5(namespace, "input-message"))
+
+    # Replaying the old card on a fresh request id is the same publication: no
+    # duplicate history/events and no task write.
+    counts = (len(thread_messages(world)), len(thread_events(world)),
+              task.revision)
+    replay = submit_edit(world)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["data"]["task_revision"] == view["task_revision"]
+    assert (len(thread_messages(world)), len(thread_events(world)),
+            stored_task(world).revision) == counts
+
+
+def test_a_blank_text_is_treated_as_not_provided(world):
+    response = submit_edit(world, text=" ")
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["status"] == "waiting_input"
+
+
+def test_a_dependency_failure_reading_the_option_is_not_a_stale_card(
+    world, monkeypatch,
+):
+    before = stored_task(world)
+    handoff = world.runtime.birthday.handoff
+
+    def unavailable(*args, **kwargs):
+        raise BirthdayEditError("DEPENDENCY_UNAVAILABLE")
+
+    monkeypatch.setattr(handoff, "published_option", unavailable)
+    response = submit_edit(world)
+    assert_public_edit_error(response, status=503)
+    assert response.json()["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
+    assert "原任务结果待核实" in response.json()["error"]["reason"]
+    after = stored_task(world)
+    assert after.revision == before.revision
+    assert "birthday_edit" not in after.snapshot
+    assert retirement_count(world) == 0
 
 
 def test_a_verification_card_enters_the_same_controlled_edit(world):
@@ -625,7 +700,9 @@ def test_a_lost_http_receipt_recovers_the_same_published_winner(world, monkeypat
     assert stored_task(world).revision == published["task_revision"]
 
 
-def test_a_break_after_retirement_recovers_the_same_original_request(world):
+def test_a_break_after_retirement_recovers_the_same_original_request(
+    world, monkeypatch,
+):
     """Security retirement succeeds, the candidate/publication does not.
 
     No success card is shown and the old card is unchanged, but the accepted
@@ -633,9 +710,23 @@ def test_a_break_after_retirement_recovers_the_same_original_request(world):
     through the platform; nothing is replayed as a brand new edit.
     """
     request_id = uuid4()
-    world.runtime.birthday.handoff.cross.fail_next = True
+    stand_in = world.runtime.birthday.handoff.cross
+    original_prepare = stand_in.prepare
+    attempts = {"prepare": 0}
+
+    def fail_first_candidate(trusted, request):
+        attempts["prepare"] += 1
+        if attempts["prepare"] == 1:
+            raise RuntimeError("cross candidate unavailable")
+        return original_prepare(trusted, request)
+
+    monkeypatch.setattr(stand_in, "prepare", fail_first_candidate)
     first = submit_edit(world, request_id=request_id)
     assert first.status_code == 503, first.text
+    # The first attempt really reached the candidate step (after the durable
+    # acceptance + retirement), not some earlier dependency failure.
+    assert attempts["prepare"] == 1
+    assert first.json()["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
     assert "原任务结果待核实" in first.json()["error"]["reason"]
     held = stored_task(world)
     edit = held.snapshot["birthday_edit"]
@@ -648,10 +739,61 @@ def test_a_break_after_retirement_recovers_the_same_original_request(world):
 
     recovered = submit_edit(world, request_id=request_id)
     assert recovered.status_code == 200, recovered.text
+    assert attempts["prepare"] == 2
     published = stored_task(world).snapshot["birthday_edit"]["published"]
     assert recovered.json()["data"]["task_revision"] == \
         published["task_revision"]
     assert stored_task(world).status is TaskStatus.WAITING_INPUT
+
+
+def test_a_replaced_card_still_recovers_the_frozen_winner_for_the_same_request(
+    world, monkeypatch,
+):
+    """The accepted record, not the old option publication, is the recovery fact.
+
+    After the winner was published, a later confirmation/verification card
+    replaces the published option record. The same original request must still
+    get the frozen winner back: no second retirement, no new task write.
+    """
+    request_id = uuid4()
+    store = world.api.store
+    original_finish = store.finish
+    crashed = {"done": False}
+
+    def crash_once(*args, **kwargs):
+        if not crashed["done"]:
+            crashed["done"] = True
+            raise RuntimeError("simulated crash after publication")
+        return original_finish(*args, **kwargs)
+
+    monkeypatch.setattr(store, "finish", crash_once)
+    first = submit_edit(world, request_id=request_id)
+    assert first.status_code == 503, first.text
+    published = stored_task(world).snapshot["birthday_edit"]["published"]
+    retirements = retirement_count(world)
+
+    task = stored_task(world)
+    replacement = {
+        **task.snapshot["birthday_edit_option"],
+        "interaction_id": str(uuid4()),
+        "option_id": "birthday-edit-" + str(uuid4()),
+    }
+    world.runtime.application.update_task(
+        USER, ROUND, world.task_id, task.revision, task.run_id, task.status,
+        task.checkpoint_id,
+        {**task.snapshot, "birthday_edit_option": replacement},
+    )
+    after_replacement = stored_task(world)
+
+    recovered = submit_edit(world, request_id=request_id)
+    assert recovered.status_code == 200, recovered.text
+    view = recovered.json()["data"]
+    assert view["task_id"] == world.task_id
+    assert view["task_revision"] == published["task_revision"]
+    assert view["interaction"]["interaction_id"] == \
+        published["result"]["interaction"]["interaction_id"]
+    assert stored_task(world).revision == after_replacement.revision
+    assert retirement_count(world) == retirements
 
 
 def test_an_interrupted_request_without_a_durable_record_is_not_retried(

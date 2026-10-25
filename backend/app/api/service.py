@@ -70,6 +70,25 @@ class Identity:
     role: str
 
 
+@dataclass(frozen=True)
+class ControlledEdit:
+    """One read of the platform's published edit option for this exact request.
+
+    ``accepted`` is the platform's durable accepted-edit record when this same
+    original request already owns it; it is the only fact that makes a lost API
+    receipt recoverable.
+    """
+
+    trusted: TrustedContext
+    module: str | None
+    accepted: dict | None
+
+
+# The route prepares the controlled-edit probe once; a bare service call falls
+# back to reading it itself.
+_UNPREPARED = object()
+
+
 def safe_text(text: str, *, numeric_field: bool = False) -> str:
     # Reject recognizable credentials before persistence, model input or SSE.
     if has_chat_secret(text, numeric_field=numeric_field):
@@ -142,7 +161,8 @@ BIRTHDAY_EDIT_REFUSALS = {
     ),
     "INTERACTION_STALE": (
         409, "INTERACTION_STALE",
-        "当前确认或验证卡已失效或被替换，请刷新任务后在当前卡上重新操作。",
+        "当前确认或验证卡、或原执行项已更新，本次未进入修改；请刷新任务后按当前卡"
+        "重新操作。若原操作已提交或结果未知，只沿原任务核实，不要重复提交。",
     ),
     "TASK_CHANGED": (
         409, "INTERACTION_STALE",
@@ -835,22 +855,45 @@ class ApiService:
         self.store.complete_reply_job(job["job_id"], assistant.created_at.isoformat(),
                                       dump(assistant), dump(event))
 
-    def publish_task(self, identity, task_id):
-        task = self.task_view(identity, task_id)
-        if task.interaction and task.interaction.record_ref:
-            self.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
-                             (task.interaction.kind, task.interaction.record_ref, task_id))
-        self.emit(identity, task.thread_id, "task_updated", task, task)
+    def publish_task(self, identity, task_id, *, view=None, stable_namespace=None):
+        """Publish one task card to history and SSE.
+
+        ``view`` publishes an already frozen published TaskView instead of
+        re-reading the task; ``stable_namespace`` makes the publication ids
+        deterministic so recovering the same accepted request never duplicates
+        the assistant reply or the events (budget adoption and controlled edits).
+        """
+        task = view if view is not None else self.task_view(identity, task_id)
+        if stable_namespace is None:
+            if task.interaction and task.interaction.record_ref:
+                self.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
+                                 (task.interaction.kind, task.interaction.record_ref, task_id))
+            self.emit(identity, task.thread_id, "task_updated", task, task)
+            if task.interaction:
+                from app.contracts.api import InteractionRequired
+                self.emit(identity, task.thread_id, "interaction_required",
+                          InteractionRequired(task_id=task_id, interaction=task.interaction), task)
+            reports = self._capture_task_reports(identity, task)
+            self.message(identity, task.thread_id, task.message, "assistant", task_id,
+                         report_ids=reports or None)
+            for report_id in reports:
+                self.emit(identity, task.thread_id, "report_ready",
+                          ReportReady(task_id=task_id, report_id=report_id), task)
+            return task
+        message = self.message_view(task.thread_id, task.message, "assistant", task_id,
+                                    str(uuid5(stable_namespace, "input-message")), identity)
+        events = [self.stream_event(identity, task.thread_id, "task_updated", task, task,
+                                    str(uuid5(stable_namespace, "input-task-updated")))]
         if task.interaction:
             from app.contracts.api import InteractionRequired
-            self.emit(identity, task.thread_id, "interaction_required",
-                      InteractionRequired(task_id=task_id, interaction=task.interaction), task)
-        reports = self._capture_task_reports(identity, task)
-        self.message(identity, task.thread_id, task.message, "assistant", task_id,
-                     report_ids=reports or None)
-        for report_id in reports:
-            self.emit(identity, task.thread_id, "report_ready",
-                      ReportReady(task_id=task_id, report_id=report_id), task)
+            events.append(self.stream_event(identity, task.thread_id, "interaction_required",
+                InteractionRequired(task_id=task_id, interaction=task.interaction), task,
+                str(uuid5(stable_namespace, "input-interaction"))))
+        events.append(self.stream_event(identity, task.thread_id, "message_completed", message,
+                                        event_id=str(uuid5(stable_namespace, "input-message-completed"))))
+        # One transaction for the card, its reply and its events; stable ids make
+        # this a no-op when the same publication is replayed after a lost receipt.
+        self.store.publish_budget_input(task, message, events)
         return task
 
     @staticmethod
@@ -1641,82 +1684,103 @@ class ApiService:
         birthday = getattr(self.runtime, "birthday", None)
         return getattr(birthday, "handoff", None) if birthday is not None else None
 
-    def birthday_edit_option(self, identity, task_id, request):
-        """The platform's current edit-option publication for this F10 request.
+    def birthday_edit_request(self, identity, task_id, request):
+        """One read of the platform facts that route this F10 request.
 
-        Read-only and backend-bound: the option was published with a task CAS and
-        bound to this task, current card, execution item, original operation and
-        confirmation version. A client-supplied option id alone never matches.
+        Returns the trusted context (a fresh run, like any F10 continuation), the
+        owning module and the platform's durable accepted-edit record when this
+        card already owns one. Branch routing accepts either the current published
+        option (a new edit request) or that durable record (a replay/recovery);
+        recovery additionally requires the record to be bound to this exact
+        original request. Read-only: no retirement, publication or task write
+        happens here. Ticket 03 exposes no request-keyed accepted-record read, so
+        the record is read from the same application-store task snapshot that the
+        platform persists before the retirement.
         """
         handoff = self._birthday_handoff()
         if handoff is None or request.selected_option_id is None:
             return None
+        trusted = self.trusted(identity, task_id, new_run=True)
+        task = self.runtime.application.get_task(
+            identity.user_id, identity.demo_round_id, task_id,
+        )
+        record = (task.snapshot or {}).get("birthday_edit") if task is not None else None
+        if (isinstance(record, dict)
+                and record.get("interaction_id") == request.interaction_id
+                and record.get("option_id") == request.selected_option_id):
+            # A published winner replays even after a newer card replaced this one:
+            # the accepted record, not the old option publication, is the fact.
+            return ControlledEdit(trusted, self._task_module(task), record)
         try:
-            return handoff.published_option(
-                self.trusted(identity, task_id),
+            option = handoff.published_option(
+                trusted,
                 interaction_id=request.interaction_id,
                 option_id=request.selected_option_id,
             )
-        except BirthdayEditError:
+        except BirthdayEditError as exc:
+            if exc.code in BIRTHDAY_EDIT_UNAVAILABLE:
+                # A dependency failure is not proof that the card is stale.
+                raise birthday_edit_problem(exc) from None
             return None
+        if option is None:
+            return None
+        return ControlledEdit(trusted, self._task_module(task), None)
 
-    def birthday_edit_recovery(self, identity, task_id, request):
-        """Only the exact original request with a durable platform edit record.
+    @staticmethod
+    def birthday_edit_recovery(edit, request):
+        """Only the exact original request already accepted by the platform.
 
-        The platform writes the accepted edit record (with this request id and
-        card binding) into the task snapshot before it asks security to retire
-        the attempt; ticket 03 exposes the published option read-only but not a
-        request-keyed record read, so the API reads that same durable application
-        fact. Without it an interrupted F10 is never replayed as a new edit.
+        The platform wrote the accepted edit record (with this request id and card
+        binding) before it asked security to retire the attempt; a later card
+        replacing the old one does not cancel the frozen winner's replay. Without
+        that durable fact an interrupted F10 is never replayed as a new edit.
         """
-        if request.selected_option_id is None or request.text is not None:
+        if edit is None or edit.accepted is None:
             return None
-        if self.birthday_edit_option(identity, task_id, request) is None:
+        if request.text is not None and request.text.strip():
             return None
-        task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
-        record = (task.snapshot or {}).get("birthday_edit") if task is not None else None
-        if not isinstance(record, dict):
+        if (edit.accepted.get("request_id") != str(request.request_id)
+                or edit.accepted.get("interaction_id") != request.interaction_id
+                or edit.accepted.get("option_id") != request.selected_option_id):
             return None
-        if (record.get("request_id") != str(request.request_id)
-                or record.get("interaction_id") != request.interaction_id
-                or record.get("option_id") != request.selected_option_id):
-            return None
-        return record
+        return edit.accepted
 
-    def begin_controlled_edit(self, identity, task_id, request):
-        """F10 controlled-edit diversion: one platform handoff, frozen TaskView.
+    def begin_controlled_edit(self, identity, task_id, request, edit):
+        """F10 controlled-edit diversion: one platform handoff, published card.
 
         The platform proves the card, retires the unsubmitted original attempt,
         publishes one sealed winner and returns same task/new revision/new
-        interaction. This layer adds no state, permission or completion; a
-        refusal keeps the old card and is verified along the original operation.
+        interaction on a fresh run. The accepted card then goes through the same
+        history/SSE publication as any ordinary F10 result; stable ids derived
+        from the platform's edit_ref make a replay idempotent. This layer adds no
+        state, permission or approval of its own.
         """
-        trusted = self.trusted(identity, task_id)
         try:
             outcome = self._birthday_handoff().begin_birthday_edit(
-                trusted, request_id=request.request_id,
+                edit.trusted, request_id=request.request_id,
                 interaction_id=request.interaction_id,
                 option_id=request.selected_option_id,
             )
         except BirthdayEditError as exc:
             raise birthday_edit_problem(exc) from None
         link = self.link(identity, task_id, mutate=True)
-        task = self.runtime.application.get_task(
-            identity.user_id, identity.demo_round_id, task_id,
-        )
-        return TaskView(**outcome.result.model_dump(), module=self._task_module(task),
+        view = TaskView(**outcome.result.model_dump(), module=edit.module,
             thread_id=link["thread_id"], demo_round_id=identity.demo_round_id,
             snapshot_at=now(), task_revision=outcome.task_revision,
             cancel_requested=bool(link["cancel_requested"]))
+        return self.publish_task(identity, task_id, view=view,
+                                 stable_namespace=UUID(outcome.edit_ref))
 
-    def provide_task_input(self, identity, task_id, request):
-        # A backend-published birthday edit option takes the controlled handoff
-        # before the ordinary input checks: its card is a confirmation or
-        # verification, and the platform owns the card/binding verification.
-        if self.birthday_edit_option(identity, task_id, request) is not None:
-            if request.text is not None:
+    def provide_task_input(self, identity, task_id, request, *, prepared=_UNPREPARED):
+        # A backend-published birthday edit option (or its durable accepted
+        # record) takes the controlled handoff before the ordinary input checks:
+        # that card is a confirmation or verification, not an input interaction.
+        edit = (self.birthday_edit_request(identity, task_id, request)
+                if prepared is _UNPREPARED else prepared)
+        if edit is not None:
+            if request.text is not None and request.text.strip():
                 raise ApiProblem(400, "INVALID_OPTION")
-            return self.begin_controlled_edit(identity, task_id, request)
+            return self.begin_controlled_edit(identity, task_id, request, edit)
         # History must precede current_input_task: a recorded attempt can have
         # become needs_attention / interaction=None after its business write.
         record = self.budget_input_record(identity, task_id, request.request_id)
@@ -1759,22 +1823,10 @@ class ApiService:
         """Publish the current card atomically; HTTP returns the frozen completion.
 
         History reconciliation must not broadcast an old plan as current. Stable
-        publication ids prevent duplicate messages after a lost API receipt.
+        publication ids (the budget origin) prevent duplicate messages after a
+        lost API receipt.
         """
-        task = self.task_view(identity, task_id)
-        namespace = UUID(origin_id)
-        message = self.message_view(task.thread_id, task.message, "assistant", task_id,
-                                    str(uuid5(namespace, "input-message")), identity)
-        events = [self.stream_event(identity, task.thread_id, "task_updated", task, task,
-                                   str(uuid5(namespace, "input-task-updated")))]
-        if task.interaction:
-            from app.contracts.api import InteractionRequired
-            events.append(self.stream_event(identity, task.thread_id, "interaction_required",
-                InteractionRequired(task_id=task_id, interaction=task.interaction), task,
-                str(uuid5(namespace, "input-interaction"))))
-        events.append(self.stream_event(identity, task.thread_id, "message_completed", message,
-                                        event_id=str(uuid5(namespace, "input-message-completed"))))
-        self.store.publish_budget_input(task, message, events)
+        self.publish_task(identity, task_id, stable_namespace=UUID(origin_id))
 
     def revise_draft(self, identity, task_id, revision, fields, *, publish=True):
         """Edit only the currently owned, unsubmitted ordinary-transfer draft."""
