@@ -2,6 +2,7 @@
 
 执行对话：01a17183-271b-7663-9517-f31a994de51d；日期：2026-10-25。
 创建基线：origin/main `4bba921`；随后 rebase 到 `640fe71`（新增仅前端/docs）；
+最终再次 rebase 到 `9a479ea`（仍仅前端/docs，cross 实现差异不变）；
 分支 `codex/v05-cross-business-05`；仅实施 cross。
 主工作区未改动。前端 01、平台 11 与 PR #281/#282 未接管；共享跟踪与 completion 未更新。
 
@@ -41,4 +42,19 @@
 
 - 规范轴：独立子代理 review_standards 对 `640fe71...e4ae5a1` 审查 PASS；必须项 0、建议 0。
   未复跑主对话全量测试，不代替真人安全或 PM 验收。
-- 原票轴、全量测试与 PR：待回填。真实模型与浏览器 E2E 未运行，真人安全/PM 验收未代签。
+- 原票轴：review_spec 初轮发现 1 项 P2：原冻结已绑定成功，附加回执查询空时，视图仍永久未知。
+  `ca2790b` 修复并增加公开 entry 回归；复审 PASS，子代理独立运行该回归 `1 passed in 9.29s`。
+  最终 rebase 后同一修复为 `d67b078`。规范轴亦复审 PASS，必须项 0、建议 0。
+- 最终 Cross 回归 `57 passed in 84.10s`；本票测试文件 `13 passed in 34.43s`。
+  含真实模拟银行（真实网关/安全门/双因子/限定释放，模型未调用）完整与停止两条资金路径，
+  与银行 get_freeze 对账；HTTP TestClient 的受控表单/引用自动提交、幂等、旧交互、失效会话，
+  越权/跨轮/跨任务引用拒绝，以及未知/拒绝/停止收尾。模拟银行评测 `14 passed in 1.74s`。
+- 链接、语法与差异空白检查通过。后端全量 `1600 passed in 973.72s (0:16:13)`。
+  全量进程从首次实现版本启动；其后审查发现的冻结事实修复，以最终 Cross 57 项完整回归
+  和新增文件 13 项验证，不将审查前的全量结果冒充最终修复后的第二次全量。
+  使用项目已有 backend/.venv Python，PYTHONPATH 显式指本 worktree/backend；全局 Python 缺
+  langchain_openai 的早期试跑不计有效验证，未安装或改动依赖。未调用真实模型。
+- PR [#288](https://github.com/DrErwin/hackerthon-bank-agent/pull/288) 已创建并 attach。
+  GitHub Repository checks（run 40167522614，head ca2790b）未启动，原因为账户近期付款失败或
+  支出限额需提高；不是 CI 绿，不视作测试通过。由中控处理 CI 门槛和合并排队。
+- 真实模型与浏览器 E2E 未运行，真人安全/PM 验收未代签。
