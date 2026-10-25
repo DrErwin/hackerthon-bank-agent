@@ -31,7 +31,7 @@ Core scenarios: XL-S01—S05、相关 X；定义见[共享规格 §5](../../v05-
 - [v05-cross-platform/05：联动主入口及现有业务装配](../../v05-cross-platform/issues/05-cross-runtime-wiring.md)
 - [v05-cross-frontend/01：总方案、子确认和结果页面](../../v05-cross-frontend/issues/01-plan-and-child-interactions.md)
 
-- [v05-cross-business/01：减支盘点与退订编排](../../v05-cross-business/issues/01-expense-reduction.md)（已合PR #269；账单类型化输入缺口仍由账单线提供修复）
+- [v05-cross-business/01：减支编排和共用计划骨架](../../v05-cross-business/issues/01-expense-reduction.md)（已合PR #269；账单类型化输入缺口仍由账单线提供修复）
 - [v05-cross-platform/11：子任务交互登记与联动文本输入](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md)（PR #281已合）；前端01以PR #283为合入证据，原#282关闭。
 - 正式比较数据与签约种子尚未完成本轮适配；账单输入修复由中控另派，具体票/commit待提供，不把缺口记录当实现。
 
