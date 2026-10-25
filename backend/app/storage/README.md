@@ -8,7 +8,7 @@
 
 ## v0.3 接入
 
-`StoragePaths.from_env()` 默认把数据放在用户目录的 `.ai-banking-agent/`，也可用 `BANK_AGENT_DATA_DIR` 指向持久化目录。应用和模拟银行分别使用 `application.sqlite3`、`mock_bank.sqlite3`；部署时这两个文件必须放在持久化卷上。创建 `ApplicationStore(paths.application)` 会执行应用库 v6 迁移，重复初始化不会清空数据。银行服务单独创建 `MockBankStore(paths.bank)` 并执行银行库迁移。
+`StoragePaths.from_env()` 默认把数据放在用户目录的 `.ai-banking-agent/`，也可用 `BANK_AGENT_DATA_DIR` 指向持久化目录。应用和模拟银行分别使用 `application.sqlite3`、`mock_bank.sqlite3`；部署时这两个文件必须放在持久化卷上。创建 `ApplicationStore(paths.application)` 会执行应用库 v7 迁移，重复初始化不会清空数据。银行服务单独创建 `MockBankStore(paths.bank)` 并执行银行库迁移。
 
 应用入口只导出 `ApplicationStore`。所有任务读取、确认／验证／记忆引用和工具操作记录都要求用户与演示轮次；确认引用不能跨任务绑定，验证引用不能跨会话绑定。引用关联不代表安全授权，安全模块仍须核验原记录、具体动作和有效状态。`checkpoint_saver(user_id, demo_round_id, task_id)` 先核对任务归属，再返回只接受该任务内部 thread_id 的 LangGraph saver。外层须先持久化操作编号，再调用银行；结果未知时只用原编号回查。任务快照只保存脱敏展示与受控引用，不存验证码或完整账户资料。记忆正文与管理机制由后续 06 票接 Deep Agents Store；这里仅保存任务关联引用，06 仍须验证正文的用户与轮次隔离。
 
@@ -88,3 +88,19 @@ occupations = application.list_budget_commitments(
 存储不解析 cross 检查点、不验证 F10 的选项或计划业务快照；来源任务存在和版本一致本身不等于采用授权。上述真实性由 cross 调用前保证，写接口不暴露为模型工具/HTTP。业务层还须保存生日 task_id 与 budget_ref 的绑定、刷新 L01、判断额度及冻结前登记 pending；本票没有完成这些路径。`list_budget_commitments` 仍按同 budget_id 返回各版本未关闭占用，不因采用改版清除旧占用。
 
 重置沿用演示轮次更换：新 demo_round_id 读取不到旧采用状态，原轮次记录保留供追溯。没有新增清库/重置接口；同轮次重开数据库也不会自动撤销采用。
+
+## 生日候选检查点一次封存（v05-birthday-platform-dependencies/05，应用库 v7）
+
+应用库 v7 只新增 `checkpoint_seals` 表与索引，旧表、旧检查点和历史 namespace 原样保留，不做数据回填或清理，因此不需要迁移共享库内容。`SqliteCheckpointSaver` 新增内部接口 `seal_candidate(...)`（配套 `CheckpointRef`、`SealedCandidate`、`CandidateBindingConflictError`），供 03 在用自己的任务 CAS 持久预留候选 ref 后，把一份完整 G3 状态及其元数据、必要关联写一次性封存为不可变候选。存储不选可编辑项、不做安全撤离、不发布任务，也不验证绑定内容的业务真假；可信转换关联由 03 传入。
+
+三类来源共用同一窄能力，结构条件不同：
+
+- `root`：新任务的第一份状态，没有前驱 source，也没有 `edit_ref`；只有任务仍无已发布 checkpoint（`tasks.checkpoint_id IS NULL`）且该线程没有任何历史检查点/待写行时才能写入。已有历史或已发布状态的任务不能冒充新根。
+- `normal`：无编辑请求的普通输入/事实/异常后继；必须绑定此前已封存的完整 `source` ref 与来源摘要，不能绑定旧 namespace 里可被覆盖的 blob。
+- `edit`：真正受理的编辑候选；除已封存 source 外必须带原 `edit_ref`（安全/原号事实摘要由调用方并入 `conversion_digest`）。
+
+一次调用的输入是：受控 user/round/task、`kind`、预先预留的 `candidate`（task thread + 新 namespace + checkpoint id）、`accepted_version`、原转换摘要 `conversion_digest`、`source`/`source_digest`（root 之外必填）、`edit_ref`（仅 edit）、完整 `checkpoint` 及 `metadata`/`new_versions`/`writes`。候选 namespace 必须非空且完全未使用（默认 namespace 留给普通 LangGraph 流程），每份候选独占一个 namespace；同一绑定（kind/edit/source/摘要/接受版本）只封存首份内容，之后重试或跨进程竞争都返回该胜者和原新 input；同一 ref 换绑定抛 `CandidateBindingConflictError`，不写后比较。`content_digest` 记录完整封存内容摘要，供 03 在发布快照中保存。
+
+封存后该 namespace 内的 `put`、`put_writes` 被拒绝（按持久表判断，不依赖进程内锁），`delete_thread` 也拒绝含封存候选的线程；03 发布胜者、任务继续推进都不解除保护，每份后续状态必须再预留新的隔离 namespace。默认 namespace 与既有普通 LangGraph/旧模块保存路径不变。
+
+边界：本接口不能独立证明 source 已由 03 发布（只保证 source 是此前已封存的完整 ref），也不核验 root 的原 start 预留语义；这两项仍由 03 的受理/CAS 负责。旧任务未封存的历史检查点不能作为 source，G3 编辑按对账稿保持 blocked。

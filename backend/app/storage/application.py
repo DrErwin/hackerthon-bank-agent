@@ -13,7 +13,7 @@ from app.contracts import AdoptedArrangement, AdoptedBudget, BudgetCommitment, B
 from .database import connect, parameter_digest, transaction
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class ArrangementConflictError(ValueError):
@@ -344,6 +344,45 @@ class ApplicationStore:
                     ON adopted_budgets(user_id, demo_round_id, budget_id)
                     WHERE status = 'active'""")
                 connection.execute("PRAGMA user_version = 6")
+            if version < 7:
+                # v05-birthday-platform-dependencies/05: one-shot G3 candidate
+                # seals. Only this table and indexes are added; older checkpoints,
+                # tasks and namespaces stay as they are.
+                connection.execute("""CREATE TABLE IF NOT EXISTS checkpoint_seals (
+                    thread_id TEXT NOT NULL,
+                    checkpoint_ns TEXT NOT NULL,
+                    checkpoint_id TEXT NOT NULL,
+                    kind TEXT NOT NULL CHECK(kind IN ('root', 'normal', 'edit')),
+                    edit_ref TEXT,
+                    source_checkpoint_ns TEXT,
+                    source_checkpoint_id TEXT,
+                    conversion_digest TEXT NOT NULL,
+                    source_digest TEXT,
+                    accepted_version INTEGER NOT NULL CHECK(accepted_version >= 0),
+                    binding_digest TEXT NOT NULL,
+                    content_digest TEXT NOT NULL,
+                    sealed_at TEXT NOT NULL,
+                    PRIMARY KEY(thread_id, checkpoint_ns, checkpoint_id),
+                    UNIQUE(thread_id, binding_digest),
+                    UNIQUE(thread_id, checkpoint_ns),
+                    CHECK (
+                        (kind = 'root' AND source_checkpoint_ns IS NULL
+                         AND source_checkpoint_id IS NULL AND edit_ref IS NULL
+                         AND source_digest IS NULL)
+                        OR (kind = 'normal' AND source_checkpoint_ns IS NOT NULL
+                         AND source_checkpoint_id IS NOT NULL AND edit_ref IS NULL
+                         AND source_digest IS NOT NULL)
+                        OR (kind = 'edit' AND source_checkpoint_ns IS NOT NULL
+                         AND source_checkpoint_id IS NOT NULL AND edit_ref IS NOT NULL
+                         AND source_digest IS NOT NULL)
+                    ),
+                    FOREIGN KEY(thread_id, source_checkpoint_ns, source_checkpoint_id)
+                        REFERENCES checkpoints(thread_id, checkpoint_ns, checkpoint_id)
+                )""")
+                connection.execute("""CREATE UNIQUE INDEX IF NOT EXISTS
+                    checkpoint_seals_single_root ON checkpoint_seals(thread_id)
+                    WHERE kind = 'root'""")
+                connection.execute("PRAGMA user_version = 7")
 
     def create_session(
         self, session_id: str, user_id: str, demo_round_id: str, created_at: str, expires_at: str,
