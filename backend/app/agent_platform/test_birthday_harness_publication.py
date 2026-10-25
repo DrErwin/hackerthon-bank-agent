@@ -11,9 +11,14 @@ The entry-internal task writes (birthday attempts, the published edit option)
 would otherwise make the pre-entry revision stale, so these tests also pin the
 Harness result CAS to a re-read task: a stale revision must never surface as
 TASK_CHANGED / DEPENDENCY_UNAVAILABLE.
+
+Controlled substitutes only: the *planner* is a stub returning one
+``TransferProposal`` in the new-task test, and two tests temporarily wrap the
+registered cross factory to remove the birthday execution ports (a real Cross
+failure result) or fail one ticket-05 seal call. Everything else (Harness,
+stores, security, bank, Cross flow) is the real composition.
 """
 
-from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
@@ -21,6 +26,7 @@ import pytest
 from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 
+from .birthday_edit import BirthdayEditError
 from .test_birthday_edit_handoff import StandInCrossHandoff
 from .test_birthday_runtime_wiring import (
     DELIVERY_REF, answer_verification, approve_confirmation, composition, option_id,
@@ -29,6 +35,7 @@ from .test_birthday_runtime_wiring import (
 
 INTENT = "给妈妈过生日，安排花和蛋糕"
 CHANNEL = "cross_state"
+_UNSET = object()
 
 
 class HarnessEnvironment:
@@ -37,6 +44,7 @@ class HarnessEnvironment:
         self.request_id = request_id
         self.who = who
         self.resumes = 0
+        self.last_run_id = who.run_id
 
     def task(self):
         return self.runtime.application.get_task("U1", "D1", "BIRTHDAY")
@@ -50,11 +58,13 @@ class HarnessEnvironment:
     def start(self):
         return self.runtime.harness.handle_message(self.who, self.request_id, INTENT)
 
-    def resume(self, response: dict, *, request_id=None):
+    def resume(self, response: dict, *, request_id=_UNSET):
         self.resumes += 1
         who = self.who.model_copy(update={"run_id": str(uuid4())})
+        self.last_run_id = who.run_id
         return self.runtime.harness.resume(
-            who, response, request_id=request_id or uuid4())
+            who, response,
+            request_id=uuid4() if request_id is _UNSET else request_id)
 
     def saver(self):
         from app.memory.adapter import MemoryContext
@@ -169,6 +179,53 @@ def _seeded_task(runtime, task_id: str, intent: str):
     return request_id, who
 
 
+def _remove_birthday_ports(runtime) -> None:
+    """Make the real Cross birthday advance return its real FAILED result.
+
+    The registered entry keeps its real code path; without the platform birthday
+    ports it returns the documented "execution seam not assembled" failure, which
+    is a genuine non-publishable first/normal state for N1.
+    """
+    from dataclasses import replace
+
+    registry = runtime.harness.registry
+    registration = registry._entries["cross.start_task"]
+
+    def factory(trusted_context, saver, trace):
+        entry = registration.factory(trusted_context, saver, trace)
+        entry.birthday_ports_factory = None
+        return entry
+
+    registry._entries["cross.start_task"] = replace(registration, factory=factory)
+
+
+def _fail_next_seal(runtime):
+    """Behavioral fault injection: the ticket-05 seal is unavailable once."""
+    from unittest.mock import patch
+
+    original = runtime.memory.checkpointer
+    state = {"once": True}
+
+    class FailingSealSaver:
+        def __init__(self, inner):
+            self._inner = inner
+            self.thread_id = getattr(inner, "thread_id", None)
+
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+        def seal_candidate(self, *args, **kwargs):
+            if state["once"]:
+                state["once"] = False
+                raise ValueError("sealed storage unavailable")
+            return self._inner.seal_candidate(*args, **kwargs)
+
+    def factory(context, task_id):
+        return FailingSealSaver(original(context, task_id))
+
+    return patch.object(runtime.memory, "checkpointer", side_effect=factory)
+
+
 def test_harness_non_birthday_cross_goal_keeps_the_legacy_path(tmp_path):
     runtime, _entry = composition(tmp_path)
     intent = "养老金到了，帮我安排本月的钱"
@@ -227,6 +284,67 @@ def test_harness_clarification_root_then_birthday_successor(tmp_path):
                 is None)
         assert saver.get_tuple({
             "configurable": {"thread_id": task.checkpoint_thread_id}}) is None
+    finally:
+        runtime.gateway.close()
+
+
+def test_harness_keeps_a_failed_first_result_when_g3_publication_is_skipped(
+    tmp_path,
+):
+    """N1: a non-publishable first state still reaches the task result."""
+    runtime, _entry = composition(tmp_path)
+    _remove_birthday_ports(runtime)
+    request_id, who = _seeded_task(runtime, "HARNESS_ROOT_FAIL", INTENT)
+    try:
+        result = runtime.harness.handle_message(who, request_id, INTENT)
+
+        # The real Cross failure result is kept; the task is NOT left without a
+        # result and no fake/sealed root is exposed.
+        assert result.status is TaskStatus.FAILED, result.message
+        task = runtime.application.get_task("U1", "D1", "HARNESS_ROOT_FAIL")
+        assert task.snapshot["result"]["status"] == "failed"
+        assert "birthday_g3" not in task.snapshot
+        assert task.checkpoint_id is None
+        stored = runtime.harness.get(who)
+        assert stored.status is TaskStatus.FAILED
+        from app.memory.adapter import MemoryContext
+
+        saver = runtime.memory.checkpointer(
+            MemoryContext("U1", "S1", "D1"), "HARNESS_ROOT_FAIL")
+        assert saver.get_tuple({
+            "configurable": {"thread_id": task.checkpoint_thread_id}}) is None
+    finally:
+        runtime.gateway.close()
+
+
+def test_harness_clarification_then_birthday_failure_is_a_normal_successor(
+    tmp_path,
+):
+    """N1: the second (birthday) conversion publishes its real failure result."""
+    runtime, _entry = composition(tmp_path)
+    intent = "帮我安排一下"
+    request_id, who = _seeded_task(runtime, "HARNESS_CLARIFY_FAIL", intent)
+    try:
+        started = runtime.harness.handle_message(who, request_id, intent)
+        assert started.status is TaskStatus.WAITING_INPUT, started.message
+        root = runtime.application.get_task(
+            "U1", "D1", "HARNESS_CLARIFY_FAIL").snapshot["birthday_g3"][
+                "published_ref"]
+        assert root["kind"] == "root"
+
+        _remove_birthday_ports(runtime)
+        chosen = runtime.harness.resume(
+            who.model_copy(update={"run_id": str(uuid4())}),
+            {"selected_option_id": option_id(started, "生日")},
+            request_id=uuid4())
+
+        assert chosen.status is TaskStatus.FAILED, chosen.message
+        task = runtime.application.get_task("U1", "D1", "HARNESS_CLARIFY_FAIL")
+        assert task.snapshot["result"]["status"] == "failed"
+        published = task.snapshot["birthday_g3"]["published_ref"]
+        assert published["kind"] == "normal"
+        assert published["checkpoint_id"] != root["checkpoint_id"]
+        assert task.checkpoint_id == published["checkpoint_id"]
     finally:
         runtime.gateway.close()
 
@@ -326,27 +444,76 @@ def test_harness_verify_wait_and_edit_cards_use_a_fresh_revision(harness_env):
     assert env.snapshot()["birthday_edit"]["published"] is not None
 
 
+def _paid_amounts(runtime) -> set[int]:
+    ledger = runtime.gateway._bank.store.list_ledger("U1", "A1")
+    return {row["amount_fen"] for row in ledger
+            if row["nature"] == "consumption"
+            and not row["operation_id"].startswith("seed:")}
+
+
+def drive_until_flower_is_paid(env: HarnessEnvironment, current):
+    """Settle the flute until the second (cake) confirmation is waiting."""
+    for _ in range(20):
+        if current.status in {TaskStatus.SUCCEEDED, TaskStatus.FAILED,
+                              TaskStatus.CANCELLED,
+                              TaskStatus.PARTIALLY_SUCCEEDED}:
+            return current
+        interaction = current.interaction
+        if interaction is None:
+            current = env.resume({})
+        elif interaction.kind == "confirmation":
+            if _paid_amounts(env.runtime) == {19900}:
+                return current  # the settled flower is paid; this is the cake
+            approve_confirmation(env.runtime, env.who, interaction.record_ref)
+            current = env.resume({"choice": "approve"})
+        else:
+            answer_verification(env.runtime, env.who, "R1",
+                                interaction.record_ref)
+            current = env.resume({"choice": "resume"})
+    return current
+
+
+def test_harness_partially_succeeded_resume_returns_the_published_result(
+    harness_env,
+):
+    """M5: a partial-success refresh returns history and opens no conversion."""
+    env = harness_env
+    current = drive_to_freeze_confirmation(env)
+    card = drive_until_flower_is_paid(env, current)
+    assert _paid_amounts(env.runtime) == {19900}
+
+    stopped = env.resume({"cancel": True})
+
+    assert stopped.status is TaskStatus.PARTIALLY_SUCCEEDED, stopped.message
+    task = env.task()
+    assert task.status is TaskStatus.PARTIALLY_SUCCEEDED
+    published = env.published_ref()
+    revision = task.revision
+    completed = len(env.snapshot()["birthday_g3"]["completed"])
+
+    # B04 refresh/continue: the published historical result comes back unchanged;
+    # no new conversion is reserved/published and no CANDIDATE_INVALID surfaces.
+    refreshed = env.resume({})
+
+    assert refreshed.status is TaskStatus.PARTIALLY_SUCCEEDED
+    assert refreshed.task_id == stopped.task_id
+    assert refreshed.message == stopped.message
+    assert env.published_ref() == published
+    assert env.task().revision == revision
+    assert len(env.snapshot()["birthday_g3"]["completed"]) == completed
+    assert env.snapshot()["birthday_g3"]["pending"] is None
+
+
 def test_harness_ordinary_resume_does_not_replay_an_unpublished_conversion(
     harness_env,
 ):
-    """A publish failure leaves no active state and a retry continues the same one."""
+    """A seal failure leaves no active state; the same F10 request retries it."""
     env = harness_env
-    current = env.start()
+    env.start()
     assert env.published_ref()["kind"] == "root"
-    original = env.runtime.application.update_task
-    calls = {"count": 0}
-
-    def failing(*args, **kwargs):
-        calls["count"] += 1
-        # reservation is first, publication is second within the transition
-        if calls["count"] == 2:
-            raise ValueError("task changed concurrently")
-        return original(*args, **kwargs)
-
-    from unittest.mock import patch
 
     request_id = uuid4()
-    with patch.object(env.runtime.application, "update_task", failing):
+    with _fail_next_seal(env.runtime):
         with pytest.raises(ValueError):
             env.resume({"text": "500元"}, request_id=request_id)
     # The reservation is durable, the publication is not: no new active state.
@@ -354,9 +521,137 @@ def test_harness_ordinary_resume_does_not_replay_an_unpublished_conversion(
     assert env.snapshot()["birthday_g3"]["pending"] is not None
     assert env.task().checkpoint_id == env.published_ref()["checkpoint_id"]
 
-    # The same original request retries along the accepted conversion.
     current = env.resume({"text": "500元"}, request_id=request_id)
     assert current.status is TaskStatus.WAITING_INPUT
     assert "哪一天" in current.message
     assert env.published_ref()["kind"] == "normal"
     assert env.snapshot()["birthday_g3"]["pending"] is None
+
+
+def test_harness_answer_identity_without_request_id_survives_a_retry(
+    harness_env,
+):
+    """N2: with no F10 request id the current card + answer identify the retry."""
+    env = harness_env
+    env.start()
+
+    with _fail_next_seal(env.runtime):
+        with pytest.raises(ValueError):
+            env.resume({"text": "500元"}, request_id=None)
+    pending = env.snapshot()["birthday_g3"]["pending"]
+    assert pending is not None
+    first_conversion = pending["association"]
+
+    # Same answer, different run id, still no request_id: one conversion.
+    current = env.resume({"text": "500元"}, request_id=None)
+
+    assert current.status is TaskStatus.WAITING_INPUT
+    assert "哪一天" in current.message
+    assert env.published_ref()["kind"] == "normal"
+    assert env.snapshot()["birthday_g3"]["pending"] is None
+    completed = env.snapshot()["birthday_g3"]["completed"][0]
+    assert completed["conversion_digest"] == pending["conversion_digest"]
+    # The identity is the card + accepted revision + answer, not the run id.
+    assert first_conversion["kind"] == "input"
+    assert first_conversion["interaction_id"]
+    assert first_conversion["accepted_version"] >= 0
+    assert first_conversion["answer_digest"]
+    assert "request_id" not in first_conversion
+
+
+def test_harness_different_answer_without_request_id_is_still_refused(
+    harness_env,
+):
+    """N2: an unpublished conversion cannot be crossed by a different answer."""
+    env = harness_env
+    env.start()
+    with _fail_next_seal(env.runtime):
+        with pytest.raises(ValueError):
+            env.resume({"text": "500元"}, request_id=None)
+    assert env.snapshot()["birthday_g3"]["pending"] is not None
+
+    with pytest.raises(BirthdayEditError) as conflict:
+        env.resume({"text": "800元"}, request_id=None)
+    assert conflict.value.code == "TRANSITION_PENDING"
+    # Nothing was published or overwritten by the competing answer.
+    assert env.published_ref()["kind"] == "root"
+    assert env.snapshot()["birthday_g3"]["pending"] is not None
+
+
+def test_harness_replays_a_published_conversion_with_the_current_run_id(
+    harness_env,
+):
+    env = harness_env
+    env.start()
+    request_id = uuid4()
+    first = env.resume({"text": "500元"}, request_id=request_id)
+    published = env.published_ref()
+    revision = env.task().revision
+
+    replay = env.resume({"text": "500元"}, request_id=request_id)
+
+    assert replay.status is first.status
+    assert replay.interaction.interaction_id == first.interaction.interaction_id
+    # The per-run identity is rebound; the published result/content is untouched.
+    assert replay.run_id == env.last_run_id
+    assert env.published_ref() == published
+    assert env.task().revision == revision
+
+
+def test_harness_cross_session_recovery_fails_closed_for_a_g3_task(tmp_path):
+    """Known limitation: G3 cross-session recovery never silently forks state."""
+    from datetime import datetime, timedelta, timezone
+
+    runtime, _entry = composition(tmp_path)
+    request_id, who = _seeded_task(runtime, "HARNESS_RECOVER", INTENT)
+    try:
+        started = runtime.harness.handle_message(who, request_id, INTENT)
+        assert started.status is TaskStatus.WAITING_INPUT, started.message
+        task = runtime.application.get_task("U1", "D1", "HARNESS_RECOVER")
+        published = task.snapshot["birthday_g3"]["published_ref"]
+        completed = len(task.snapshot["birthday_g3"]["completed"])
+        thread_id = task.checkpoint_thread_id
+
+        now = datetime.now(timezone.utc)
+        runtime.application.create_session(
+            "S2", "U1", "D1", now.isoformat(),
+            (now + timedelta(days=1)).isoformat())
+        stranger = TrustedContext(
+            user_id="U1", session_id="S2", task_id="HARNESS_RECOVER",
+            run_id=str(uuid4()), parent_task_id=None, demo_round_id="D1")
+
+        failure = None
+        try:
+            runtime.harness.recover_session(stranger)
+        except Exception as exc:  # noqa: BLE001 - explicit failure is acceptable
+            failure = exc
+        if failure is None:
+            # The known gap: the stored result can be returned, but the next real
+            # resume along the old publication must fail explicitly, not fork.
+            with pytest.raises(PermissionError):
+                runtime.harness.resume(
+                    stranger.model_copy(update={"run_id": str(uuid4())}),
+                    {}, request_id=uuid4())
+
+        # In no case did it silently write the legacy latest namespace, publish a
+        # new conversion or fake a result. The task may have moved sessions, so
+        # read the exact thread through the store rather than a session-scoped
+        # memory checkpointer.
+        saver = runtime.application.checkpoint_saver(
+            "U1", "D1", "HARNESS_RECOVER")
+        assert saver.get_tuple({
+            "configurable": {"thread_id": thread_id}}) is None
+        current = runtime.application.get_task("U1", "D1", "HARNESS_RECOVER")
+        assert current.snapshot["birthday_g3"]["published_ref"] == published
+        assert len(current.snapshot["birthday_g3"]["completed"]) == completed
+        # It may return the old card or the explicit "interrupted, verify the
+        # original task" presentation; it never fakes a new/successful state.
+        last = current.snapshot["result"]
+        assert last["status"] in {"waiting_input", "needs_attention"}
+        if last["status"] == "needs_attention":
+            assert last["recovery_required"] is True
+            assert last["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
+            assert current.snapshot["capability_fault"]["reason_code"] == (
+                "PUBLIC_CAPABILITY_INTERRUPTED")
+    finally:
+        runtime.gateway.close()

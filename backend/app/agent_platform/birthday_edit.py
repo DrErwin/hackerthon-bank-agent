@@ -46,7 +46,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol
 from uuid import UUID, uuid4
 
 from langgraph.checkpoint.base import CheckpointTuple
@@ -895,7 +895,11 @@ class BirthdayHandoff:
         )
         task = self._task(trusted)
         if task.status in _TERMINAL:
-            raise BirthdayEditError("PUBLISH_CONFLICT", "the task ended")
+            # A terminal status that was already present at reservation time is
+            # this conversion's own closeout (e.g. partially succeeded stop); a
+            # terminal status with no such record is a foreign winner.
+            if pending.get("terminal_at_reservation") != task.status.value:
+                raise BirthdayEditError("PUBLISH_CONFLICT", "the task ended")
         g3 = task.snapshot.get("birthday_g3") or {}
         current = g3.get("pending")
         if (not isinstance(current, dict)
@@ -1031,17 +1035,16 @@ class BirthdayHandoff:
 
     def publish_transition(self, trusted: TrustedContext, *, kind: str,
                            digest: str, conversion: dict | None,
-                           buffer: "_BufferedContent",
-                           result: ModuleResult) -> PublicationOutcome:
-        if kind == _ROOT and not (
-            result.status is TaskStatus.WAITING_INPUT
-            and result.interaction is not None
-            and result.interaction.kind == "input"
-        ):
-            # A failed/empty initialization keeps the existing failure or
-            # "pending verification" presentation; it is never a published root.
-            raise BirthdayEditError("INITIAL_NOT_READY",
-                                    "the initial state is not a waiting input")
+                           buffer: "_BufferedContent | None",
+                           result: ModuleResult) -> PublicationOutcome | None:
+        if kind == _ROOT and not _publishable_initial(result):
+            # N1: a non-publishable initial conversion is not an error. No root
+            # is published; the existing failure/"pending verification" result
+            # still reaches the task through the harness result CAS below.
+            return None
+        if buffer is None:
+            raise BirthdayEditError("CANDIDATE_INVALID",
+                                    "the cross entry produced no candidate content")
         task = self._task(trusted)
         snapshot = task.snapshot or {}
         g3 = snapshot.get("birthday_g3") or {}
@@ -1084,6 +1087,11 @@ class BirthdayHandoff:
                 "candidate": _ref_dict(candidate),
                 "accepted_version": task.revision + 1,
                 "association": association,
+                # A terminal status written by this same entry call (e.g. the
+                # birthday closeout) is part of the conversion we are publishing;
+                # an earlier/foreign terminal status has no such record.
+                "terminal_at_reservation": (
+                    task.status.value if task.status in _TERMINAL else None),
                 "started_at": _clock(self.runtime).isoformat(),
             }
             if source_record is not None:
@@ -1109,8 +1117,6 @@ class BirthdayHandoff:
             checkpoint=checkpoint, metadata=dict(buffer.metadata),
             new_versions=dict(buffer.new_versions), result=result,
             source=source, source_digest=source_digest,
-            writes=buffer.writes, writes_task_id=trusted.task_id,
-            writes_task_path=buffer.writes_task_path,
         )
         return self._publish_successor(trusted, pending, sealed, kind)
 
@@ -1126,8 +1132,6 @@ class _BufferedContent:
     checkpoint: dict
     metadata: dict
     new_versions: dict
-    writes: list[tuple[str, Any]] = field(default_factory=list)
-    writes_task_path: str = ""
 
 
 class BirthdayTransition:
@@ -1136,8 +1140,10 @@ class BirthdayTransition:
     ``attach(base_saver)`` wraps the entry's saver: reads answer the last sealed
     published ref (never latest) and writes are buffered in memory, so a Cross
     state never reaches the default namespace. ``publish(result)`` then reserves,
-    seals and publishes the buffered content in one task CAS. A replayed
-    conversion never re-runs the entry: the harness returns the frozen winner.
+    seals and publishes the buffered content in one task CAS; it returns ``None``
+    when the conversion is a non-publishable initial state (N1), leaving the
+    existing result/failure card to the harness result CAS. A replayed conversion
+    never re-runs the entry: the harness returns the frozen winner.
     """
 
     def __init__(self, handoff: BirthdayHandoff, trusted: TrustedContext, *,
@@ -1162,9 +1168,14 @@ class BirthdayTransition:
         )
         return self._saver
 
-    def publish(self, result: ModuleResult) -> PublicationOutcome:
+    def publish(self, result: ModuleResult) -> PublicationOutcome | None:
         if self.replayed is not None:
             return self.replayed
+        if self._kind == _ROOT and not _publishable_initial(result):
+            # N1: a failed/empty first Cross state is presented by the existing
+            # failure card; it is never a published root and must not block the
+            # result CAS (no candidate content is required here).
+            return None
         if self._saver is None or self._saver.buffer is None:
             raise BirthdayEditError("CANDIDATE_INVALID",
                                     "the cross entry produced no candidate content")
@@ -1178,11 +1189,16 @@ class BirthdayTransition:
 class _BufferedCheckpointSaver:
     """Saver-shaped adapter: read the published ref, buffer the new state.
 
-    CrossEntry only calls ``get_tuple``/``put`` (and no LangGraph machinery runs
-    on this saver), so this narrow object is enough. Reads always answer the
-    exact sealed published ref with its content digest verified; writes are
+    Used only for a cross birthday task published through this seam (the harness
+    creates it only for ``cross.start_task`` birthday/ambiguous tasks with a G3
+    published ref or root eligibility; clearly other life goals keep the legacy
+    saver). CrossEntry only calls ``get_tuple``/``put`` here, and no LangGraph
+    machinery runs on this saver, so those two methods are enough. Reads always
+    answer the exact sealed published ref with its content digest verified (the
+    config's thread/ns are intentionally ignored: the adapter is bound to this
+    one task's published ref, never to a latest/default namespace). Writes are
     buffered for ``BirthdayTransition.publish`` and never touch the default
-    namespace. ``put_writes`` records the associated writes for ticket 05.
+    namespace.
     """
 
     def __init__(self, base, read_published: Callable[[], CheckpointTuple | None],
@@ -1211,25 +1227,6 @@ class _BufferedCheckpointSaver:
             metadata=metadata, parent_config=None, pending_writes=[],
         )
         return {"configurable": configurable}
-
-    def put_writes(self, config: dict, writes, task_id: str,
-                   task_path: str = "") -> None:
-        if self.buffer is None:
-            raise BirthdayEditError("CANDIDATE_INVALID",
-                                    "writes arrived before candidate content")
-        for channel, value in writes:
-            self.buffer.writes.append((channel, value))
-        self.buffer.writes_task_path = task_path
-
-    def list(self, config: dict | None = None, *, filter: dict | None = None,
-             before: dict | None = None,
-             limit: int | None = None) -> Iterator[CheckpointTuple]:
-        saved = self.get_tuple(config or {})
-        if saved is not None:
-            yield saved
-
-    def get(self, config: dict) -> CheckpointTuple | None:
-        return self.get_tuple(config)
 
 
 # --------------------------------------------------------------------- helpers
@@ -1266,24 +1263,46 @@ def _seal_code(code: str) -> str:
 
 
 def _checked_conversion(conversion: dict) -> dict:
+    """Validate one trusted conversion association (shape only, no client entry).
+
+    An ordinary input is identified either by the explicit F10 request id (the
+    best receipt identity, passed by API04) or, when that is unavailable, by the
+    current waiting card plus the accepted publication revision and the answer
+    digest (see AgentHarness._resume_conversion). Both are stable across retries
+    under different F10 run ids.
+    """
     if not isinstance(conversion, dict):
         raise BirthdayEditError("INVALID_CONVERSION")
-    if set(conversion) - {"kind", "request_id", "event_ref", "run_id"}:
+    if set(conversion) - {"kind", "request_id", "interaction_id",
+                          "accepted_version", "answer_digest", "event_ref",
+                          "run_id"}:
         raise BirthdayEditError("INVALID_CONVERSION")
     kind = conversion.get("kind")
     if kind not in _CONVERSION_KINDS:
         raise BirthdayEditError("INVALID_CONVERSION")
     if kind == "input":
         request_id = conversion.get("request_id")
-        if not isinstance(request_id, str) or not request_id:
-            raise BirthdayEditError("INVALID_CONVERSION")
-        if "event_ref" in conversion:
-            raise BirthdayEditError("INVALID_CONVERSION")
+        if request_id is not None:
+            if not isinstance(request_id, str) or not request_id:
+                raise BirthdayEditError("INVALID_CONVERSION")
+            if "event_ref" in conversion or "interaction_id" in conversion:
+                raise BirthdayEditError("INVALID_CONVERSION")
+        else:
+            interaction_id = conversion.get("interaction_id")
+            accepted = conversion.get("accepted_version")
+            answer = conversion.get("answer_digest")
+            if (not isinstance(interaction_id, str) or not interaction_id
+                    or not isinstance(answer, str) or not answer
+                    or not isinstance(accepted, int) or isinstance(accepted, bool)
+                    or accepted < 0):
+                raise BirthdayEditError("INVALID_CONVERSION")
+            if "event_ref" in conversion:
+                raise BirthdayEditError("INVALID_CONVERSION")
     else:
         event_ref = conversion.get("event_ref")
         if not isinstance(event_ref, str) or not event_ref:
             raise BirthdayEditError("INVALID_CONVERSION")
-        if "request_id" in conversion:
+        if set(conversion) - {"kind", "event_ref", "run_id"}:
             raise BirthdayEditError("INVALID_CONVERSION")
     run_id = conversion.get("run_id")
     if run_id is not None and (not isinstance(run_id, str) or not run_id):
@@ -1324,6 +1343,13 @@ def _record_publication(g3: dict, published: dict, result: dict) -> dict:
         **g3, "published_ref": published, "pending": None,
         "completed": [entry, *completed][:_COMPLETED_LIMIT],
     }
+
+
+def _publishable_initial(result: ModuleResult) -> bool:
+    """Only an actual waiting-input first card becomes the published root."""
+    return (result.status is TaskStatus.WAITING_INPUT
+            and result.interaction is not None
+            and result.interaction.kind == "input")
 
 
 def _validated_result(value: object, code: str) -> ModuleResult:

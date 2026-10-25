@@ -805,11 +805,14 @@ def test_a_break_after_the_candidate_seal_recovers_the_first_winner(build):
     card = advance_to(env, "freeze_confirmation")
     first_edit_run = len(env.cross.requests)
     original = env.runtime.application.update_task
-    calls = {"count": 0}
 
     def failing(*args, **kwargs):
-        calls["count"] += 1
-        if calls["count"] == 2:  # reservation is first; publication is second
+        # Behavior-based fault injection: only the edit publication CAS fails
+        # (its snapshot carries a `published` edit projection); the reservation
+        # and every other task write pass through.
+        snapshot = args[7] if len(args) > 7 else kwargs.get("snapshot")
+        edit = (snapshot or {}).get("birthday_edit") or {}
+        if edit.get("published") is not None:
             raise ValueError("task changed concurrently")
         return original(*args, **kwargs)
 
@@ -1101,11 +1104,13 @@ def test_an_unpublished_conversion_blocks_the_next_one(build):
 def test_a_failed_initial_publication_does_not_expose_the_candidate(build):
     env = build(publish_root=False)
     original = env.runtime.application.update_task
-    calls = {"count": 0}
 
     def failing(*args, **kwargs):
-        calls["count"] += 1
-        if calls["count"] == 2:  # reservation is first; publication is second
+        # Behavior-based fault injection: only the root publication CAS fails
+        # (its snapshot carries a published_ref); the reservation passes.
+        snapshot = args[7] if len(args) > 7 else kwargs.get("snapshot")
+        g3 = (snapshot or {}).get("birthday_g3") or {}
+        if g3.get("published_ref") is not None:
             raise ValueError("task changed concurrently")
         return original(*args, **kwargs)
 
