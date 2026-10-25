@@ -65,4 +65,6 @@ python -m pytest -q ../evals/mockbank/test_birthday_round_attribution.py ../eval
 
 **53 passed, 4 xfailed in 74.96s**：本组3项、296来源门8项、既有生日真实装配5项、290银行专项37项通过；4项xfail仅来自290裸对象边界，未计通过。[组合JUnit](round-attribution-combined-results.xml)。本组单跑另为 **3 passed in 10.39s**，[单文件JUnit](round-attribution-results.xml)。没有运行后端全量。
 
-本轮独立两轴审查与交付状态见原票。本报告不关闭安全/页面E2E、真人接受或原银行专项，294/296未获本批合入批准，不自行合并。历史CI账号计费阻塞不自动获得例外。
+本轮独立Spec/真实性审查0项必须项，组合复跑3 passed in 9.82s；Standards组合复跑3 passed in 10.21s，发现的1项历史链接必须项与失败XML换行检查均已修正，最终只读复核0项剩余必须项/建议。回归代码提交 `61a4365485e2abb7de01765c039100a2680aa037`，此后只改证据/交付记录。
+
+原PR294保持对296分支的Draft依赖，交中控排队。本报告不关闭安全/页面E2E、真人接受或原银行专项，294/296未获本批合入批准，不自行合并。历史CI账号计费阻塞不自动获得例外。

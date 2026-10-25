@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `evals/mockbank/`
 
-Status: in_review — PR296修复后的组合复验已跑，待本轮两轴审查；原专项保持blocked，296/294均未获本批合入批准。
+Status: delivered — PR296修复后组合复验及两轴审查完成，更新原294依赖Draft交中控；原专项保持blocked，296/294均未获本批合入批准。
 
 Accepted by: Erwin（中控授权执行）
 
@@ -54,5 +54,6 @@ Core scenarios: RA01—RA05，见本规格；关联原XL-B及轮次隔离要求�
 - 新本组回归组合单跑 **3 passed in 10.39s**；定向本组+290银行+296来源门+生日装配 **53 passed, 4 xfailed in 74.96s**。4xfail仍是290裸银行测试allow下对象接口边界，不计通过、不据此断言产品越权。真实门下拒绝旧订单，合法本任务订单只付199一次。
 - 发布分支按仓库依赖规则叠在296固定head上，仅保留294自身评测/材料；`b41ef64...HEAD`没有backend差异。该发布stack另跑本组 **3 passed in 10.42s**，[发布stack原始记录](../../../evals/mockbank/round-attribution-stack-results.xml)。其父基线与含main093的完整验证组合分别记录，不混称相同Git HEAD；更新测试blob均为 `c6ca4be9d360f73f00ada3c29efb8d3eaa061285`。
 - [当前完整报告](../../../evals/mockbank/round-attribution.md)、[组合JUnit](../../../evals/mockbank/round-attribution-combined-results.xml)及[历史证据](../../../evals/mockbank/evidence/round-scope-history/pr294-eb24d73-before296.xml)可核对精确来源和层级。没有全后端/真实模型/外部TCP/页面E2E/共享演示数据操作。
-- 本轮独立Spec/真实性审查0项必须项，验证组合复跑3 passed in 9.82s。Standards审查0项代码必须项、1项历史证据链接必须项及失败XML行尾空白工具检查；已改为固定历史链接，失败XML仅CRLF→LF（解析后的XML内容/元数据严格相同），待只读复核。Standards独立组合复跑3 passed in 10.21s。
+- 本轮独立Spec/真实性审查0项必须项，验证组合复跑3 passed in 9.82s。Standards审查0项代码必须项、1项历史证据链接必须项及失败XML行尾空白工具检查；已改为固定历史链接，失败XML仅CRLF→LF（解析后的XML内容/元数据严格相同）。Standards最终只读复核通过，0剩余必须项/建议；独立组合复跑3 passed in 10.21s。两轴最终均通过，不代替真人安全/PM接受。
+- 本轮回归代码提交 `61a4365485e2abb7de01765c039100a2680aa037`（test blob见上）；审查后仅历史链接、换行及交付记录更新。原PR294仍复用 `codex/v05-bank-round-attribution-02`，Draft叠在296分支，PR差异只含evals/mockbank和本组材料。CI计费限制未由本票豁免，合入前仍由中控核对。
 - PR294仍未合并，原专项及安全/页面E2E/真人接受不关闭，原五PR合入批准不扩用。
