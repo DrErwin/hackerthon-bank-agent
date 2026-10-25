@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/agent_platform/`
-Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置 01+02+05 未交付，未开始编码。
+Status: implemented — 2026-10-26 实施完成、提交 `8e93485` 已推分支，两轴独立审查进行中；Harness/API 接线与真实 Cross 消费留 04/08。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)、[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)及本人所选G2完整条件；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)核对[候选G3快照/接口](../spec.md#g3最小内部快照候选待cross08逐项核对不是公共新模型)；中控授权。[PR #298](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)已合主线6ce7fb0，保留其预算来源边界，不在本轮整理原PR。
@@ -55,3 +55,26 @@ Core scenarios: P02—P17；[P01—P17验证框架](../spec.md#6-testing-decisio
 实施后真实Harness与安全02/隔离银行检查等待确认/验证、两种并发胜序和各持久断点；Cross未接线时可用明示stand-in测试平台边界。
 API04与Cross08消费；真实联合验收复用原E2E03。G1未收口前不宣称公开入口可用。
 新增P16/P17只交初始根/普通后继、发布失败/重试/并发的验收设计，P15旧单件边界保持。本轮不编码、不跑测试/模型/CI；真实E2E由Erwin后续亲自安排，材料独立双轴回交后即停。
+
+## Delivery record（2026-10-26 本对话实施）
+
+- 实现：新增 `backend/app/agent_platform/birthday_edit.py`（平台唯一受控编辑与 G3 发布入口，未注册模型工具，
+  只收 TrustedContext + 后端发布的原 F10 request/interaction/option）；改 `birthday_runtime.py`（确认/验证卡含
+  verify_wait 返回时追加后端发布的编辑选项并持久化发布事实）；`agent_platform/README.md` 登记接缝/边界/后续责任；
+  新增 `test_birthday_edit_handoff.py`（45 例，真实安全状态 + 06 真实银行验证 + 05 真实 saver + 明示 Cross stand-in）。
+  分支 `codex/v05-birthday-edit-handoff`，提交 `8e93485`（rebase 后）；PR 待两轴审查闭合后提交。
+- 核心编排：`begin_birthday_edit` → 任务 CAS 预留 `edit_ref`/源已发布完整 ref/唯一候选 ref →
+  安全 02 `begin_retirement` → 银行 06 `retire_action_challenges` → 安全 02 `seal_retirement`（审计失败即停）→
+  Cross `CrossBirthdayHandoff.prepare` 准备隔离候选 → 05 `seal_candidate(kind=edit)` 首胜 →
+  **同一次任务 CAS** 发布 checkpoint_id/完整 published_ref/ModuleResult/新 revision/完成投影。
+  初始 root 与普通后继走同一发布边界（`publish_initial_state`/`publish_normal_state`），缺源/历史不得冒充根。
+- 定向验证：`app/agent_platform` **354 passed / 13 skipped**（含 45 例）、`app/api/test_app.py` **85 passed**；
+  本对话在 rebase 后复跑 `app/agent_platform`（结果见回交）。未跑全量后端/真实模型/CI。
+- **作者如实列出的接线缺口（本票未跨目录实现）**：
+  1. Harness/API 调用接线未做：`publish_initial_state` 需在 `entry.start` 前调用、`publish_normal_state` 在每次普通转换调用、
+     API04 调 `begin_birthday_edit`；真实 Cross 由票 08 实现 `CrossBirthdayHandoff`，故 P16/P17 只用 stand-in 验平台边界。
+  2. **既有集成风险（作者观察到，待规格轴核实）**：`AgentHarness._resume`/`handle_message` 在 entry 返回后用旧
+     `task.revision` 做 CAS，而生日 ports 在 entry 内已 CAS 任务快照——即 Cross 生日流经 Harness 的普通 resume 可能本就未接通；
+     本票未改 harness，待审查判定是否属本票范围。
+  3. 第二依据 `verified_failed_no_order` 与「原操作失败核实后恢复」归 Cross08/API04；旧任务编辑按 `SOURCE_UNAVAILABLE` 明确 blocked。
+- 两轴独立子代理审查（AI，非本人/Ringo 签核）：**进行中**，必须项闭合后再提交 PR。
