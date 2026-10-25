@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/security/`
-Status: implemented — 2026-10-26 实施完成、提交 `f855a23` 已推分支，两轴独立审查进行中；未合入、未跑真实链路。
+Status: done — 2026-10-26 实施、两轴独立审查闭合（规格轴回修后 PASS / 规范轴复验仅 README 行尾已修）、PR #309 squash 合入 `78163a1`；真实跨库联合/E2E 与本人安全接受未由本票完成。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 中控明确授权实施；Erwin本人按本阶段代行安全职责确认[两选项及G2-A/B/C条件](../decision.md)，包括旧动作拒绝、挑战对后续任务的作用、准备/授权/claim竞争和审计恢复；G2-B收窄建议不是既定范围，AI设计审查不代替决定。
@@ -86,3 +86,12 @@ Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spe
   - **规格轴 FAIL**，4 项必须修：**M1** `claim_execution` 对 `pending_proof` 也拒绝，与[权威 §2](../verification-authority.md)「任一步失败时旧动作仍按原规则处置（可被 claim 就照常执行）」冲突——会永久废掉已批准付款；**M2** begin/seal 未消费平台任务状态判定；**M3** seal 未比对 session；**M4** 旧确认重发/迟到批准/gate 重发未查撤离、可能先产出 `approved`/`ALLOW` 假象。
 - **M1 的处置（本对话决定并记录）**：**改代码对齐权威，不改权威、不改本人已裁定的语义**——`pending_proof` 期间的旧动作仍可按原规则被领取；领取发生即把该受理记录转为不可再封存，保证之后签发不出编辑依据。这是把实现修回设计，不是新的业务选择，不新增用户可见承诺。
 - 回修完成后需重跑 `app/security`、生日装配/Cross 生日与相关 API 用例，再两轴复验。
+- **回修与复验结果**：一次提交 `211dd1a`（rebase 后；5 文件全在 `security/`）。
+  - 规范轴：提交信息补票号 ✅、rebase ✅、`security/README.md` 补变更说明（拦截/放行、受影响模块、切换时点、`v05-birthday-retirement-1` 与两表、审计口径偏差、保留取舍）✅；
+    代码建议（审计壳 run_id+sequence、store 守卫按 revision、终止优先级统一、SENSITIVE 前提）已采纳；
+    唯一新增必须项 README 末行 CRLF 已修为 LF，`git diff --check` 干净。
+  - 规格轴复验 **PASS**：M1/M2/M3/M4 全部闭合；并明确裁定「`pending_proof` 下 gate 仍返回 ALLOW」**自洽**——权威 §2 要求旧动作仍可被领取执行，可编辑只由 `sealed` 表达，claim 胜即持久 `conflict`，seal 永不能签发。
+  - 复跑：`app/security` **455 passed**（427 既有 + 28 新增）、`app/api/test_app.py` **85 passed**、
+    生日装配 + Cross 生日 **24 passed**；本对话 rebase 后独立复跑三者 **479 passed**。
+- [PR #309](https://github.com/DrErwin/hackerthon-bank-agent/pull/309) squash 合入 `78163a1`。
+- 未做：03 平台编排、真实跨库联合/E2E、全量后端/CI、本人安全接受。
