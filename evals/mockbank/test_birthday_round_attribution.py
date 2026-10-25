@@ -1,7 +1,8 @@
-"""Read-only attribution: real runtime/gate/executor; model connector never called.
+"""Read-only attribution: real runtime/gate/executor; no external model requests.
 
 Configuration-only same-file round restart is NOT the specified B26 reset.
 Internal ports probes do not establish an HTTP or browser exploit.
+The D1 API task uses one scripted routing response; ports do not call the model.
 """
 
 from contextlib import closing

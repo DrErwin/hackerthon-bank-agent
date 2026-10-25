@@ -63,3 +63,7 @@ python -m pytest -q ../evals/mockbank/test_birthday_round_attribution.py --tb=sh
 ```
 
 初轮探针构造有两处纠正：resume只接受request_id（去掉多余choice，避免400在权限判断前阻断）；旧上下文实际先被memory的STALE_ROUND阻断，已改按观察记录，未改业务。最终含旧释放授权/B14补充检查实跑 **3 passed in 14.28s**。这里通过的是“归因断言符合实际”，不是跨轮次缺口已经修复。[原始JUnit](round-attribution-results.xml)。子代理复核及PR状态见本票。
+
+相关原测试另跑 **4 passed, 32 deselected in 18.50s**：真实生日完整链、花付款后停止、无装配网关拒绝，以及`test_stale_round_authorization_cannot_finalize`。最后一项是原安全组件Rig单测，验证finalizer自身的显式STALE_ROUND分支；不冒称本轮真实端口越过了更早的memory轮次门。
+
+独立Standards复核0项必须修复，独立复跑3 passed in 14.24s；Spec/真实性复核0项必须修复，独立复跑3 passed in 13.32s。Spec建议修正文件开头“模型从不被调用”的措辞，已改为“无外部模型请求、API使用一次脚本响应”，不改变运行行为。本票只读归因完成，原专项与跨轮次验收仍blocked。

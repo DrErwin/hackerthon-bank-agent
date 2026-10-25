@@ -4,7 +4,7 @@ Owner: Erwin（中控授权执行）
 
 Accepted by: Erwin（2026-10-25 中控续派）
 
-Status: in_progress
+Status: delivered — 只读归因与独立复核完成，原银行专项保持blocked。
 
 Source: [PR #290](https://github.com/DrErwin/hackerthon-bank-agent/pull/290) 的 round-boundary-gap；本轮用户要求用真实安全执行器/运行装配核对可达性和原规则归属。
 
