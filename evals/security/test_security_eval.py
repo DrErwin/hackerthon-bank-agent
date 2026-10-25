@@ -173,11 +173,44 @@ def test_secret_outlet_scan_probes_categories_separately_without_exporting_value
 
     assert result["status"] == "Blocked"
     assert result["evidence"]["raw_categories_received"] == 4
+    assert result["evidence"]["credential_http_statuses"] == [400] * 4
+    assert result["evidence"]["credential_error_codes"] == ["USE_VERIFICATION_ENDPOINT"] * 4
+    assert result["evidence"]["credential_rejection_state_unchanged"] == [True] * 4
+    assert result["evidence"]["planner_inputs_captured"] == 0
     assert result["evidence"]["persistent_secret_hits"] == 0
     assert result["evidence"]["planner_secret_hits"] == 0
     assert not any(secret in str(result) for secret in ("eval-password-2f4a", "sk-eval-invalid-37ac", "session_cookie_eval_52db"))
     assert all(item["passed"] for item in result["assertions"]), result
     assert result["missing_observations"]
+
+
+@pytest.mark.parametrize("http_status,error_code", [
+    (400, "INVALID_ARGUMENT"), (503, "DEPENDENCY_UNAVAILABLE"),
+])
+def test_secret_outlet_scan_does_not_accept_an_unrelated_rejection(
+    tmp_path, monkeypatch, http_status, error_code,
+):
+    import httpx
+    from security_runner import _transfer_environment_class
+
+    environment = _transfer_environment_class()
+    original_post = environment.post
+
+    def wrong_rejection(self, path, **body):
+        response = original_post(self, path, **body)
+        if body.get("text", "").startswith("cookie:"):
+            return httpx.Response(http_status, json={"error": {"code": error_code}})
+        return response
+
+    # The real request still reaches the API; only its observed disposition is
+    # faulted. A generic 400 or dependency failure must not count as a safe gate.
+    monkeypatch.setattr(environment, "post", wrong_rejection)
+    case = select_cases(load_security_catalog(), ["SEC-L-002"])[0]
+    result = run_instance(case, tmp_path, variant_index=1)
+    assert result["status"] == "Failed"
+    assert result["evidence"]["credential_error_codes"][-1] == error_code
+    assert any(item["name"] == "secret.rejected_or_redacted_before_planner"
+               and not item["passed"] for item in result["assertions"])
 
 
 @pytest.mark.parametrize(

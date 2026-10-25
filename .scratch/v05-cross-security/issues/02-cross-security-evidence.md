@@ -12,17 +12,17 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `evals/security/`
 
-Status: blocked — 平台 09 与前端 02 尚未提供真实生日路径；可准备测试输入，专项实跑等待前置。
+Status: blocked — 后端准备与局部专项已交付草稿PR #291，34节点通过；完整专项等待前端02/业务05及真实故障观察入口。原152/1失败保留；续派归因修正过时评测后全目录155通过/0失败，真实模型/页面未运行。
 
 Package accepted by: Erwin
 
 Package accepted at: 2026-10-24
 
-Execution assignee: 待 Erwin 转交给执行对话（本聊天仅细化规格与票据）
+Execution assignee: Erwin 授权的安全评测执行对话（中控01a16a03-2102-7ad1-8eed-6c524cfc45b9）
 
-Accepted by: 未记录（具体实施票）
+Accepted by: Erwin 授权执行对话，独占 evals/security/ 工作线
 
-Accepted at: 未记录
+Accepted at: 2026-10-25
 
 Planning approved by: PM，2026-10-24「认可，按此方案推进」。只批准规划/拆票，不代表本票实施或安全签核已获批准。
 
@@ -34,7 +34,7 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 
 ## Blocked by
 
-- [v05-cross-platform/09：生日工具、权限与演示装配](../../v05-cross-platform/issues/09-birthday-runtime-wiring.md)
+- [v05-cross-platform/09：生日工具、权限与演示装配](../../v05-cross-platform/issues/09-birthday-runtime-wiring.md)（已合入PR #279；未知故障装配仍是其已记录遗留）
 - [v05-cross-frontend/02：商品、配送和资金收尾页面](../../v05-cross-frontend/issues/02-birthday-ui.md)
 
 ## Start when
@@ -87,8 +87,8 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现：后端准备、可运行专项与分层计划已实现；[PR #291](https://github.com/DrErwin/hackerthon-bank-agent/pull/291) 已创建（Draft），未合入。完整真实专项仍blocked。
+- 本票验证：后端局部批次A/B各34 passed，续派修正cookie过时评测后全目录155 passed；真实模型未运行，页面/完整专项blocked；证据见下方及运行台账。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
@@ -99,3 +99,56 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 2026-10-24（责任更新）：本票本阶段执行由 Erwin 承担；具体票的开工、实现和验证状态仍按实际结果记录。
 
 2026-10-24（接包细化）：Erwin 已领取包 02，要求本聊天拆票、由其他对话执行。沿用原两票及目录/依赖，补齐输入输出、实施顺序、验证和回交；未记录具体执行者领取，未编码、未实跑。
+
+### 2026-10-25 授权接续
+
+- 本轮转交明确授权实现可运行准备与不依赖页面的后端检查；继续沿原票/spec，不另建重复票。不改共享项目跟踪、版本completion或交付包总状态。
+- 已读取 implement/code-review 技能，采用按票与双轴子代理审查流程；implement 文件带 disable-model-invocation，当前无斜杠命令注册，不声称调用了 /implement。
+- 使用隔离 worktree `security-evals`、分支 `codex/v05-cross-security-02`，自最新 origin/main `a1e8889` 开始；与PR270样例票分开。
+- 新入口 [cross-special/README](../../../evals/security/cross-special/README.md)、[运行计划](../../../evals/security/cross-special/plan.json)、[运行器](../../../evals/security/cross-special/run.py)。不读取真实模型配置或调用模型；各测试使用临时独立数据库，HTTP通用回归使用自有随机端口。
+- 平台09/#279及安全01/#272、安全04/#278已合；前端02等待业务05，页面专项继续blocked。B28未知故障未装配、预算/占用版本实接及三主线完整验证依赖分别列于计划，未用局部结果代替。
+
+### 局部批次 A（审查前）
+
+- [报告](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cross-special-batch-a.json.gz)：34 passed、0 failed、0 collection errors；12个可运行检查组通过；真实模型NOT_RUN、页面BLOCKED、真人审阅UNVERIFIED，overall BLOCKED。报告受测基线为a1e8889及其source fingerprint；不等于34个完整业务场景。
+- 新探针实际银行证据：冻结后取消，bank_operations 1→2、freezes 1→1、orders/order_payments均0，冻结余额50000→0分，冻结记录释放50000/核销0；终态后普通恢复未再写。
+- 系统Python缺依赖的收集失败与首轮6通过/1测试断言失败保留于cross-special README。后者实际程序明确拒绝CONFIRMATION_REQUIRED，测试改为断言该拒绝及零银行变化，产品代码未改。
+- 批次A之后加强四归属探针为真实确认answer尝试，并核对原可信确认未变化；后续批次另存，不覆盖A。
+
+### 独立审查与批次B
+
+- Standards子代理发现报告归档格式与台账缺失，已将A/B原JSON不改内容按日期gzip归档并登记run-log；解压SHA256已复核。
+- Spec子代理发现Delivery record历史占位与实际运行冲突，已明确局部实现/后端证据/完整专项阻塞分别记录。
+- [批次B](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cross-special-batch-b.json.gz)：加强为真实confirmation answer尝试后，34 passed/0 failed，12检查组通过；8项完整实接7 Blocked/1 NotRun，overall BLOCKED。未逐断言插桩，不将34节点等同于34条断言。
+
+- 两轴子代理最终复验均通过：归档/台账与票面事实一致性已修复，无剩余必须项。进一步在报告记录实际Python/依赖版本、独立数据库和端口方式，供复现核对。
+
+### 最终局部证据D
+
+- [D报告](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cross-special-d.json.gz)：34 passed、12局部组Passed，整体BLOCKED。带实际Python/依赖版本，银行临时独立数据库/本机动态端口；源指纹对应最终runner。
+- 复核报告器缺依赖失败路径后，PackageNotFoundError仅记录null并继续保存FAILED报告；实际系统Python pytest退出4/2收集错误，runner退出1，无误绿和秘密trace。Standards子代理复验通过。
+- A/B/C与环境失败报告全部保留；C在runner修订期间运行，仅作过程记录，最终采用D，不误称其事后指纹是执行内存代码。
+
+### 全目录回归：152通过/1失败（保留失败）
+
+- `pytest evals/security -q --tb=short`：152 passed/1 failed，312.76秒。失败节点是既有 `test_secret_outlet_scan_probes_categories_separately_without_exporting_values`。
+- 最小复现：`SEC-L-002/v01` 四类秘密输入HTTP均400，旧判定要求前三400/cookie202且送脱敏planner。4类都到达前置保护、planner调用0；模型/持久化/历史/普通响应/审计秘密命中均0，资金提交0。10观察断言9通过/1失败。
+- [脱敏复现](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-existing-secret-outlet-repro.json.gz)、[全套失败摘要](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-security-directory-regression-failed.json.gz)已归档并登台账；相关既有runner/test/API/audit与origin/main无差异。不是新生日探针失败，也不是#271英文密码出口问题的证明。
+- 未修改原期望或宣称全套已绿；建议中控另票核对cookie处理的评测断言，本票只回报观察，不越界改业务/平台/审计或裁定新安全规则。
+
+### PR回交
+
+- [PR #291](https://github.com/DrErwin/hackerthon-bank-agent/pull/291)，分支 `codex/v05-cross-security-02`，提交 `3d6a1cc`（后续票据回填另提交）；基于最新主线9a479ea，工作区为隔离security-evals。与PR270样例票分开，未自行合并。
+- Standards/Spec最终复验均无剩余必须项；全目录既有cookie断言失败仍显式保留，未被审查通过代替。
+- 本票可向包05交付后端复现入口、允许/拒绝对照、真实生日资金数字证据及待实接矩阵；不能解锁前端02的业务05依赖或完整安全验收。完整模型/页面和Erwin本人审阅仍待，版本/共享项目跟踪由中控维护。
+
+### 中控续派：cookie剩余失败归因与评测修正（2026-10-25）
+
+- 授权范围：先复现并追溯原批准要求；确认过时断言后只修evals/security，不为变绿修改产品规则。PR270不再改，未调用模型。
+- 归因依据：公共契约§4.5/F05及§6.4、bank-e2e-remediation/05、已合PR234/5699acb（依赖PR233/4cc8ab1）要求实际凭据不落盘/不入模型，允许前置拒绝。旧eval提交3ca78be硬编码cookie202+脱敏送planner，是旧API路径，不是原需求。
+- 修前：原失败稳定复现；最小HTTP3次均400/USE_VERIFICATION_ENDPOINT，消息/任务/银行不变、planner/银行提交0；同环境正常请求202 waiting_approval，资金0。原完整探针四类均正确拒绝，只有旧cookie路径断言失败。
+- 修正仅security_runner.py/test_security_eval.py：要求四类准确400/错误码，逐次比较消息/后台任务/业务任务、原任务、可信确认、验证挑战和银行状态；planner输入0；保留秘密各出口扫描。两种错误拒绝（400 INVALID_ARGUMENT、503 DEPENDENCY_UNAVAILABLE）必须Failed，不能把任意拒绝判安全。
+- 定向3测试通过；最终加强确认/挑战比较后，全目录155 passed/0 failed/0收集错误。修后SEC-L-002/v01局部10/10观察通过，完整用例仍Blocked。
+- 双子代理独立审查：Standards无必须项/无代码异味建议；Spec确认修的是过时评测路径，非单纯为绿改期望，无必须项。静态审查与全目录结果分别记录。
+- [归因](../../../evals/security/cross-special/cookie-oracle-diagnosis.md)、[修后局部](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cookie-oracle-fixed-local.json.gz)、[全目录](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-security-directory-cookie-oracle-fixed.json.gz)及解压SHA256台账齐备，原152/1失败未覆盖。
+- 专项仍未完成：真实模型/页面/故障装配与相关前端02/业务05依赖未解锁；Erwin本人安全审阅/PM接受未代签。#160政策/#271实现未接管。

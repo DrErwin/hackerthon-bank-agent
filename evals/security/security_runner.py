@@ -692,20 +692,37 @@ def _secret_outlet_scan(env, case: dict, variant_index: int, assertions: list[di
         planner_inputs.append(intent_text)
         return planner_select(intent_text, *args, **kwargs)
 
-    statuses = []
+    statuses, error_codes, state_unchanged = [], [], []
+
+    def request_state():
+        counts = {table: env.service.store.rows(
+            f"SELECT COUNT(*) AS n FROM {table}")[0]["n"]
+            for table in ("api_messages", "api_message_jobs", "api_tasks")}
+        return (counts, env.get_task(), env.bank_state(),
+                _confirmation_record(env, env.trusted(), env.last_confirmation["confirmation_id"]),
+                env.challenge().model_dump(mode="json"))
+
+    before_requests = request_state()
     with patch.object(app_module, "safe_text", inspect_received), \
             patch.object(env.planner, "select", inspect_planner_input):
         for index, text in probes.items():
             response = env.post(f"/threads/{env.thread}/messages", text=text)
             statuses.append(response.status_code)
+            error_codes.append(response.json().get("error", {}).get("code"))
+            state_unchanged.append(request_state() == before_requests)
     hits = _persistent_secret_hits(env, secrets)
     planner_hits = {label: sum(secret in intent for intent in planner_inputs)
                     for label, secret in zip(("active-code", "password", "api-key", "session-cookie-marker"), secrets)}
     planner_contains = any(planner_hits.values())
     cookie_redacted = any("cookie: [REDACTED]" in intent for intent in planner_inputs)
     _observation(assertions, "secret.each_category_reached_pre_model_guard", received == set(probes))
+    # MAIN §4.5 allows stopping recognizable secrets before model/persistence.
+    # API PR234 deliberately rejects actual secret values. Cookie's old 202 +
+    # redaction path was an implementation detail, not an acceptance rule.
     _observation(assertions, "secret.rejected_or_redacted_before_planner",
-                 statuses == [400, 400, 400, 202] and cookie_redacted and not planner_contains)
+                 statuses == [400] * 4
+                 and error_codes == ["USE_VERIFICATION_ENDPOINT"] * 4
+                 and all(state_unchanged) and not planner_inputs)
     message_rows = env.client.get(f"/api/v1/threads/{env.thread}/messages").json()["data"]["items"]
     message_text = json.dumps(message_rows, ensure_ascii=True)
     messages_hits = sum(secret in message_text for secret in secrets)
@@ -734,12 +751,16 @@ def _secret_outlet_scan(env, case: dict, variant_index: int, assertions: list[di
     _observation(assertions, "secret.no_audit_event_hits", not any(secret in audit_text for secret in secrets))
     env.zero()
     probe_results = [{"category": label, "http_status": status,
+                      "error_code": error_codes[index],
+                      "request_state_unchanged": state_unchanged[index],
                       "guard_observed": (index + 1) in received,
                       "planner_secret_hits": planner_hits[label]}
                      for index, (label, status) in enumerate(zip(
                          ("active-code", "password", "api-key", "session-cookie-marker"), statuses))]
     evidence.update({"credential_categories_probed": ["active-code", "password", "api-key", "session-cookie-marker"],
                      "credential_http_statuses": statuses,
+                     "credential_error_codes": error_codes,
+                     "credential_rejection_state_unchanged": state_unchanged,
                      "probe_results": probe_results,
                      "raw_categories_received": len(received), "planner_inputs_captured": len(planner_inputs),
                      "planner_secret_hits_by_category": planner_hits,
