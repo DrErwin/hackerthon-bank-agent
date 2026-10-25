@@ -5,7 +5,7 @@ from app.contracts.platform import CapabilityDefinition, ModuleManifest
 
 ANOMALY_MANIFEST = ModuleManifest(
     module_name="bills", version="0.4.0-l02", owner="zhouey314-cloud",
-    description=("核对疑似异常交易。locate 返回 TransactionCandidates 并在多候选时等待选择；"
+    description=("接收聊天或DetectAnomaliesInput。locate 返回 TransactionCandidates，聊天多候选时等待选择；"
                  "single 返回含银行原交易的 AnomalyResult；scan 只检查周期扣款规则4。"),
     implementation_kind="workflow", dependencies=["bank_gateway", "security"],
     capabilities=[CapabilityDefinition(

@@ -11,7 +11,7 @@ from .reads import PRIVATE_TOOLS
 
 MANIFEST = ModuleManifest(
     module_name="bills", version="0.4.0-l01", owner="zhouey314-cloud",
-    description="L01按mode返回：summary=SpendingSummary、details=BillDetails。",
+    description="L01接收聊天或BillSummarizeInput；按mode返回：summary=SpendingSummary、details=BillDetails。",
     implementation_kind="workflow", dependencies=["bank_gateway", "security"],
     capabilities=[CapabilityDefinition(
         # A schema_ref must name an existing model, not an invented union alias.
@@ -30,7 +30,7 @@ MANIFEST = ModuleManifest(
 # MANIFEST would route report intent to the summary handler.
 REPORT_MANIFEST = ModuleManifest(
     module_name="bills", version="0.4.0-l03", owner="zhouey314-cloud",
-    description="月度或年度本人账单报告（L03）：只含总览、分类、对比；分享意图不授予分享权限。",
+    description="L03接收聊天或GenerateReportInput：本人报告只含总览、分类、对比；分享意图不授予分享权限。",
     implementation_kind="workflow", dependencies=["bank_gateway", "security"],
     capabilities=[CapabilityDefinition(
         name="bills.generate_report", input_schema_ref="GenerateReportInput",

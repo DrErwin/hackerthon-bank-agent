@@ -1,7 +1,7 @@
 """L02 task continuation over the existing entry protocol and F10 options.
 
-The platform currently supplies StartTransferInput to every module. Only the
-original intent and request ID are used; proposal amount/payee fields are never
+Chat starts use StartTransferInput; typed callers use DetectAnomaliesInput.
+For chat starts, only the original intent and request ID are used; proposal amount/payee fields are never
 bank facts. Candidate option IDs map to account/transaction IDs in the scoped
 durable checkpoint, and selecting one always re-reads the original bank range.
 """
@@ -186,6 +186,11 @@ class BillsAnomalyEntry:
         return self._failure(context, state, result)
 
     def _advance(self, context, state):
+        if state.get("typed_request") is not None:
+            result = self.service.detect(context, state["typed_request"])
+            if result.error and result.error.code in {"DEPENDENCY_UNAVAILABLE", "INCOMPLETE_FACTS"}:
+                return self._failure(context, state, result)
+            return result
         if state["mode"] is None:
             return self._wait(context, state, "你想核对哪类账单问题？",
                 [("核对一笔交易", {"mode": "locate"}), ("检查周期扣款", {"mode": "scan"})], "mode")
@@ -247,19 +252,33 @@ class BillsAnomalyEntry:
         return self._wait(context, state, "找到多笔候选流水，请选择要核对的一笔（时间为北京时间）。",
                           choices, "candidates", data=result.data)
 
-    def start(self, trusted: TrustedContext, request: StartTransferInput, *, thread_id=None,
+    def start(self, trusted: TrustedContext, request: StartTransferInput | DetectAnomaliesInput, *, thread_id=None,
               inherited_scope: BillScope | None = None):
-        if not isinstance(request, StartTransferInput) or _SECRET.search(request.intent_text):
+        if not isinstance(request, (StartTransferInput, DetectAnomaliesInput)):
+            return fail(trusted, BillsError("INVALID_ARGUMENT"))
+        typed = isinstance(request, DetectAnomaliesInput)
+        if not typed and _SECRET.search(request.intent_text):
             return fail(trusted, BillsError("INVALID_ARGUMENT"))
         _, state = self._load(trusted, thread_id)
-        digest = sha256(request.intent_text.encode("utf-8")).hexdigest()
+        content = (DetectAnomaliesInput.__name__ + request.model_dump_json() if typed else request.intent_text)
+        digest = sha256(content.encode("utf-8")).hexdigest()
+        request_id = None if typed else str(request.request_id)
         if state is not None:
             if state["session_id"] != trusted.session_id:
                 raise PermissionError("ACCESS_DENIED")
-            if state["request_id"] != str(request.request_id) or state["intent_digest"] != digest:
+            if state["request_id"] != request_id or state["intent_digest"] != digest:
                 raise ValueError("REQUEST_CONFLICT")
             if "result" in state:
                 return self._result(trusted, state)
+        elif typed:
+            state = {"actor": list(_actor(trusted)), "session_id": trusted.session_id,
+                "request_id": request_id, "intent_digest": digest,
+                "typed_request": request.model_dump(mode="json"),
+                "period": ((request.scope.start_at.isoformat(), request.scope.end_at.isoformat())
+                           if request.scope is not None else None),
+                "account_ids": list(request.scope.account_ids) if request.scope is not None else None,
+                "selected": None, "choices": {}, "wait_reason": None}
+            self._save(trusted, thread_id, state)
         else:
             text = request.intent_text
             clues, ambiguous = _clues(text)
@@ -328,7 +347,7 @@ class BillsAnomalyEntry:
             return None
         if state["session_id"] != trusted.session_id:
             raise PermissionError("ACCESS_DENIED")
-        if state.get("result", {}).get("status") != "succeeded":
+        if state.get("result", {}).get("status") != "succeeded" or state["period"] is None:
             return None
         return BillScope(account_ids=state["account_ids"], start_at=state["period"][0], end_at=state["period"][1])
 
