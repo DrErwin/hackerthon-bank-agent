@@ -10,7 +10,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 import hashlib
 import io
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 import json
 from pathlib import Path
 import subprocess
@@ -89,16 +89,20 @@ def main():
     for path in hashed:
         fingerprint.update(path.relative_to(ROOT).as_posix().encode())
         fingerprint.update(hashlib.sha256(path.read_bytes()).digest())
+    packages = {}
+    for name in ("pytest", "fastapi", "pydantic", "deepagents", "langgraph",
+                 "langchain-openai", "uvicorn"):
+        try:
+            packages[name] = version(name)
+        except PackageNotFoundError:
+            packages[name] = None
     report = {
         "ticket": plan["ticket"], "started_at_utc": started,
         "base_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "source_fingerprint_sha256": fingerprint.hexdigest(),
         "environment": {
             "python": sys.version.split()[0],
-            "packages": {name: version(name) for name in (
-                "pytest", "fastapi", "pydantic", "deepagents", "langgraph",
-                "langchain-openai", "uvicorn",
-            )},
+            "packages": packages,
             "databases": "isolated pytest temporary directories",
             "http_ports": "127.0.0.1 ephemeral, owned by each HTTP fixture",
         },

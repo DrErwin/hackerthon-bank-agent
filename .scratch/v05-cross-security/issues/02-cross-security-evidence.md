@@ -122,3 +122,16 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 - [批次B](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cross-special-batch-b.json.gz)：加强为真实confirmation answer尝试后，34 passed/0 failed，12检查组通过；8项完整实接7 Blocked/1 NotRun，overall BLOCKED。未逐断言插桩，不将34节点等同于34条断言。
 
 - 两轴子代理最终复验均通过：归档/台账与票面事实一致性已修复，无剩余必须项。进一步在报告记录实际Python/依赖版本、独立数据库和端口方式，供复现核对。
+
+### 最终局部证据D
+
+- [D报告](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cross-special-d.json.gz)：34 passed、12局部组Passed，整体BLOCKED。带实际Python/依赖版本，银行临时独立数据库/本机动态端口；源指纹对应最终runner。
+- 复核报告器缺依赖失败路径后，PackageNotFoundError仅记录null并继续保存FAILED报告；实际系统Python pytest退出4/2收集错误，runner退出1，无误绿和秘密trace。Standards子代理复验通过。
+- A/B/C与环境失败报告全部保留；C在runner修订期间运行，仅作过程记录，最终采用D，不误称其事后指纹是执行内存代码。
+
+### 全目录回归：152通过/1失败（保留失败）
+
+- `pytest evals/security -q --tb=short`：152 passed/1 failed，312.76秒。失败节点是既有 `test_secret_outlet_scan_probes_categories_separately_without_exporting_values`。
+- 最小复现：`SEC-L-002/v01` 四类秘密输入HTTP均400，旧判定要求前三400/cookie202且送脱敏planner。4类都到达前置保护、planner调用0；模型/持久化/历史/普通响应/审计秘密命中均0，资金提交0。10观察断言9通过/1失败。
+- [脱敏复现](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-existing-secret-outlet-repro.json.gz)、[全套失败摘要](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-security-directory-regression-failed.json.gz)已归档并登台账；相关既有runner/test/API/audit与origin/main无差异。不是新生日探针失败，也不是#271英文密码出口问题的证明。
+- 未修改原期望或宣称全套已绿；建议中控另票核对cookie处理的评测断言，本票只回报观察，不越界改业务/平台/审计或裁定新安全规则。

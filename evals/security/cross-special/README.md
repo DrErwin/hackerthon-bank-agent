@@ -55,3 +55,7 @@ python evals/security/cross-special/run.py --output $report
 首轮新探针为6通过/1失败：测试原先要求未答可信确认时返回等待卡，实际底层以 `SecurityError(CONFIRMATION_REQUIRED)` 拒绝。对直接工作流入口这是有效拦截；修正测试断言为该明确拒绝并保留零银行变化断言，未改产品代码或放宽安全期望。该首轮记录保留，不视作业务缺陷修复或页面体验通过。
 
 后续批次与独立审查见本票交付记录；整体专项未接受。
+
+最终局部证据采用 [D批报告](../evidence/2026-10-25/2026-10-25-offline-cross-special-d.json.gz)：34测试节点通过、12个局部组通过，整体仍BLOCKED。[缺依赖失败报告](../evidence/2026-10-25/2026-10-25-offline-cross-special-missing-dependency.json.gz)验证缺langchain-openai时保留FAILED、null版本及收集错误，不输出traceback。A/B/C过程批次和解压SHA256见[运行台账](../run-log.md)。pytest未逐断言插桩，不能把34节点写为34条断言。
+
+安全评测目录全套回归为 **152 passed / 1 failed**（312.76秒），未绿。失败是已有SEC-L-002的cookie响应断言：四类秘密输入实际均400，原oracle要求cookie202且脱敏送planner；独立复现各秘密出口命中0、资金写入0，相关实现与主线无差异。见[失败摘要](../evidence/2026-10-25/2026-10-25-offline-security-directory-regression-failed.json.gz)及[脱敏复现](../evidence/2026-10-25/2026-10-25-offline-existing-secret-outlet-repro.json.gz)。未修改原oracle以消除失败，交中控核对是否另票；不能把它与#271英文密码缺口混为一谈。

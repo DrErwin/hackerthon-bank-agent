@@ -174,3 +174,20 @@ SEC-T-003/004/005原话术及MAT-FRAUD-01各3轮，实际检测/终止专项12 P
 | 2026-10-25 | 联动后端专项（无模型） | v05-cross-security/02 批次B，12组/34测试节点 | 局部34 Passed / 0 Failed；8项完整路径7 Blocked / 1 NotRun，整体BLOCKED | pytest未逐断言插桩，断言数未统计；34节点全部通过 | [批次B](evidence/2026-10-25/2026-10-25-offline-cross-special-batch-b.json.gz)（6ddd62c5aef3aca4f1ad80fb201e346327c834e834a90f32f370b04da69162af） |
 
 批次A在归属探针加强之前，批次B在确认answer与原记录不变断言加强后；报告源指纹分别保存。真实模型NOT_RUN、页面BLOCKED、Erwin本人安全审阅/PM接受UNVERIFIED。CS-01—12是后端准备与分层回归，不外推为三主线安全专项通过。固定风险和scripted部分见[cross-special说明](cross-special/README.md)。首次系统Python缺依赖收集失败，以及新探针首轮6通过/1测试断言失败，原因和调整已保留于该说明；没有改产品代码。
+
+| 日期 | 入口 | 批次 | 状态分布 | 断言 | 报告文件（解压SHA256） |
+|---|---|---|---|---|---|
+| 2026-10-25 | 无模型后端/报告器 | c | 34节点通过；12局部组Passed；整体BLOCKED | 未逐断言计数，未伪造统计 | [c](evidence/2026-10-25/2026-10-25-offline-cross-special-c.json.gz)（049c000360d2130672842c36e5a6a0719527e558e952fb6fcb39e363dee702c7） |
+| 2026-10-25 | 无模型后端/报告器 | d | 34节点通过；12局部组Passed；整体BLOCKED | 未逐断言计数，未伪造统计 | [d](evidence/2026-10-25/2026-10-25-offline-cross-special-d.json.gz)（443054fd82160fa60b23a2a019743850c03d6ae1690fc4dc5ef4f5114294e5d4） |
+| 2026-10-25 | 无模型后端/报告器 | missing-dependency | 0节点执行；2收集错误；整体FAILED | 环境故障回归：缺依赖不能丢报告/误绿 | [missing-dependency](evidence/2026-10-25/2026-10-25-offline-cross-special-missing-dependency.json.gz)（f1bd4e555a4724ca0cd06fdd48467bf646564d6f528dc1abfd103c88516ea250） |
+
+D为最终runner与实际确认answer探针证据，带实际Python/包版本；源码指纹对应未提交的缺依赖处理修复。C为元数据增强期间的过程批次，期间审查修过runner，不能以C的事后源码指纹声称该批执行内存代码与最终文件逐字一致；只保留过程记录，最终采用D。缺依赖报告由系统Python实际产生，langchain-openai版本null、pytest退出4，runner退出1；这验证失败报告可保存，不是产品通过。所有批次模型调用0、完整专项未接受。
+
+### 安全目录全套回归未绿（非#271结论）
+
+| 日期 | 入口 | 范围 | 状态 | 断言 | 报告（解压SHA256） |
+|---|---|---|---|---|---|
+| 2026-10-25 | pytest evals/security | 全目录153节点 | 152 Passed / 1 Failed，312.76秒 | 节点计数，未逐断言插桩 | [失败摘要](evidence/2026-10-25/2026-10-25-offline-security-directory-regression-failed.json.gz)（83f44e526344cfe98b95fde753fc093907ae21d3c08090a8c0dc371f6e07cf90） |
+| 2026-10-25 | 原SEC-L-002独立复现 | v01，隔离数据库/受控planner | Failed：cookie400而旧oracle要求202；10断言中1不符 | 9通过/1失败；秘密各出口命中0，资金写入0 | [脱敏复现](evidence/2026-10-25/2026-10-25-offline-existing-secret-outlet-repro.json.gz)（e80cc0ea5321f9d424d179262286789dcbad53352fb615704d310761421ff2b6） |
+
+原有test_security_eval.py/security_runner.py、transfer environment及audit/API相关实现与origin/main无差异。失败不是新生日探针失败，也未观察到#271描述的英文密码泄露：四类输入均被400拒绝、planner输入0。没有擅自把cookie期望改成400或豁免失败；建议中控另票核对当前契约下的评测断言。#271仍由原专线处理。
