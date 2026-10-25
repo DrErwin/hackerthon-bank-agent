@@ -44,3 +44,7 @@ Content-Type: application/json
 首个定向批（修发布问题前）为21 passed，head753da39；随后修正并新增断言的定向批为93 passed / 136.64s，head8a9b6c9。同步主线2a070b9后，最终head355ea4e的同一93项定向批为 **93 passed / 96.15s**，失败/错误/跳过均0；新增预算API23、平台35、相关API35。range-diff证明两条实现提交与审查过的改动等价。原日志、XML、解释器环境、manifest及SHA-256均在[api02-evidence](api02-evidence/summary.json)，不能将早期批次冒充最新源码验证。所有批次均为定向，不是完整后端回归；按中控资源安排未运行全量，后续若需要应先报中控排时。
 
 代码[独立双轴审查](api02-review.md)必须项已清零；原票的真实cross06/#293采用和完整生日E2E仍为下游验收，不能据API接缝通过提前勾选。
+
+## PR与阻塞
+
+[PR #299](https://github.com/DrErwin/hackerthon-bank-agent/pull/299)为本票单目录交付，已附加本对话，保持草稿，不自行合并。已读取ce0c35b上CI的annotation：账号付款/额度导致job未启动，标Blocked；未套用旧PR的CI计费例外。原始捕获日志字节在同目录`.log.gz`，供阅读的JSON/log为LF，摘要分别保存归档、原字节与阅读副本哈希；JUnit保持原文件字节。

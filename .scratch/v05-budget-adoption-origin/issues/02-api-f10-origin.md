@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/api/`
 
-Status: delivered_api_seam — API接缝、定向93项与双轴审查已完成，待本票PR和中控排队；真实cross06/#293采用及完整E2E仍待下游，不代表合入或真人安全批准。
+Status: delivered_api_seam — [PR #299](https://github.com/DrErwin/hackerthon-bank-agent/pull/299)草稿已附加，API接缝/定向93项/双轴审查完成，交中控排队；CI账号账务受阻，不自动豁免。真实cross06/#293采用及完整E2E仍待下游，不代表合入或真人安全批准。
 
 Blocked by: None（平台01已实际合入，中控开始信号已收到）；真实cross06/AdoptedBudget及完整生日验收仍属后续依赖。
 
@@ -44,3 +44,9 @@ Core scenarios: O01—O08，定义见规格。
 主线同步使用range-diff确认本票两条实现提交等价：753da39→9365d74、8a9b6c9→355ea4e。Standards必修0；Spec初轮发布混批问题已修并复审必修清零，建议0。按中控资源要求仅定向，不跑完整后端；后续需要全量应先报中控排时。
 
 真实cross06/#293 AdoptedBudget写入、真实模型/React页面和完整生日E2E没有在本票验收，以上最后一项仍保留未勾选。未修改共享跟踪/completion，未实施生日编辑G1/04，本票PR未经中控另行批准不得自行合并；不自动沿用之前PR的CI例外。
+
+## Delivery / CI
+
+PR #299 已创建并附加，保持draft。已核对head ce0c35b 的 [run40186751887](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40186751887) / check121149065121：GitHub annotation 明确 job未启动，账号付款失败或spending limit不足；CI=Blocked（计费），不是代码测试失败、绿灯或已获例外批准。
+
+最终证据文本统一LF以通过差异空白检查；原捕获日志字节另存 `.log.gz`，阅读文本、原日志字节及归档分别记SHA-256，已逐项验算一致，未因格式调整重跑/改写测试结果。受测355ea4e与文档提交ce0c35b的backend tree均为 `641a9d2abc85419506f32294ad4e238c60c6dc0c`。最后fetch的main c02c70d与受测基线2a070b9在backend无差异，不把其进度文档变化冒称代码重新验证。
