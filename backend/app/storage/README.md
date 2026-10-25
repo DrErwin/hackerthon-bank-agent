@@ -99,7 +99,7 @@ occupations = application.list_budget_commitments(
 - `normal`：无编辑请求的普通输入/事实/异常后继；必须绑定此前已封存的完整 `source` ref 与来源摘要，不能绑定旧 namespace 里可被覆盖的 blob。
 - `edit`：真正受理的编辑候选；除已封存 source 外必须带原 `edit_ref`（安全/原号事实摘要由调用方并入 `conversion_digest`）。
 
-一次调用的输入是：受控 user/round/task、`kind`、预先预留的 `candidate`（task thread + 新 namespace + checkpoint id）、`accepted_version`、原转换摘要 `conversion_digest`、`source`/`source_digest`（root 之外必填）、`edit_ref`（仅 edit）、完整 `checkpoint` 及 `metadata`/`new_versions`/`writes`。候选 namespace 必须非空且完全未使用（默认 namespace 留给普通 LangGraph 流程），每份候选独占一个 namespace；同一绑定（kind/edit/source/摘要/接受版本）只封存首份内容，之后重试或跨进程竞争都返回该胜者和原新 input；同一 ref 换绑定抛 `CandidateBindingConflictError`，不写后比较。`content_digest` 记录完整封存内容摘要，供 03 在发布快照中保存。
+一次调用的输入是：受控 user/round/task、`kind`、预先预留的 `candidate`（task thread + 新 namespace + checkpoint id）、`accepted_version`、原转换摘要 `conversion_digest`、`source`/`source_digest`（root 之外必填）、`edit_ref`（仅 edit）、完整 `checkpoint` 及 `metadata`/`new_versions`/`writes`。候选 namespace 必须非空且完全未使用（默认 namespace 留给普通 LangGraph 流程），每份候选独占一个 namespace；同一绑定（kind/edit/source/摘要/接受版本）只封存首份内容，之后重试或并发竞争都返回该胜者和原新 input（自动测试覆盖同进程多线程并发；跨进程同绑定行为经独立双进程探针复核，尚未固化为测试）；同一 ref 换绑定抛 `CandidateBindingConflictError`，不写后比较。`content_digest` 记录完整封存内容摘要，供 03 在发布快照中保存。
 
 封存后该 namespace 内的 `put`、`put_writes` 被拒绝（按持久表判断，不依赖进程内锁），`delete_thread` 也拒绝含封存候选的线程；03 发布胜者、任务继续推进都不解除保护，每份后续状态必须再预留新的隔离 namespace。默认 namespace 与既有普通 LangGraph/旧模块保存路径不变。
 
