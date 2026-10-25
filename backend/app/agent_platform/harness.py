@@ -37,6 +37,7 @@ from app.memory.adapter import MemoryAdapter, MemoryContext
 from app.storage.application import ApplicationStore, ArrangementConflictError, TaskRecord
 from app.storage.database import transaction
 
+from .budget_inputs import BudgetInputs
 from .model import ContinueProposal, Planner, ReplyOnly, TransferProposal
 from .input_privacy import has_chat_secret
 from .risk_conversation import RiskConversation
@@ -213,6 +214,7 @@ class AgentHarness:
         self.planner = planner
         self.authorize_capability = authorize_capability
         self.risk_conversation = RiskConversation(application.path)
+        self.budget_inputs = BudgetInputs(self)
 
     def _authorize(self, trusted: TrustedContext, name: str) -> None:
         definition = self.registry.get(name).definition
@@ -1116,6 +1118,22 @@ class AgentHarness:
             yield relation, task, definition
 
     def resume(self, trusted: TrustedContext, response: dict) -> ModuleResult:
+        # A nested/ordinary/model continuation cannot borrow a dedicated F10 call.
+        with self.budget_inputs.suspended():
+            return self._resume(trusted, response)
+
+    def resume_budget_input(self, trusted: TrustedContext, *, input_request_id,
+                            interaction_id: str, selected_option_id: str):
+        return self.budget_inputs.submit(trusted, input_request_id=input_request_id,
+            interaction_id=interaction_id, selected_option_id=selected_option_id)
+
+    def budget_input_origin(self, trusted: TrustedContext):
+        return self.budget_inputs.current(trusted)
+
+    def budget_input_record(self, trusted: TrustedContext, input_request_id):
+        return self.budget_inputs.stored(trusted, input_request_id)
+
+    def _resume(self, trusted: TrustedContext, response: dict) -> ModuleResult:
         with _task_lock(self.application.path, trusted.task_id):
             context = self._scope(trusted)
             task = self.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
@@ -1216,7 +1234,8 @@ class AgentHarness:
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 task.revision, trusted.run_id, result.status, checkpoint_id,
-                {**task.snapshot, "result": result.model_dump(mode="json"),
+                {**self.budget_inputs.completed_snapshot(task, trusted, result, entry),
+                 "result": result.model_dump(mode="json"),
                  "completed_bill_scope": completed_scope},
             )
             trace.record(
