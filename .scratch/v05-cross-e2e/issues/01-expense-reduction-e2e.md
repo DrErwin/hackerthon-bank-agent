@@ -12,7 +12,7 @@ Owner: Erwin（本执行对话代行本票评测）
 
 Directory: `evals/cross/`
 
-Status: blocked — 2026-10-25 运行准备完成；真实运行blocked（账单类型化输入及正式案例数据待就绪）。
+Status: blocked — 2026-10-25 案例数据/入口局部已验证，真实E2E待账单及相应平台前置；风险事实不由数据工具补齐。
 
 Accepted by: Erwin（授权本执行对话）
 
@@ -33,7 +33,7 @@ Core scenarios: XL-S01—S05、相关 X；定义见[共享规格 §5](../../v05-
 
 - [v05-cross-business/01：减支编排和共用计划骨架](../../v05-cross-business/issues/01-expense-reduction.md)（已合PR #269；账单类型化输入缺口仍由账单线提供修复）
 - [v05-cross-platform/11：子任务交互登记与联动文本输入](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md)（PR #281已合）；前端01以PR #283为合入证据，原#282关闭。
-- 正式比较数据与签约种子尚未完成本轮适配；账单输入修复由中控另派，具体票/commit待提供，不把缺口记录当实现。
+- 正式比较数据与签约种子已由本轮准备；账单输入PR #284及平台旧断言待原线交付，适用风险事实仍须核实，不把数据准备当执行批准。
 
 ## Start when
 
@@ -54,9 +54,9 @@ Core scenarios: XL-S01—S05、相关 X；定义见[共享规格 §5](../../v05-
 
 ## Delivery record
 
-- 准备交付：本工作组及evals/cross的Markdown准备增量，分支`codex/v05-cross-e2e-01-prep`，未合入；非代码，不创建PR、不运行CI。
+- 前次Markdown准备8488e3a/61e6687已由中控整合；本次数据代码分支`codex/v05-cross-e2e-01-fixtures`待PR审查合入。
 - 实际运行 / 本票完成：blocked，未关闭。
-- 本票验证：未运行。
+- 局部验证：10 passed，两个独立案例实际prepare和真实运行时构建/银行回读通过；[证据](../../../evals/cross/fixture-validation-2026-10-25.md)。真实模型/HTTP/页面仍未运行。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
@@ -69,3 +69,14 @@ Core scenarios: XL-S01—S05、相关 X；定义见[共享规格 §5](../../v05-
 01为本分支准备增量，覆盖XL-S01—S05及X适用分支；依赖就绪先跑S01，失败回归属线修复并保留批次。平台11 #281与前端01替代交付#283已合，不再以这两项未合为阻塞。账单入口仍只接受StartTransferInput而cross派发BillSummarizeInput，交账单线（中控已另派；具体新票号待提供）。
 
 运行入口、数据/故障要求见[runbook](../../../evals/cross/runbook.md)；逐场景可观察断言和独立变体见[覆盖映射](../../../evals/cross/coverage-plan.md)；证据字段和归档见[批次模板](../../../evals/cross/batch-template.md)。[当前准备快照](../../../evals/cross/readiness-2026-10-25.md)只证明准备，不是页面或模型结果。总状态由中控维护。
+
+## 2026-10-25 续派：正式案例数据和最小入口
+
+中控续派本票的数据准备增量，代码归属仍仅`evals/cross/`，沿用批准S01/P01，不另立业务规则。分支`codex/v05-cross-e2e-01-fixtures`从main `9a479ea`开始；前次纯文档准备8488e3a/61e6687由中控另行整合。
+
+- [x] 新批次独立播种：完整上月/上上月账单、两取消一保留、5000养老金、本账户A1与储蓄A5/家庭联系人A4可查询。
+- [x] 保留源风险事实，不增补signals/checked维度，不造低风险；源库不修改，旧批次不重置。
+- [x] 最小prepare/serve入口复用真实运行时，初始化数据与业务输出严格分开；重启保留已办状态和操作。
+- [ ] 定向测试、实际本机prepare和子代理规范/规格审查后提代码PR；真实模型/HTTP/页面仍not_run。
+
+详细数据、风险事实归属和接入缺口见[案例数据与入口](../../../evals/cross/fixture-runbook.md)。账单#284及平台旧断言是S01前置；P01还发现既定业务的本人A5去向、入账方向适配缺口，回cross业务线，不以fixture伪造契约或风险覆盖。#160未知维度语义交PM/安全线，本票不修改。此增量完成不关闭原E2E票。
