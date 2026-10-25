@@ -254,6 +254,15 @@ def test_bg07_adoption_commit_before_result_checkpoint_recovers_read_only(env, c
     assert env.ports.freeze_executes == 0 and env.harness.budget_input_origin(env.who) is None
     if cancel_before_recovery:
         assert env.store.get_task("U1", "D1", "PARENT").status == TaskStatus.CANCELLED
+    else:
+        resumed = env.harness.resume(env.who, {})
+        assert "已核实原个人预算" in resumed.message
+        assert CrossTaskView.model_validate(resumed.data).budget.adopted
+        assert env.submit(candidate, "采用个人预算", request) == recovered
+        continued = env.answer(resumed, "继续生日")
+        assert "康乃馨" in str(continued.interaction)
+        assert env.store.list_adopted_budgets("U1", "D1") == [record]
+        assert env.ports.freeze_executes == 0
 
 
 @pytest.mark.parametrize("status", ["needs_attention", "blocked"])
@@ -556,3 +565,106 @@ def test_bg15_old_scope_consumption_excluded_but_old_inflight_counts(env, old_st
     assert ("暂停" in current.message) is (old_state == "unknown")
     assert env.ports.freeze_executes == 0
     assert env.store.list_budget_commitments("U1", "D1", old.budget_id, include_closed=True)[0].state == old_state
+
+
+def test_bg04_plain_amount_cannot_skip_unadopted_personal_candidate(env):
+    candidate = env.begin(constraints())
+    result = env.harness.resume(env.who, {"text": "500元"})
+    assert result.interaction.interaction_id == candidate.interaction.interaction_id
+    assert CrossTaskView.model_validate(result.data).budget.adopted is False
+    assert env.store.list_adopted_budgets("U1", "D1") == []
+    assert env.ports.freeze_executes == 0
+
+
+def test_bg16_text_after_failed_candidate_read_cannot_skip_required_budget(env):
+    env.changed = True
+    paused = env.begin(constraints())
+    result = env.harness.resume(env.who, {"text": "500元"})
+    assert "暂停" in result.message and env.store.list_adopted_budgets("U1", "D1") == []
+    env.changed = False
+    candidate = env.answer(result, "重新核对预算")
+    assert CrossTaskView.model_validate(candidate.data).budget.adopted is False
+    assert env.ports.freeze_executes == 0
+
+
+def test_bg16_modified_candidate_retry_reads_facts_again(env):
+    candidate = env.begin(constraints())
+    env.submit(candidate, "修改个人限额")
+    env.changed = True
+    paused = env.harness.resume(env.who, {"text": "3500元"})
+    calls = env.calls
+    env.changed = False
+    retried = env.answer(paused, "重新核对预算")
+    assert env.calls > calls
+    assert CrossTaskView.model_validate(retried.data).budget.personal_limit_fen == 350000
+    env.submit(retried, "采用个人预算")
+    assert env.store.list_adopted_budgets("U1", "D1")[0].personal_limit_fen == 350000
+
+
+def test_bg12_verify_pause_cannot_resize_or_replace_original_reservation(env):
+    from app.contracts.tasks import InteractionRequest
+    env.used = 0
+    candidate = env.begin(constraints(personal_limit_fen=100000))
+    adopted = env.submit(candidate, "采用个人预算").result
+    basket(env, adopted)
+    env.ports.freeze_script = "verify_once"
+    env.ports.verify_challenge = InteractionRequest(interaction_id="verify-1", kind="verification",
+        prompt="请输入验证码", required_fields=["code"], options=[], record_ref="challenge-1")
+    waiting = env.harness.resume(env.who, {"choice": "approve"})
+    record = env.store.list_adopted_budgets("U1", "D1")[0]
+    original = env.store.list_budget_commitments("U1", "D1", record.budget_id)[0]
+    env.changed = True
+    paused = env.harness.resume(env.who, {"choice": "resume"})
+    labels = [option.label for option in paused.interaction.options]
+    assert not any("调整本次" in label or "个人预算候选" in label for label in labels)
+    amount = env.harness.resume(env.who, {"text": "800元"})
+    assert amount.interaction == paused.interaction
+    assert env.store.list_budget_commitments("U1", "D1", record.budget_id)[0] == original
+    env.changed = False
+    retry = env.answer(amount, "重新核对预算")
+    assert retry.interaction == waiting.interaction
+    sent = []
+    execute = env.ports.freeze_execute
+    def observe(context, plan):
+        sent.append(plan.freeze_amount_fen)
+        return execute(context, plan)
+    env.ports.freeze_execute = observe
+    env.harness.resume(env.who, {"choice": "resume"})
+    assert sent == [50000]
+    current = env.store.list_budget_commitments("U1", "D1", record.budget_id)[0]
+    assert current.committed_fen == current.unconsumed_fen == 50000
+    assert original.operation_ids[0] in current.operation_ids
+
+
+def test_bg07_interruption_before_adoption_requires_a_new_input(env):
+    candidate = env.begin(constraints())
+    request = uuid4()
+    with patch.object(env.store, "adopt_budget", side_effect=RuntimeError("before adoption")):
+        with pytest.raises(RuntimeError):
+            env.submit(candidate, "采用个人预算", request)
+    assert env.store.list_adopted_budgets("U1", "D1") == []
+    fresh = env.harness.resume(env.who, {})
+    assert fresh.interaction.interaction_id != candidate.interaction.interaction_id
+    with pytest.raises(ValueError):
+        env.submit(candidate, "采用个人预算", request)
+    env.submit(fresh, "采用个人预算")
+    assert len(env.store.list_adopted_budgets("U1", "D1")) == 1
+    assert env.ports.freeze_executes == 0
+
+
+def test_bg18_interrupted_submit_restores_original_pending_without_new_reservation(env):
+    env.used = 0
+    _, adopted = adopt(env)
+    gate = basket(env, adopted.result)
+    record = env.store.list_adopted_budgets("U1", "D1")[0]
+    with patch.object(env.ports, "freeze_execute", side_effect=RuntimeError("before port submission")):
+        with pytest.raises(RuntimeError):
+            env.harness.resume(env.who, {"choice": "approve"})
+    original = env.store.list_budget_commitments("U1", "D1", record.budget_id)[0]
+    restored = env.harness.resume(env.who, {})
+    assert restored.interaction == gate.interaction
+    env.harness.resume(env.who, {"choice": "approve"})
+    rows = env.store.list_budget_commitments("U1", "D1", record.budget_id)
+    assert len(rows) == 1 and rows[0].committed_fen == 50000
+    assert original.operation_ids[0] in rows[0].operation_ids
+    assert env.ports.freeze_executes == 1

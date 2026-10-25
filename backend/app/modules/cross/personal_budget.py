@@ -210,10 +210,12 @@ class PersonalBudget:
             return self.entry._ask(trusted, self.state,
                 "本月当前付款账户全部消费的个人预算限额是多少元？输入后展示完整候选，仍须专用选项采用。",
                 [("停止", {"kind": "b_stop"})])
-        if kind == "personal_birthday_limit" and not self.b.get("freeze"):
+        if kind == "personal_birthday_limit" and self.can_edit_cap():
             self.b.update(phase="budget", budget_limit_fen=None)
             return self.entry._birthday_flow(self.state)._ask_budget(trusted)
         if kind == "personal_review":
+            if self.b.get("pending") and not self.b.get("freeze"):
+                raise BudgetPending("原确认或验证尚未结束，先按原操作核实或停止，不替换预算候选。")
             records = [r for r in self.store.list_adopted_budgets(self.user, self.round) if self._applicable(r)]
             if len(records) != 1:
                 raise BudgetPending("当前预算范围或用途仍未澄清，不能选择较宽松的一份。")
@@ -237,7 +239,14 @@ class PersonalBudget:
             self.state["plan_revision"] += 1
             return self.candidate(trusted)
         if kind == "personal_retry":
-            return self.entry._birthday_flow(self.state).advance(trusted)
+            if self.p.get("mode") in {"candidate", "limit"}:
+                return self.candidate(trusted)
+            flow = self.entry._birthday_flow(self.state)
+            pending = self.b.get("pending")
+            if pending:
+                self.refresh(trusted)
+                return flow._pending_view(trusted)
+            return flow.advance(trusted)
         if kind == "personal_continue":
             self.p["prepared"] = False
             return self.entry._birthday_flow(self.state).advance(trusted)
@@ -281,7 +290,12 @@ class PersonalBudget:
                 adopted_at=origin.accepted_at, adoption_interaction_id=origin.facts["interaction_id"], status="active")
             attempt = {"origin_id": origin.origin_id, "facts": origin_binding(origin),
                 "record": record.model_dump(mode="json"), "previous_version": existing.version if existing else None,
-                "expected_revision": origin.dispatch_task_revision, "attempt_ref": str(uuid4())}
+                "expected_revision": origin.dispatch_task_revision, "attempt_ref": str(uuid4()),
+                "fact_result": ModuleResult(task_id=self.task, run_id=origin.facts["run_id"],
+                    status=TaskStatus.NEEDS_ATTENTION, data=None,
+                    message=f"原个人预算v{record.version}已采用，请返回当前任务核对或继续；未办理资金动作。",
+                    interaction=None, error=None, allowed_actions=["query"],
+                    recovery_required=False, recovery_reason=None).model_dump(mode="json")}
             attempts[origin.origin_id] = attempt
             self.entry._save(trusted, None, self.state)
         record = self.store.adopt_budget(self.user, self.round, AdoptedBudget.model_validate(attempt["record"]),
@@ -313,15 +327,48 @@ class PersonalBudget:
         if "result" not in attempt:
             # Adoption committed but the result checkpoint did not: return only
             # the original fact, without adopting or advancing a newer plan.
-            result = ModuleResult(task_id=self.task, run_id=origin.facts["run_id"], status=TaskStatus.NEEDS_ATTENTION,
-                data=None, message=f"原个人预算v{record.version}已采用（当前{record.status}），请查询当前任务；未继续购买。",
-                interaction=None, error=None, allowed_actions=["query"], recovery_required=False, recovery_reason=None)
+            result = ModuleResult.model_validate(attempt["fact_result"])
         else:
             result = ModuleResult.model_validate(attempt["result"])
         return BudgetInputRecovery(attempt["attempt_ref"], result)
 
+    def restore_adoption(self, trusted):
+        """Ordinary current-task recovery; the historical hook remains read-only."""
+        if self.p.get("candidate_done"):
+            return None
+        for attempt in self.p.get("attempts", {}).values():
+            if attempt["facts"]["candidate_snapshot"] != self.p.get("candidate_binding"):
+                continue
+            original = AdoptedBudget.model_validate(attempt["record"])
+            record = self.store.get_adopted_budget(self.user, self.round,
+                BudgetRef(budget_id=original.budget_id, version=original.version))
+            if record is None:
+                # The old accepted input cannot authorize a new write. Display a
+                # new candidate; its new F10 source must be accepted separately.
+                return self.candidate(trusted)
+            if record.model_copy(update={"status": "active"}) != original or record.status != "active":
+                raise BudgetPending("原采用已变化，请核对当前预算；不重放为新采用。")
+            self.p.update(bound={"budget_id": record.budget_id, "version": record.version},
+                          candidate_done=True, mode=None)
+            self.b.update(budget_id=record.budget_id, budget_version=record.version)
+            summary, _ = self._window(trusted, record.scope)
+            self._view(record, summary)
+            return self.entry._ask(trusted, self.state,
+                "已核实原个人预算采用记录；尚未办理资金动作。请明确是否继续生日安排。",
+                [("继续生日安排", {"kind": "personal_continue"}), ("停止", {"kind": "b_stop"})])
+        return None
+
+    def can_edit_cap(self):
+        return not self.b.get("freeze") and not self.b.get("pending") and self.own() is None
+
     def text(self, trusted, text):
+        if self.p.get("mode") == "candidate":
+            return ModuleResult.model_validate(self.state["result"])
         if self.p.get("mode") != "limit":
+            if self.b.get("pending"):
+                return ModuleResult.model_validate(self.state["result"])
+            if not self.p.get("prepared"):
+                return self.entry._birthday_flow(self.state).advance(trusted)
             return None
         from .pension import parse_amount_fen
         amount = parse_amount_fen(text)
@@ -333,9 +380,10 @@ class PersonalBudget:
         return self.candidate(trusted)
 
     def pause(self, trusted, reason):
-        choices = [("重新核对预算", {"kind": "personal_retry"}),
-                   ("查看当前个人预算候选", {"kind": "personal_review"})]
-        if not self.b.get("freeze"):
+        choices = [("重新核对预算", {"kind": "personal_retry"})]
+        if not self.b.get("pending") or self.b.get("freeze"):
+            choices.append(("查看当前个人预算候选", {"kind": "personal_review"}))
+        if self.can_edit_cap():
             choices.append(("调整本次生日上限", {"kind": "personal_birthday_limit"}))
         choices.append(("停止并核实收尾", {"kind": "b_stop"}))
         # A paused funding action is not an unadopted candidate. Its retry/stop
@@ -393,6 +441,10 @@ class PersonalBudget:
         return gap
 
     def refresh(self, trusted, *, for_write=True):
+        if for_write and (self.p.get("mode") in {"candidate", "limit"}
+                or ((self.state.get("constraints") or {}).get("personal_limit_fen") is not None
+                    and not self.p.get("candidate_done"))):
+            raise BudgetPending("个人预算候选尚未采用，须先通过原任务专用选项处理。")
         record = self.discover()
         if record is None:
             if self.p.get("bound"):
@@ -447,10 +499,15 @@ class PersonalBudget:
             return
         cid = self.b.get("commitment_id") or f"bc_{self.task}"
         existing = self.own()
+        op = (self.b.get("pending") or {}).get("operation_id")
+        if not op:
+            raise BudgetPending("缺少原冻结操作编号，不能预留或提交。")
+        if existing is not None and (existing.state != "pending"
+                or existing.committed_fen != self.b["budget_limit_fen"]
+                or existing.unconsumed_fen != self.b["budget_limit_fen"]
+                or existing.operation_ids != [UUID(str(op))]):
+            raise BudgetPending("原预留金额或操作已变化，不能沿用旧占用执行；请核实原操作或收尾。")
         if existing is None:
-            op = (self.b.get("pending") or {}).get("operation_id")
-            if not op:
-                raise BudgetPending("缺少原冻结操作编号，不能预留或提交。")
             hold = BudgetCommitment(budget_ref=BudgetRef(budget_id=record.budget_id, version=record.version),
                 task_id=self.task, commitment_id=cid, committed_fen=self.b["budget_limit_fen"],
                 unconsumed_fen=self.b["budget_limit_fen"], freeze_id=None, operation_ids=[op],

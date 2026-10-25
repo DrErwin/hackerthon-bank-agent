@@ -24,7 +24,7 @@ from app.contracts.common import SecurityDecisionCode, TaskStatus
 from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
 
 from . import plan
-from .birthday_ports import BirthdayPlan
+from .birthday_ports import BirthdayPlan, WriteOutcome
 from .plan import money
 from .personal_budget import PersonalBudget, BudgetPending
 
@@ -142,6 +142,8 @@ class BirthdayFlow:
 
     def advance(self, trusted) -> ModuleResult:
         entry, state = self.entry, self.state
+        if self.b.get("pending") and not self.b.get("holding"):
+            return self._pending_view(trusted)
         if self.b.get("holding"):
             # Replay the saved ask: an empty resume must not rotate the option
             # ids out from under the card the user is looking at.
@@ -182,6 +184,9 @@ class BirthdayFlow:
                                   for p in data.products]
             self.b["phase"] = "budget"
         personal = PersonalBudget(entry, state)
+        restored = personal.restore_adoption(trusted)
+        if restored is not None:
+            return restored
         if not personal.p.get("prepared"):
             if personal.p.get("mode") in ("candidate", "limit") and state.get("result"):
                 return ModuleResult.model_validate(state["result"])
@@ -478,6 +483,14 @@ class BirthdayFlow:
             return self.advance(trusted)
         self.b["holding"] = None
         return self._submit(trusted, pending["target"])
+
+    def _pending_view(self, trusted):
+        pending = self.b["pending"]
+        if pending.get("verify"):
+            return self._verify_wait(trusted, WriteOutcome(executed=False, state="verify_wait",
+                verify=InteractionRequest.model_validate(pending["verify"])))
+        self.b["holding"] = "gate"
+        return self._holding_view(trusted)
 
     def _verify_wait(self, trusted, outcome) -> ModuleResult:
         """Hold one approved write at its step-up challenge; nothing moved."""
