@@ -9,13 +9,19 @@ from app.contracts.common import OperationLevel, TaskStatus
 from app.contracts.platform import (
     CapabilityDefinition, ModuleManifest, StartTransferInput, TrustedContext,
 )
-from app.contracts.tasks import InteractionRequest, ModuleResult
+from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
 
+from .service import Identity
+from .store import ApiProblem
 from .test_app import enter, make_app, post
 
 
 NOW = datetime.now(timezone.utc)
 ORIGIN = {"Origin": "http://testserver"}
+
+# Ticket 11: responses the scripted modules actually received. Cleared by the
+# tests that assert on it so a shared list cannot hide a wrong payload.
+RESUMED: list[dict] = []
 
 
 class ScriptedEntry:
@@ -31,6 +37,7 @@ class ScriptedEntry:
         return self._next(trusted)
 
     def resume(self, trusted, response, *, thread_id=None):
+        RESUMED.append(response)
         return self._next(trusted)
 
     def recover_session(self, trusted, *, source_session_id, thread_id=None):
@@ -87,6 +94,36 @@ def cancelled_result(task_id="c"):
         task_id=task_id, run_id="c", status=TaskStatus.CANCELLED, data=None,
         message="已停止后续步骤。", interaction=None, error=None,
         allowed_actions=[], recovery_required=False, recovery_reason=None,
+    )
+
+
+def waiting_approval(kind: str, record_ref: str, interaction_id: str):
+    """A dispatched child whose next answer belongs to the security service."""
+    return ModuleResult(
+        task_id="c", run_id="c", status=TaskStatus.WAITING_APPROVAL, data=None,
+        message="请确认。" if kind == "confirmation" else "请验证。",
+        interaction=InteractionRequest(
+            interaction_id=interaction_id, kind=kind, prompt="请确认。",
+            required_fields=[], options=[], record_ref=record_ref,
+        ),
+        error=None,
+        allowed_actions=["confirm", "cancel"] if kind == "confirmation" else ["verify", "cancel"],
+        recovery_required=False, recovery_reason=None,
+    )
+
+
+def cross_waiting_input(interaction_id="CX1", option_id="OPT_APPLY"):
+    """Ticket 11 G2: a cross parent menu (options plus free-text answers)."""
+    return ModuleResult(
+        task_id="XPARENT", run_id="PR1", status=TaskStatus.WAITING_INPUT, data=None,
+        message="采用这个安排吗？",
+        interaction=InteractionRequest(
+            interaction_id=interaction_id, kind="input", prompt="采用这个安排吗？",
+            required_fields=["cross_selection"],
+            options=[InteractionOption(id=option_id, label="采用这个安排")], record_ref=None,
+        ),
+        error=None, allowed_actions=["provide_input", "cancel"],
+        recovery_required=False, recovery_reason=None,
     )
 
 
@@ -288,3 +325,139 @@ def test_parent_cancel_stops_new_steps_and_keeps_children_visible(cross_app):
             step_id="pay_2", plan_revision=1,
         )
     assert len(child_script) == 1
+
+
+def test_child_confirmation_and_verification_records_reach_the_generic_endpoints(cross_app):
+    """Ticket 11 G1: a dispatched child's record must be readable through F14—F17.
+
+    The child is only published by the API when the parent's children are read,
+    so registering its interaction record is the missing half of §6.5.
+    """
+
+    client, api, child_script, _parent_script, add_parent, _thread = cross_app
+    parent = add_parent()
+    identity = Identity("U1", parent.session_id, "D1", "user")
+
+    child_script.append(waiting_approval("confirmation", "CONF-CHILD", "CA1"))
+    confirmation_child = api.runtime.harness.dispatch_child(
+        parent, "cross.test_write", uuid4(),
+        StartTransferInput(request_id=uuid4(), intent_text="child cancel subscription"),
+        step_id="cancel_1", plan_revision=1,
+    )
+    # Before the parent's children are read, the record is unknown to the API.
+    with pytest.raises(ApiProblem) as missing:
+        api.record_context(identity, "confirmation", "CONF-CHILD")
+    assert missing.value.status == 404
+    assert missing.value.code == "NOT_FOUND"
+
+    assert client.get(
+        f"/api/v1/tasks/{parent.task_id}/children", headers=ORIGIN,
+    ).status_code == 200
+    trusted = api.record_context(identity, "confirmation", "CONF-CHILD")
+    assert trusted.task_id == confirmation_child.task_id
+    # The public route now reaches the security service instead of the missing
+    # record registry, so it answers 409 (stale/unknown) rather than the old 404.
+    routed = client.get("/api/v1/confirmations/CONF-CHILD", headers=ORIGIN)
+    assert routed.status_code == 409
+    assert routed.json()["error"]["code"].startswith("CONFIRMATION_")
+
+    # Reading the children again is idempotent and never re-binds the record.
+    assert client.get(
+        f"/api/v1/tasks/{parent.task_id}/children", headers=ORIGIN,
+    ).status_code == 200
+    rows = api.store.rows(
+        "SELECT task_id FROM api_records WHERE kind=? AND record_id=?",
+        ("confirmation", "CONF-CHILD"),
+    )
+    assert [row["task_id"] for row in rows] == [confirmation_child.task_id]
+
+    # The same seam covers a waiting verification challenge.
+    other = add_parent(task_id="XPARENT3")
+    child_script.append(waiting_approval("verification", "CHAL-CHILD", "CV1"))
+    verification_child = api.runtime.harness.dispatch_child(
+        other, "cross.test_write", uuid4(),
+        StartTransferInput(request_id=uuid4(), intent_text="child transfer"),
+        step_id="pay_3", plan_revision=1,
+    )
+    assert client.get(
+        f"/api/v1/tasks/{other.task_id}/children", headers=ORIGIN,
+    ).status_code == 200
+    assert api.record_context(
+        identity, "verification", "CHAL-CHILD",
+    ).task_id == verification_child.task_id
+
+
+def test_cross_parent_text_answer_reaches_the_module(cross_app):
+    """Ticket 11 G2: amounts, dates and references typed by the user get through.
+
+    The cross module owns the grammar (parse and clarify); the API only forwards
+    the text, so an amount like "1500" is no longer rejected as a chat code.
+    """
+
+    client, _api, _child_script, parent_script, add_parent, _thread = cross_app
+    parent = add_parent(result=cross_waiting_input())
+    RESUMED.clear()
+    parent_script.append(succeeded())
+    answered = client.post(
+        f"/api/v1/tasks/{parent.task_id}/inputs",
+        json={"request_id": str(uuid4()), "interaction_id": "CX1", "text": "1500"},
+        headers=ORIGIN,
+    )
+    assert answered.status_code == 200, answered.text
+    assert answered.json()["data"]["status"] == "succeeded"
+    assert RESUMED == [{"text": "1500"}]
+
+
+def test_cross_text_answer_still_rejects_labelled_verification_codes(cross_app):
+    """Ticket 11: forwarding cross text must not become a code-entry backdoor.
+
+    The cross branch only relaxes the bare 4—8 digit guard; a labelled credential
+    is still refused before the module sees it and the task does not move.
+    """
+
+    client, _api, _child_script, parent_script, add_parent, _thread = cross_app
+    parent = add_parent(result=cross_waiting_input())
+    RESUMED.clear()
+    rejected = client.post(
+        f"/api/v1/tasks/{parent.task_id}/inputs",
+        json={"request_id": str(uuid4()), "interaction_id": "CX1", "text": "验证码是 123456"},
+        headers=ORIGIN,
+    )
+    assert rejected.status_code == 400
+    assert rejected.json()["error"]["code"] == "USE_VERIFICATION_ENDPOINT"
+    assert RESUMED == []
+    assert parent_script == []
+    current = client.get(f"/api/v1/tasks/{parent.task_id}", headers=ORIGIN).json()["data"]
+    assert current["status"] == "waiting_input"
+    assert current["interaction"]["interaction_id"] == "CX1"
+
+
+def test_cross_parent_option_answer_keeps_the_choice_contract(cross_app):
+    """The option path still answers exactly as before; text and option never mix."""
+
+    client, _api, _child_script, parent_script, add_parent, _thread = cross_app
+    parent = add_parent(result=cross_waiting_input())
+    RESUMED.clear()
+    conflicted = client.post(
+        f"/api/v1/tasks/{parent.task_id}/inputs",
+        json={
+            "request_id": str(uuid4()), "interaction_id": "CX1",
+            "selected_option_id": "OPT_APPLY", "text": "1500",
+        },
+        headers=ORIGIN,
+    )
+    assert conflicted.status_code == 400
+    assert conflicted.json()["error"]["code"] == "INVALID_OPTION"
+    assert parent_script == []
+    assert RESUMED == []
+
+    RESUMED.clear()
+    parent_script.append(succeeded())
+    chosen = client.post(
+        f"/api/v1/tasks/{parent.task_id}/inputs",
+        json={"request_id": str(uuid4()), "interaction_id": "CX1",
+              "selected_option_id": "OPT_APPLY"},
+        headers=ORIGIN,
+    )
+    assert chosen.status_code == 200, chosen.text
+    assert RESUMED == [{"choice": "OPT_APPLY"}]
