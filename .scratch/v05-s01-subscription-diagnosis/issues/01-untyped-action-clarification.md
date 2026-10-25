@@ -3,11 +3,12 @@
 Ticket ID: v05-s01-subscription-diagnosis/01
 Package: [v05-cross-linkage/packages/05-cross-e2e：联动E2E](../../v05-cross-linkage/packages/05-cross-e2e.md)（仅来源关联，不表示实施包已激活）
 Spec: [正式实施规格](../spec.md)；[原诊断](../diagnosis.md)
+PR: [PR #304](https://github.com/DrErwin/hackerthon-bank-agent/pull/304)（draft，未合并）
 Source issue: [Issue #302](https://github.com/DrErwin/hackerthon-bank-agent/issues/302)；原完整S01另属Issue #301
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/modules/subscription/`
-Status: in_review — 开发与132项定向验证、双轴独立AI复核完成；待PR回交及中控审查
+Status: in_review — 开发及132项定向验证、双轴独立AI复核完成；PR304草稿已回交，CI账单阻断，待中控审查
 Blocked by: None；若需新平台信息，先回交平台提供方另票
 Core scenarios: 明确单项停止未来扣费、明确只读、取消目标不明/多候选/批量；不替代XL-S01
 Verification: 沿真实公开工厂使用隔离端口验证入口模式、消歧、确认/验证及零提前写入；修复后真实S01由原E2E线新批次另验
@@ -41,3 +42,5 @@ Directory: backend/app/modules/subscription/
 ## 开发交付
 
 当前132项定向回归通过，Standards/Spec独立AI审查分别PASS、剩余必须项0；详见[实施证据](../implementation.md)、[独立报告](../review.md)与[后续E2E方案](../e2e-acceptance-plan.md)。实际E2E未执行，回交后停止；不关闭301/S01，不自行合并或沿用旧CI例外。
+
+交付PR：[PR #304](https://github.com/DrErwin/hackerthon-bank-agent/pull/304)。base `1b3afec5336e5906f87259c7b1c903823cc574e1`，分支 `codex/v05-subscription-stop-intent`。首次CI在head `ce6eb32ec8c0aa685502760ec97b4ce026c38c3f` 因GitHub账单/消费额度而未启动；不是CI通过，也不是本票已获豁免。负责人后续决定CI处置及合入，开发回交后停止。

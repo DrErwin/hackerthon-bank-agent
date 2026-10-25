@@ -1,6 +1,6 @@
 # Issue #302 实施证据
 
-当前开发验证：132项通过；双轴最终复核均PASS；PR/CI结果待下文补充。
+当前开发验证：132项通过；双轴最终复核均PASS；PR304草稿已回交，CI账单阻断，详见末段。
 
 2026-10-25；票 [v05-s01-subscription-diagnosis/01：明确单项停止扣费不得静默降级为盘点](issues/01-untyped-action-clarification.md)；[规格](spec.md)。
 
@@ -56,3 +56,11 @@ D:/hackerthon-bank-agent/backend/.venv/Scripts/python.exe -m pytest -q app/modul
 ## 最终独立复核
 
 Standards 与 Spec 均对固定 `1b3afec...baaa3af` 给出PASS，未处理必须项分别0；另各自独立复核12条和11条Fake公开工厂对照、取消提前调用均0。完整原话报告见[review.md](review.md)。独立AI审查与本地测试不等同负责人合入批准、CI绿或真实S01接受。
+
+## PR 回交与停止
+
+[PR #304](https://github.com/DrErwin/hackerthon-bank-agent/pull/304) 已创建为draft并附到本聊天；base `1b3afec5336e5906f87259c7b1c903823cc574e1`。无前置代码PR依赖，完整S01仍依赖平台Issue #301及后续新批次，订阅局部修复不能替代。
+
+首次CI head `ce6eb32ec8c0aa685502760ec97b4ce026c38c3f`：[run 40193561436](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40193561436)，check `121169485404`。状态completed/failure，原始注释明确job未启动：recent account payments failed or spending limit needs to be increased。远端测试未运行，不报告绿CI；没有沿用旧CI例外。本段是交付文档记录，后续最终head实际check结果由PR/聊天回交，不再为自引用head循环追加提交。
+
+开发、定向验证、双轴独立审查和E2E方案已交付；未合并、未改共享跟踪/完成状态、未关闭302/301/S01、未跑真实S01或页面/真实模型端到端。按最新停止线在此停止，CI处置、合入与实际E2E由Erwin后续安排。
