@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: in_review — 平台实现、定向验证与独立双轴审查通过，待全量槽位/CI及Erwin合入；不代表API/cross联调或安全接受
+Status: in_review — 平台实现、定向/完整后端回归与独立双轴审查通过，待CI阻塞处理及Erwin合入；不代表API/cross联调或安全接受
 
 Blocked by: None（289已合入，296已整理；无需新增storage表或等待#293接口变更）
 
@@ -47,7 +47,16 @@ Core scenarios: O01—O08，定义见规格；预算业务语义仍由 cross06 �
 
 实现基线：`0930d6be59c728b9dc0ef4c4ef0b5430da12943e`。独立worktree：`v05-budget-origin-01/hackerthon-bank-agent`；分支：`codex/v05-budget-origin-01`。接入说明与API/cross样例见[专用预算F10来源接缝](../../../backend/app/agent_platform/budget-inputs-seam.md)。
 
-业务为明确标记的持久stand-in，仅证明平台边界，**不代替真实cross06/#293采用、HTTP receipt或生日E2E验收**。全量后端测试未启动，遵中控503/审计诊断独占全量槽位的安排排队；未自行豁免CI、合入或真人安全审阅。未改共享tracking/completion/包状态、API、storage、cross或#160政策。
+业务为明确标记的持久stand-in，仅证明平台边界，**不代替真实cross06/#293采用、HTTP receipt或生日E2E验收**。完整后端回归在中控释放503/审计诊断槽位后顺序运行，结果见下节；未自行豁免CI、合入或真人安全审阅。未改共享tracking/completion/包状态、API、storage、cross或#160政策。
+
+### 完整后端回归（2026-10-25，槽位释放后）
+
+- 固定提交：`4f1824789baf88048eae32367d4c008624f3fc4b`，运行前后HEAD及源码相同、工作区干净。仅运行一轮，不覆盖首次输出。
+- 本worktree新建独立`.venv`（Python 3.12.3，离线安装现有声明依赖；依赖清单留存），确认`app.agent_platform.budget_inputs.__file__`指向本worktree源码。独立临时数据及`BANK_AGENT_DATA_DIR`，未使用共享演示数据；关闭外部追踪并移除进程内真实模型凭据/本地运行配置，测试使用脚本或模型替身，无真实模型调用。
+- 从`backend/`运行：`.venv/Scripts/python.exe -m pytest -q --basetemp=.venv/validation/full-4f18247-01/tmp --junitxml=.venv/validation/full-4f18247-01/junit.xml`。
+- **1752 passed in 764.59s（12分44秒）；0 failed / 0 errors / 0 skipped，退出码0**。已交叉核对JUnit计数。开始`2026-10-25T08:28:09Z`，结束`08:41:03Z`；数量只对应上述固定树，不与中控其他分支的1606项混算。
+- 本地原始证据目录：`backend/.venv/validation/full-4f18247-01/`；保留`head.txt`、`dependencies.txt`、起止时间、`exit-code.txt`、完整`pytest.log`、`junit.xml`及专属临时数据库。日志SHA256：`AD6720D792E85A70A314B9FA143DDA2647978633D7972B556E8F5A992F4E79D7`；JUnit SHA256：`7A4F28B54208B4E3173C2B59E15BDFA3D2450493398D8F0117C9603670BDAF2D`。
+- 本轮无失败，不据此声称此前503根因已定位或修复。后续提交仅补本票证据，不改受测运行代码；API02仍等待本票稳定合入及中控信号，不提前代做。
 
 ## Comments
 
@@ -56,4 +65,4 @@ Core scenarios: O01—O08，定义见规格；预算业务语义仍由 cross06 �
 - **Standards**：`platform12_standards_review`独立审查PASS，硬规范违反0、气味建议0；独立来源测试 **35 passed in 9.18s**。确认目录、CAS/锁、派发前复核、来源隔离及接入边界符合要求。
 - **Spec**：`platform12_spec_review`独立审查PASS，必须修复0、建议0；独立来源测试 **35 passed in 9.19s**。确认历史优先分流、原写严格绑定、冻结结果、并发及上下文隔离符合规格。
 - **CI**：受审head的Repository checks未启动，GitHub注明账户近期付款失败或需提高spending limit；这是外部账单阻塞，不能记作绿灯。本PR未获此前首批PR的CI/合入例外，不自行豁免。
-- **下一步**：中控安排全量槽位与Erwin合入；API02待本接缝稳定合入后接线，cross06按自己的采用映射/稳定attempt/准确事实实现只读恢复，再做真实联合验收。上述AI审查不代替真人安全签核。
+- **下一步**：全量已按释放槽位顺序通过，交Erwin处理CI阻塞与合入决定；API02仍待本接缝稳定合入和中控信号后接线，cross06按自己的采用映射/稳定attempt/准确事实实现只读恢复，再做真实联合验收。298/296均未获此前五PR的合入/CI例外，上述AI审查不代替真人安全签核。
