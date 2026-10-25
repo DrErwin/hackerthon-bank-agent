@@ -1,0 +1,45 @@
+{
+  "tested_head": "355ea4ed981764149ed03c1d2bc4007366efc7db",
+  "base": "2a070b9cf992a109d8b54718a49dc3e3b56bd236",
+  "backend_git_tree": "641a9d2abc85419506f32294ad4e238c60c6dc0c",
+  "exit_code": 0,
+  "reported_result": "93 passed in 96.15s (0:01:36)",
+  "tests": 93,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "by_classname": {
+    "app.api.test_budget_inputs_api": 23,
+    "app.agent_platform.test_budget_inputs": 35,
+    "app.api.test_parent_child_api": 7,
+    "app.api.test_conversation_dispatch": 10,
+    "app.api.test_delivery_details": 3,
+    "app.api.test_verification_fault": 7,
+    "app.api.test_subscription_api": 2,
+    "app.api.test_app": 6
+  },
+  "previous_batches": [
+    {
+      "head": "753da3924fc80f8606dce4573ef394b34ed5c35a",
+      "result": "21 passed in 80.79s",
+      "prefix": "targeted"
+    },
+    {
+      "head": "8a9b6c9de978f67480a61c467ac9d88bda1075a5",
+      "result": "93 passed in 136.64s",
+      "prefix": "directed-final"
+    }
+  ],
+  "sha256": {
+    "directed-final-manifest.json": "8d79ba11208ebef961d9e9b362c35562e6d88b5f578c780226b690da4c1a8a77",
+    "directed-final.log": "6b7ba99accd8dfcfa64c14797ac203149725190bedacce079990d583c4c8467e",
+    "directed-final.xml": "3dae22ba348042960ff89e59d0accb5f848af1947e7b151c3b4029a84f1c7abe",
+    "environment.json": "6105f04d807f85feb7a04d0674c961568e4dbf0a8fabf5d17aa82e978c9a403b",
+    "rebased-final-manifest.json": "10d7e58d1137683d7850d86688c881a7ed31dde62f0ba6237c1bb5dc3d58e780",
+    "rebased-final.log": "6c11473bb3a99e1d2c58b0416cf5b30d0ba74f393c0179caab3071e61de066df",
+    "rebased-final.xml": "463fff503ad73fde0e98f5462c5372df7e6f8682bc01dc02009cdb52fc70295a",
+    "targeted-manifest.json": "95f09e94aa0527d0abc72d3996c7145df48f87e38e136c0ad22cfc5323c2c1b4",
+    "targeted.log": "164df0eaf40ce9433a267fa3980b401b66896116bca0e46c7583efa549e580b2",
+    "targeted.xml": "2a1436529d2a439ed90374c511a2bbe591ce9706619d3c7739cd8b9cf7b45095"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "head": "8a9b6c9de978f67480a61c467ac9d88bda1075a5",
+  "cwd": "C:\\Users\\57652\\.codex\\worktrees\\v05-budget-f10-api\\hackerthon-bank-agent\\backend",
+  "interpreter": "C:\\Users\\57652\\.codex\\worktrees\\v05-budget-f10-api\\hackerthon-bank-agent\\.scratch\\v05-budget-adoption-origin\\__pycache__\\api02-runtime\\Scripts\\python.exe",
+  "argv": [
+    "-m",
+    "pytest",
+    "-q",
+    "app/api/test_budget_inputs_api.py",
+    "app/agent_platform/test_budget_inputs.py",
+    "app/api/test_parent_child_api.py",
+    "app/api/test_conversation_dispatch.py",
+    "app/api/test_delivery_details.py",
+    "app/api/test_verification_fault.py",
+    "app/api/test_subscription_api.py::test_sf05_a_batch_request_is_disambiguated_through_the_inputs_endpoint",
+    "app/api/test_subscription_api.py::test_sf05_a_merchant_name_answers_the_input_prompt",
+    "app/api/test_app.py::test_http_transfer_requires_confirmation_and_verification",
+    "app/api/test_app.py::test_input_candidates_and_cancel_continue_the_original_task",
+    "app/api/test_app.py::test_new_session_recovers_completed_transfer_without_resubmitting",
+    "app/api/test_app.py::test_cancel_in_flight_only_queries_original_bank_operation",
+    "app/api/test_app.py::test_retry_after_task_success_before_http_receipt_recovers_response",
+    "--junitxml=../.scratch/v05-budget-adoption-origin/api02-evidence/directed-final.xml"
+  ],
+  "started_utc": "2026-10-25T10:45:25.5114397Z"
+}
