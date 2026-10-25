@@ -35,3 +35,5 @@ PensionFlow._income_transactions(SimpleNamespace(state=state))  # 当前实际�
 ## 交付状态
 
 局部数据准备通过，原票完整E2E仍blocked。真实模型、HTTP、页面、200%、键盘、读屏、真机软键盘未运行；PM接受和Ringo本人签核未记录。独立规范/规格审查及PR在本票续派记录中回填。
+
+代码已交[PR #295](https://github.com/DrErwin/hackerthon-bank-agent/pull/295)，未合入；规范轴/规格轴独立子代理均PASS，各0必须项。CI在441571f上失败，检查121095901251报告账号付款/额度导致job未启动，属计费blocked，不能称CI通过。主线前置与实际E2E仍按上述缺口分别记录。
