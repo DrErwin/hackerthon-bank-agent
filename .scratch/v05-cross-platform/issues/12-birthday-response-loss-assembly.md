@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/agent_platform/`
 
-Status: in_progress
+Status: developed — 本地回归及独立双轴审查通过；[PR #289](https://github.com/DrErwin/hackerthon-bank-agent/pull/289) 交中控排队合并，未合入/未真人接受。CI 因账户计费未启动。
 
 Blocked by: None（[v05-cross-platform/09：生日工具、权限与演示装配](09-birthday-runtime-wiring.md)，PR #279 已合入）
 
@@ -54,6 +54,10 @@ Verification: 在独立临时数据库上，从真实生日入口完成确认/�
 - 定向回归（本 worktree 独立 `.venv`）：`app/agent_platform/test_birthday_runtime_wiring.py app/agent_platform/test_local_demo.py`，**21 passed in 77.18s**。真实生日入口/门/银行，模型构建替身；本地装配套件另含进程内 HTTP 对照，不属于生日页面或真实模型 E2E。
 - 故障前后：新增回归初次 **1 failed, 4 passed**，真实暴露 unknown claim 未核实导致余款释放暂停；只接已有执行器观察后 **5 passed**，再增加“银行查询失败保持未知”“缺 claim 不写”“旧配置默认关闭”断言后上述 21 项通过。
 - 最终账实：冻结仅一笔 50000 分；核销 19900 + 26800，释放 3300；原冻结操作编号未变，未知银行查询失败未伪造完成。无授权及未完成双因子时零冻结。
-- 后端全量/独立子代理审查/PR：进行中；真实模型、生日 HTTP/页面 E2E、真人安全签核、PM 接受均未由本票完成。
+- 后端全量：本 worktree 独立虚拟环境，从 `backend/` 运行 `python -m pytest -q --basetemp=<本worktree专属临时目录>`，**1591 passed in 1035.03s**；另跑 `../evals/mockbank/test_mockbank_eval.py`，**14 passed in 2.75s**。源码未改风险政策，测试只用各自临时数据；没有真实模型调用。
+- 提交/交付：[PR #289](https://github.com/DrErwin/hackerthon-bank-agent/pull/289)，分支 `codex/v05-platform12-birthday-response-loss`；代码提交 `1ffb647`，后续提交只记交付证据。已从 `origin/main` 的 `9a479ea` rebase（其相对核查基线仅前端/文档变化，后端代码一致）；未自行合并。
+- CI：head `5a127be` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40167677934/job/121091952202) 为 failure，注解明确“job was not started because recent account payments have failed or your spending limit needs to be increased”。未跑测试，不能写绿 CI；本票不代批计费例外。后续纯文档提交按路径过滤不主动触发/等待新 CI。
+- 内容、相对链接/锚点、围栏、编号、差异空白及改动代码语法检查通过。原链接脚本会扫描本地 `.venv` 中上游依赖的失效 README 链接；本轮只在内存排除 `.venv` 后核对项目文档通过，检查器未改；自己的 `.scratch` 材料另行核对。
+- 未完成/未替代：真实模型、生日 HTTP/页面 E2E、真人安全签核、PM 接受均未由本票完成。可解锁隔离故障复现和银行原操作观察；不能据此解锁 XL-B06 联合验收或个人预算验收。
 - 独立 Spec 审查：本票实现 PASS、范围内必须修复 0；另实测发现跨目录 P1——[冻结未知后取消，回查重新进入下单](../research/birthday-unknown-cancel-gap-2026-10-25.md)，交中控安排 cross 业务票。XL-B06 未知后停止的联合验收仍 blocked，本票未将其写成通过。
 - 独立 Standards 审查：PASS；提交说明缺原因正文 1 项已补齐并复核，范围内必须修复 0。独立 Spec 审查追加材料复核 PASS。没有用 AI 审查代替真人安全批准。
