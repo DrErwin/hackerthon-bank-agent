@@ -164,12 +164,17 @@ class BankGateway:
             context, purpose, operation_id, action_revision, summary,
         )
 
-    def retire_action_challenges(self, context: TrustedContext, operation_id: UUID,
+    def retire_action_challenges(self, context: TrustedContext, *, operation_id: UUID,
                                  action_revision: int):
         """Bank-side winner for an unsubmitted attempt; protocol only, no business rules."""
         return self._bank.verification.retire_action_challenges(
-            context, operation_id, action_revision,
+            context, operation_id=operation_id, action_revision=action_revision,
         )
+
+    def retirement_for(self, context: TrustedContext, operation_id: UUID,
+                       action_revision: int):
+        """Read-only retirement fact; never mutates the bank's challenge rows."""
+        return self._bank.verification.retirement_for(context, operation_id, action_revision)
 
     def get_verification(self, context: TrustedContext, challenge_id: str):
         return self._bank.verification.get_verification(context, challenge_id)

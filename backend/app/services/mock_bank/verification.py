@@ -277,8 +277,22 @@ class MockBankVerification:
             )
             return challenge
 
-    def retire_action_challenges(
+    def retirement_for(
         self, context: TrustedContext, operation_id: UUID, action_revision: int,
+    ) -> VerificationRetirement | None:
+        """Read-only retirement fact for the caller's own task; no challenge is touched.
+
+        Scoped by the trusted context (user/round/task), so a foreign scope reads
+        nothing instead of learning whether another attempt was retired.
+        """
+        with transaction(self.path) as connection:
+            return self._retirement_for_attempt(
+                connection, context.user_id, context.demo_round_id, context.task_id,
+                operation_id, action_revision,
+            )
+
+    def retire_action_challenges(
+        self, context: TrustedContext, *, operation_id: UUID, action_revision: int,
     ) -> VerificationRetirement:
         """Seal one unsubmitted action attempt inside the transaction that judges it.
 
@@ -286,6 +300,16 @@ class MockBankVerification:
         attempt (passed, failed, freshly expired) wins and refuses retirement. A
         retired attempt never blocks a newer attempt of the same task, but no late
         challenge or submission may be created for it.
+
+        Known residual risk (registered, not solved here): when this operation has no
+        bank challenge at all, the bank cannot tell a legitimate new attempt from a
+        wrong-task self-reported operation, so the call still succeeds and writes the
+        retirement fact. Consumers 02/03 must bind the operation to the trusted
+        context themselves and never rely on the bank to authenticate its ownership.
+
+        A refusal rolls back the whole transaction, so the lazy expiry refreshed while
+        judging is not persisted; the challenge stays pending in storage and is
+        terminalised by the existing rule on the next read or scan.
         """
         with transaction(self.path) as connection:
             existing = self._retirement_for_attempt(
@@ -371,6 +395,7 @@ class MockBankVerification:
             challenge = self._load(connection, challenge_id)
             if challenge is None or not self._in_scope(challenge, context):
                 raise ValueError("ACCESS_DENIED")
+            self._ensure_not_retired(connection, challenge)
             challenge = self._expire(connection, challenge)
             if challenge.challenge_status != "pending":
                 raise ValueError("CHALLENGE_EXPIRED")
@@ -382,7 +407,6 @@ class MockBankVerification:
             old = self._load(connection, challenge_id)
             if old is None or not self._in_scope(old, context):
                 raise ValueError("ACCESS_DENIED")
-            self._ensure_not_retired(connection, old)
             previous = connection.execute(
                 "SELECT * FROM bank_verification_submissions WHERE submission_id = ?",
                 (str(submission_id),),
@@ -394,6 +418,9 @@ class MockBankVerification:
                 ):
                     raise ValueError("VERIFICATION_SUBMISSION_CONFLICT")
                 return VerificationChallenge.model_validate_json(previous["response_json"])
+            # Only a *new* submission is refused after retirement; replaying the same
+            # submission id keeps returning the recorded result without an exception.
+            self._ensure_not_retired(connection, old)
             old = self._expire(connection, old)
             basic_expired = (
                 old.purpose == "basic_identity" and old.challenge_status == "expired"
@@ -472,10 +499,12 @@ class MockBankVerification:
             challenge = self._load(connection, challenge_id)
             if challenge is None or not self._in_scope(challenge, context):
                 raise ValueError("ACCESS_DENIED")
-            self._ensure_not_retired(connection, challenge)
             previous = self._previous_submission(connection, submission_id, challenge_id, "code", digest)
             if previous is not None:
                 return previous
+            # Only a *new* submission is refused after retirement; replaying the same
+            # submission id keeps returning the recorded outcome without an exception.
+            self._ensure_not_retired(connection, challenge)
             challenge = self._expire(connection, challenge)
             if challenge.challenge_status != "pending" or challenge.code_result != "pending":
                 raise ValueError("TASK_TERMINATED")
@@ -534,10 +563,12 @@ class MockBankVerification:
                 admin.demo_round_id != challenge.demo_round_id or
                 admin.target_user_id != challenge.user_id):
                 raise ValueError("ACCESS_DENIED")
-            self._ensure_not_retired(connection, challenge)
             previous = self._previous_submission(connection, submission_id, challenge_id, "face", digest)
             if previous is not None:
                 return previous
+            # Only a *new* submission is refused after retirement; replaying the same
+            # submission id keeps returning the recorded outcome without an exception.
+            self._ensure_not_retired(connection, challenge)
             challenge = self._expire(connection, challenge)
             if (challenge.purpose != "action_step_up" or challenge.challenge_status != "pending" or
                 challenge.face_started_at is None or challenge.face_result != "pending"):
