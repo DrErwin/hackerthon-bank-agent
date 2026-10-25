@@ -7,7 +7,7 @@ ports, no stand-in bank.
 """
 
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 import pytest
@@ -34,8 +34,10 @@ class NoopModel(ConnectorTestModel):
     model_name: str = "glm-4.7"
 
 
-def composition(tmp_path):
-    config = configuration(tmp_path)
+def composition(tmp_path, *, response_loss=False):
+    config = configuration(tmp_path).model_copy(update={
+        "birthday_response_loss_once": response_loss,
+    })
     from unittest.mock import patch
 
     with patch("app.agent_platform.local_demo.ChatOpenAI",
@@ -213,6 +215,94 @@ def _single_freeze(runtime):
 
 def app_close(runtime):
     runtime.gateway.close()
+
+
+@pytest.mark.parametrize("response_loss", [False, True])
+def test_configured_response_loss_queries_original_freeze_once(tmp_path, response_loss):
+    runtime, entry = composition(tmp_path, response_loss=response_loss)
+    who = trusted(runtime)
+    from app.contracts.bank import FreezeFundsInput, QueryFailure
+
+    try:
+        # Arming a demo fault grants no authority; this rejected attempt must
+        # neither write money nor consume the next authorized write's fault.
+        denied = runtime.gateway.freeze_funds(who, uuid4(), FreezeFundsInput(
+            account_id="A1", amount_fen=50000, reason="生日"))
+        assert isinstance(denied, QueryFailure)
+        assert denied.error.code == "ACCESS_DENIED"
+        assert _all_freezes(runtime) == []
+
+        freeze_ask = run_to_freeze_question(entry)
+        assert freeze_ask.interaction.kind == "confirmation"
+        assert _all_freezes(runtime) == []
+        freeze_operation = runtime.application.get_task(
+            "U1", "D1", "BIRTHDAY").snapshot["birthday_actions"]["freeze"]["operation_id"]
+        ports = runtime.birthday.ports_factory(who)
+        # Even a prepared action has no execution claim before approval.
+        assert ports.requery(who, None, "freeze", freeze_operation) is None
+        assert ports.requery(who, None, "freeze", str(uuid4())) is None
+        assert _all_freezes(runtime) == []
+        approve_confirmation(runtime, who, freeze_ask.interaction.record_ref)
+        verify_ask = entry.resume(who, {"choice": "approve"})
+        assert verify_ask.interaction.kind == "verification"
+        assert _all_freezes(runtime) == []
+        answer_verification(runtime, who, "R1", verify_ask.interaction.record_ref)
+        current = entry.resume(who, {"choice": "resume"})
+
+        freeze = _single_freeze(runtime)
+        freeze_operation = runtime.application.get_task(
+            "U1", "D1", "BIRTHDAY").snapshot["birthday_actions"]["freeze"]["operation_id"]
+        lookup = runtime.gateway.get_operation(who, UUID(freeze_operation))
+        assert lookup.lookup == "found"
+        assert lookup.operation.operation_status is OperationStatus.SUCCEEDED
+        assert lookup.operation.receipt.freeze_id == freeze["freeze_id"]
+        assert freeze["original_amount_fen"] == 50000
+        assert submitted_ledger_count(runtime) == 0
+
+        if response_loss:
+            assert current.status is TaskStatus.WAITING_INPUT
+            assert "冻结结果还待核实" in current.message
+            from unittest.mock import patch
+            from app.contracts.bank import BankError
+
+            failed_query = QueryFailure(kind="error", error=BankError(
+                code="BANK_UNAVAILABLE", details={}))
+            with patch.object(runtime.gateway, "get_operation", return_value=failed_query):
+                current = entry.resume(who, {"selected_option_id": option_id(current, "核实原操作")})
+            assert "冻结结果还待核实" in current.message
+            assert runtime.birthday.state.unresolved_executions(
+                runtime._context(who, UUID(freeze_operation), 1)) == [freeze_operation]
+            current = entry.resume(who, {"selected_option_id": option_id(current, "核实原操作")})
+            assert runtime.birthday.state.unresolved_executions(
+                runtime._context(who, UUID(freeze_operation), 1)) == []
+        else:
+            assert current.interaction.kind == "confirmation"  # first order
+
+        # Complete the remaining real writes. A second timeout would ask for
+        # input here, so only confirmation/verification are accepted.
+        for _ in range(30):
+            if current.status is TaskStatus.SUCCEEDED:
+                break
+            interaction = current.interaction
+            if interaction is None:
+                current = entry.resume(who, {})
+            elif interaction.kind == "confirmation":
+                approve_confirmation(runtime, who, interaction.record_ref)
+                current = entry.resume(who, {"choice": "approve"})
+            else:
+                assert interaction.kind == "verification", current.message
+                answer_verification(runtime, who, "R1", interaction.record_ref)
+                current = entry.resume(who, {"choice": "resume"})
+        assert current.status is TaskStatus.SUCCEEDED, current.message
+        final_freeze = _single_freeze(runtime)
+        assert final_freeze["freeze_id"] == freeze["freeze_id"]
+        assert final_freeze["captured_total_fen"] == 46700
+        assert final_freeze["released_total_fen"] == 3300
+        assert submitted_ledger_count(runtime) == 2
+        assert runtime.application.get_task("U1", "D1", "BIRTHDAY").snapshot[
+            "birthday_actions"]["freeze"]["operation_id"] == freeze_operation
+    finally:
+        app_close(runtime)
 
 
 def test_stop_after_flower_releases_the_remainder_only(tmp_path):

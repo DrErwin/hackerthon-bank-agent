@@ -323,12 +323,13 @@ class BirthdayTaskPorts:
                     operation_id=context.operation_id, state="not_found",
                     result=None, result_ref=None)
             operation = response.operation
+            terminal = operation.operation_status in (
+                OperationStatus.SUCCEEDED, OperationStatus.FAILED)
             return OperationObservation(
                 operation_id=operation.operation_id,
-                state="completed" if operation.operation_status is OperationStatus.SUCCEEDED
-                else "processing",
+                state="completed" if terminal else "processing",
                 result=operation, result_ref=str(operation.operation_id)
-                if operation.operation_status is OperationStatus.SUCCEEDED else None,
+                if terminal else None,
             )
 
         def observe(result):
@@ -527,6 +528,10 @@ class BirthdayTaskPorts:
         release_id = self._release_id(context)
         if release_id is None:
             return None
+        # Resolve the executor's original claim too: a bank-only lookup leaves
+        # it unknown, so the limited finalizer correctly refuses to release.
+        if self.requery(context, plan, "freeze", operation_id) is None:
+            return None
         authorization = bind_freeze_result(
             self.wiring.state,
             self._security_context(context, operation_id), release_id,
@@ -536,11 +541,23 @@ class BirthdayTaskPorts:
         return authorization.freeze_id
 
     def requery(self, context, plan, target, operation_id):
-        lookup = self.runtime.gateway.get_operation(context, UUID(operation_id))
-        if isinstance(lookup, QueryFailure) or lookup.lookup == "not_found":
+        stored = next((action for action in self._actions(context).values()
+                       if action["operation_id"] == str(operation_id)), None)
+        if stored is None:
             return None
-        operation = lookup.operation
-        if operation.operation_status in (OperationStatus.SUCCEEDED, OperationStatus.FAILED):
+        descriptor = ActionDescriptor(
+            action_name=stored["parameters"]["__action__"],
+            parameters_ref=stored["operation_id"], resource_refs=[], phase=Phase.EXECUTION)
+        security_context = self._security_context(context, stored["operation_id"])
+        # Query only an already claimed operation. Never let a missing claim
+        # turn a recovery request into a fresh write through execute().
+        if self.wiring.state.get_execution(security_context, descriptor) is None:
+            return None
+        _gate, executor = self._gate(context)
+        outcome = executor.execute(security_context, descriptor)
+        operation = outcome.result
+        if (isinstance(operation, OperationResult)
+                and operation.operation_status in (OperationStatus.SUCCEEDED, OperationStatus.FAILED)):
             state = "completed" if operation.operation_status is OperationStatus.SUCCEEDED \
                 else "failed"
             return PortsWrite(executed=True, state=state, result=operation,

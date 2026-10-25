@@ -78,6 +78,8 @@ class LocalDemoConfig(BaseModel):
     facts_version: str = Field(pattern=r"^[a-zA-Z0-9_-]+$")
     read_fixture: RiskFixture
     transfer_fixtures: list[TransferFixture]
+    # Operator-only, per-runtime fault for an isolated birthday demo/test.
+    birthday_response_loss_once: bool = Field(default=False, strict=True)
 
     @model_validator(mode="after")
     def validate_local_scope(self):
@@ -216,6 +218,8 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     bank = MockBankService(
         MockBankStore(paths.bank), demo_secret=config.bank_secret.get_secret_value().encode(),
     )
+    if config.birthday_response_loss_once:
+        bank.birthday.arm_response_loss(config.demo_user_id)
     # The bills line reads real flows; the demo bank carries the shared sample history.
     bank.seed_flow_history()
     runtime = TransferRuntime(

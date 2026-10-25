@@ -75,6 +75,12 @@ def test_missing_or_invalid_config_never_echoes_credentials(tmp_path, monkeypatc
     assert "do-not-echo-this" not in str(error.value)
 
 
+def test_existing_configuration_does_not_arm_birthday_fault(tmp_path):
+    content = configuration(tmp_path).model_dump()
+    content.pop("birthday_response_loss_once")
+    assert LocalDemoConfig.model_validate(content).birthday_response_loss_once is False
+
+
 @pytest.mark.parametrize("endpoint", ["https://api.openai.com/v1/", "https://open.bigmodel.cn/api/anthropic", "http://open.bigmodel.cn/api/paas/v4/"])
 def test_wrong_provider_or_protocol_is_not_a_runtime_fallback(tmp_path, endpoint):
     config = configuration(tmp_path).model_dump()
