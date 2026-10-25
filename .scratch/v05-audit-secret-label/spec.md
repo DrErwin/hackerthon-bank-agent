@@ -1,6 +1,6 @@
 # v0.5 英文密码标签保护补口
 
-Status: implemented — 本地验证与独立 AI 审查通过，待中控合并及接受；CI 因账户账单/额度未启动
+Status: implemented — Erwin 已批准合入及计费本地验证例外，待中控执行；CI 实际仍未启动，不记绿 CI
 Owner: Erwin（授权执行对话，AI 实施）
 Accepted by: Erwin（本轮授权：Issue #271，单目录实施）
 Accepted at: 2026-10-25

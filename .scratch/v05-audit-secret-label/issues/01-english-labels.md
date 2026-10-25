@@ -8,7 +8,7 @@ Verification: 三公共入口一致性、无值提醒、审计落盘与回放、
 Type: 开发
 Owner: Erwin（授权执行对话，AI 实施）
 Directory: backend/app/audit/
-Status: implemented — 本地验证与独立 AI 审查通过，待中控合并及接受；CI Blocked
+Status: implemented — Erwin 已批准合入及计费本地验证例外，待中控执行；CI 实际仍未启动，不记绿 CI
 Blocked by: None
 Source issue: [Issue #271](https://github.com/DrErwin/hackerthon-bank-agent/issues/271)
 Claimed by: Erwin（授权执行对话）
@@ -43,3 +43,7 @@ password/passwd/pwd 后有实际值时，输出及导出探针报告 credential�
 - 交付：[PR #287](https://github.com/DrErwin/hackerthon-bank-agent/pull/287)，已附加到本执行对话；作者不合并。合入后可解除 #271 英文自由文本标签缺口并供输出/导出联调复用，不解除 #216 整体验收或其他隐私/编码边界。
 - CI：运行 [40167460403](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40167460403)，head `8812a21707135607dba4b2cc51fcd480f7f8451e`，Repository checks 未启动任何步骤；官方注释为 recent account payments failed / spending limit needs increase。状态为失败/基础设施 Blocked，不能记绿 CI，是否适用既有例外交中控判断。
 - 交付前再次同步最新主线 `9a479ea`（仅前端及其文档变化，无后端变化），最终 audit 代码与独立审查通过的 `0952119` 完全相同；仅本组材料回填最终证据。
+- 2026-10-25 中控续派：Erwin 明确批准首批含 PR287 合入及计费本地验证例外；本对话仅准备并更新原 PR，中控执行合并，不扩大为 Ringo 本人签核或 #216 整体验收。
+- 准备合入：在原隔离 worktree rebase 最新主线 `36f1d663b73a1511d2ddc362eb39bd4f972f0e76`。与原 head `8f205a61d4987c96e757ac05134d3e88b6d19ee2` 比较，audit 目录 tree 均为 `6a850ff49642ccb15ae08f496eaf3bb8a065568c`；audit 补丁 SHA256 均为 `fc691093740640489b7a07082faa7348d10c54bd8f5ffca636d3c8949c4566c1`，无实质变化。仍只有 audit 与本组 spec/票，没有混入503诊断材料。
+- 同步后定向复验：`pytest -q app/audit app/agent_platform/test_reply_credential_gate.py app/api/test_output_observation.py app/api/test_export_secrets.py`：**166 passed in 29.52s**。文档链接与差异空白检查通过；本轮未重跑全量、未调用真实模型。1699/14 为此前批次的历史证据，不表述为本次新跑。
+- 503 固定诊断 worktree/代码基线保持不动；未启动带观测全量，等待养老金297批次结束后中控明确开始信号。
