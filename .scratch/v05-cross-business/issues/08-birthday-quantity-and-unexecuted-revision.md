@@ -12,7 +12,7 @@ Owner: Erwin（v0.5阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: planned / blocked — 未授权实施；平台候选01—04及G1/G2本人决定、G3提供消费协同未闭合；适用个人预算路径仍等待06。
+Status: planned / blocked — 未授权实施；平台候选01—05及G1/G2本人决定、G3真实提供条件未闭合；适用个人预算路径仍等待06。
 
 Planning assignee: Erwin授权执行对话 01a17183-271b-7663-9517-f31a994de51d
 
@@ -39,6 +39,9 @@ Core scenarios: XL-B01/B02/B03/B04/B05/B06/B07，回归XL-X02/X05/X08；
   消费撤离或已claim明确失败/无订单/无在途两类事实；源检查点精确绑定、待发布隔离及任务CAS同次发布引用/结果，普通resume不读孤立新状态；G3待双方确认。
 - 候选 [v05-birthday-platform-dependencies/04：F10当前生日待办的受控编辑分流](../../v05-birthday-platform-dependencies/issues/04-api-edit-entry.md)：
   G1状态语义按契约§8确认后接入；不借普通F10/转账draft/取消伪造编辑，不在Cross跨目录补代码。
+- 候选 [v05-birthday-platform-dependencies/05：生日编辑候选检查点的一次封存](../../v05-birthday-platform-dependencies/issues/05-immutable-edit-checkpoint.md)：
+  固定提供稿d9f8b96新增storage单目录窄能力，03已在该稿依赖05。精确ref不等于内容不可变；05首份持久胜者及原put/put_writes防覆盖、03原子发布、08普通/异常恢复只读已发布源共同就绪才可消费。
+  新初始/普通状态的不可变源绑定仍待03/05明确，见[G3最终消费意见§8](../birthday-g3-interface-review.md#8-对d9f8b96封存提供稿的最终消费意见设计仍blocked)。本地基线尚未收录05，以上候选链接以d9f8b96 Git树验证，不当作已交付。
 - [v05-cross-business/06：个人预算采用、版本与冻结前占用](06-adopted-budget-integration.md)
   是适用个人预算资金路径前置；其[平台来源01](../../v05-budget-adoption-origin/issues/01-platform-origin.md)
   与[API来源02](../../v05-budget-adoption-origin/issues/02-api-f10-origin.md)按原顺序交付。

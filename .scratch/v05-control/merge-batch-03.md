@@ -1,6 +1,6 @@
 # 第三批合入材料：个人预算存储与可信输入
 
-Status: ready_for_owner_decision — 2026-10-25；尚未获Erwin本批批准，不合入、不借用前两批CI例外。
+Status: merged — 2026-10-25；Erwin明确批准两项及本批CI例外后，293→299已顺序squash。运行限新隔离目录，共享库未迁移；CI计费Blocked，开发/设计后的实际E2E由本人另行安排。
 
 ## 请求的决定
 
@@ -17,7 +17,7 @@ Status: ready_for_owner_decision — 2026-10-25；尚未获Erwin本批批准，�
 | 1 | [PR293](https://github.com/DrErwin/hackerthon-bank-agent/pull/293)，`7c2fe00e0c297b3c81709f4853501f3563120245` | `backend/app/storage/`；采用记录、连续改版、并发冲突、可信读取，应用库v5→v6 |
 | 2 | [PR299](https://github.com/DrErwin/hackerthon-bank-agent/pull/299)，`d262bb19ed6f52cc26728f31c8fdfdcc79224972` | `backend/app/api/`；专用F10原请求/交互/选项、原来源恢复、冻结HTTP结果及整批事件发布 |
 
-两PR均Draft/open，未合入；实时CLI核对MERGEABLE / UNSTABLE，后者不表示CI通过。PR299的平台前置298已经合入；293与299按各自原补丁核对，不能把验证组合分支作为跨目录实现PR合入。
+材料冻结时两PR均Draft/open；经本人批准后已按各自原补丁同步、独立squash，最终准确head和合入提交见末节。PR299的平台前置298已先合入；未将组合材料分支作为跨目录实现PR合入。
 
 本批不含PR296/294/291/290/300、Issue301入口修复、生日编辑新语义、#160政策、数据库共享迁移、#216/#227或最终安全/体验接受。
 
@@ -68,4 +68,19 @@ F10组合仍使用PR299的预算业务替身，其真实AdoptedBudget表为0行�
 3. 两项实际合入后，才由中控向原Cross对话发送business06预算接入的正式开始信号；同目录生日规划先提交，避免并行写同目录。
 4. 真实采用、业务预算约束、S01修复、生日与三主线E2E仍分别验证，最终安全/体验接受保留。
 
-批准记录：待Erwin明确回复。
+批准记录：2026-10-25，Erwin在本批原问题卡明确答复“批准两项及本批CI例外，仅用新隔离目录（推荐）”。批准仅覆盖本页两项及不改变受测实现的主线同步，CI继续记计费Blocked；共享迁移、其他PR与最终E2E/安全/体验接受未获本批准。原API/storage对话已获先同步293、等待其实际squash后再同步299的具体任务；合并由中控逐项执行。
+
+## 批准兑现与实际合入（2026-10-25）
+
+| 顺序 | 同步后精确head / 主线基线 | squash提交 | 准确head的CI事实 |
+|---|---|---|---|
+| 293 | `1ca8ca8bed3c806c48fa2a8b5cfd4d3305f197f4` / `f77c07fede5c0b3ca393862c0dce3efd75095918` | `9d6d899fae14274c052ab1f628ada6555fd537d4` | run40191707763 / check121163889660；计费未启动，Blocked |
+| 299 | `8642bf7838ef8d1ec110127a27a9857674c5cbb0` / `9d6d899fae14274c052ab1f628ada6555fd537d4` | `1b3afec5336e5906f87259c7b1c903823cc574e1` | run40192943853 / check121167649650；计费未启动，Blocked |
+
+- GitHub逐项返回merged=true。293三个提交、299五个提交range-diff全部等价且无冲突；中控复核各自原批准文件逐字节不变，实施范围仍分别storage三文件、API四文件及各自材料，没有重放前序祖先。
+- 293同步后backend树`694d65ba501f44b15416e3eb978136187d4e7cdb`；299及最终代码main `1b3afec`的backend树均为受测`d074a205991f30868426c280031846214f25feb4`。中控另核对最终main与c638418的backend/frontend/evals/tools/.github无差异。
+- 沿用原133唯一节点和原双轴审查，未重复跑测试或E2E；API原93、组合133、storage历史1607仍分别归原准确受测版本。293另有等价同步独立双轴复核0必须项/0建议；299未增加重复审查门槛，原实现及完整组合代码一致证明原审查适用。
+- 作者补充本地材料：组合worktree下`pr293-rebase-20261025/ready.md`（提交`6fbd630f1fe1cd22c63936141f4a3bc97f0d51db`）、`pr299-rebase-20261025/ready.md`（提交`10a7a0b2b552767a1ae253db0ea040931bb8da73`），均在`.scratch/v05-budget-source-combination/`。保留原source-proof、range-diff、CI和散列，不并入实现PR。
+- 中控直接读取两准确head的CI annotation，均为付款/额度导致job未启动；Ubuntu标签notice另列。本批例外是Erwin本人批准的合入依据，没有伪造绿CI或提交真人review。
+- **下游已派发**：原Cross对话已收到business06正式实施开始信号，先保存已提交的生日规划，再独立worktree/单目录开发；新PR不沿用本批批准。真实采用及业务预算约束仍待该票实现。
+- **最新停止线**：Erwin随后明确开发与E2E验收设计完成后先停，实际E2E由本人后续运行。原E2E对话改为仅补设计/交接，相关线已通知不再自动启动真实批次。已有S01失败保留，未开共享库、未迁移原数据、未新增模型/页面/银行全链路运行。
