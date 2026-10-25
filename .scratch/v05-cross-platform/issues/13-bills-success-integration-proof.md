@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/agent_platform/`
 
-Status: in_progress
+Status: developed — 组合验证及独立双轴审查通过；[PR #292](https://github.com/DrErwin/hackerthon-bank-agent/pull/292) 为依赖284的Draft，待中控处理前序与合入。CI计费未启动，不记为通过。
 
 Blocked by: [v05-bills-cross-input/01：账单公开工厂接收类型化输入](../../v05-bills-cross-input/issues/01-typed-input.md)，[Depends on PR #284](https://github.com/DrErwin/hackerthon-bank-agent/pull/284)。实施在其分支上做隔离组合，未将其写成已合入。
 
@@ -37,7 +37,7 @@ Verification: 在 PR #284 组合上先复现旧断言失败，再验证真实 Sp
 - [x] 查询确经真实 BankGateway/B08，调用上下文绑定父任务、子任务、用户及轮次；返回的账户来源时点与 summary 匹配。
 - [x] 主期交易数、消费/退款/净额、转入转出及对照净额/差额可回核本次银行实际返回的事实；不把硬编码结果或自身服务输出当预期。
 - [x] 保留原订阅真实盘点、任务关系和父视图断言；所有本人账户的非种子流水与资金操作数量不增加。
-- [ ] 本票独立子代理两轴审查后独立PR，依赖284；不自行合并或代签E2E/真人接受。
+- [x] 本票独立子代理两轴审查后独立PR，依赖284；不自行合并或代签E2E/真人接受。
 
 ## Delivery record
 
@@ -48,4 +48,7 @@ Verification: 在 PR #284 组合上先复现旧断言失败，再验证真实 Sp
 - 本轮实际结果（只读回查测试留下的SQLite核对）：账户 A1/A5；主期 `[2026-09-01, 2026-10-01)`（+08:00），18 笔，消费586400分、退款4500分、净消费581900分、转出0分、转入821000分；对照期 `[2026-08-01, 2026-09-01)` 同账户，净消费282600分、差额299300分。两个账户各有真实银行来源时点，测试逐项与实际B08返回核对；bank_operations 最终为0。这些只是该隔离种子的观测，断言不硬编码这些金额/笔数。
 - 差异空白、改动Python编译、项目链接检查通过。仅变更一个平台测试文件及本票，不改变运行行为；本票按影响范围验证，没有再次跑全后端，也不拿平台12的1591项替代此组合的验证。账单线原全量三失败事实仍保留在原交接（旧平台断言本票已修，两项20ms银行重放不由本票改）。
 - 独立 Standards 子代理：PASS，必须修复0、建议0。独立 Spec 子代理：PASS，必须修复0，独立复跑21 passed in 23.98s。非阻塞建议“对照期样本显式非空”已采纳，追加后目标用例 **1 passed in 11.88s**。
-- PR进行中。真实模型/HTTP/页面E2E、CI通过、真人安全/PM接受均未由本票完成。
+- 交付：[PR #292](https://github.com/DrErwin/hackerthon-bank-agent/pull/292)，base=`codex/v05-bills-cross-input`，Draft；前序284合入后须只保留本票提交再更新main，不直接把前序历史作为本票差异。代码提交 `f7a1c3b`、审查增强提交 `05c137f`，后续仅回填证据。未自行合并。
+- CI：head `05c137f` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40168791897/job/121095223353) 结论failure，注解明确账户付款/spending limit导致job未启动；无执行证据，不代批例外。后续纯文档回填不主动触发/等待新CI。
+- Spec 对 `05c137f` 建议采纳复核 PASS、必须项0；未重复无关测试。真实模型/业务HTTP/页面E2E、CI通过、真人安全/PM接受均未由本票完成。
+- 下游：随284合入后，旧“账单应failed”的平台回归阻塞解除，可进入减支/养老金真实页面联调；本票自身不表示两主线E2E通过。原交接两项银行20ms短超时遗留不由本票处理。
