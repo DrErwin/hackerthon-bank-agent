@@ -147,6 +147,10 @@ class ApiStore:
     def publish_budget_input(self, task, message, events):
         """One idempotent publication after a durable platform budget completion."""
         with transaction(self.path) as c:
+            # task_updated is always present and commits with the whole batch.
+            # Do not fill an old batch with a later plan's interaction on retry.
+            if c.execute("SELECT 1 FROM api_events WHERE event_id=?", (events[0].event_id,)).fetchone():
+                return
             if task.interaction and task.interaction.record_ref:
                 c.execute("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
                           (task.interaction.kind, task.interaction.record_ref, task.task_id))

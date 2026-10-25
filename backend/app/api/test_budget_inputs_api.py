@@ -5,6 +5,7 @@ No real AdoptedBudget, external model or money action is used in this file.
 
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
+import json
 import socket
 from types import SimpleNamespace
 import threading
@@ -215,16 +216,25 @@ def test_unadopted_fault_cannot_refresh_old_revision_to_write(budget_api, stage)
     assert e.calls == 1 and e.business().get("adoptions", 0) == 0
 
 
-def test_historical_fact_recovers_before_current_input_validation(budget_api):
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_historical_fact_recovers_before_current_input_validation(budget_api, cancelled):
     e = budget_api
     e.fail = "after_adopt"
     assert e.answer().status_code == 503
     assert e.task().status is TaskStatus.NEEDS_ATTENTION
     assert e.task().snapshot["result"]["interaction"] is None
+    if cancelled:
+        task = e.task()
+        result = ModuleResult.model_validate(task.snapshot["result"]).model_copy(update={
+            "status": TaskStatus.CANCELLED, "allowed_actions": [],
+            "recovery_required": False, "recovery_reason": None})
+        e.api.runtime.application.update_task("U1", "D1", "T1", task.revision, task.run_id,
+            result.status, task.checkpoint_id, {**task.snapshot, "result": result.model_dump(mode="json")})
+        e.api.store.write("UPDATE api_tasks SET cancel_requested=1 WHERE task_id='T1'")
     e.fail = None
     done = e.answer()
     assert done.status_code == 200 and done.json()["data"]["status"] == "succeeded"
-    assert e.task().status is TaskStatus.NEEDS_ATTENTION
+    assert e.task().status is (TaskStatus.CANCELLED if cancelled else TaskStatus.NEEDS_ATTENTION)
     assert e.calls == 1 and e.business()["adoptions"] == 1
     assert e.api.runtime.harness.budget_input_origin(e.who) is None
 
@@ -244,11 +254,14 @@ def test_completed_source_survives_api_publication_faults(budget_api, monkeypatc
     assert len(e.api.store.rows("SELECT * FROM api_messages WHERE thread_id=?", (e.thread,))) == 1
 
 
-def test_original_completion_does_not_publish_old_plan_as_current(budget_api, monkeypatch):
+@pytest.mark.parametrize("lost_at", ["receipt", "publication"])
+def test_original_completion_does_not_publish_old_plan_as_current(budget_api, monkeypatch, lost_at):
     e = budget_api
     with monkeypatch.context() as m:
-        m.setattr(e.api.store, "finish", lambda *_: (_ for _ in ()).throw(OSError("receipt lost")))
+        method = "finish" if lost_at == "receipt" else "publish_budget_input"
+        m.setattr(e.api.store, method, lambda *_: (_ for _ in ()).throw(OSError("publication lost")))
         assert e.answer().status_code == 503
+    initial_events = e.api.store.rows("SELECT event_id,event_json FROM api_events ORDER BY sequence")
     task = e.task()
     newer = candidate(e.who, interaction="NEW", plan=8, limit=90000)
     e.api.runtime.application.update_task("U1", "D1", "T1", task.revision, "R2", newer.status,
@@ -259,6 +272,15 @@ def test_original_completion_does_not_publish_old_plan_as_current(budget_api, mo
     assert current["data"]["plan_revision"] == 8
     assert reply.json()["data"]["task_revision"] < current["task_revision"]
     assert e.business()["adoptions"] == e.calls == 1
+    events = e.api.store.rows("SELECT event_id,event_json FROM api_events ORDER BY sequence")
+    if lost_at == "receipt":
+        assert events == initial_events  # Whole published batch, not per-event deduplication.
+    else:
+        published = [json.loads(row["event_json"]) for row in events]
+        updated = next(item for item in published if item["event_type"] == "task_updated")
+        interaction = next(item for item in published if item["event_type"] == "interaction_required")
+        assert updated["payload"]["data"]["plan_revision"] == 8
+        assert interaction["payload"]["interaction"]["interaction_id"] == "NEW"
 
 
 def test_wrong_actor_round_task_and_expired_session_cannot_use_source(budget_api):
