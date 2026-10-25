@@ -125,7 +125,10 @@ class CrossEntry:
         options = [InteractionOption(id=key, label=label)
                    for key, (label, _) in zip(state["choices"], choices)]
         return ModuleResult(task_id=context.task_id, run_id=context.run_id,
-            status=TaskStatus.WAITING_INPUT, data=None, message=prompt,
+            status=TaskStatus.WAITING_INPUT,
+            data=self._view_data(state, prompt)
+            if (state.get("birthday") or {}).get("write_facts") else None,
+            message=prompt,
             interaction=InteractionRequest(interaction_id=interaction_id, kind="input",
                 prompt=prompt, required_fields=["cross_selection"], options=options,
                 record_ref=None),

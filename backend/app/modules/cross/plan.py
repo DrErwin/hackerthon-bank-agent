@@ -158,12 +158,16 @@ def build_steps(state: dict) -> list[CrossStep]:
 
 def build_view(state: dict, summary: str, *, active_step_id: str | None = None,
                interaction_task_id: str | None = None) -> CrossTaskView:
+    steps = build_steps(state)
+    if state.get("birthday"):
+        from .birthday_view import build_birthday_steps
+        steps.extend(build_birthday_steps(state["birthday"]))
     return CrossTaskView(
         scenario=state["scenario"],
         plan_revision=state["plan_revision"],
-        steps=build_steps(state),
+        steps=steps,
         summary=summary,
-        plan_step_ids=step_ids(state),
+        plan_step_ids=[step.step_id for step in steps],
         active_step_id=active_step_id,
         interaction_task_id=interaction_task_id,
         arrangement=None,
