@@ -58,11 +58,14 @@ def test_actual_bank_income_and_own_destination_on_combined_inputs(tmp_path):
         assert transfers[1].amount_fen is None and transfers[1].status is None
         child = runtime.application.get_task("U1", "D1", current.data.interaction_task_id)
         assert child.snapshot["result"]["status"] == "needs_attention"
+        assert child.snapshot["result"]["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
+        assert child.snapshot["result"]["error"]["source"] == "security"
         assert child.snapshot["result"]["data"]["payee"]["account_masked"] == runtime.gateway.get_account(who, "A5").data.account_masked
         assert all(row["operation_id"].startswith("seed:") for row in runtime.gateway._bank.store.list_ledger("U1", "A1"))
         print(json.dumps({"income_transaction_ids": active.income_transaction_ids,
             "base_fen": active.base_fen, "reserve_fen": active.living_reserve_fen,
             "planned_transfers_fen": [250000, 100000], "first_child_status": "needs_attention",
-            "second_transfer_dispatched": False, "non_seed_writes": 0}, ensure_ascii=False))
+            "second_transfer_dispatched": False, "non_seed_writes": 0,
+            "pause_error": child.snapshot["result"].get("error")}, ensure_ascii=False))
     finally:
         runtime.gateway.close()
