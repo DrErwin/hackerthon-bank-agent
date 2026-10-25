@@ -50,3 +50,15 @@
 类别、closed 状态、历史日/年额度和故障注入仍由03准备；本票没有交付151条转账场景的自动化或真实模型评测。账户/联系人加载表保持既有测试接缝 `ACCOUNT_LABELS` / `PAYEES`，数据内容仅在 JSON 定义，限额与涉诈规则继续由银行代码裁决。
 
 验证：从 `backend/` 运行 `python -m pytest -q app/services/test_seeds.py app/services/test_bank.py app/services/test_verification.py`，以及后端全量测试与 `../evals/mockbank/test_mockbank_eval.py`。新测试覆盖同名多候选、号码检索/手工核对、用户隔离、输出脱敏、一分钱不足、余额归零、冻结拒绝和重复播种/重启不重置账本。
+
+## G2-B 旧尝试挑战退役（v05-birthday-platform-dependencies/06）
+
+退役事实与验证挑战同库：新表 `bank_verification_retirements` 对同一 `(user_id, demo_round_id, task_id, operation_id, action_revision)` 只保存一份事实（`retirement_id`、退役时仍 `pending` 的 `retired_challenge_ids` JSON list、`retired_at`）。只增不改：挑战行、原结果与时间戳都不删除、不改写；`VerificationChallenge` 与公开契约/枚举不变。
+
+`retire_action_challenges(context, *, operation_id: UUID, action_revision: int) -> VerificationRetirement`（keyword-only）在**同一个银行库事务**内先按既有规则刷新到期挑战，再判该尝试是否已有 `passed`/`failed`/`expired`：有则抛 `ChallengeNotRetireable`（`reason_code` 为 `ALREADY_PASSED` / `ALREADY_FAILED` / `ALREADY_EXPIRED`），不写退役事实并整笔回滚；否则写退役行。同参幂等返回同一事实，异 operation/revision 互不影响；该尝试无任何挑战（确认等待）时也成功并写退役行，阻止之后为旧尝试再创建挑战。`retirement_for(context, operation_id, action_revision) -> VerificationRetirement | None` 只读返回同一事实，按 context 的 user/round/task 归属，跨 scope 返回 `None`、不泄露存在性、无副作用。
+
+已退役尝试：`create_verification` 不能再为它创建挑战；`resend_code`/`verify_code`/`start_face`/`verify_face`/`get_demo_code` 对新请求抛 `ChallengeRetired`，不改挑战状态、不生成新挑战或提交记录；同 `submission_id` 的既有提交重放按原有幂等返回原结果，只有新提交被拒。任务级终止扫描跳过退役尝试的旧挑战，其它 `failed` / `action_step_up` `expired` 挑战照旧终止。原因码 `ALREADY_*` / `CHALLENGE_RETIRED` 只在后台异常属性/机器错误码中使用，不作为用户可见文案经 API 展示（API 的 `reason` 是既有通用 409 说明）。
+
+已知残留风险（登记）：operation 在银行库尚无任何挑战时，银行无法区分「合法新尝试」与「错 task 自报 operation」；退役仍成功并写退役行，operation 归属与调用授权由 02/03 用可信上下文把关，不能依赖银行侧认归属。被拒退役整笔回滚：判定时刷新的惰性过期不落库（行仍 `pending`），由下一次读取/扫描按既有规则终态化。
+
+验证：从 `backend/` 运行 `python -m pytest -q app/services/test_verification_retirement.py`（15 项）；`python -m pytest -q app/services/`（75 passed）。
