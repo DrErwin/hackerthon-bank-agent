@@ -4,7 +4,7 @@ Package: v05-cross-linkage/packages/04-frontend
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: in_progress — 2026-10-25 页面方案已走查通过（六屏版式与文案获 PM 认可）；票 01 待平台票 11 后编码，票 02 等业务票 05；代码实施与 E2E 未开始。
+Status: in_progress — 2026-10-25 票 01 实现已合入（#283，减支/养老金共用页面）；票 02 等业务票 05 后再走查；真实页面走查、200%/读屏与 E2E 未做。
 
 Activation: 2026-10-25 Erwin 明确“你把包4领了拆票，开个交接文档给别人做”；本轮登记接包和细化，实施交其他对话。
 

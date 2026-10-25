@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `frontend/`
 
-Status: in_progress — 方案走查已通过（Erwin，2026-10-25）；先完成平台票 11（G1/G2），再编码。
+Status: delivered — 2026-10-25 实现并合入（PR [#283](https://github.com/DrErwin/hackerthon-bank-agent/pull/283)，squash `e9517b8`）；200% 缩放 / 读屏、真实页面联调与 E2E 未做，另记。
 
 Package accepted by: Erwin
 
@@ -82,8 +82,8 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 ## Delivery record
 
 - 方案走查：2026-10-25 通过（Erwin 认可版式与文案；追加批准联动菜单输入框，见 [page-plan-01.md](../page-plan-01.md) §11）。
-- 实现 / PR：`frontend/` 一次性实现（联动总览卡、子任务嵌套、结果/停止、恢复与输入框；跨域类型经 `frontend/scripts/generate_contract_schema.py` 生成），PR 待回填。
-- 本票验证：`npm test` 79 passed（含新增 9 条联动用例）；`npm run build` 通过。**未做**：200% 缩放与读屏实测、真实页面 HTTP 联调、断线恢复留证——这部分留真实页面走查与 [E2E 包 05](../../v05-cross-linkage/packages/05-cross-e2e.md)。
+- 实现 / PR / 合入：`frontend/` 一次性实现（联动总览卡、子任务嵌套、结果/停止、恢复与输入框；跨域类型经 `frontend/scripts/generate_contract_schema.py` 生成）；PR [#283](https://github.com/DrErwin/hackerthon-bank-agent/pull/283) **已合入**（squash `e9517b8`，2026-10-25）。原堆叠 PR #282 因基分支（平台票 11 分支）合入后被删而自动关闭，rebase 到 main 后以 #283 重开。合入前独立 AI 复审未在时限内返回结果，**属未完成审查**，不作为通过证据。
+- 本票验证：`npm test` 79 passed（含新增 9 条联动用例）；`npm run build` 通过；rebase 到合入后的 main 复跑仍 79 passed / tsc 通过。**未做**：200% 缩放与读屏实测、真实页面 HTTP 联调、断线恢复留证——这部分留真实页面走查与 [E2E 包 05](../../v05-cross-linkage/packages/05-cross-e2e.md)。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 

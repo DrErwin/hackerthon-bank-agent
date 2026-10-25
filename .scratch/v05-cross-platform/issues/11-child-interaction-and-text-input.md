@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `backend/app/api/`
 
-Status: in_progress — 2026-10-25 执行对话接手实施；先写复现用例再改 `backend/app/api/`。
+Status: delivered — 2026-10-25 实现并合入（PR [#281](https://github.com/DrErwin/hackerthon-bank-agent/pull/281)，squash `4bba921`）；完整确认/验证往来与安全收窄交真实页面、安全审查与 E2E 包 05。
 
 Package accepted by: Erwin
 
@@ -76,10 +76,10 @@ Core scenarios: XL-S01、XL-P01、XL-B02、XL-B05；定义见[共享规格 §5](
 
 ## Delivery record
 
-- 实现 / PR：`backend/app/api/service.py`（两处）、`backend/app/api/README.md`（/children 与 F14—F17 前提）、`backend/app/api/test_parent_child_api.py`（新增 4 条用例）；PR #281。
-- 本票验证：`app/api/test_parent_child_api.py` 7 passed；后端全量 `1587 passed`（12m19s）、`evals/mockbank/test_mockbank_eval.py` 14 passed（以 PR 最终提交批次为准）。
+- 实现 / PR / 合入：`backend/app/api/service.py`（两处）、`backend/app/api/README.md`（/children 与 F14—F17 前提）、`backend/app/api/test_parent_child_api.py`（新增 4 条用例）；PR [#281](https://github.com/DrErwin/hackerthon-bank-agent/pull/281) **已合入**（squash `4bba921`，2026-10-25）。独立 AI 审查给出 3 条 P0（CI 行尾、凭证闸门缺拒绝用例、票面改写验收）与 6 条 P1，**全部处理**后再合入；审查人未跑测试、未实机，属 AI 自审非真人。
+- 本票验证：`app/api/test_parent_child_api.py` 7 passed；**后端全量 `1588 passed`（11m45s）**、`evals/mockbank/test_mockbank_eval.py` 14 passed（合入前本地批次）。CI 自 #272 起因 GitHub 账户计费无法启动，按既有口径以本地全量证据合入。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
-- 真人安全签核 / PM 最终验收：未由本票代签。
+- 真人安全签核 / PM 最终验收：未由本票代签。**新增待安全审查项**：`pension.apply_text` 的 basis 阶段会把解析出的金额回显进提问文案并进入消息/SSE；本票放宽的裸数字拦截是否可接受，需安全审查判断。
 
 ## Comments
 
