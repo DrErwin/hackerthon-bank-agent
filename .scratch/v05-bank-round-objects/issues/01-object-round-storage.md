@@ -16,7 +16,7 @@ Directory: `backend/app/storage/`
 
 Status: blocked — 待 Owner 确认对象归属防御纵深决策、生日 storage 05 合入并释放目录窗口；未实施。
 
-Blocked by: None（本票无实施前置票）。
+Blocked by: None（本票无实施前置票；Owner 决策与生日 storage 目录窗口是启动条件，见下，不是前置票）。
 Source evidence: [PR #290：银行专项四项 strict xfail](https://github.com/DrErwin/hackerthon-bank-agent/pull/290)。
 
 Start when: ①Owner 已确认补对象轮次列（见 [spec 背景](../spec.md)）；②生日系列 [v05-birthday-platform-dependencies/05：生日编辑候选检查点的一次封存](../../v05-birthday-platform-dependencies/issues/05-immutable-edit-checkpoint.md) 已合入并释放 `backend/app/storage/` 窗口（该线正在改 `storage/README.md`、`application.py`、`checkpoints.py`，本票也改 README，需 rebase/冲突处理）。

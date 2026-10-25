@@ -30,7 +30,7 @@ Start when: Owner 已确认（见 [spec 背景](../spec.md)）、01 合入并取
    - **先按 user 取整行、再比较轮次**（不把轮次下推存储过滤）；对象不存在 → `RECORD_NOT_FOUND`；存在但归属其他轮次 → `ACCESS_DENIED`；同轮次返回原视图。
    - 直接以旧参数调用（无轮次）只保留给既有测试装配，生产网关路径不得出现（测试可断言网关一定传轮次）。
 3. 写路径前置校验：`_freeze_row`、`capture_frozen`、`release_frozen` 及 `capture_frozen` 关联的订单都按当前轮次校验；跨轮在调用存储前返回明确 `ACCESS_DENIED` 失败回执（不得落到存储 `ValueError` 再被网关映射成 `OPERATION_CONFLICT`）。禁止用 `OPERATION_CONFLICT` 表示跨轮拒绝。
-4. 启动收口：`MockBankService` 初始化时检查银行库冻结/订单对象是否存在无轮次行（`demo_round_id IS NULL`）；存在则明确 `RuntimeError` 拒绝加载并提示保留原库/启用新库（镜像 `core.py:103-110` 对无 scope 旧操作的先例），避免冻结余额被 NULL 行卡死且无法释放。
+4. 启动收口：`MockBankService` 初始化时检查银行库冻结/订单对象是否存在无轮次行（`demo_round_id IS NULL`）；存在则明确 `RuntimeError` 拒绝加载并提示保留原库/启用新库（镜像 `core.py:103-110` 对无 scope 旧操作的先例），避免冻结余额被 NULL 行卡死且无法释放。该检查应在 `seed_demo`/`seed_subscriptions` 等种子写入**之前**执行；若实现顺序无法前置，须证明种子幂等且不新增/覆盖冻结/订单对象行，验收以对象行与 `user_version` 不被改写为准（不承诺整个数据库文件逐字节不变）。
 5. 同轮正常路径保持不变：B10→B21→B11→B12、B14 原操作回查、响应丢失后原编号恢复、订单只付一次、释放余额按银行事实。
 6. 更新 `backend/app/services/mock_bank/README.md`：B10—B13/B20—B22 的轮次归属、错误码与拒绝语义；`bank_operation_scopes` 与对象归属的关系；02 启动拒绝 NULL 对象的边界。
 
@@ -39,8 +39,8 @@ Start when: Owner 已确认（见 [spec 背景](../spec.md)）、01 合入并取
 - [ ] 网关在真实授权回调下，D2 对 D1 冻结/订单的 B13/B22 读取返回 `ACCESS_DENIED`；同轮读取仍成功；缺失对象仍 `RECORD_NOT_FOUND`。
 - [ ] D2 用新编号核销/释放 D1 冻结：返回 `ACCESS_DENIED` 失败回执，无资金/冻结/订单/付款关联变化，不产生成功回执；**不接受 `OPERATION_CONFLICT`**；同轮正常核销/释放/付款保持通过。
 - [ ] D2 创建订单带 D1 `order_id` 付款：拒绝 `ACCESS_DENIED`；同轮合法订单付款一次，重复执行只观察原操作。
-- [ ] 银行库存在无轮次对象行时启动拒绝加载且不修改原库；正常库启动不受影响。
-- [ ] 缺省无轮次的直接调用（既有测试/内部装配）行为不变，生产网关路径不再出现（测试可断言网关一定传轮次）。
+- [ ] 银行库存在无轮次对象行时启动拒绝加载，且冻结/订单对象行与 `user_version` 不被改写（允许既有幂等种子重复写入）；正常库启动不受影响。
+- [ ] 缺省无轮次的直接调用（既有测试/内部装配）行为不变；新增回归断言：生产网关 `get_freeze`/`get_order` 必然传 `context.demo_round_id`（防永久 fail-open）。`app/security/test_birthday_release.py:716` 等直接 `birthday.get_freeze("U1", …)` 调用列入兼容白名单，不为此改 security 文件。
 - [ ] 只改 `backend/app/services/`；不触碰 security/agent_platform/storage/evals，不改公共契约字段，不新增业务规则。
 - [ ] 修复后 `evals/mockbank/test_birthday_bank_eval.py` 的四项 strict xfail 预期 XPASS；须先备好 [v05-cross-bank-eval/02](../../v05-cross-bank-eval/issues/02-round-object-regression.md)，按 01→02→评测 02 相邻合入，或由中控记录接受红灯窗口；本票不修改评测期望。
 

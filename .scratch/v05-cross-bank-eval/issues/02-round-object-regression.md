@@ -30,8 +30,9 @@ Source: [PR #290](https://github.com/DrErwin/hackerthon-bank-agent/pull/290) 四
    - 断言六类银行事实（accounts/freezes/orders/order_payments/ledger_entries/bank_operations）除允许的失败回执外不变，无资金移动；
    - 增加同轮次正常对照：D1 读取/核销/释放仍成功，合法订单只付一次；缺失对象仍 `RECORD_NOT_FOUND`。
 2. `test_birthday_round_attribution.py`：
-   - 该文件是 [v05-cross-bank-round-attribution/01](../../v05-cross-bank-round-attribution/issues/01-round-boundary-attribution.md) 的交付物（同 Owner/目录、不同工作组）。本票修改时须在该归因组票追加交接记录，并把 `evals/mockbank/round-attribution.md` 的“当前状态”更正为：PR #296=`620746a`、PR #294=`ad401ac` 已合入 main；**历史失败/未合入段落原样保留，不改写历史**；
-   - 该文件此前用 D2 网关读取旧订单/旧冻结来核对“旧订单仍 unpaid、旧冻结仍 500”（`current.gateway.get_order(who=D2, old_order_id)` 等）；对象轮次校验打开后这些读取会变为拒绝。改为**直接银行库事实**（`bank_state` 的 orders/freezes 行）观察，保留“旧订单仍 unpaid、旧冻结仍 500”的事实断言；不删除任何反例、不把历史失败改成通过。
+   - 该文件是 [v05-cross-bank-round-attribution/01](../../v05-cross-bank-round-attribution/issues/01-round-boundary-attribution.md) 的交付物（同 Owner/目录、不同工作组）。本票修改时须在该归因组票追加交接记录，并把 `evals/mockbank/round-attribution.md` 的“当前状态”更正为：PR #296=`620746a`、PR #294=`ad401ac` 已合入 main；**历史失败/未合入段落原样保留，不改写历史**；在该文第 3 行旧状态处加“已被本报告当前状态取代（superseded）”注记，供落地前引用；
+   - 该文件此前用 D2 网关读取旧订单/旧冻结来核对“旧订单仍 unpaid、旧冻结仍 500”（`current.gateway.get_order(who=D2, old_order_id)` 等）；对象轮次校验打开后这些读取会变为拒绝。改为**直接银行库事实**（`bank_state` 的 orders/freezes 行）观察，保留“旧订单仍 unpaid、旧冻结仍 500”的事实断言；不删除任何反例、不把历史失败改成通过；
+   - 已核对不受本次修复影响、无需修改：`test_fresh_seed_repeats_results_and_old_resources_are_absent`（每轮新建库，旧对象本就不存在 → 仍 `RECORD_NOT_FOUND`）、`test_operation_scope_isolation`（操作编号 scope 已按轮次拒绝）、`test_wrong_owner_and_exhausted_freeze_cannot_move_money`（跨用户仍 `RECORD_NOT_FOUND`）、security 的 restart/release 用例（直接 `birthday.get_freeze("U1", …)` 走兼容白名单）。
 3. 证据与文档：
    - 重新运行 `evals/mockbank/birthday-evidence.md` 记录的专项命令；分两个口径：①`test_birthday_bank_eval.py` 单文件 41 项（原 37 项 + 4 项转正）全部通过、0 xfailed；②合跑命令按实施后实际节点全绿、0 failed/0 xfailed（2026-10-25 记录为 153 节点，2026-10-26 收集为 175 节点，按实际记录，不写死节点数、不凑数）；
    - 新 JUnit 保存到独立证据目录（`evals/mockbank/evidence/2026-10-26/`，目录由本票创建），历史 strict xfail 与归因失败 XML 原样保留；

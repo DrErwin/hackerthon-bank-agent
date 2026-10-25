@@ -2,7 +2,7 @@
 
 状态：read-only completed — 只读核查最新 main、读取既有真实装配证据并在隔离目录复跑四项失败探针；未改产品代码、共享库或页面。责任判断供本系列后续实施与协调使用，不代替安全签核、页面 E2E 或 PM 接受。
 
-基线：核查时点 `origin/main = 38b3b81`（2026-10-26 01:20；同日 00:39 在 `f2ab6d2` 之上新增生日系列领取文档；运行代码与 `5347dd7`/`f2ab6d2` 一致）。01:34 origin/main 前进到 `5b652e1`（仅 `.scratch/v05-cross-frontend/` 走查文档），01:50 起含本组本核查与票据提交；`backend/`、`evals/`、`docs/` 相对 38b3b81 无代码差异。核查在独立 worktree `C:/Users/57652/.codex/worktrees/v05-bank-round/hackerthon-bank-agent`，未写共享文档工作区，未启动模型、HTTP 服务或页面。
+基线：核查时点 `origin/main = 38b3b81`（2026-10-26 01:20；同日 00:39 在 `f2ab6d2` 之上新增生日系列领取文档；运行代码与 `5347dd7`/`f2ab6d2` 一致）。01:38 origin/main 前进到 `5b652e1`（仅 `.scratch/v05-cross-frontend/` 走查文档），01:50 起含本组本核查与票据提交；`backend/`、`evals/`、`docs/` 相对 38b3b81 无代码差异。核查在独立 worktree `C:/Users/57652/.codex/worktrees/v05-bank-round/hackerthon-bank-agent`，未写共享文档工作区，未启动模型、HTTP 服务或页面。
 
 ## 一、原始问题与两层证据
 
@@ -34,7 +34,7 @@ python -m pytest -q ../evals/mockbank/test_birthday_round_attribution.py ../eval
 4. **平台前门不是 §6.9**：§6.9 讲的是 `ResourceRef` 资源读取（`公共契约:591`）；平台对普通请求的轮次核验依据是 §6.4（“资源归属、会话有效性与当前轮次均由后端核验”，`:486`）、§6.5（“task_id 查询与 resume 均不得跨轮次”，`:522`）与 §6.3。平台门与银行归属是并行两层，不能互相替代，但不是“原约定把责任全给了银行”。
 5. **实现层不一致**：`bank_operation_scopes` 自 v0.3 起按 `(user, round)` 绑定操作编号、B14 按轮次拒绝，这是银行服务的实现选择（契约只要求操作编号绑定身份）；它创建的冻结/订单对象没有轮次归属，是**同一银行服务内的实现不一致**，是补对象归属的一致性论据，不是契约规则。
 
-结论：**释放收尾链路必须由银行按可信轮次拒绝（明文）；B11/B13/B22/B20/B21 对象层是否补轮次归属属于防御纵深决策**。原措辞“原约定要求银行在对象归属层独立拒绝”对 B12 成立、对 B11/B13/B22 是推导。因四项银行专项探针已按包 06 第 4 条冻结、B26 尚未实现，本组建议补对象归属而不是改评测去适配平台门（后者等于降低冻结要求）；**该防御纵深决策需 Owner 确认并记录，确认前不实施。**
+结论：**释放收尾链路必须由银行按可信轮次拒绝（明文验收责任 + 银行释放权限校验）；B11/B13/B21/B22 对象层是否补轮次归属属于防御纵深决策**。原措辞“原约定要求银行在对象归属层独立拒绝”对 B12 成立、对 B11/B13/B21/B22 是推导。因四项银行专项探针已按包 06 第 4 条冻结、B26 尚未实现，本组建议补对象归属而不是改评测去适配平台门（后者等于降低冻结要求）；**该防御纵深决策需 Owner 确认并记录，确认前不实施。**
 
 ## 三、最新 main 上游门已覆盖什么（具体证据）
 
@@ -43,7 +43,7 @@ python -m pytest -q ../evals/mockbank/test_birthday_round_attribution.py ../eval
 | HTTP 会话/任务 | 旧轮次 cookie 在当前轮进程返回 401；D2 登录后旧任务 GET/resume 返回 404；B26 路由当前不存在 | `backend/app/api/service.py`（identity 按 `config.demo_round_id` 过滤、thread/link 按轮次、trusted 取当前轮次）；`evals/mockbank/test_birthday_round_attribution.py::test_asgi_old_session_and_task_are_not_current`（ASGI TestClient，非页面 E2E） |
 | 安全执行器 | 真实 claim 放行前核对 `(user, round, task, action)`；旧上下文由 active-round 门先拒 `STALE_ROUND`，实际门另判 BLOCK/ACCESS_DENIED；旧释放授权按轮次读取为 ACCESS_DENIED | `backend/app/security/demo_policy.py`/`birthday_policy.py` 的 `_in_current_scope`；`birthday_release.py` 当前轮次与授权记录校验；`authorize_birthday_write`（仅 live ALLOW claim）；归因测试 `test_real_claim_gate_and_limited_release_reject_old_round` |
 | 平台订单来源 | D2 当前任务对 D1 已知订单在确认前、执行前均 BLOCK/ACCESS_DENIED，零新确认、六类银行表不变；本任务同商品合法订单也不能替旧订单换权限，合法订单仍可付一次 | `backend/app/agent_platform/birthday_runtime.py::_order_source_allowed` + `authorize_tool`；`backend/app/agent_platform/test_birthday_order_scope.py`（含 `previous_round` 参数）；合入提交 `620746a`（PR #296） |
-| 可达性 | B13/B22 不是模型工具、不注册 HTTP 路由；生日链路 freeze_id/order_id 来自任务快照/安全记录，不接受模型或用户直接给编号 | 归因测试末尾断言 `bank.get_freeze`/`bank.get_order` 未注册、无 freeze/order 路由；`birthday_runtime.py` 的 `_freeze_id`、`_capture_parameters` 取自任务存储与安全记录 |
+| 可达性 | B13/B22 未注册为模型工具（`birthday_policy` 有只读 CapabilityDefinition，但 runtime 只注册冻结/下单/核销/释放写 handler）、不注册 HTTP 路由；生日链路 freeze_id/order_id 来自任务快照/安全记录，不接受模型或用户直接给编号 | 归因测试末尾断言 `bank.get_freeze`/`bank.get_order` 未注册、无 freeze/order 路由；`birthday_runtime.py` 的 `_freeze_id`、`_capture_parameters` 取自任务存储与安全记录 |
 
 业务含义：**普通用户当前没有“把旧轮次对象编号交给产品入口”的可达路径**，因此本轮不把四项探针写成产品/页面漏洞，也不追加平台或安全新规则。上游门是真实的，但它们各自只覆盖自己的产物路径；银行对象层的轮次拒绝是防御纵深决策（见 §二）。
 
