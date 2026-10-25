@@ -1,0 +1,49 @@
+# 13：联动账单成功后的真实事实组合断言
+
+Ticket ID: v05-cross-platform/13
+
+Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银行](../../v05-cross-linkage/packages/01-platform-bank.md)
+
+Spec: [公共接缝与模拟银行规格](../spec.md)，沿用[票 05 的真实组合验收](05-cross-runtime-wiring.md)；本票补充如下已授权验证范围。
+
+Type: 开发（集成测试）
+
+Owner: Erwin（v0.5 统一承担）
+
+Directory: `backend/app/agent_platform/`
+
+Status: in_progress
+
+Blocked by: [v05-bills-cross-input/01：账单公开工厂接收类型化输入](../../v05-bills-cross-input/issues/01-typed-input.md)，[Depends on PR #284](https://github.com/DrErwin/hackerthon-bank-agent/pull/284)。实施在其分支上做隔离组合，未将其写成已合入。
+
+Execution assignee: Codex，运行装配遗留线
+
+Accepted by: Erwin 授权 Codex 执行（中控续派）
+
+Accepted at: 2026-10-25
+
+Core scenarios: XL-S01、XL-P01、XL-X07，见[共享规格](../../v05-cross-linkage/spec.md)；本票聚焦减支账单读取组合，不替代页面或真实模型 E2E。
+
+Verification: 在 PR #284 组合上先复现旧断言失败，再验证真实 SpendingSummary 与实际银行 B08 读取结果的金额、来源、scope、对照期一致，父子关系保留、资金零写入；执行完整装配测试文件和账单类型化入口套件。模型为原测试替身，真实安全门/执行器/SQLite/银行；不调用真实模型，不改 services 或账单业务代码。
+
+## 授权与最小规格
+
+2026-10-25 中控明确续派：平台12/PR289先完成审查交付，另开平台后续票解决账单PR284引出的旧断言，不能只改状态期望词。来源为[账单交接](../../v05-bills-cross-input/research/integration-handoff.md)。创建前核对本线12及最新main的01—11，本票使用下一空闲13；不修改总进度/包状态。
+
+现有 `test_real_composition_mounts_cross_and_traces_children` 将旧账单类型化输入缺口的 failed 当预期。PR284已经使真实工厂成功，应验证：
+
+- [x] 账单子任务 succeeded、error=None，结果通过 SpendingSummary 公共模型校验，非占位。
+- [x] 主 scope 是本人所选全部账户的上月范围，对照 scope 是相同账户的再前一月；日期采用半开区间。
+- [x] 查询确经真实 BankGateway/B08，调用上下文绑定父任务、子任务、用户及轮次；返回的账户来源时点与 summary 匹配。
+- [x] 主期交易数、消费/退款/净额、转入转出及对照净额/差额可回核本次银行实际返回的事实；不把硬编码结果或自身服务输出当预期。
+- [x] 保留原订阅真实盘点、任务关系和父视图断言；所有本人账户的非种子流水与资金操作数量不增加。
+- [ ] 本票独立子代理两轴审查后独立PR，依赖284；不自行合并或代签E2E/真人接受。
+
+## Delivery record
+
+- 组合基线：PR284 head `198586a7c149da886f81e36f125cc29031c51b02`；最新main `9a479ea`。独立worktree `v05-platform13-bills-proof`，分支 `codex/v05-platform13-bills-proof`。
+- 平台12/PR289不含本票改动；本票也不带平台12或风险决策文档提交。
+- 旧断言复现：PR284 head 上原目标用例 **1 failed in 20.08s**，明确 `succeeded != failed`；未将业务修通误报为业务失败。
+- 验证：本工作树源码（已核实 bills entry.__file__ 指向本树），复用平台12隔离虚拟环境的解释器，从 `backend/` 执行 `python -m pytest -q app/agent_platform/test_cross_runtime_wiring.py app/modules/bills/test_typed_entry.py --basetemp=<本worktree专属临时目录>`，**21 passed in 16.16s**。使用真实工厂/安全门/执行器/银行和临时SQLite，仅规划器为脚本模型；观察器返回真实B08结果，不造响应。
+- 差异空白、改动Python编译、项目链接检查通过。仅变更一个平台测试文件及本票，不改变运行行为；本票按影响范围验证，没有再次跑全后端，也不拿平台12的1591项替代此组合的验证。账单线原全量三失败事实仍保留在原交接（旧平台断言本票已修，两项20ms银行重放不由本票改）。
+- 独立子代理审查/PR：进行中。真实模型/HTTP/页面E2E、CI通过、真人安全/PM接受均未由本票完成。

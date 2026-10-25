@@ -7,6 +7,7 @@ factories, policy and stores.
 """
 
 from datetime import datetime, timedelta, timezone
+from contextlib import closing
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -16,10 +17,13 @@ from fastapi.testclient import TestClient
 
 from app.api.app import ApiConfig, create_app
 from app.contracts.common import TaskStatus
+from app.contracts.bank import QueryOk, TransactionList
+from app.contracts.bills import BillScope, SpendingSummary
 from app.contracts.platform import TrustedContext
+from app.storage.database import connect
 
 from .local_demo import LocalDemoConfig, build_runtime
-from .test_local_demo import ConnectorTestModel, configuration
+from .test_local_demo import ConnectorTestModel, configuration, month_start
 
 
 class RoutingModel(ConnectorTestModel):
@@ -81,12 +85,24 @@ def test_real_composition_mounts_cross_and_traces_children(tmp_path):
     runtime.application.create_session(
         "S1", "U1", "D1", now.isoformat(), (now + timedelta(days=1)).isoformat(),
     )
+    with closing(connect(runtime.gateway._bank.store.path)) as connection:
+        operations_before = connection.execute("SELECT COUNT(*) FROM bank_operations").fetchone()[0]
+    bank_reads = []
+    read_transactions = runtime.gateway.list_transactions
+
+    def observe_bank_read(context, account_id, start_at, end_at):
+        response = read_transactions(context, account_id, start_at, end_at)
+        assert isinstance(response, QueryOk)
+        bank_reads.append((context, account_id, start_at, end_at,
+                           TransactionList.model_validate(response.data)))
+        return response
 
     # A natural expense-reduction goal reaches the registered cross capability;
     # the harness creates the task itself with the request's own snapshot.
-    result = runtime.harness.handle_message(
-        trusted(runtime, "GOAL"), uuid4(), "最近钱花得快，帮我处理不用的自动扣费",
-    )
+    with patch.object(runtime.gateway, "list_transactions", side_effect=observe_bank_read):
+        result = runtime.harness.handle_message(
+            trusted(runtime, "GOAL"), uuid4(), "最近钱花得快，帮我处理不用的自动扣费",
+        )
     assert result.task_id == "GOAL"
     task = runtime.application.get_task("U1", "D1", "GOAL")
     assert task.snapshot["capability_name"] == "cross.start_task"
@@ -102,19 +118,73 @@ def test_real_composition_mounts_cross_and_traces_children(tmp_path):
             "subscriptions": "subscription.list_subscriptions",
             "bills_compare": "bills.summarize",
         }[relation.step_id]
-    # The real subscription inventory arrived; the typed-input gap in the real
-    # bills entry fails honestly instead of faking a comparison.
+    # The real subscription inventory and typed bill comparison both arrived.
     subscriptions = runtime.application.get_task("U1", "D1", by_step["subscriptions"].child_task_id)
     inventory = subscriptions.snapshot["result"]["data"]["list_result"]["items"]
     assert any(item["service_name"].startswith("优酷") for item in inventory)
     bills = runtime.application.get_task("U1", "D1", by_step["bills_compare"].child_task_id)
-    assert bills.snapshot["result"]["status"] == "failed"
+    assert bills.snapshot["result"]["status"] == "succeeded"
+    assert bills.snapshot["result"]["error"] is None
+    summary = SpendingSummary.model_validate(bills.snapshot["result"]["data"])
+    accounts = runtime.application.get_task("U1", "D1", by_step["accounts"].child_task_id)
+    account_ids = [item["account_id"] for item in accounts.snapshot["result"]["data"]["accounts"]]
+    bank_now = runtime.gateway._bank.clock()
+    assert summary.scope == BillScope(account_ids=account_ids,
+        start_at=month_start(bank_now, 1), end_at=month_start(bank_now))
+    assert summary.comparison is not None
+    assert summary.comparison.scope == BillScope(account_ids=account_ids,
+        start_at=month_start(bank_now, 2), end_at=month_start(bank_now, 1))
+
+    # Observe the actual B08 responses instead of asking the bills service to
+    # compute its own expected answer. Provenance includes the real child scope.
+    bills_reads = [read for read in bank_reads if read[0].task_id == bills.task_id]
+    assert bills_reads
+    for context, *_ in bills_reads:
+        assert (context.user_id, context.session_id, context.demo_round_id,
+                context.task_id, context.parent_task_id) == (
+                    "U1", "S1", "D1", bills.task_id, "GOAL")
+    current_batches = {account: batch for _, account, start, end, batch in bills_reads
+                       if (start, end) == (summary.scope.start_at, summary.scope.end_at)}
+    reference_batches = {account: batch for _, account, start, end, batch in bills_reads
+                         if (start, end) == (summary.comparison.scope.start_at,
+                                             summary.comparison.scope.end_at)}
+    assert set(current_batches) == set(reference_batches) == set(account_ids)
+    assert {source.account_id: source.as_of for source in summary.source_as_of} == {
+        account: batch.as_of for account, batch in current_batches.items()}
+    assert summary.as_of == min(batch.as_of for batch in current_batches.values())
+    assert summary.comparison.as_of == min(batch.as_of for batch in reference_batches.values())
+    rows = [row for batch in current_batches.values() for row in batch.transactions]
+    reference_rows = [row for batch in reference_batches.values() for row in batch.transactions]
+    assert summary.transaction_count == len(rows) > 0
+    assert summary.consumption_gross_fen == sum(row.amount_fen for row in rows if row.nature == "consumption")
+    assert summary.consumption_refund_fen == sum(row.amount_fen for row in rows if row.nature == "refund")
+    assert summary.consumption_net_fen == summary.consumption_gross_fen - summary.consumption_refund_fen
+    for direction, actual in (("outflow", summary.transfer_out_fen), ("inflow", summary.transfer_in_fen)):
+        assert actual == sum(row.amount_fen for row in rows if row.nature == "transfer" and row.direction == direction)
+    reference_net = sum(row.amount_fen for row in reference_rows if row.nature == "consumption") - sum(
+        row.amount_fen for row in reference_rows if row.nature == "refund")
+    assert summary.comparison.consumption_net_fen == reference_net
+    assert summary.comparison.delta_fen == summary.consumption_net_fen - reference_net
+
+    events = runtime.audit._events("D1", bills.task_id)
+    reads_started = {event.payload.tool_call_id for event in events
+                     if event.event_type == "tool.started"
+                     and event.payload.tool_name == "bills.bank.list_transactions"}
+    reads_finished = {event.payload.tool_call_id for event in events
+                      if event.event_type == "tool.finished" and event.outcome == "succeeded"}
+    assert len(reads_started) == len(bills_reads)
+    assert reads_started <= reads_finished
 
     # The parent's own menu view carries the plan and current step facts.
     view = result.model_dump(mode="json")
     assert view["status"] in {"running", "waiting_input"}
     # The whole goal phase is reads: no bank ledger movement at all.
     assert submitted_ledger_count(runtime) == 0
+    for account_id in account_ids:
+        assert all(row["operation_id"].startswith("seed:") for row in
+                   runtime.gateway._bank.store.list_ledger("U1", account_id))
+    with closing(connect(runtime.gateway._bank.store.path)) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM bank_operations").fetchone()[0] == operations_before
     app.state.api.runtime.close()
 
 
