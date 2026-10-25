@@ -1,6 +1,6 @@
 # 个人预算进入生日办理：business/06 设计
 
-Status: review_pending — 2026-10-25 仅规格、实施票和测试框架；禁止据此自动实施。
+Status: design_reviewed / implementation_blocked — 2026-10-25 两轴设计审查通过；仅规格、实施票和测试框架，禁止据此自动实施。
 
 Owner / planning assignee: Erwin 授权执行对话 01a17183-271b-7663-9517-f31a994de51d。
 
@@ -8,8 +8,8 @@ Implementation directory: `backend/app/modules/cross/`。
 
 来源：[工作组规格](spec.md)、[生日 PRD](../../docs/prd/06-跨场景联动-PRD-2026-09-23.md)、
 [公共契约 §5.4](../../docs/contracts/公共契约-2026-09-23.md#54-联动模块入口与返回06)、
-[storage 交接](https://github.com/DrErwin/hackerthon-bank-agent/blob/codex/v05-adopted-budget-storage/.scratch/v05-adopted-budget-storage/handoff.md)、
-[预算缺口](https://github.com/DrErwin/hackerthon-bank-agent/blob/codex/v05-platform12-birthday-response-loss/.scratch/v05-cross-platform/research/birthday-budget-gap-2026-10-25.md)。
+[storage 交接](https://github.com/DrErwin/hackerthon-bank-agent/blob/d0ae73ee3f46a21595311dc236e744b241132652/.scratch/v05-adopted-budget-storage/handoff.md)、
+[预算缺口](https://github.com/DrErwin/hackerthon-bank-agent/blob/18a3f39bf137f26909b2bd1451a76f6958cd1920/.scratch/v05-cross-platform/research/birthday-budget-gap-2026-10-25.md)。
 
 ## Problem Statement
 
@@ -227,3 +227,6 @@ F10 采用必须经过真实任务结果/交互，不能用任意 record 预塞 
 测试接缝来自中控已指定的真实采用、公开能力及占用边界，不扩大成新的平台工程。
 2026-10-25 已读取 to-spec/to-tickets；二者 disable-model-invocation，按文件手工执行，不声称调用斜杠命令。
 团队 skill 来源基线 d81f3a183412e71a5b1e84ca21bc1a35eea03a60，本轮不更换来源。设计审查结果另记。
+
+2026-10-25 设计审查：Standards PASS（必须项0、建议0）；Spec 初轮两项可实施性必须项已修正，
+复审 PASS（跨任务真实消费读取接缝、G 的当前 scope 归属）。证据见[设计审查记录](budget-design-review.md)。
