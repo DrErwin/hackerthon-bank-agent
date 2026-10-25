@@ -33,6 +33,6 @@ Package: [v05-cross-linkage/packages/05-cross-e2e：三主线 E2E 与全面验�
 
 2026-10-24责任转派后，2026-10-25 Erwin进一步授权中控分发剩余工作，包05据此委派启动。先准备，按实际页面与运行依赖逐条验收；不得跳过公共约定和必要安全审查。
 
-本机技能检查及来源说明沿用共享规格 Further Notes，实施时再检查 implement/code-review 的可用性。全过程只更新本人工作线和[项目跟踪](../../docs/01-项目跟踪.md)对应条目。
+本轮技能文件检查与能力限制见[准备快照](../../evals/cross/readiness-2026-10-25.md)。未重新生成规格/票据；沿用已批准26条设计，按[运行准备](../../evals/cross/runbook.md)、[覆盖映射](../../evals/cross/coverage-plan.md)及[证据模板](../../evals/cross/batch-template.md)执行。子代理独立规范/规格审查见[审查记录](review.md)。
 
 当前执行对话、回交要求和依赖触发见[中控调度表](../v05-control/dispatch-2026-10-25.md)。共享进度由中控维护。
