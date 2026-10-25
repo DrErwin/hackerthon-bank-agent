@@ -1,0 +1,7 @@
+{
+  "head": "753da3924fc80f8606dce4573ef394b34ed5c35a",
+  "cwd": "C:\\Users\\57652\\.codex\\worktrees\\v05-budget-f10-api\\hackerthon-bank-agent\\backend",
+  "interpreter": "C:\\Users\\57652\\.codex\\worktrees\\v05-budget-f10-api\\hackerthon-bank-agent\\.scratch\\v05-budget-adoption-origin\\__pycache__\\api02-runtime\\Scripts\\python.exe",
+  "command": "python -m pytest -q app/api/test_budget_inputs_api.py --junitxml=../.scratch/v05-budget-adoption-origin/api02-evidence/targeted.xml",
+  "started_utc": "2026-10-25T10:42:11.2798291Z"
+}

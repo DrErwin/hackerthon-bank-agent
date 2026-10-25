@@ -144,6 +144,22 @@ class ApiStore:
             AND demo_round_id=? AND endpoint=? AND request_id=?""",
             (dump(response), identity.user_id, identity.demo_round_id, endpoint, str(request_id)))
 
+    def publish_budget_input(self, task, message, events):
+        """One idempotent publication after a durable platform budget completion."""
+        with transaction(self.path) as c:
+            # task_updated is always present and commits with the whole batch.
+            # Do not fill an old batch with a later plan's interaction on retry.
+            if c.execute("SELECT 1 FROM api_events WHERE event_id=?", (events[0].event_id,)).fetchone():
+                return
+            if task.interaction and task.interaction.record_ref:
+                c.execute("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
+                          (task.interaction.kind, task.interaction.record_ref, task.task_id))
+            c.execute("INSERT OR IGNORE INTO api_messages VALUES (?, ?, ?, ?)",
+                      (message.message_id, message.thread_id, message.created_at.isoformat(), dump(message)))
+            for event in events:
+                c.execute("INSERT OR IGNORE INTO api_events(event_id, thread_id, event_json) VALUES (?, ?, ?)",
+                          (event.event_id, event.thread_id, dump(event)))
+
     def page(self, items, identity, scope, cursor, limit):
         """Opaque, scope-bound keyset cursor; items must be sorted by immutable key."""
         from base64 import urlsafe_b64decode, urlsafe_b64encode

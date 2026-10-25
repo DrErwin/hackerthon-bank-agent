@@ -337,11 +337,15 @@ def create_app(runtime=None, config=None):
 
     @application.post("/api/v1/tasks/{task_id}/inputs")
     def inputs(request: Request, task_id: str, body: ProvideInputRequest, who=Depends(identity), service=Depends(api)):
-        service.link(who, task_id, mutate=True)
-        def action():
-            task = service.current_input_task(who, task_id, body.interaction_id)
-            return service.continue_task(who, task_id, service.input_response(task, body))
-        return mutation(service, who, request, body, action)
+        with service.mutation_lock:
+            service.identity(service.cookie(who.session_id))
+            service.link(who, task_id, mutate=True)
+            # Only an exact durable budget origin makes an interrupted F10
+            # retryable. In particular, do not retry an ordinary input receipt.
+            recorded = service.budget_input_record(who, task_id, body.request_id)
+            return mutation(service, who, request, body,
+                lambda: service.provide_task_input(who, task_id, body),
+                retry_interrupted=recorded is not None)
 
     @application.post("/api/v1/tasks/{task_id}/draft")
     def revise_draft(request: Request, task_id: str, body: ReviseDraftRequest,
