@@ -24,7 +24,7 @@ def test_english_password_values_are_reported_and_redacted(label, separator):
 
 @pytest.mark.parametrize("secret", [
     "a", "7", "春暖花开", "!Dummy271", "**Dummy271!**", '"Dummy271!"',
-    "!@#$", "____", "****",
+    "!@#$", "____", "****", "()()", "((()))",
 ])
 def test_values_have_no_minimum_length_and_keep_existing_wrappers(secret):
     text = f"password: {secret}"
@@ -59,7 +59,7 @@ def test_education_empty_values_and_similar_words_are_unchanged(label, template)
 
 
 @pytest.mark.parametrize("label", ["password", "passwd", "pwd"])
-@pytest.mark.parametrize("secret", ["Dummy271!", "!@#$", "____", "****"])
+@pytest.mark.parametrize("secret", ["Dummy271!", "!@#$", "____", "****", "()()", "((()))"])
 def test_raw_english_password_is_redacted_before_audit_write_and_export(tmp_path, label, secret):
     text = f"{label}: {secret}"
     expected = f"{label}: [REDACTED]"
@@ -74,6 +74,8 @@ def test_raw_english_password_is_redacted_before_audit_write_and_export(tmp_path
     assert probe_output(expected) == OutputProbe((), expected)
     assert probe_secrets(expected) == (False, expected)
     assert redact(expected, free_text=True) == expected
+    exported = json.dumps(package, ensure_ascii=False, sort_keys=True)
+    assert probe_secrets(exported) == (False, exported)
 
 
 def test_safety_reminder_does_not_hide_a_later_password_value():
