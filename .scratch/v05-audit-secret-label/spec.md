@@ -1,6 +1,6 @@
 # v0.5 英文密码标签保护补口
 
-Status: in_progress
+Status: implemented — 本地验证与独立 AI 审查通过，待中控合并及接受；CI 因账户账单/额度未启动
 Owner: Erwin（授权执行对话，AI 实施）
 Accepted by: Erwin（本轮授权：Issue #271，单目录实施）
 Accepted at: 2026-10-25
@@ -48,3 +48,4 @@ Issue #216 整体收口、检测器装配、样例扩充、真人安全签核、
 - 2026-10-25 已读取本机 to-spec、to-tickets、implement、code-review；前三级文件标记 disable-model-invocation，本会话未提供相应原生 Skill 调用入口，按明确授权执行其流程，不声称原生调用成功。已有技能未升级或覆盖；来源基线以仓库开工说明为准，本轮未重新核验安装来源提交。
 - 本轮已明确补一张单目录最小票，无新增业务或安全裁定；无需重复询问粒度。总跟踪与 completion 由中控维护。
 - 安全审查使用独立 AI 子代理，不能记为 Ringo 本人签核。
+- 交付：[PR #287](https://github.com/DrErwin/hackerthon-bank-agent/pull/287)。本票 E01—E04 实证见[实施票](issues/01-english-labels.md)；不收口 #216 或整体隐私验收。

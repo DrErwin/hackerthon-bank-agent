@@ -8,7 +8,7 @@ Verification: 三公共入口一致性、无值提醒、审计落盘与回放、
 Type: 开发
 Owner: Erwin（授权执行对话，AI 实施）
 Directory: backend/app/audit/
-Status: in_progress
+Status: implemented — 本地验证与独立 AI 审查通过，待中控合并及接受；CI Blocked
 Blocked by: None
 Source issue: [Issue #271](https://github.com/DrErwin/hackerthon-bank-agent/issues/271)
 Claimed by: Erwin（授权执行对话）
@@ -20,11 +20,11 @@ password/passwd/pwd 后有实际值时，输出及导出探针报告 credential�
 
 ## Acceptance criteria
 
-- [ ] E01：三标签 × 冒号/全角冒号/等号/是/为及大小写，三入口结果一致。
-- [ ] E02：无值教育句、空白值、标点空值与相似单词放行。
-- [ ] E03：脱敏幂等；真实审计写入/回放/导出不含虚构原值。
-- [ ] E04：原有中文与其他秘密测试、聊天及导出回归不退化。
-- [ ] 独立子代理分别审查仓库规范和原始规格，必须项修复复验；代码 PR 交中控合并。
+- [x] E01：三标签 × 冒号/全角冒号/等号/是/为及大小写，三入口结果一致。
+- [x] E02：无值教育句、空白值、标点空值与相似单词放行。
+- [x] E03：脱敏幂等；真实审计写入/回放/导出不含虚构原值。
+- [x] E04：原有中文与其他秘密测试、聊天及导出回归不退化。
+- [x] 独立子代理分别审查仓库规范和原始规格，必须项修复复验；代码 PR 交中控合并。
 
 ## Comments
 
@@ -38,3 +38,8 @@ password/passwd/pwd 后有实际值时，输出及导出探针报告 credential�
 - 最终局部回归：`pytest -q app/audit app/agent_platform/test_reply_credential_gate.py app/api/test_output_observation.py app/api/test_export_secrets.py`：166 passed。其中新增文件 111 项（105 函数/持久化与 6 HTTP）；不含真实模型或页面验证。仓库文档链接、全量代码 compileall、差异空白检查通过。
 - 最终独立审查：Standards 无必须项（74 passed / 37 deselected）；Spec 原 P1 已闭合、无新必须项（105 passed / 6 deselected）。均为 AI 审查，不代表真人安全或 PM 接受。
 - 已同步最新 `origin/main` `a1e8889`，仅多出中控文档提交，代码树不变；后端最终全量运行中。
+- 最终全量：在隔离虚拟环境补齐仓库固定依赖，并额外安装仅用于本地并行验证的 pytest-xdist（未更改仓库依赖文件）。`python -m pytest -q -n 4 --durations=10`：**1699 passed in 363.39s**；`python -m pytest -q ../evals/mockbank/test_mockbank_eval.py`：**14 passed**。串行慢批次中止后换为同一套完整测试，不计为已通过批次；本次最终结果以上述完整并行批次为准。
+- 分层证据：新增 105 项函数/审计持久化回放与包复探 + 6 项进程内 HTTP 卡片/审计下载拒绝；局部 166 passed；全量 1699 passed 包括既有离线 Harness、确认、权限、资金防重等回归。真实模型 0 次调用；页面/浏览器 E2E、真人安全签核和 PM 接受未执行。
+- 交付：[PR #287](https://github.com/DrErwin/hackerthon-bank-agent/pull/287)，已附加到本执行对话；作者不合并。合入后可解除 #271 英文自由文本标签缺口并供输出/导出联调复用，不解除 #216 整体验收或其他隐私/编码边界。
+- CI：运行 [40167460403](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40167460403)，head `8812a21707135607dba4b2cc51fcd480f7f8451e`，Repository checks 未启动任何步骤；官方注释为 recent account payments failed / spending limit needs increase。状态为失败/基础设施 Blocked，不能记绿 CI，是否适用既有例外交中控判断。
+- 交付前再次同步最新主线 `9a479ea`（仅前端及其文档变化，无后端变化），最终 audit 代码与独立审查通过的 `0952119` 完全相同；仅本组材料回填最终证据。
