@@ -556,12 +556,15 @@ def test_a_failed_option_publication_refuses_the_card(build):
     card = _confirmation_card()
     with patch.object(env.runtime.application, "update_task",
                       side_effect=ValueError("changed concurrently")):
-        with pytest.raises(ValueError, match="TASK_CHANGED"):
+        with pytest.raises(BirthdayEditError) as refused:
             publish_edit_option(
                 env.runtime, env.who, interaction=card, item="freeze",
                 action_name="bank.freeze_funds", operation_id=str(uuid4()),
                 action_revision=1, confirmation_id=str(uuid4()),
                 confirmation_version=1)
+    # A concurrent task write is a stale-request conflict, never a dependency
+    # failure (the API maps this platform code to a 409 refresh path).
+    assert refused.value.code == "REQUEST_CONFLICT"
     assert "birthday_edit_option" not in env.snapshot()
 
 
@@ -648,6 +651,122 @@ def test_claim_between_acceptance_and_seal_keeps_the_old_action_executable(build
     assert "birthday_edit" in env.snapshot()
     assert env.snapshot()["birthday_edit"]["published"] is None
     assert env.snapshot()["birthday_g3"]["published_ref"]["kind"] == "root"
+
+
+def test_needs_attention_and_other_unsettled_states_cannot_edit(build):
+    env = build()
+    card = advance_to(env, "freeze_confirmation")
+    task = env.task()
+    env.runtime.application.update_task(
+        "U1", "D1", "BIRTHDAY", task.revision, task.run_id,
+        TaskStatus.NEEDS_ATTENTION, task.checkpoint_id, task.snapshot)
+    with pytest.raises(BirthdayEditError) as blocked:
+        begin_edit(env, card)
+    assert blocked.value.code == "TASK_TERMINATED"
+    assert "birthday_edit" not in env.snapshot()
+
+    # An already accepted edit may not publish onto a needs-attention task either.
+    env = build()
+    card = advance_to(env, "freeze_confirmation")
+    env.cross.fail_next = True
+    with pytest.raises(BirthdayEditError) as unavailable:
+        begin_edit(env, card)
+    assert unavailable.value.code == "CROSS_UNAVAILABLE"
+    task = env.task()
+    env.runtime.application.update_task(
+        "U1", "D1", "BIRTHDAY", task.revision, task.run_id,
+        TaskStatus.NEEDS_ATTENTION, task.checkpoint_id, task.snapshot)
+    with pytest.raises(BirthdayEditError) as refused:
+        begin_edit(env, card)
+    assert refused.value.code == "TASK_TERMINATED"
+    assert env.snapshot()["birthday_edit"]["published"] is None
+
+
+def test_edited_publication_uses_the_accepted_strict_revision(build):
+    from unittest.mock import patch
+
+    env = build()
+    card = advance_to(env, "freeze_confirmation")
+    original = env.runtime.gateway.retire_action_challenges
+
+    def competing_write(*args, **kwargs):
+        # A different legitimate write lands between the edit acceptance and its
+        # publication; the strict accepted revision must make the CAS refuse.
+        task = env.task()
+        env.runtime.application.update_task(
+            "U1", "D1", "BIRTHDAY", task.revision, task.run_id, task.status,
+            task.checkpoint_id, {**task.snapshot, "competing_write": True},
+        )
+        return original(*args, **kwargs)
+
+    with patch.object(env.runtime.gateway, "retire_action_challenges",
+                      side_effect=competing_write):
+        with pytest.raises(BirthdayEditError) as conflict:
+            begin_edit(env, card)
+    assert conflict.value.code == "PUBLISH_CONFLICT"
+    assert env.snapshot()["birthday_edit"]["published"] is None
+    assert env.snapshot()["birthday_g3"]["published_ref"]["kind"] == "root"
+    # The competing write was not overwritten by a fresher revision.
+    assert env.snapshot().get("competing_write") is True
+
+
+def test_normal_publication_uses_the_reserved_strict_revision(build):
+    env = build()
+    original = env.cross.prepare
+
+    def competing_prepare(trusted, request):
+        candidate = original(trusted, request)
+        task = env.task()
+        env.runtime.application.update_task(
+            "U1", "D1", "BIRTHDAY", task.revision, task.run_id, task.status,
+            task.checkpoint_id, {**task.snapshot, "competing_write": True},
+        )
+        return candidate
+
+    env.cross.prepare = competing_prepare
+    with pytest.raises(BirthdayEditError) as conflict:
+        env.handoff.publish_normal_state(
+            env.who, conversion={"kind": "input", "request_id": str(uuid4())})
+    assert conflict.value.code == "PUBLISH_CONFLICT"
+    assert env.published_ref()["kind"] == "root"
+    assert env.snapshot()["birthday_g3"]["pending"] is not None
+    assert env.snapshot().get("competing_write") is True
+
+
+def test_candidate_writes_must_belong_to_the_trusted_task(build):
+    env = build(publish_root=False)
+
+    class ForeignWrites(StandInCrossHandoff):
+        def prepare(self, trusted, request):
+            candidate = super().prepare(trusted, request)
+            return CrossCandidate(
+                checkpoint=candidate.checkpoint, metadata=candidate.metadata,
+                new_versions=candidate.new_versions, result=candidate.result,
+                writes=(("cross_state", {"x": 1}),),
+                writes_task_id="another-task",
+            )
+
+    env.handoff.cross = ForeignWrites(env.runtime.gateway._bank.clock)
+    with pytest.raises(BirthdayEditError) as invalid:
+        env.handoff.publish_initial_state(env.who)
+    assert invalid.value.code == "CANDIDATE_INVALID"
+    assert "birthday_g3" in env.snapshot()
+    assert env.snapshot()["birthday_g3"].get("published_ref") is None
+
+    class OwnedWrites(ForeignWrites):
+        def prepare(self, trusted, request):
+            candidate = super().prepare(trusted, request)
+            return CrossCandidate(
+                checkpoint=candidate.checkpoint, metadata=candidate.metadata,
+                new_versions=candidate.new_versions, result=candidate.result,
+                writes=candidate.writes, writes_task_id=trusted.task_id,
+            )
+
+    env.handoff.cross = OwnedWrites(env.runtime.gateway._bank.clock)
+    outcome = env.handoff.publish_initial_state(env.who)
+    assert outcome.kind == "root"
+    sealed = sealed_content(env, env.published_ref())
+    assert sealed.checkpoint["channel_values"][CHANNEL]["kind"] == "root"
 
 
 # ------------------------------------------------------------- persistent breaks

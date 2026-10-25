@@ -215,6 +215,10 @@ class AgentHarness:
         self.authorize_capability = authorize_capability
         self.risk_conversation = RiskConversation(application.path)
         self.budget_inputs = BudgetInputs(self)
+        # v05-birthday-platform-dependencies/03: BirthdayRuntime attaches the
+        # controlled G3 publication seam; without it cross states keep the
+        # legacy latest-namespace path and birthday edits stay blocked.
+        self.birthday_handoff = None
 
     def _authorize(self, trusted: TrustedContext, name: str) -> None:
         definition = self.registry.get(name).definition
@@ -282,6 +286,26 @@ class AgentHarness:
         saver = self.memory.checkpointer(context, task.task_id)
         saved = saver.get_tuple({"configurable": {"thread_id": task.checkpoint_thread_id}})
         return saved.config["configurable"]["checkpoint_id"] if saved else None
+
+    def _birthday_transition(self, trusted: TrustedContext, *, capability: str,
+                             conversion: dict | None, allow_root: bool):
+        """The G3 publication seam for one cross entry call, if configured."""
+        handoff = self.birthday_handoff
+        if handoff is None:
+            return None
+        return handoff.begin_transition(
+            trusted, capability=capability, conversion=conversion,
+            allow_root=allow_root,
+        )
+
+    @staticmethod
+    def _resume_conversion(trusted: TrustedContext, request_id: UUID | None):
+        """The trusted association of one ordinary resume conversion."""
+        if request_id is not None:
+            return {"kind": "input", "request_id": str(request_id)}
+        # An internal resume (e.g. recovery) has no F10 request; its original run
+        # event is the durable association, never a silently fresh one.
+        return {"kind": "exception", "event_ref": str(trusted.run_id)}
 
     def understand(self, trusted: TrustedContext,
                    intent_text: str) -> TransferProposal | ReplyOnly | ContinueProposal:
@@ -744,6 +768,17 @@ class AgentHarness:
             self._authorize(trusted, proposal.capability_name)
             registration = self.registry.get(proposal.capability_name)
             saver = self.memory.checkpointer(context, trusted.task_id)
+            transition = self._birthday_transition(
+                trusted, capability=proposal.capability_name,
+                conversion={"kind": "input", "request_id": str(request_id)},
+                allow_root=True,
+            )
+            if transition is not None and transition.replayed is not None:
+                # An already published conversion returns its frozen winner; the
+                # entry is never re-run and no external write is redone.
+                return transition.replayed.result
+            if transition is not None:
+                saver = transition.attach(saver)
             entry = registration.factory(trusted, saver, trace)
             bill_options = {}
             if (proposal.capability_name in {"bills.summarize", "bills.generate_report", "bills.detect_anomalies"}
@@ -755,15 +790,29 @@ class AgentHarness:
                 payee_hint=proposal.payee_hint, amount_fen=proposal.amount_fen,
             ), thread_id=task.checkpoint_thread_id, **bill_options)
             self._check_result_scope(result, trusted)
-            updated = {**snapshot, "capability_name": proposal.capability_name,
+            published_checkpoint = None
+            if transition is not None:
+                publication = transition.publish(result)
+                published_checkpoint = publication.published_ref.checkpoint_id
+            # The entry may have written the task itself (birthday ports record
+            # their attempts and the published edit option); re-read before the
+            # result CAS so a stale revision never reads as a dependency failure.
+            current = self.application.get_task(
+                trusted.user_id, trusted.demo_round_id, trusted.task_id)
+            if current is None:
+                raise ValueError("TASK_NOT_FOUND")
+            updated = {**current.snapshot, "capability_name": proposal.capability_name,
                        "result": result.model_dump(mode="json")}
             if proposal.capability_name == "bills.detect_anomalies" and result.status == TaskStatus.SUCCEEDED:
                 completed = entry.completed_scope(trusted, thread_id=task.checkpoint_thread_id)
                 updated["completed_bill_scope"] = completed.model_dump(mode="json") if completed else None
+            checkpoint_id = published_checkpoint
+            if checkpoint_id is None:
+                checkpoint_id = self._checkpoint_id(context, current)
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
-                task.revision, trusted.run_id, result.status,
-                self._checkpoint_id(context, task), updated,
+                current.revision, trusted.run_id, result.status,
+                checkpoint_id, updated,
             )
             trace.record(
                 "task.transition",
@@ -771,7 +820,7 @@ class AgentHarness:
                     previous_status=TaskStatus.RUNNING, status=result.status,
                     plan_revision=None, step_id=proposal.capability_name,
                     reason_code="CAPABILITY_SELECTED",
-                    checkpoint_ref=self._checkpoint_id(context, task),
+                    checkpoint_ref=checkpoint_id,
                 ), _task_outcome(result.status),
             )
             return result
@@ -1117,10 +1166,11 @@ class AgentHarness:
                 )
             yield relation, task, definition
 
-    def resume(self, trusted: TrustedContext, response: dict) -> ModuleResult:
+    def resume(self, trusted: TrustedContext, response: dict, *,
+               request_id: UUID | None = None) -> ModuleResult:
         # A nested/ordinary/model continuation cannot borrow a dedicated F10 call.
         with self.budget_inputs.suspended():
-            return self._resume(trusted, response)
+            return self._resume(trusted, response, request_id=request_id)
 
     def resume_budget_input(self, trusted: TrustedContext, *, input_request_id,
                             interaction_id: str, selected_option_id: str):
@@ -1133,7 +1183,8 @@ class AgentHarness:
     def budget_input_record(self, trusted: TrustedContext, input_request_id):
         return self.budget_inputs.stored(trusted, input_request_id)
 
-    def _resume(self, trusted: TrustedContext, response: dict) -> ModuleResult:
+    def _resume(self, trusted: TrustedContext, response: dict, *,
+                request_id: UUID | None = None) -> ModuleResult:
         with _task_lock(self.application.path, trusted.task_id):
             context = self._scope(trusted)
             task = self.application.get_task(trusted.user_id, trusted.demo_round_id, trusted.task_id)
@@ -1177,13 +1228,29 @@ class AgentHarness:
             trace = self._trace(trusted, task)
             registration = self.registry.get(task.snapshot["capability_name"])
             saver = self.memory.checkpointer(context, trusted.task_id)
+            transition = self._birthday_transition(
+                trusted, capability=task.snapshot["capability_name"],
+                conversion=self._resume_conversion(trusted, request_id),
+                allow_root=False,
+            )
+            if transition is not None and transition.replayed is not None:
+                # The conversion was already published: replay its frozen winner
+                # instead of re-running Cross and redoing any external write.
+                return transition.replayed.result
+            if transition is not None:
+                saver = transition.attach(saver)
             entry = registration.factory(trusted, saver, trace)
             result = None
             completed_scope = None
+            checkpoint_id = None
             try:
                 result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
                 self._check_result_scope(result, trusted)
-                checkpoint_id = self._checkpoint_id(context, task)
+                if transition is not None:
+                    publication = transition.publish(result)
+                    checkpoint_id = publication.published_ref.checkpoint_id
+                else:
+                    checkpoint_id = self._checkpoint_id(context, task)
                 if task.snapshot["capability_name"] == "bills.detect_anomalies" and result.status == TaskStatus.SUCCEEDED:
                     completed = entry.completed_scope(trusted, thread_id=task.checkpoint_thread_id)
                     completed_scope = completed.model_dump(mode="json") if completed else None
@@ -1204,16 +1271,20 @@ class AgentHarness:
                         allowed_actions=["resume", "cancel"], recovery_required=True,
                         recovery_reason="PUBLIC_CAPABILITY_INTERRUPTED",
                     )
+                current = self.application.get_task(
+                    trusted.user_id, trusted.demo_round_id, trusted.task_id)
+                if current is None:
+                    raise ValueError("TASK_NOT_FOUND")
                 try:
-                    fault_checkpoint_id = self._checkpoint_id(context, task)
+                    fault_checkpoint_id = self._checkpoint_id(context, current)
                 except PermissionError:
                     # Retain the last owned reference when authority expired;
                     # do not bypass the checkpointer's scope check.
-                    fault_checkpoint_id = task.checkpoint_id
+                    fault_checkpoint_id = current.checkpoint_id
                 self.application.update_task(
                     trusted.user_id, trusted.demo_round_id, trusted.task_id,
-                    task.revision, trusted.run_id, result.status, fault_checkpoint_id,
-                    {**task.snapshot, "result": result.model_dump(mode="json"),
+                    current.revision, trusted.run_id, result.status, fault_checkpoint_id,
+                    {**current.snapshot, "result": result.model_dump(mode="json"),
                      "capability_fault": {"reason_code": "PUBLIC_CAPABILITY_INTERRUPTED",
                                           "audit_evidence": "not_confirmed"}},
                 )
@@ -1230,11 +1301,18 @@ class AgentHarness:
                 )
                 raise
             # Store the known business result before completion logging. A log
-            # failure must not leave an obsolete waiting/approval snapshot.
+            # failure must not leave an obsolete waiting/approval snapshot. The
+            # entry (and the G3 publication) may have written the task itself, so
+            # every field below is read again instead of trusting the pre-entry
+            # revision.
+            current = self.application.get_task(
+                trusted.user_id, trusted.demo_round_id, trusted.task_id)
+            if current is None:
+                raise ValueError("TASK_NOT_FOUND")
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
-                task.revision, trusted.run_id, result.status, checkpoint_id,
-                {**self.budget_inputs.completed_snapshot(task, trusted, result, entry),
+                current.revision, trusted.run_id, result.status, checkpoint_id,
+                {**self.budget_inputs.completed_snapshot(current, trusted, result, entry),
                  "result": result.model_dump(mode="json"),
                  "completed_bill_scope": completed_scope},
             )

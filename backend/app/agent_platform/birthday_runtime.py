@@ -164,8 +164,11 @@ class BirthdayRuntime:
         self.current_demo_round = current_demo_round
         # v05-birthday-platform-dependencies/03: the controlled edit handoff and
         # G3 state publication seam. The Cross side (ticket 08) is not wired yet;
-        # without it the seam refuses instead of improvising a candidate.
+        # without it the seam refuses instead of improvising a candidate. The
+        # harness interception publishes root/ordinary Cross states through this
+        # seam, so a real birthday task always has its immutable published ref.
         self.handoff = BirthdayHandoff(runtime)
+        runtime.harness.birthday_handoff = self.handoff
 
     def ports_factory(self, _trusted):
         """``register_cross`` calls this per advance; every ports method takes

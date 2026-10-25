@@ -22,13 +22,22 @@ B. The same publication boundary for states that are not edits. A new birthday
    never the source: an old task without a published ref stays blocked, and a
    normal successor without a published source cannot pose as a new root.
 
-Cross owns no publication: the Cross side is the narrow ``CrossBirthdayHandoff``
-Protocol below and ticket 08 implements it. It reads the exact source ref,
-builds the complete candidate content and returns it; it must never ``put`` into
-the reserved namespace itself (ticket 05's seal is the single writer). Until
-ticket 08 lands the seam refuses with ``CROSS_HANDOFF_UNAVAILABLE`` instead of
-improvising. This module is backend-only: it is not a registered model tool and
-accepts no client-reported actor/editable/operation/candidate-hash markers.
+C. The Harness wiring that actually calls B. ``AgentHarness`` wraps the cross
+   entry's saver with ``BirthdayTransition``: reads answer the last sealed
+   published ref, writes stay in memory, and after the entry returns the
+   platform reserves, seals ticket-05 content built from that buffered Cross
+   state and publishes it with the reserved strict revision. No Cross state ever
+   reaches the default latest namespace, and the entry-internal task writes no
+   longer make the harness result CAS use a stale revision.
+
+Cross owns no publication: the Cross side of edit candidate preparation is the
+narrow ``CrossBirthdayHandoff`` Protocol below and ticket 08 implements it. It
+reads the exact source ref, builds the complete candidate content and returns
+it; it must never ``put`` into the reserved namespace itself (ticket 05's seal is
+the single writer). Until ticket 08 lands the edit entry refuses with
+``CROSS_HANDOFF_UNAVAILABLE`` instead of improvising. This module is
+backend-only: it is not a registered model tool and accepts no client-reported
+actor/editable/operation/candidate-hash markers.
 """
 
 from __future__ import annotations
@@ -37,8 +46,10 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, Protocol
 from uuid import UUID, uuid4
+
+from langgraph.checkpoint.base import CheckpointTuple
 
 from app.contracts.common import Phase, TaskStatus
 from app.contracts.platform import TrustedContext
@@ -72,7 +83,12 @@ _NORMAL = "normal"
 _EDIT = "edit"
 _TERMINAL = {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED,
              TaskStatus.PARTIALLY_SUCCEEDED}
+# An edit needs a defensible current card; needs-attention and every terminal or
+# partially settled state is not an editable one (no "current progress" claim).
+_EDIT_BLOCKED = _TERMINAL | {TaskStatus.NEEDS_ATTENTION}
 _CONVERSION_KINDS = ("input", "fact", "exception")
+# The one cross capability whose states are published through the G3 seam.
+_CROSS_CAPABILITY = "cross.start_task"
 # Completed conversion projections kept for a lost-receipt replay. The current
 # publication is `published_ref`; older entries only answer the exact original
 # request, they never make an old conversion active again.
@@ -94,10 +110,11 @@ class CrossCandidate:
     """What ticket 08 hands back for one reserved candidate ref.
 
     ``checkpoint``/``metadata``/``new_versions`` are exactly the content ticket
-    05 seals; ``writes`` are the associated (channel, value) rows (a task id is
-    required when writes are present). ``result`` is the module result this
-    state publishes; the platform seals a private copy in the metadata and
-    publishes that copy on every retry.
+    05 seals; ``writes`` are the associated (channel, value) rows and their
+    ``writes_task_id`` must be this trusted task's id (ticket 05 stores them in
+    that task's rows only). ``result`` is the module result this state publishes;
+    the platform seals a private copy in the metadata and publishes that copy on
+    every retry.
     """
 
     checkpoint: dict
@@ -192,7 +209,7 @@ def publish_edit_option(runtime, trusted: TrustedContext, *,
         trusted.user_id, trusted.demo_round_id, trusted.task_id,
     )
     if task is None:
-        raise ValueError("TASK_NOT_FOUND")
+        raise BirthdayEditError("TASK_NOT_FOUND")
     try:
         runtime.application.update_task(
             trusted.user_id, trusted.demo_round_id, trusted.task_id,
@@ -200,7 +217,12 @@ def publish_edit_option(runtime, trusted: TrustedContext, *,
             {**task.snapshot, "birthday_edit_option": record},
         )
     except ValueError as exc:
-        raise ValueError("TASK_CHANGED") from exc
+        # A concurrent task write is a stale-request conflict, never a raw
+        # dependency failure; the card is not shown without its durable fact.
+        raise BirthdayEditError(
+            "REQUEST_CONFLICT",
+            "the option publication lost its task CAS",
+        ) from exc
     return interaction.model_copy(update={
         "options": [*interaction.options, option],
     })
@@ -245,10 +267,11 @@ class BirthdayHandoff:
 
     def _update_task(self, trusted: TrustedContext, task, snapshot: dict, *,
                      status: TaskStatus | None = None, checkpoint_id=_KEEP,
-                     run_id: str | None = None):
+                     run_id: str | None = None,
+                     expected_revision: int | None = None):
         return self.runtime.application.update_task(
             trusted.user_id, trusted.demo_round_id, trusted.task_id,
-            task.revision,
+            task.revision if expected_revision is None else expected_revision,
             task.run_id if run_id is None else run_id,
             task.status if status is None else status,
             task.checkpoint_id if checkpoint_id is _KEEP else checkpoint_id,
@@ -329,8 +352,11 @@ class BirthdayHandoff:
                         and record.get("interaction_id") == interaction_id):
                     raise BirthdayEditError("REQUEST_CONFLICT",
                                             "another request already owns this card")
-                if task.status in _TERMINAL:
-                    raise BirthdayEditError("TASK_TERMINATED")
+                if task.status in _EDIT_BLOCKED:
+                    # needs_attention / partially settled / ended states carry no
+                    # defensible "current progress" for an edit.
+                    raise BirthdayEditError("TASK_TERMINATED",
+                                            f"status {task.status.value} is not editable")
                 record = self._accept_edit(
                     trusted, task, request_ref, interaction_id, option_id, option,
                 )
@@ -403,7 +429,10 @@ class BirthdayHandoff:
             "confirmation_version": int(option["confirmation_version"]),
             "source": _ref_dict(source),
             "source_digest": published["content_digest"],
-            "accepted_version": task.revision,
+            # Strict publication revision: the reservation CAS below leaves the
+            # task at this revision; any other write before publication makes the
+            # publication CAS fail instead of overwriting it.
+            "accepted_version": task.revision + 1,
             "candidate": _ref_dict(candidate),
             "conversion_digest": _digest({
                 "kind": _EDIT, "edit_ref": edit_ref, "request_id": request_ref,
@@ -526,7 +555,7 @@ class BirthdayHandoff:
             raise BirthdayEditError("REQUEST_CONFLICT", "the accepted edit was replaced")
         if current.get("published"):
             return self._replay_edit(current)
-        if task.status in _TERMINAL:
+        if task.status in _EDIT_BLOCKED:
             raise BirthdayEditError("TASK_TERMINATED")
         g3 = task.snapshot.get("birthday_g3") or {}
         if not _same_ref(g3.get("published_ref"), record["source"]):
@@ -537,7 +566,7 @@ class BirthdayHandoff:
             sealed.checkpoint, sealed.metadata, sealed.writes,
             code="CANDIDATE_INVALID",
         )
-        revision = task.revision + 1
+        revision = int(record["accepted_version"]) + 1
         result_json = result.model_dump(mode="json")
         published = {
             **_ref_dict(sealed.ref), "kind": _EDIT,
@@ -559,10 +588,11 @@ class BirthdayHandoff:
             updated = self._update_task(
                 trusted, task, snapshot, status=result.status,
                 checkpoint_id=sealed.ref.checkpoint_id, run_id=trusted.run_id,
+                expected_revision=int(record["accepted_version"]),
             )
         except ValueError as exc:
             raise BirthdayEditError("PUBLISH_CONFLICT",
-                                    "task changed concurrently") from exc
+                                    "task changed after acceptance") from exc
         return EditOutcome(
             result=result, task_revision=updated.revision,
             published_ref=sealed.ref, content_digest=content_digest,
@@ -626,7 +656,7 @@ class BirthdayHandoff:
                         task.checkpoint_thread_id, f"birthday/root/{uuid4()}",
                         str(uuid4()),
                     )),
-                    "accepted_version": task.revision,
+                    "accepted_version": task.revision + 1,
                     "association": {"request_id": request_id,
                                     "intent_text": intent_text},
                     "started_at": _clock(self.runtime).isoformat(),
@@ -686,7 +716,7 @@ class BirthdayHandoff:
                         task.checkpoint_thread_id, f"birthday/normal/{uuid4()}",
                         str(uuid4()),
                     )),
-                    "accepted_version": task.revision,
+                    "accepted_version": task.revision + 1,
                     "source": dict(published),
                     "started_at": _clock(self.runtime).isoformat(),
                 }
@@ -743,9 +773,56 @@ class BirthdayHandoff:
             raise BirthdayEditError("CROSS_UNAVAILABLE",
                                     type(exc).__name__) from exc
         self._check_candidate(trusted, request, candidate)
-        metadata = {
-            **candidate.metadata,
-            RESULT_METADATA_KEY: candidate.result.model_dump(mode="json"),
+        return self._seal_content(
+            trusted, kind=kind, candidate_ref=candidate_ref,
+            conversion_digest=conversion_digest, accepted_version=accepted_version,
+            checkpoint=candidate.checkpoint, metadata=candidate.metadata,
+            new_versions=candidate.new_versions, result=candidate.result,
+            source=source, source_digest=source_digest, edit_ref=edit_ref,
+            writes=tuple(candidate.writes),
+            writes_task_id=candidate.writes_task_id,
+            writes_task_path=candidate.writes_task_path,
+        )
+
+    def _seal_content(self, trusted: TrustedContext, *, kind: str,
+                      candidate_ref: CheckpointRef, conversion_digest: str,
+                      accepted_version: int, checkpoint: dict, metadata: dict,
+                      new_versions: dict, result: ModuleResult,
+                      source: CheckpointRef | None = None,
+                      source_digest: str | None = None,
+                      edit_ref: str | None = None,
+                      writes: tuple[tuple[str, Any], ...] = (),
+                      writes_task_id: str = "",
+                      writes_task_path: str = "") -> SealedCandidate:
+        """Seal one complete candidate content exactly once (ticket 05)."""
+        if kind not in {_ROOT, _NORMAL, _EDIT}:
+            raise BirthdayEditError("CANDIDATE_INVALID", "unsupported candidate kind")
+        if kind == _ROOT:
+            if source is not None or source_digest is not None or edit_ref is not None:
+                raise BirthdayEditError("CANDIDATE_INVALID",
+                                        "a root candidate has no source or edit")
+        else:
+            if source is None or not source_digest:
+                raise BirthdayEditError("CANDIDATE_INVALID",
+                                        "a successor requires its sealed source")
+            if kind == _EDIT and not edit_ref:
+                raise BirthdayEditError("CANDIDATE_INVALID",
+                                        "an edit candidate requires its edit_ref")
+        if not isinstance(result, ModuleResult):
+            raise BirthdayEditError("CANDIDATE_INVALID", "candidate result is missing")
+        if result.task_id != trusted.task_id:
+            raise BirthdayEditError("CANDIDATE_INVALID",
+                                    "candidate result belongs to another task")
+        if checkpoint.get("id") != candidate_ref.checkpoint_id:
+            raise BirthdayEditError("CANDIDATE_INVALID",
+                                    "candidate content is addressed to another ref")
+        if writes and writes_task_id != trusted.task_id:
+            # Associated writes stay inside this task's own scope.
+            raise BirthdayEditError("CANDIDATE_INVALID",
+                                    "associated writes belong to another task")
+        sealed_metadata = {
+            **metadata,
+            RESULT_METADATA_KEY: result.model_dump(mode="json"),
         }
         try:
             return self._saver(trusted).seal_candidate(
@@ -753,12 +830,11 @@ class BirthdayHandoff:
                 kind=kind, candidate=candidate_ref,
                 accepted_version=accepted_version,
                 conversion_digest=conversion_digest,
-                checkpoint=candidate.checkpoint, metadata=metadata,
-                new_versions=candidate.new_versions, source=source,
+                checkpoint=checkpoint, metadata=sealed_metadata,
+                new_versions=new_versions, source=source,
                 source_digest=source_digest, edit_ref=edit_ref,
-                writes=candidate.writes,
-                writes_task_id=candidate.writes_task_id,
-                writes_task_path=candidate.writes_task_path,
+                writes=writes, writes_task_id=writes_task_id,
+                writes_task_path=writes_task_path,
             )
         except CandidateBindingConflictError as exc:
             raise BirthdayEditError("CANDIDATE_CONFLICT") from exc
@@ -789,6 +865,9 @@ class BirthdayHandoff:
         if candidate.checkpoint.get("id") != request.candidate.checkpoint_id:
             raise BirthdayEditError("CANDIDATE_INVALID",
                                     "candidate content is addressed to another ref")
+        if candidate.writes and candidate.writes_task_id != trusted.task_id:
+            raise BirthdayEditError("CANDIDATE_INVALID",
+                                    "associated writes belong to another task")
         if request.kind == _ROOT and not (
             result.status is TaskStatus.WAITING_INPUT
             and result.interaction is not None
@@ -838,7 +917,7 @@ class BirthdayHandoff:
             sealed.checkpoint, sealed.metadata, sealed.writes,
             code="CANDIDATE_INVALID",
         )
-        revision = task.revision + 1
+        revision = int(pending["accepted_version"]) + 1
         result_json = result.model_dump(mode="json")
         published = {
             **_ref_dict(sealed.ref), "kind": kind,
@@ -856,18 +935,301 @@ class BirthdayHandoff:
             updated = self._update_task(
                 trusted, task, snapshot, status=result.status,
                 checkpoint_id=sealed.ref.checkpoint_id, run_id=trusted.run_id,
+                expected_revision=int(pending["accepted_version"]),
             )
         except ValueError as exc:
             raise BirthdayEditError("PUBLISH_CONFLICT",
-                                    "task changed concurrently") from exc
+                                    "task changed after the reservation") from exc
         return PublicationOutcome(
             result=result, task_revision=updated.revision,
             published_ref=sealed.ref, content_digest=content_digest, kind=kind,
         )
 
+    # ------------------------------------------- C. harness publication adapter
+
+    def begin_transition(self, trusted: TrustedContext, *, capability: str,
+                         conversion: dict | None,
+                         allow_root: bool) -> "BirthdayTransition | None":
+        """Reserve the harness-driven publication of one Cross state transition.
+
+        The harness wraps the Cross entry's saver with ``BirthdayTransition.
+        attach`` so nothing reaches the default namespace; after the entry
+        returns, ``publish`` seals that content once and publishes it by the same
+        task CAS rules as tickets 03/05. Only the cross entry (birthday, or a
+        clarification that may become one) is intercepted; every other module and
+        the clearly non-birthday cross goals keep the legacy saver path.
+        """
+        if capability != _CROSS_CAPABILITY:
+            return None
+        task = self._task(trusted)
+        snapshot = task.snapshot or {}
+        g3 = snapshot.get("birthday_g3") or {}
+        published = g3.get("published_ref")
+        if isinstance(published, dict):
+            if conversion is None:
+                # A published G3 task never falls back to a latest/direct write;
+                # a transition without its trusted association is refused.
+                raise BirthdayEditError("INVALID_CONVERSION",
+                                        "a published task requires its association")
+            conversion = _checked_conversion(conversion)
+            digest = _digest({"kind": _NORMAL, "conversion": conversion})
+            replay = _completed_publication(g3, digest)
+            edit = snapshot.get("birthday_edit")
+            if isinstance(edit, dict) and edit.get("published") is None:
+                raise BirthdayEditError("TRANSITION_PENDING",
+                                        "an accepted edit is still in flight")
+            pending = g3.get("pending")
+            if isinstance(pending, dict) and pending.get("conversion_digest") != digest:
+                raise BirthdayEditError("TRANSITION_PENDING",
+                                        "an unpublished conversion is in flight")
+            return BirthdayTransition(
+                self, trusted, kind=_NORMAL, digest=digest,
+                conversion=conversion, replayed=replay,
+            )
+        if not allow_root:
+            # A legacy task (already has state but no published ref) stays on the
+            # old path; its edit is blocked instead of pretending a fresh root.
+            return None
+        request_id = snapshot.get("request_id")
+        intent_text = snapshot.get("intent_text")
+        if (not isinstance(request_id, str) or not request_id
+                or not isinstance(intent_text, str)):
+            raise BirthdayEditError("INITIAL_REQUEST_UNKNOWN")
+        from app.modules.cross.entry import infer_scenario
+
+        scenario = infer_scenario(intent_text)
+        if scenario is not None and getattr(scenario, "value", None) != "birthday":
+            return None  # clearly another life goal keeps the legacy path
+        digest = _digest({
+            "kind": _ROOT, "task_id": task.task_id,
+            "request_id": request_id, "intent_text": intent_text,
+        })
+        replay = _completed_publication(g3, digest)
+        if replay is not None:
+            return BirthdayTransition(self, trusted, kind=_ROOT, digest=digest,
+                                      conversion=None, replayed=replay)
+        if task.checkpoint_id is not None:
+            # State exists without a published ref: an old task, not a new root.
+            return None
+        pending = g3.get("pending")
+        if isinstance(pending, dict) and (
+                pending.get("kind") != _ROOT
+                or pending.get("conversion_digest") != digest):
+            raise BirthdayEditError("ROOT_CONFLICT")
+        return BirthdayTransition(self, trusted, kind=_ROOT, digest=digest,
+                                  conversion=None)
+
+    def _published_reader(self, trusted: TrustedContext) -> Callable[[], CheckpointTuple | None]:
+        def read() -> CheckpointTuple | None:
+            task = self._task(trusted)
+            g3 = (task.snapshot or {}).get("birthday_g3") or {}
+            published = g3.get("published_ref")
+            if not isinstance(published, dict):
+                return None
+            return self._read_published_source(trusted, published)
+        return read
+
+    def publish_transition(self, trusted: TrustedContext, *, kind: str,
+                           digest: str, conversion: dict | None,
+                           buffer: "_BufferedContent",
+                           result: ModuleResult) -> PublicationOutcome:
+        if kind == _ROOT and not (
+            result.status is TaskStatus.WAITING_INPUT
+            and result.interaction is not None
+            and result.interaction.kind == "input"
+        ):
+            # A failed/empty initialization keeps the existing failure or
+            # "pending verification" presentation; it is never a published root.
+            raise BirthdayEditError("INITIAL_NOT_READY",
+                                    "the initial state is not a waiting input")
+        task = self._task(trusted)
+        snapshot = task.snapshot or {}
+        g3 = snapshot.get("birthday_g3") or {}
+        edit = snapshot.get("birthday_edit")
+        if isinstance(edit, dict) and edit.get("published") is None:
+            raise BirthdayEditError("TRANSITION_PENDING",
+                                    "an accepted edit is still in flight")
+        pending = g3.get("pending")
+        if isinstance(pending, dict):
+            if (pending.get("kind") != kind
+                    or pending.get("conversion_digest") != digest):
+                raise BirthdayEditError("TRANSITION_PENDING")
+        else:
+            if kind == _ROOT:
+                if isinstance(g3.get("published_ref"), dict):
+                    raise BirthdayEditError("INITIAL_ALREADY_PUBLISHED")
+                if task.checkpoint_id is not None:
+                    raise BirthdayEditError("INITIAL_ALREADY_STARTED")
+                request_id = snapshot.get("request_id")
+                intent_text = snapshot.get("intent_text")
+                association = {"request_id": request_id, "intent_text": intent_text}
+                source_record = None
+            else:
+                published = g3.get("published_ref")
+                if not isinstance(published, dict):
+                    raise BirthdayEditError("SOURCE_UNAVAILABLE")
+                self._read_published_source(trusted, published)
+                association = dict(conversion or {})
+                source_record = dict(published)
+            checkpoint_id = buffer.checkpoint.get("id")
+            if not isinstance(checkpoint_id, str) or not checkpoint_id:
+                raise BirthdayEditError("CANDIDATE_INVALID",
+                                        "the cross entry wrote no checkpoint")
+            candidate = CheckpointRef(
+                task.checkpoint_thread_id,
+                f"birthday/{kind}/{uuid4()}", str(uuid4()),
+            )
+            pending = {
+                "kind": kind, "conversion_digest": digest,
+                "candidate": _ref_dict(candidate),
+                "accepted_version": task.revision + 1,
+                "association": association,
+                "started_at": _clock(self.runtime).isoformat(),
+            }
+            if source_record is not None:
+                pending["source"] = source_record
+            task = self._reserve(trusted, task, {**g3, "pending": pending})
+        candidate_ref = _ref_from(pending["candidate"], "CANDIDATE_INVALID")
+        # The reserved candidate ref owns the checkpoint id; the Cross content is
+        # addressed to it so a retry republishes the identical first winner.
+        checkpoint = {**buffer.checkpoint, "id": candidate_ref.checkpoint_id}
+        if kind == _ROOT:
+            source = None
+            source_digest = None
+        else:
+            source_record = pending.get("source")
+            if not isinstance(source_record, dict):
+                raise BirthdayEditError("SOURCE_UNAVAILABLE")
+            source = _ref_from(source_record, "SOURCE_UNAVAILABLE")
+            source_digest = source_record["content_digest"]
+        sealed = self._seal_content(
+            trusted, kind=kind, candidate_ref=candidate_ref,
+            conversion_digest=pending["conversion_digest"],
+            accepted_version=int(pending["accepted_version"]),
+            checkpoint=checkpoint, metadata=dict(buffer.metadata),
+            new_versions=dict(buffer.new_versions), result=result,
+            source=source, source_digest=source_digest,
+            writes=buffer.writes, writes_task_id=trusted.task_id,
+            writes_task_path=buffer.writes_task_path,
+        )
+        return self._publish_successor(trusted, pending, sealed, kind)
+
     @staticmethod
     def _sealed_result(sealed: SealedCandidate, code: str) -> ModuleResult:
         return _validated_result(sealed.metadata.get(RESULT_METADATA_KEY), code)
+
+
+@dataclass
+class _BufferedContent:
+    """The one Cross checkpoint an entry call produced, held until publication."""
+
+    checkpoint: dict
+    metadata: dict
+    new_versions: dict
+    writes: list[tuple[str, Any]] = field(default_factory=list)
+    writes_task_path: str = ""
+
+
+class BirthdayTransition:
+    """One harness-driven Cross transition, published only after the entry runs.
+
+    ``attach(base_saver)`` wraps the entry's saver: reads answer the last sealed
+    published ref (never latest) and writes are buffered in memory, so a Cross
+    state never reaches the default namespace. ``publish(result)`` then reserves,
+    seals and publishes the buffered content in one task CAS. A replayed
+    conversion never re-runs the entry: the harness returns the frozen winner.
+    """
+
+    def __init__(self, handoff: BirthdayHandoff, trusted: TrustedContext, *,
+                 kind: str, digest: str, conversion: dict | None,
+                 replayed: PublicationOutcome | None = None):
+        self._handoff = handoff
+        self._trusted = trusted
+        self._kind = kind
+        self._digest = digest
+        self._conversion = conversion
+        self._saver: _BufferedCheckpointSaver | None = None
+        self.replayed = replayed
+
+    @property
+    def kind(self) -> str:
+        return self._kind
+
+    def attach(self, base_saver) -> "_BufferedCheckpointSaver":
+        self._saver = _BufferedCheckpointSaver(
+            base_saver, self._handoff._published_reader(self._trusted),
+            self._trusted.task_id,
+        )
+        return self._saver
+
+    def publish(self, result: ModuleResult) -> PublicationOutcome:
+        if self.replayed is not None:
+            return self.replayed
+        if self._saver is None or self._saver.buffer is None:
+            raise BirthdayEditError("CANDIDATE_INVALID",
+                                    "the cross entry produced no candidate content")
+        return self._handoff.publish_transition(
+            self._trusted, kind=self._kind, digest=self._digest,
+            conversion=self._conversion, buffer=self._saver.buffer,
+            result=result,
+        )
+
+
+class _BufferedCheckpointSaver:
+    """Saver-shaped adapter: read the published ref, buffer the new state.
+
+    CrossEntry only calls ``get_tuple``/``put`` (and no LangGraph machinery runs
+    on this saver), so this narrow object is enough. Reads always answer the
+    exact sealed published ref with its content digest verified; writes are
+    buffered for ``BirthdayTransition.publish`` and never touch the default
+    namespace. ``put_writes`` records the associated writes for ticket 05.
+    """
+
+    def __init__(self, base, read_published: Callable[[], CheckpointTuple | None],
+                 task_id: str):
+        self.base = base
+        self.read_published = read_published
+        self.task_id = task_id
+        self.thread_id = getattr(base, "thread_id", None)
+        self.buffer: _BufferedContent | None = None
+        self._buffered_tuple: CheckpointTuple | None = None
+
+    def get_tuple(self, config: dict) -> CheckpointTuple | None:
+        if self._buffered_tuple is not None:
+            return self._buffered_tuple
+        return self.read_published()
+
+    def put(self, config: dict, checkpoint: dict, metadata: dict,
+            new_versions: dict) -> dict:
+        self.buffer = _BufferedContent(
+            checkpoint=checkpoint, metadata=metadata, new_versions=new_versions,
+        )
+        configurable = dict((config or {}).get("configurable") or {})
+        configurable["checkpoint_id"] = checkpoint["id"]
+        self._buffered_tuple = CheckpointTuple(
+            config={"configurable": configurable}, checkpoint=checkpoint,
+            metadata=metadata, parent_config=None, pending_writes=[],
+        )
+        return {"configurable": configurable}
+
+    def put_writes(self, config: dict, writes, task_id: str,
+                   task_path: str = "") -> None:
+        if self.buffer is None:
+            raise BirthdayEditError("CANDIDATE_INVALID",
+                                    "writes arrived before candidate content")
+        for channel, value in writes:
+            self.buffer.writes.append((channel, value))
+        self.buffer.writes_task_path = task_path
+
+    def list(self, config: dict | None = None, *, filter: dict | None = None,
+             before: dict | None = None,
+             limit: int | None = None) -> Iterator[CheckpointTuple]:
+        saved = self.get_tuple(config or {})
+        if saved is not None:
+            yield saved
+
+    def get(self, config: dict) -> CheckpointTuple | None:
+        return self.get_tuple(config)
 
 
 # --------------------------------------------------------------------- helpers
