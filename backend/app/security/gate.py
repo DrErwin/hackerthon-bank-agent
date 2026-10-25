@@ -513,6 +513,34 @@ class SecurityGate:
                 message="任务已终止，不能继续执行该操作。",
             )
 
+        if context.operation_id is not None and context.action_revision is not None:
+            try:
+                retirement = self.confirmations.state.get_retirement(
+                    context, context.task_id, context.operation_id,
+                    context.action_revision,
+                )
+            except Exception:
+                return self._stop(
+                    context, action, declaration,
+                    decision=SecurityDecisionCode.PAUSE,
+                    reason="DEPENDENCY_UNAVAILABLE",
+                    rule="retirement-state-required",
+                    message="暂时无法核对旧动作的撤离状态。",
+                )
+            if retirement is not None and retirement.state in {"sealed", "conflict"}:
+                # A sealed attempt was proven unsubmitted and an already claimed
+                # one must be observed by id; neither may produce a fresh ALLOW.
+                sealed = retirement.state == "sealed"
+                return self._stop(
+                    context, action, declaration,
+                    decision=SecurityDecisionCode.BLOCK,
+                    reason="ACTION_RETIRED" if sealed else "OPERATION_UNKNOWN",
+                    rule=("retired-attempt-cannot-execute" if sealed
+                          else "claimed-attempt-must-observe-original-operation"),
+                    message=("旧动作已安全撤离，不能再次提交。" if sealed
+                             else "旧动作已由后台领取，请按原编号核实。"),
+                )
+
         if declaration.side_effect and (
             context.operation_id is None or context.action_revision is None
         ):
