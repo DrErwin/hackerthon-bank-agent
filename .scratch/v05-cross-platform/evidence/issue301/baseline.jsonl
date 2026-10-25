@@ -1,0 +1,1 @@
+{"case": "original", "input": "最近钱怎么花得快，帮我处理不用的扣费", "expected": "cross.start_task", "actual": "subscription.cancel_subscription", "model": "glm-5.3", "elapsed_seconds": 12.02, "model_py_sha256": "9595ee7da36e3c0aad0aca0e59cdb8c52777031ae5f0eb088406d2966315f315", "bank_operations": 0, "business_tasks": 0, "layer": "real model planning only; no business dispatch or page E2E"}

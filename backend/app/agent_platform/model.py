@@ -199,15 +199,21 @@ class DeepAgentPlanner:
         capability_list = "；".join(
             f"{entry['name']}（{entry['description']}）" for entry in catalog
         )
-        # Scenario 05 routing is only stated when its module is actually registered;
-        # the catalog stays the sole source of callable capability names.
+        # Route the user's goal before its individual actions. Only describe
+        # registered entries; the catalog remains the callable scope.
+        goal_routes = ""
+        if "cross.start_task" in catalog_names:
+            goal_routes = (
+                "生活目标：目录支持的完整生活目标，需核实情况、形成安排并衔接办理时，选 "
+                "cross.start_task，不因其中涉及退订或转账就缩成单项。"
+                "明确只办单项业务或只读查询时，仍选对应能力；目标不明确才先澄清，"
+                "已明确目标的缺失字段由原任务补齐。\n"
+            )
         subscription_routes = ""
         if {"subscription.list_subscriptions", "subscription.cancel_subscription"} <= catalog_names:
             subscription_routes = (
-                "代扣与订阅：问「有哪些自动扣费」「什么时候扣」「扣了多少」是盘点，选 "
-                "subscription.list_subscriptions；要求退订、关闭、取消某项自动扣费，或出现"
-                "「退订/退了/别再扣/不续费/解约」等动作词，是退订，选 "
-                "subscription.cancel_subscription；盘点词与退订动作词同时出现时按退订处理。"
+                "代扣与订阅：仅查询签约或扣费选 subscription.list_subscriptions；"
+                "明确办理退订选 subscription.cancel_subscription，勿把询问或否定当成退订指令。"
                 "订阅意图不提取收款人、金额或账户，订阅编号、商户提示、批量标记与原始话术"
                 "由业务模块按原话确定性解析。\n"
             )
@@ -224,7 +230,7 @@ class DeepAgentPlanner:
             "已完成账单的分类明细或陌生扣款追问属于新的只读查询，选择对应账单能力；"
             "日期和账户范围由程序核实并继承，不自行编造。"
             "超出当前能力、普通闲聊、咨询或不确定意图调用 reply_only。\n"
-            f"{subscription_routes}"
+            f"{goal_routes}{subscription_routes}"
             "字段：capability_name 必须精确填写所列能力名之一，不自创、不改写。"
             "收款人线索、整数分金额和付款账户编号只对转账能力提取，其他能力一律留空，交原任务澄清。"
             "只提取原话中确定的收款人线索、整数分金额和付款账户编号；未知联系人交银行查询。"

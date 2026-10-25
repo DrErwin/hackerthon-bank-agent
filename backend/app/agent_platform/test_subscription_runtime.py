@@ -638,4 +638,5 @@ def test_planner_prompt_states_scenario_05_routing_only_when_registered(tmp_path
     harness.understand(trusted(), "我都在哪自动扣钱")
     prompt = model.prompts[-1]
     assert LIST_CAPABILITY in prompt and CANCEL_CAPABILITY in prompt
-    assert "按退订处理" in prompt
+    assert "明确办理退订" in prompt
+    assert "勿把询问或否定当成退订指令" in prompt

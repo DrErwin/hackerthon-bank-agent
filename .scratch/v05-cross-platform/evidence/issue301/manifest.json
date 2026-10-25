@@ -1,0 +1,25 @@
+{
+  "ticket_id": "v05-cross-platform/15",
+  "issue": 301,
+  "product_base": "855497fa16616595eac8cfac9013ec701ffe942d",
+  "layer": "isolated real GLM planning only; no business dispatch, HTTP or page E2E",
+  "files": [
+    {
+      "file": "baseline.jsonl",
+      "sha256": "2019adfab655130bbc3c65d92c936d957a846df1a9f0e8f7a77a734a592d04cc",
+      "samples": 1,
+      "passed": 0,
+      "bank_operations": 0,
+      "business_tasks": 0
+    },
+    {
+      "file": "postfix.jsonl",
+      "sha256": "6e1f2a961d78d6b91574585d2bd9ad28c467c4c2d2bc914dae170d38e96753b4",
+      "samples": 13,
+      "passed": 13,
+      "bank_operations": 0,
+      "business_tasks": 0
+    }
+  ],
+  "serialization": "UTF-8 / LF; original CRLF bytes preserved in bd40c9626e3b17ae0c6c1964915d1b644e5ec974; decoded observations unchanged"
+}
