@@ -143,6 +143,7 @@ class BirthdayFlow:
     def advance(self, trusted) -> ModuleResult:
         entry, state = self.entry, self.state
         if self.b.get("pending") and not self.b.get("holding"):
+            PersonalBudget(entry, state).refresh(trusted)
             return self._pending_view(trusted)
         if self.b.get("holding"):
             # Replay the saved ask: an empty resume must not rotate the option
