@@ -35,3 +35,6 @@ password/passwd/pwd 后有实际值时，输出及导出探针报告 credential�
 - 本机系统 Python 缺少 langchain_openai，后端全量首次在收集期报 11 个依赖导入错误；已建立本 worktree 隔离虚拟环境按仓库固定依赖安装，再进行全量验证。
 - 独立审查第一轮：Standards 0 必须项；Spec 发现 1 个 P1（纯符号密码被字符种类限制漏掉）。补测试复现 12 failed / 9 passed；移除字符种类限制并覆盖 `!@#$`、`____`、`****` 后，新增文件 103 passed。空 Markdown 星号可能就是符号密码，按真实值处理；无值空引号/括号仍放行。审查修复后待子代理复验。
 - 复审追补：重复括号密码 `()()` / `((()))` 同样作为实际值，空包装只精确排除一个空 token。增加真实审计包（含嵌套 JSON 证据字符串）的脱敏后再探测对照，防止英文 `[REDACTED]` 在导出阶段被误报。修复相关局部 29 passed / 82 deselected；最终全目录回归与双轴复审待补。代码更新后停止旧代码全量运行，重新验证最终代码。
+- 最终局部回归：`pytest -q app/audit app/agent_platform/test_reply_credential_gate.py app/api/test_output_observation.py app/api/test_export_secrets.py`：166 passed。其中新增文件 111 项（105 函数/持久化与 6 HTTP）；不含真实模型或页面验证。仓库文档链接、全量代码 compileall、差异空白检查通过。
+- 最终独立审查：Standards 无必须项（74 passed / 37 deselected）；Spec 原 P1 已闭合、无新必须项（105 passed / 6 deselected）。均为 AI 审查，不代表真人安全或 PM 接受。
+- 已同步最新 `origin/main` `a1e8889`，仅多出中控文档提交，代码树不变；后端最终全量运行中。
