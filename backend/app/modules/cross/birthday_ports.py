@@ -69,8 +69,8 @@ class BirthdayPlan:
     """The frozen facts one birthday execution runs on."""
 
     payer_account_id: str
-    budget_id: str
-    budget_version: int
+    budget_id: str | None
+    budget_version: int | None
     budget_limit_fen: int
     freeze_amount_fen: int
     deliver_by: str

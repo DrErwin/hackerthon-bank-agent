@@ -1,6 +1,8 @@
 # 个人预算进入生日办理：business/06 设计
 
-Status: design_reviewed / implementation_blocked — 2026-10-25 两轴设计审查通过；仅规格、实施票和测试框架，禁止据此自动实施。
+Status: implemented / local_verified / acceptance_pending — 2026-10-25；真实前置293/298/299已合入，Draft PR #305交回。下文设计期接口状态保留作历史，当前实现、CI阻塞及E2E停止线见实施记录。
+
+实施：[本票领取/证据](implementation-06.md)。本轮完成开发必要验证及[E2E验收设计](budget-e2e-acceptance-design.md)即停，实际E2E由Erwin后续运行。
 
 Owner / planning assignee: Erwin 授权执行对话 01a17183-271b-7663-9517-f31a994de51d。
 

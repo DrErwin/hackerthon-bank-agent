@@ -313,10 +313,7 @@ def test_b01_freeze_500_pay_199_268_release_33(tmp_path):
     assert ports.capture_executes == ["P_FLOWER", "P_CAKE"]
     commitments = application.list_budget_commitments(
         "U1", "D1", BUDGET_ID, include_closed=True)
-    assert len(commitments) == 1 and commitments[0].state == "closed"
-    assert commitments[0].committed_fen == 46700  # shrunk to real consumption
-    assert commitments[0].unconsumed_fen == 0
-    assert len(commitments[0].settled_transaction_ids) == 2
+    assert commitments == []  # no adopted personal budget: no synthetic month record
 
 
 def test_b01_step_up_verification_holds_then_resumes_the_write(tmp_path):
@@ -632,54 +629,26 @@ def test_b06_own_arrangement_lineage_does_not_block(tmp_path):
 # ------------------------------------------------------------------- XL-B07
 
 
-def test_b07_shared_monthly_budget_cap_blocks_over_cap_freeze(tmp_path):
-    ports = ScriptedBirthdayPorts(released_amount_fen=50000)
+def test_b07_unadopted_monthly_fixture_does_not_become_a_personal_budget(tmp_path):
+    ports = ScriptedBirthdayPorts()
     _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
-    # A 3000 monthly budget with 2600 already consumed by another commitment
-    # under the SAME user-month id: only 400 room, the freeze asks 500.
-    application.create_task("OTHER_TASK", "U1", "S1", "D1", "R9", "running", {})
-    prior = BudgetCommitment(
-        budget_ref=BudgetRef(budget_id=BUDGET_ID, version=1), task_id="OTHER_TASK",
-        commitment_id="bc_prior", committed_fen=260000, unconsumed_fen=0,
-        freeze_id=None, operation_ids=[], settled_transaction_ids=["txn_prior"],
-        state="closed", updated_at=NOW)
-    application.register_budget_commitment("U1", "D1", prior)
-    run_to_freeze(entry)
-    outcome = entry.resume(parent_trusted(), {"choice": "approve"})
-    assert outcome.status is TaskStatus.FAILED
-    assert "预算不够" in outcome.message
-    assert "已占用/消费 2600.00 元" in outcome.message
-    assert "原额退回" in outcome.message and "500.00 元" in outcome.message
-    assert ports.order_executes == []
-    assert ports.finalize_calls == ["budget_exceeded"]
-    # The failed attempt left no occupation behind.
-    own = [c for c in application.list_budget_commitments(
-        "U1", "D1", BUDGET_ID, include_closed=True) if c.task_id == "PARENT"]
-    assert own == []
+    # The old user-month id was fabricated by the flow. It is not an adoption.
+    result = run_to_freeze(entry)
+    assert result.data.budget is None
+    assert application.list_adopted_budgets("U1", "D1") == []
+    assert application.list_budget_commitments("U1", "D1", BUDGET_ID) == []
+    assert ports.freeze_executes == 0
 
 
-def test_b05_requery_after_budget_filled_fails_and_reverses(tmp_path):
-    """Review N2: the freeze resolved after another task filled the month cap."""
-    ports = ScriptedBirthdayPorts(freeze="unknown", released_amount_fen=50000)
+def test_b05_original_freeze_query_without_personal_adoption_keeps_its_reference(tmp_path):
+    ports = ScriptedBirthdayPorts(freeze="unknown")
     _, entry, application = birthday_composition(tmp_path, ports)
     store_delivery(application)
     run_to_freeze(entry)
     held = entry.resume(parent_trusted(), {"choice": "approve"})
-    assert held.status is TaskStatus.WAITING_INPUT  # freeze unknown
-    # Another task consumed the whole monthly room while it was unknown.
-    application.create_task("OTHER_TASK", "U1", "S1", "D1", "R9", "running", {})
-    application.register_budget_commitment("U1", "D1", BudgetCommitment(
-        budget_ref=BudgetRef(budget_id=BUDGET_ID, version=1), task_id="OTHER_TASK",
-        commitment_id="bc_full", committed_fen=50000, unconsumed_fen=50000,
-        freeze_id="fz_other", operation_ids=[uuid4()],
-        settled_transaction_ids=[], state="active", updated_at=NOW))
-    resolved = entry.resume(parent_trusted(),
-                            {"selected_option_id": option_id(held, "核实原操作")})
-    assert resolved.status is TaskStatus.FAILED
-    assert "预算不够" in resolved.message and "原额退回" in resolved.message
-    assert ports.finalize_calls == ["budget_exceeded"]
-    assert ports.order_executes == []
-    own = [c for c in application.list_budget_commitments(
-        "U1", "D1", BUDGET_ID, include_closed=True) if c.task_id == "PARENT"]
-    assert own == []
+    resolved = entry.resume(parent_trusted(), {"selected_option_id": option_id(held, "核实原操作")})
+    assert resolved.status is TaskStatus.WAITING_APPROVAL
+    assert ports.freeze_executes == 1 and len(ports.bind_calls) == 1
+    assert ports.finalize_calls == [] and ports.order_executes == []
+    assert application.list_adopted_budgets("U1", "D1") == []

@@ -87,7 +87,7 @@ def test_unverified_ending_keeps_occupation_and_never_restarts_buying(tmp_path, 
     assert stopped.status is TaskStatus.RUNNING
     assert next(s for s in stopped.data.steps if s.step_id == "birthday-release").amount_fen is None
     commitments = application.list_budget_commitments("U1", "D1", BUDGET_ID, include_closed=True)
-    assert commitments[0].state == "active"
+    assert commitments == []  # no personal adoption; bank facts still remain pending
     replay = entry.resume(parent_trusted(), {})
     assert replay.status is TaskStatus.RUNNING and ports.order_executes == []
 

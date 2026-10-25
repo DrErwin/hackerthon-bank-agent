@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
-from hashlib import sha256
 from uuid import uuid4
 
 from app.contracts.bank import OwnPayee, SavedPayee
@@ -30,6 +29,7 @@ from . import plan
 from .plan import money, month_range
 from .birthday import BirthdayFlow
 from .pension import PensionFlow
+from .personal_budget import PersonalBudget, BudgetPending, serialized, digest
 
 _CHANNEL = "cross_state"
 _TERMINAL = {"succeeded", "failed", "cancelled", "partially_succeeded"}
@@ -127,7 +127,8 @@ class CrossEntry:
         return ModuleResult(task_id=context.task_id, run_id=context.run_id,
             status=TaskStatus.WAITING_INPUT,
             data=self._view_data(state, prompt)
-            if (state.get("birthday") or {}).get("write_facts") else None,
+            if ((state.get("birthday") or {}).get("write_facts")
+                or (state.get("personal_budget") or {}).get("view")) else None,
             message=prompt,
             interaction=InteractionRequest(interaction_id=interaction_id, kind="input",
                 prompt=prompt, required_fields=["cross_selection"], options=options,
@@ -181,6 +182,7 @@ class CrossEntry:
 
     # -------------------------------------------------------------------- start
 
+    @serialized
     def start(self, trusted: TrustedContext, request, *, thread_id=None) -> ModuleResult:
         if not isinstance(request, (CrossStartInput, StartTransferInput)):
             return self._failed(trusted, "INVALID_ARGUMENT")
@@ -189,17 +191,24 @@ class CrossEntry:
         else:
             goal, scenario = request.intent_text, None
         saved, state = self._load(trusted, thread_id)
-        digest = sha256(goal.encode("utf-8")).hexdigest()
+        constraints = (request.constraints.model_dump(mode="json", exclude_none=True)
+                       if isinstance(request, CrossStartInput) and request.constraints else {})
+        request_digest = digest({"goal": goal, "scenario": scenario.value if scenario else None,
+                                 "constraints": constraints})
         if state is not None:
             if state["session_id"] != trusted.session_id:
                 raise PermissionError("ACCESS_DENIED")
-            if state["request_id"] != str(request.request_id) or state["goal_digest"] != digest:
+            if state["request_id"] != str(request.request_id) or state["goal_digest"] != request_digest:
                 raise ValueError("REQUEST_CONFLICT")
             if "result" in state:
                 return self._result(trusted, state)
         else:
-            state = self._new_state(trusted, str(request.request_id), goal, digest, scenario)
-        result = self._advance(trusted, state)
+            state = self._new_state(trusted, str(request.request_id), goal, request_digest, scenario)
+            state["constraints"] = constraints
+        try:
+            result = self._advance(trusted, state)
+        except BudgetPending as exc:
+            result = PersonalBudget(self, state).pause(trusted, exc)
         state["result"] = result.model_dump(mode="json")
         self._save(trusted, thread_id, state)
         return result
@@ -259,6 +268,7 @@ class CrossEntry:
 
     # ------------------------------------------------------------------- resume
 
+    @serialized
     def resume(self, trusted: TrustedContext, response: dict, *, thread_id=None) -> ModuleResult:
         saved, state = self._load(trusted, thread_id)
         if state is None:
@@ -267,10 +277,20 @@ class CrossEntry:
             raise PermissionError("ACCESS_DENIED")
         if state.get("result", {}).get("status") in _TERMINAL:
             return self._result(trusted, state)
-        result = self._respond(trusted, state, response)
+        try:
+            result = self._respond(trusted, state, response)
+        except BudgetPending as exc:
+            result = PersonalBudget(self, state).pause(trusted, exc)
         state["result"] = result.model_dump(mode="json")
         self._save(trusted, thread_id, state)
         return result
+
+    @serialized
+    def reconcile_budget_input(self, trusted, origin, *, thread_id=None):
+        _, state = self._load(trusted, thread_id)
+        if state is None or not state.get("birthday"):
+            return None
+        return PersonalBudget(self, state).recover(origin)
 
     def _respond(self, trusted, state, response: dict) -> ModuleResult:
         if not response:
@@ -298,6 +318,10 @@ class CrossEntry:
                 self._save(trusted, None, state)
                 return result
         choice = response.get("selected_option_id") or response.get("choice")
+        if state.get("birthday"):
+            handled = PersonalBudget(self, state).choice(trusted, choice)
+            if handled is not None:
+                return handled
         if choice not in state.get("choices", {}):
             if response.get("text"):
                 # Free text names no target: menus are built from bank facts only.
@@ -354,6 +378,7 @@ class CrossEntry:
         rebuilt = self._new_state(trusted, state["request_id"], state["goal"],
                                   state["goal_digest"], CrossScenario(picked["scenario"]))
         rebuilt["actor"], rebuilt["session_id"] = state["actor"], state["session_id"]
+        rebuilt["constraints"] = state.get("constraints", {})
         state.clear()
         state.update(rebuilt)
         return self._advance(trusted, state)
