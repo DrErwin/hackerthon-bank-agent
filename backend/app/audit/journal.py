@@ -35,10 +35,10 @@ ADDRESS_FIELD = {"address", "recipient_address"}
 _VALUE_WRAPPER = r"[\s\"'`*（(【\[「『《<:：=]*"
 _CODE_VALUE_AHEAD = rf"(?=\s*(?:是|为|[:：=]|\s){_VALUE_WRAPPER}[^\s,，;；。!?！？]*?(?:[A-Za-z0-9]{{4,}}|\d{{4,}}|\[REDACTED\]))"
 # English password words also appear in safety reminders. Require a standalone
-# label, an explicit separator and a value token containing a letter or digit.
+# label, an explicit separator and a nonempty value (including symbol passwords).
 _ENGLISH_PASSWORD_LABEL = (
     r"(?<![A-Za-z0-9_])(?:password|passwd|pwd)(?![A-Za-z0-9_])"
-    rf"(?=\s*(?:是|为|[:：=]){_VALUE_WRAPPER}[^\s,，;；。]*[^\W_])"
+    rf"(?=\s*(?:是|为|[:：=]){_VALUE_WRAPPER}[^\s,，;；。\"'`（()）【】\[\]「」『』《》<>:：=])"
 )
 SECRET_LABEL = re.compile(
     rf"((?:(?:验证码|短信码){_CODE_VALUE_AHEAD}|{_ENGLISH_PASSWORD_LABEL}|密码|口令|登录凭据|credential|secret|cookie|api[_ -]?key|otp|token|authorization|bearer)\s*(?:是|为|[:：=]|\s)\s*)"

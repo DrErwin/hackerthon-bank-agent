@@ -22,7 +22,10 @@ def test_english_password_values_are_reported_and_redacted(label, separator):
     assert secret not in expected
 
 
-@pytest.mark.parametrize("secret", ["a", "7", "春暖花开", "!Dummy271", "**Dummy271!**", '"Dummy271!"'])
+@pytest.mark.parametrize("secret", [
+    "a", "7", "春暖花开", "!Dummy271", "**Dummy271!**", '"Dummy271!"',
+    "!@#$", "____", "****",
+])
 def test_values_have_no_minimum_length_and_keep_existing_wrappers(secret):
     text = f"password: {secret}"
     assert probe_output(text).findings == (OutputFinding("credential"),)
@@ -41,7 +44,7 @@ def test_values_have_no_minimum_length_and_keep_existing_wrappers(secret):
     "{label} 是 ",
     "{label} 为；",
     '{label}: ""',
-    "{label}: ** **",
+    "{label}: （ ）",
     "{label} policy: protect your account",
     "my_{label}: metadata",
     "{label}_hint: metadata",
@@ -56,8 +59,8 @@ def test_education_empty_values_and_similar_words_are_unchanged(label, template)
 
 
 @pytest.mark.parametrize("label", ["password", "passwd", "pwd"])
-def test_raw_english_password_is_redacted_before_audit_write_and_export(tmp_path, label):
-    secret = "Dummy271!"
+@pytest.mark.parametrize("secret", ["Dummy271!", "!@#$", "____", "****"])
+def test_raw_english_password_is_redacted_before_audit_write_and_export(tmp_path, label, secret):
     text = f"{label}: {secret}"
     expected = f"{label}: [REDACTED]"
     path = tmp_path / "audit.sqlite"

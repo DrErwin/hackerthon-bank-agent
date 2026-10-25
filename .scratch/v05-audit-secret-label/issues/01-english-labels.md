@@ -33,3 +33,4 @@ password/passwd/pwd 后有实际值时，输出及导出探针报告 credential�
 - 局部回归：`python -m pytest -q app/audit/test_english_secret_labels.py app/agent_platform/test_reply_credential_gate.py app/api/test_output_observation.py app/api/test_export_secrets.py`：107 passed；含 6 项卡片/审计导出进程内 HTTP 拒绝及留痕，真实 Harness 使用离线替身规划器。全量测试、独立审查和 CI 待补。
 - 额外观察（不属本票修复）：直接把 `json.dumps({"leak": "pwd 是 Dummy271!"})`（默认 ensure_ascii=True，系词变成字面反斜线 u662f）注入导出行时，下载探针不解码、HTTP 200。当前 AuditReader 导出使用 ensure_ascii=False，本票按真实生产形状验证；任意转义/编码内容的解码扫描需交中控另行评估，不在 audit 标签规则中增加 JSON 解码或跨目录改动。
 - 本机系统 Python 缺少 langchain_openai，后端全量首次在收集期报 11 个依赖导入错误；已建立本 worktree 隔离虚拟环境按仓库固定依赖安装，再进行全量验证。
+- 独立审查第一轮：Standards 0 必须项；Spec 发现 1 个 P1（纯符号密码被字符种类限制漏掉）。补测试复现 12 failed / 9 passed；移除字符种类限制并覆盖 `!@#$`、`____`、`****` 后，新增文件 103 passed。空 Markdown 星号可能就是符号密码，按真实值处理；无值空引号/括号仍放行。审查修复后待子代理复验。

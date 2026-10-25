@@ -14,6 +14,6 @@
 
 `output_guard` 是只读输出探针：`probe_output` 报告 `credential` / `full_account` / `personal_name` / `personal_phone` 命中类别，并返回与 `journal.redact(..., free_text=True)` 一致的脱敏文本；`probe_secrets` 只对认证秘密做导出判定。探针不做放行或拒绝决定。无分隔符的 6 位验证码形状（如「验证码123456」「code: 123456」「123456 是本次登录的验证码」）只报告、不脱敏，出口接线须按 `credential` 命中拦截。6 位数字的凭据形状按**短语相邻**判定，不做距离窗口：`reason_code`、`duration_ms`、UUID 里碰巧出现的 6 位数字等机器载荷不会误报，审计证据包可正常导出（v05-observer-seams/08）。
 
-英文 `password` / `passwd` / `pwd` 标签也复用同一秘密规则（Issue #271）：标签须为独立词，后接冒号、等号或「是/为」以及含字母或数字的值；不设最短长度。无值提醒（如「请不要把 password 告诉别人」）、空值和相似字段名不命中。探针结果与审计脱敏保持一致，已脱敏值重复检查不报秘密。
+英文 `password` / `passwd` / `pwd` 标签也复用同一秘密规则（Issue #271）：标签须为独立词，后接冒号、等号或「是/为」以及非空值（含纯符号密码）；不设最短长度。无值提醒（如「请不要把 password 告诉别人」）、空值和相似字段名不命中。探针结果与审计脱敏保持一致，已脱敏值重复检查不报秘密。
 
 从 `backend/` 验证：`python -m pytest -q app/audit/`。脱敏规则和查看范围属于安全侧规则，合入前仍需适用的安全审查；v0.5 按根目录 AGENTS 的 Erwin 代行安排留痕，不记为 Ringo 本人签核。
