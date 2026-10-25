@@ -105,7 +105,9 @@ class MemoriesDeleteRequest(RequestIdOnly):
 def problem(exc):
     if isinstance(exc, ApiProblem):
         status, code = exc.status, exc.code
+        reason = exc.reason
     else:
+        reason = None
         code = str(exc) if isinstance(exc, (ValueError, PermissionError, TimeoutError)) else "DEPENDENCY_UNAVAILABLE"
         # The bank keeps its own conflict detail; the public contract exposes the
         # frozen 409 code for an operation-record conflict.
@@ -125,7 +127,7 @@ def problem(exc):
         "TASK_BUSY": "这项办理正在处理，请稍候查看更新后的状态。",
     }
     return status, {"error": ModuleError(code=code, source="platform", field=None,
-                                        reason=specific.get(code, reasons[status]), upstream_code=None).model_dump(mode="json")}
+                                        reason=reason or specific.get(code, reasons[status]), upstream_code=None).model_dump(mode="json")}
 
 
 def success(value, status=200):

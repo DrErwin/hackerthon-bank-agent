@@ -122,28 +122,93 @@ def safe_csv_cell(value):
 
 
 # Ticket v05-birthday-platform-dependencies/04: the platform's controlled-edit
-# refusals are translated to existing public codes. Internal reasons (a replaced
-# attempt, an unknown/claimed original, a missing source) never leave the
-# platform; a claim that won first keeps the old action's rules and is verified
-# along its original operation, it is not edited.
+# refusals are translated to existing public codes with a truthful public reason.
+# Internal reasons (a replaced attempt, an unknown/claimed original, a missing
+# source, a lost task CAS) never leave the platform; a claim that won first keeps
+# the old action's rules and is verified along its original operation, it is not
+# edited. A stale/conflicted request is retryable after a refresh, an unknown
+# original is only verified along the old operation, and an unavailable dependency
+# never pretends the old action was unsubmitted.
+BIRTHDAY_EDIT_REFUSALS = {
+    "ACCESS_DENIED": (403, "ACCESS_DENIED", None),
+    "TASK_NOT_FOUND": (404, "NOT_FOUND", None),
+    "TASK_TERMINATED": (
+        409, "TASK_TERMINATED",
+        "任务已结束或不再可编辑，只能查看原任务与已发生的结果。",
+    ),
+    "REQUEST_CONFLICT": (
+        409, "REQUEST_CONFLICT",
+        "这张卡上已有另一次修改在处理，原任务保持不变，请刷新任务查看结果。",
+    ),
+    "INTERACTION_STALE": (
+        409, "INTERACTION_STALE",
+        "当前确认或验证卡已失效或被替换，请刷新任务后在当前卡上重新操作。",
+    ),
+    "TASK_CHANGED": (
+        409, "INTERACTION_STALE",
+        "任务在处理中被其他操作更新，本次修改尚未发布；请刷新任务后重试原操作。",
+    ),
+    "PUBLISH_CONFLICT": (
+        409, "INTERACTION_STALE",
+        "任务在处理中被其他操作更新，本次修改尚未发布；请刷新任务后重试原操作。",
+    ),
+    "TRANSITION_PENDING": (
+        409, "INTERACTION_STALE",
+        "已有尚未完成的修改正在处理，请刷新任务查看最新状态。",
+    ),
+    "OPERATION_UNKNOWN": (
+        409, "INTERACTION_STALE",
+        "原操作结果未知或待核实，原卡保持不变；请刷新后沿原任务查询原操作，不要重复提交。",
+    ),
+    "OPERATION_CONFLICT": (
+        409, "INTERACTION_STALE",
+        "原操作可能已被领取或改变，原卡保持不变；请沿原任务核实原操作，不要重复提交。",
+    ),
+    "EDIT_NOT_PROVABLE": (
+        409, "INTERACTION_STALE",
+        "无法证明原动作尚未提交，原卡保持不变；请沿原任务核实原操作，不要重复提交。",
+    ),
+    "RETIREMENT_STALE": (
+        409, "INTERACTION_STALE",
+        "原动作的撤离状态已变化，原卡保持不变；请刷新后按原任务核实。",
+    ),
+    "SOURCE_UNAVAILABLE": (
+        409, "INTERACTION_STALE",
+        "原任务缺少可核验的已发布方案，暂不能进入修改；请查看原任务。",
+    ),
+    "CANDIDATE_INVALID": (
+        409, "INTERACTION_STALE",
+        "本次修改未能安全发布，原任务保持不变；请刷新后重试或查询原操作。",
+    ),
+    "CANDIDATE_CONFLICT": (
+        409, "INTERACTION_STALE",
+        "已有另一次修改占用了该方案，请刷新任务查看结果。",
+    ),
+    "INVALID_CONVERSION": (
+        409, "INTERACTION_STALE",
+        "本次修改无法关联到原请求，原任务保持不变；请刷新后重试。",
+    ),
+}
+# A dependency failure is not a refusal: the public reason keeps the contract's
+# "verify the original task" wording and never claims the old action was unsubmitted.
 BIRTHDAY_EDIT_UNAVAILABLE = frozenset({
     "DEPENDENCY_UNAVAILABLE", "CROSS_HANDOFF_UNAVAILABLE", "CROSS_UNAVAILABLE",
     "AUDIT_UNAVAILABLE",
 })
+BIRTHDAY_EDIT_FALLBACK = (
+    409, "INTERACTION_STALE",
+    "当前修改暂时无法进行，请刷新任务后按当前卡继续；原操作结果请沿原任务核实。",
+)
 
 
 def birthday_edit_problem(exc: BirthdayEditError) -> ApiProblem:
     """One truthful public refusal for any platform edit failure."""
 
-    if exc.code == "ACCESS_DENIED":
-        return ApiProblem(403, "ACCESS_DENIED")
-    if exc.code == "TASK_NOT_FOUND":
-        return ApiProblem(404, "NOT_FOUND")
-    if exc.code == "TASK_TERMINATED":
-        return ApiProblem(409, "TASK_TERMINATED")
     if exc.code in BIRTHDAY_EDIT_UNAVAILABLE:
         return ApiProblem(503, "DEPENDENCY_UNAVAILABLE")
-    return ApiProblem(409, "INTERACTION_STALE")
+    status, code, reason = BIRTHDAY_EDIT_REFUSALS.get(exc.code,
+                                                      BIRTHDAY_EDIT_FALLBACK)
+    return ApiProblem(status, code, reason)
 
 
 class ApiService:
@@ -1469,7 +1534,8 @@ class ApiService:
             reason_code=outcome.reason_code or "VERIFICATION_METHOD_PASSED",
         ), "succeeded" if outcome.kind == "verified" else "denied")
 
-    def continue_task(self, identity, task_id, response, *, recover_session=False, verification_retry=False, publish=True):
+    def continue_task(self, identity, task_id, response, *, recover_session=False,
+                      verification_retry=False, publish=True, request_id=None):
         export = self.export_for_task(identity, task_id)
         if export is not None:
             return self.continue_export_task(identity, export, response)
@@ -1520,7 +1586,15 @@ class ApiService:
             if not link["cancel_requested"]:
                 self.runtime.harness.start(trusted, UUID(link["request_id"]), link["intent_text"])
         else:
-            self.runtime.harness.resume(trusted, response)
+            # F10 passes the original request id so the platform binds this
+            # conversion to its own accepted request; an internal resume keeps
+            # its original run-event association (request_id stays None). The
+            # Harness G3 publication seam refuses with platform codes; translate
+            # them here so no internal code ever reaches the public body.
+            try:
+                self.runtime.harness.resume(trusted, response, request_id=request_id)
+            except BirthdayEditError as exc:
+                raise birthday_edit_problem(exc) from None
         if verification_retry or lookup_retry:
             current = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
             if current and "pending_verification" in current.snapshot:
@@ -1656,7 +1730,10 @@ class ApiService:
             budget_candidate = (view is not None and view.budget is not None
                                 and not view.budget.adopted and view.budget.budget_ref is None)
             if request.selected_option_id is None or not budget_candidate:
-                return self.continue_task(identity, task_id, response)
+                return self.continue_task(
+                    identity, task_id, response,
+                    request_id=request.request_id,
+                )
         elif request.text is not None or request.selected_option_id is None:
             raise ApiProblem(400, "INVALID_OPTION")
 

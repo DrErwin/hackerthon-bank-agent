@@ -9,8 +9,11 @@ from app.storage.database import connect, transaction
 
 
 class ApiProblem(ValueError):
-    def __init__(self, status, code):
+    def __init__(self, status, code, reason=None):
         self.status, self.code = status, code
+        # A caller that knows the truthful public wording sets it here; internal
+        # codes never become the public reason.
+        self.reason = reason
         super().__init__(code)
 
 

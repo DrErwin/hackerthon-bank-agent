@@ -45,13 +45,12 @@ from app.agent_platform.test_local_demo import app_for, configuration
 from app.contracts.common import (
     OperationLevel, Phase, RiskLevel, SecurityDecisionCode, TaskStatus,
 )
-from app.contracts.platform import StartTransferInput, TrustedContext
+from app.contracts.platform import TrustedContext
 from app.contracts.security import ActionDescriptor, SecurityDecision
 from app.contracts.tasks import (
     InteractionOption, InteractionRequest, ModuleResult,
 )
 from app.memory.adapter import MemoryContext
-from app.modules.cross.entry import CrossEntry
 from app.storage.database import connect
 
 from .store import dump
@@ -137,25 +136,25 @@ class World:
     client: TestClient
     api: object
     runtime: object
-    entry: CrossEntry
     who: TrustedContext
     task_id: str
+    start_request: UUID
+    delivery_ref: str
     card: ModuleResult
 
 
 @pytest.fixture(scope="module")
 def demo(tmp_path_factory):
-    # The real local-demo composition (real cross, security, saver and bank);
-    # the chat model is the repository's scripted test connector and is never
-    # consulted by the entry-driven birthday flow below.
+    # The real local-demo composition (real cross, security, saver and bank); the
+    # chat model is the repository's scripted test connector and is not consulted
+    # because the seeded task already carries its accepted proposal.
     config = configuration(tmp_path_factory.mktemp("f10-edit-entry"))
     app = app_for(config, response_mode="none")
     with TestClient(app) as client:
         yield {"client": client, "api": app.state.api, "runtime": app.state.api.runtime}
 
 
-@pytest.fixture()
-def world(demo):
+def _build_world(demo, *, stage: str) -> World:
     runtime, api, client = demo["runtime"], demo["api"], demo["client"]
     session_id = f"S-{uuid4()}"
     task_id = f"BIRTHDAY-{uuid4()}"
@@ -163,88 +162,91 @@ def world(demo):
     # A controlled detail reference is single-owner and immutable, so every world
     # gets its own reference for its own task.
     delivery_ref = f"deliver-birthday-{uuid4().hex}"
+    start_request = uuid4()
     at = datetime.now(timezone.utc)
     runtime.application.create_session(
         session_id, USER, ROUND, at.isoformat(),
         (at + timedelta(hours=2)).isoformat(),
     )
+    who = TrustedContext(
+        user_id=USER, session_id=session_id, demo_round_id=ROUND,
+        task_id=task_id, run_id=str(uuid4()), parent_task_id=None,
+    )
+    # The snapshot the real Harness keeps before its first Cross entry call:
+    # accepted start request, pinned planner version and the accepted proposal.
     runtime.application.create_task(
-        task_id, USER, session_id, ROUND, str(uuid4()), "running",
-        {"capability_name": "cross.start_task", "trace_id": str(uuid4())},
+        task_id, USER, session_id, ROUND, who.run_id, TaskStatus.RUNNING,
+        {
+            "request_id": str(start_request),
+            "intent_text": INTENT_TEXT,
+            "config_version": runtime.harness.planner.config_version,
+            "proposal": {"capability_name": "cross.start_task"},
+            "bill_source_task_id": None,
+            "bill_scope": None,
+            "selected_capability": None,
+            "trace_id": str(uuid4()),
+        },
     )
     runtime.application.store_controlled_detail(
         delivery_ref, USER, ROUND, task_id, "delivery", RAW_DELIVERY,
         at.isoformat(),
     )
-    task = runtime.application.get_task(USER, ROUND, task_id)
-    runtime.application.update_task(
-        USER, ROUND, task_id, task.revision, task.run_id, task.status,
-        task.checkpoint_id,
-        {**task.snapshot, "request_id": str(uuid4()), "intent_text": INTENT_TEXT},
-    )
-    # Ticket 03's public publication entry; its Cross/harness wiring is ticket
-    # 08's, so the fixture publishes the predecessor-less root source explicitly.
-    handoff = runtime.birthday.handoff
-    handoff.cross = StandInCrossHandoff(runtime.gateway._bank.clock)
-    who = TrustedContext(
-        user_id=USER, session_id=session_id, demo_round_id=ROUND,
-        task_id=task_id, run_id=str(uuid4()), parent_task_id=None,
-    )
-    handoff.publish_initial_state(who)
-    entry = CrossEntry(
-        runtime.harness,
-        runtime.memory.checkpointer(MemoryContext(USER, session_id, ROUND), task_id),
-        None, runtime.gateway._bank.clock,
-        birthday_ports_factory=runtime.birthday.ports_factory,
-    )
+    # Ticket 08's Cross candidate preparation is still a stand-in; the Harness
+    # G3 publication seam itself is the real ticket-03 path (root, then ordinary).
+    runtime.birthday.handoff.cross = StandInCrossHandoff(runtime.gateway._bank.clock)
     api.store.write("INSERT INTO api_sessions VALUES (?, ?)", (session_id, "user"))
     api.store.write(
         "INSERT INTO api_threads VALUES (?, ?, ?, ?, ?)",
         (thread_id, USER, ROUND, at.isoformat(), dump({"thread_id": thread_id})),
     )
-    saved = runtime.application.get_task(USER, ROUND, task_id)
     api.store.write(
         """INSERT INTO api_tasks (task_id, thread_id, user_id, session_id,
             demo_round_id, run_id, created_at, request_id, intent_text)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (task_id, thread_id, USER, session_id, ROUND, saved.run_id,
-         at.isoformat(), str(uuid4()), INTENT_TEXT),
+        (task_id, thread_id, USER, session_id, ROUND, who.run_id,
+         at.isoformat(), str(start_request), INTENT_TEXT),
     )
     client.cookies.clear()
     client.cookies.set("bank_session", api.cookie(session_id))
-    card = _freeze_card(entry, who, delivery_ref)
-    # Ticket 08's harness wiring would persist this card; until then the fixture
-    # records the card the real flow returned (same application-store write the
-    # harness makes) so the task view and its status reflect the current card.
-    _persist_card(runtime, task_id, card)
-    return World(client, api, runtime, entry, who, task_id, card)
-
-
-def _persist_card(runtime, task_id: str, result: ModuleResult) -> None:
-    task = runtime.application.get_task(USER, ROUND, task_id)
-    runtime.application.update_task(
-        USER, ROUND, task_id, task.revision, task.run_id, result.status,
-        task.checkpoint_id,
-        {**task.snapshot, "result": result.model_dump(mode="json")},
-    )
-
-
-def _freeze_card(entry: CrossEntry, who: TrustedContext,
-                 delivery_ref: str) -> ModuleResult:
-    started = entry.start(who, StartTransferInput(
-        request_id=uuid4(), intent_text=INTENT_TEXT))
+    started = runtime.harness.handle_message(who, start_request, INTENT_TEXT)
     assert started.status is TaskStatus.WAITING_INPUT, started.message
-    current = entry.resume(who, {"text": "500元"})
-    current = entry.resume(who, {"text": "2026-10-30"})
-    current = entry.resume(who, {"text": delivery_ref})
-    current = entry.resume(
-        who, {"selected_option_id": option_id(current, "鲜花")})
-    current = entry.resume(
-        who, {"selected_option_id": option_id(current, "蛋糕")})
-    current = entry.resume(
-        who, {"selected_option_id": option_id(current, "就选这些")})
-    current = entry.resume(
-        who, {"selected_option_id": option_id(current, "采用并开始办理")})
+    world = World(client, api, runtime, who, task_id, start_request,
+                  delivery_ref, started)
+    if stage == "start":
+        return world
+    world.card = _freeze_card(world)
+    return world
+
+
+@pytest.fixture()
+def world(demo):
+    return _build_world(demo, stage="freeze")
+
+
+@pytest.fixture()
+def started_world(demo):
+    return _build_world(demo, stage="start")
+
+
+def _resume(world: World, response: dict, *, request_id=None) -> ModuleResult:
+    """One ordinary F10-equivalent resume on the real Harness, with a fresh run."""
+    who = world.who.model_copy(update={"run_id": str(uuid4())})
+    return world.runtime.harness.resume(
+        who, response, request_id=request_id or uuid4())
+
+
+def _freeze_card(world: World) -> ModuleResult:
+    current = _resume(world, {"text": "500元"})
+    current = _resume(world, {"text": "2026-10-30"})
+    current = _resume(world, {"text": world.delivery_ref})
+    current = _resume(
+        world, {"selected_option_id": option_id(current, "鲜花")})
+    current = _resume(
+        world, {"selected_option_id": option_id(current, "蛋糕")})
+    current = _resume(
+        world, {"selected_option_id": option_id(current, "就选这些")})
+    current = _resume(
+        world, {"selected_option_id": option_id(current, "采用并开始办理")})
     assert current.interaction is not None, current.message
     assert current.interaction.kind == "confirmation", current.message
     return current
@@ -331,6 +333,81 @@ def claim_original(world: World):
     return context, descriptor
 
 
+# --------------------------------------- real Harness and request association
+
+
+def test_the_real_harness_publishes_the_real_birthday_card(started_world):
+    # The fixture drives the real ticket-03 Harness publication seam (root first,
+    # then one sealed ordinary successor per accepted resume); the card the API
+    # sees is the published result, not a test-side snapshot correction.
+    runtime = started_world.runtime
+    task = stored_task(started_world)
+    root = task.snapshot["birthday_g3"]["published_ref"]
+    assert root["kind"] == "root"
+    assert task.status is TaskStatus.WAITING_INPUT
+    assert task.checkpoint_id == root["checkpoint_id"]
+    # No Cross state ever reached the default latest namespace.
+    saver = runtime.memory.checkpointer(
+        MemoryContext(USER, started_world.who.session_id, ROUND),
+        started_world.task_id,
+    )
+    assert saver.get_tuple({
+        "configurable": {"thread_id": task.checkpoint_thread_id}}) is None
+    sealed = saver.get_tuple({"configurable": {
+        "thread_id": root["thread_id"], "checkpoint_ns": root["checkpoint_ns"],
+        "checkpoint_id": root["checkpoint_id"]}})
+    assert sealed is not None
+    assert sealed.checkpoint["channel_values"][CHANNEL]["scenario"] == "birthday"
+
+
+def test_ordinary_f10_resume_passes_the_original_request_id(
+    started_world, monkeypatch,
+):
+    calls = []
+    original = started_world.runtime.harness.resume
+
+    def spy(trusted, response, *, request_id=None):
+        calls.append(request_id)
+        return original(trusted, response, request_id=request_id)
+
+    monkeypatch.setattr(started_world.runtime.harness, "resume", spy)
+    request_id = uuid4()
+    response = submit_inputs(
+        started_world, request_id=request_id, text="500元",
+        interaction_id=started_world.card.interaction.interaction_id,
+    )
+    assert response.status_code == 200, response.text
+    assert calls == [request_id]
+    view = response.json()["data"]
+    assert view["status"] == "waiting_input"
+    assert "哪一天" in view["message"]
+    task = stored_task(started_world)
+    assert task.snapshot["birthday_g3"]["published_ref"]["kind"] == "normal"
+    assert task.snapshot["birthday_g3"]["pending"] is None
+
+
+def test_the_edit_entry_receives_the_original_request_id(world, monkeypatch):
+    calls = []
+    handoff = world.runtime.birthday.handoff
+    original = handoff.begin_birthday_edit
+
+    def spy(trusted, *, request_id, interaction_id, option_id):
+        calls.append((request_id, interaction_id, option_id))
+        return original(trusted, request_id=request_id,
+                        interaction_id=interaction_id, option_id=option_id)
+
+    monkeypatch.setattr(handoff, "begin_birthday_edit", spy)
+    request_id = uuid4()
+    option = edit_option(world.card)
+    response = submit_inputs(
+        world, request_id=request_id, text=None,
+        interaction_id=world.card.interaction.interaction_id,
+        selected_option_id=option,
+    )
+    assert response.status_code == 200, response.text
+    assert calls == [(request_id, world.card.interaction.interaction_id, option)]
+
+
 # ------------------------------------------------------------- entry diversion
 
 
@@ -373,10 +450,9 @@ def test_a_verification_card_enters_the_same_controlled_edit(world):
     # real step-up verification card, which must offer the same controlled edit.
     approve_confirmation(
         world.runtime, world.who, world.card.interaction.record_ref)
-    verification = world.entry.resume(world.who, {"choice": "approve"})
+    verification = _resume(world, {"choice": "approve"})
     assert verification.interaction is not None, verification.message
     assert verification.interaction.kind == "verification", verification.message
-    _persist_card(world.runtime, world.task_id, verification)
     before = stored_task(world)
     world.card = verification
 
@@ -482,6 +558,9 @@ def test_a_claim_that_ran_first_is_observed_never_edited(world):
     response = submit_edit(world)
     assert_public_edit_error(response, status=409)
     assert response.json()["error"]["code"] == "INTERACTION_STALE"
+    # A claimed/unknown original is verified along the old operation, never
+    # presented as unsubmitted.
+    assert "查询原操作" in response.json()["error"]["reason"]
 
     task = stored_task(world)
     assert task.status is TaskStatus.WAITING_APPROVAL
@@ -494,6 +573,29 @@ def test_a_claim_that_ran_first_is_observed_never_edited(world):
     assert world.runtime.confirmations.state.get_retirement(
         context, world.task_id, UUID(str(record["operation_id"])),
         int(record["action_revision"])) is None
+
+
+def test_a_lost_task_cas_is_a_refreshable_conflict_not_a_dependency_failure(
+    world, monkeypatch,
+):
+    handoff = world.runtime.birthday.handoff
+    original = handoff._retire_original
+
+    def bump_revision(trusted, record):
+        task = stored_task(world)
+        world.runtime.application.update_task(
+            USER, ROUND, world.task_id, task.revision, task.run_id,
+            task.status, task.checkpoint_id, task.snapshot)
+        return original(trusted, record)
+
+    monkeypatch.setattr(handoff, "_retire_original", bump_revision)
+    response = submit_edit(world)
+    assert_public_edit_error(response, status=409)
+    assert response.json()["error"]["code"] == "INTERACTION_STALE"
+    assert "刷新任务" in response.json()["error"]["reason"]
+    task = stored_task(world)
+    assert task.snapshot["birthday_edit"]["published"] is None
+    assert task.snapshot.get("result") is not None
 
 
 def test_a_lost_http_receipt_recovers_the_same_published_winner(world, monkeypatch):
@@ -534,6 +636,7 @@ def test_a_break_after_retirement_recovers_the_same_original_request(world):
     world.runtime.birthday.handoff.cross.fail_next = True
     first = submit_edit(world, request_id=request_id)
     assert first.status_code == 503, first.text
+    assert "原任务结果待核实" in first.json()["error"]["reason"]
     held = stored_task(world)
     edit = held.snapshot["birthday_edit"]
     assert edit["request_id"] == str(request_id)
@@ -588,6 +691,7 @@ def test_a_terminated_task_is_not_edited(world):
     response = submit_edit(world)
     assert_public_edit_error(response, status=409)
     assert response.json()["error"]["code"] == "TASK_TERMINATED"
+    assert "查看原任务" in response.json()["error"]["reason"]
     task = stored_task(world)
     assert task.status is TaskStatus.CANCELLED
     assert "birthday_edit" not in task.snapshot
