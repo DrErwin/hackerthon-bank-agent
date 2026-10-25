@@ -41,7 +41,7 @@ $env:PYTHONPATH=(Get-Location).Path
 python -m pytest -q ../evals/mockbank app/services app/storage --junitxml=../evals/mockbank/birthday-results.xml -o junit_family=legacy
 ```
 
-2026-10-25 最终合跑：**149 passed, 4 xfailed in 32.97s**，包括生日专项 37 项通过及4项未满足探针、原银行专项14项通过、服务及存储检查。首次合跑149项通过后，独立审查发现跨轮次缺口，新增四项strict xfail，不计入通过。XML保存最后一次逐例结果。
+2026-10-25 最终合跑：**149 passed, 4 xfailed in 46.34s**，包括生日专项 37 项通过及4项未满足探针、原银行专项14项通过、服务及存储检查。首次合跑149项通过后，独立审查发现跨轮次缺口，新增四项strict xfail，不计入通过。XML保存最后一次逐例结果。
 
 完整后端检查（同日，同基线，`python -m pytest -q`）：**1588 passed in 893.93s**。它不自动发现 `evals/`；新增生日评测由上面的专项命令单独运行。rebase 到 `a1e8889dd05cb11eb6577a0e11e146538aa42287` 仅引入中控文档更新，银行实现未变。
 
@@ -56,4 +56,4 @@ python -m pytest -q ../evals/mockbank app/services app/storage --junitxml=../eva
 
 ## 审查与交付
 
-独立 Standards 审查：0 项代码必须修复，1 项交付记录需回填；复跑生日37项通过。独立 Spec 审查：银行事实可信，发现上述跨轮次部分覆盖及交付记录待回填；复跑37项通过。已补四项可重复失败探针并如实标 blocked，未越界修公共代码。最终复审、PR及 CI 状态见本票交付记录。本报告不宣布包06或 v0.5 已验收。
+独立 Standards 首审：0 项代码必须修复，1 项交付记录需回填；复跑生日37项通过。独立 Spec 首审：银行事实可信，发现上述跨轮次部分覆盖及交付记录待回填；复跑37项通过。已补四项可重复失败探针并如实标 blocked，未越界修公共代码。二轮审查要求缩窄预期失败异常、允许正确拒绝的失败回执，均已修正：仅 `OldRoundObjectAllowed` 会被标为已知缺口，其他断言或服务错误正常失败。最终复审、PR及 CI 状态见本票交付记录。本报告不宣布包06或 v0.5 已验收。

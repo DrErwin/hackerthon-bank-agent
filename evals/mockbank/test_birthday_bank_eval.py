@@ -267,7 +267,11 @@ def test_operation_scope_isolation(birthday_runtime, user_context, action, chang
     assert state(bank) == before
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+class OldRoundObjectAllowed(AssertionError):
+    """Only the observed old-object access gap may become an expected failure."""
+
+
+@pytest.mark.xfail(strict=True, raises=OldRoundObjectAllowed, reason=(
     "Open round-boundary gap: old objects remain usable with a new UUID and an explicit test grant; "
     "see birthday-evidence.md and .scratch/v05-cross-bank-eval/round-boundary-gap.md"
 ))
@@ -302,13 +306,22 @@ def test_old_round_objects_with_new_operation_are_denied(
         "book_fen": bank.store.get_account("U1", "EVAL_A").book_balance_fen,
         "frozen_fen": bank.store.get_account("U1", "EVAL_A").frozen_balance_fen,
     }))
-    if probe in ("get_freeze", "get_order"):
-        assert isinstance(result, QueryFailure), "Old-round bank object was readable"
+    if getattr(result, "kind", None) == "ok" or (
+        getattr(result, "operation_status", None) is OperationStatus.SUCCEEDED
+    ):
+        raise OldRoundObjectAllowed(f"{probe}: D2 was allowed to use D1 bank objects under the test grant")
+    if isinstance(result, QueryFailure):
+        code = result.error.code
     else:
-        assert isinstance(result, QueryFailure) or result.operation_status is OperationStatus.FAILED, (
-            "New-round write succeeded against old-round bank objects under the test grant"
-        )
-    assert state(bank) == before
+        assert result.operation_status is OperationStatus.FAILED
+        code = result.failure.code
+    assert code in {"ACCESS_DENIED", "RECORD_NOT_FOUND", "OPERATION_CONFLICT"}, result
+    after = state(bank)
+    for table in TABLES:
+        # A real bank refusal may persist a FAILED operation receipt. Read-only
+        # queries must not write anything; denied writes must not move any funds.
+        if probe in ("get_freeze", "get_order") or table != "bank_operations":
+            assert after[table] == before[table]
 
 
 @pytest.mark.parametrize("action", ACTIONS, ids=lambda a: "MB-B07-" + a)
