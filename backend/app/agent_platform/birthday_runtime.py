@@ -52,13 +52,29 @@ _ACTION_LABELS = {
 }
 
 
-def _display_fields(action_name: str, parameters: dict) -> list[DisplayField]:
+_ORDER_ACTIONS = ("bank.create_order", "bank.capture_frozen")
+
+
+def _is_legacy_quantity(quantity) -> bool:
+    """The old shape is exactly ``None`` or the integer ``1``; ``True`` and
+    ``1.0`` must not slip through as one."""
+    return quantity is None or (
+        isinstance(quantity, int) and not isinstance(quantity, bool) and quantity == 1
+    )
+
+
+def _display_fields(action_name: str, parameters: dict,
+                    facts: dict | None = None) -> list[DisplayField]:
     from app.security.birthday_policy import with_release_clause
 
     fields = [DisplayField(name="action", label="办理事项",
                            value_text=_ACTION_LABELS.get(action_name, action_name))]
     if "amount_fen" in parameters:
-        fields.append(DisplayField(name="amount", label="金额",
+        # Only a new-protocol attempt carries display facts; an older stored
+        # confirmation must keep matching its own recorded label.
+        label = "金额（小计）" if action_name in _ORDER_ACTIONS and facts is not None \
+            else "金额"
+        fields.append(DisplayField(name="amount", label=label,
                                    value_text=f"{_yuan(parameters['amount_fen'])} 元"))
     if "product_id" in parameters:
         fields.append(DisplayField(
@@ -67,7 +83,68 @@ def _display_fields(action_name: str, parameters: dict) -> list[DisplayField]:
         ))
     if action_name == "bank.freeze_funds":
         return with_release_clause(fields)
+    # Quantity, original unit price, delivery deadline and payer account come
+    # from the frozen attempt facts, never from a fresh quote.
+    facts = facts or {}
+    quantity = facts.get("quantity")
+    unit_price_fen = facts.get("unit_price_fen")
+    if quantity is not None:
+        fields.append(DisplayField(name="quantity", label="数量",
+                                   value_text=f"{quantity} 件"))
+    if unit_price_fen is not None:
+        fields.append(DisplayField(name="unit_price", label="单价",
+                                   value_text=f"{_yuan(unit_price_fen)} 元"))
+    if facts.get("deliver_by"):
+        fields.append(DisplayField(name="deliver_by", label="最晚送达",
+                                   value_text=facts["deliver_by"]))
+    if facts.get("account_id"):
+        fields.append(DisplayField(name="account", label="付款账户",
+                                   value_text=facts["account_id"]))
     return fields
+
+
+def _item_identity(plan, item: dict) -> tuple[str, str] | None:
+    """Which execution item one plan row belongs to, or ``None`` when unclear.
+
+    A stable server-side ``item_id`` is the new protocol: a replaced item is a
+    different execution item even when the product is the same. The legacy
+    product key survives only for the old, provable shape (quantity one and one
+    plan row per product); anything else must not silently fall back to it.
+    """
+    item_id = item.get("item_id")
+    if item_id is not None:
+        # A row that carries the field but no usable id belongs to the new
+        # protocol: it must not quietly fall back to the product key.
+        if isinstance(item_id, str) and item_id.strip():
+            return "item", item_id.strip()
+        return None
+    product_id = item.get("product_id")
+    if not isinstance(product_id, str) or not product_id:
+        return None
+    if not _is_legacy_quantity(item.get("quantity", 1)):
+        return None
+    if sum(1 for row in plan.items if row.get("product_id") == product_id) != 1:
+        return None
+    return "legacy", product_id
+
+
+def _action_key(kind: str, identity: tuple[str, str]) -> str:
+    protocol, name = identity
+    return f"{kind}:{name}" if protocol == "legacy" else f"{kind}:item/{name}"
+
+
+def _quantity_of(item: dict) -> int | None:
+    quantity = item.get("quantity", 1)
+    if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1:
+        return None
+    return quantity
+
+
+def _deliver_by(plan) -> str:
+    deliver_by = plan.deliver_by
+    if len(deliver_by) == 10:  # a bare date means end of that day, Beijing time
+        deliver_by += "T23:59:59+08:00"
+    return deliver_by
 
 
 class BirthdayRuntime:
@@ -112,42 +189,68 @@ class BirthdayTaskPorts:
         )
         return (task.snapshot or {}).get("birthday_actions") or {}
 
-    def _remember(self, trusted, key: str, action: dict) -> None:
+    def _attempts(self, trusted) -> list[dict]:
+        task = self.runtime.application.get_task(
+            trusted.user_id, trusted.demo_round_id, trusted.task_id,
+        )
+        return list((task.snapshot or {}).get("birthday_attempts") or [])
+
+    def _remember(self, trusted, key: str, action: dict,
+                  replaced: dict | None = None) -> None:
         task = self.runtime.application.get_task(
             trusted.user_id, trusted.demo_round_id, trusted.task_id,
         )
         stored = (task.snapshot or {}).get("birthday_actions") or {}
         actions = {**stored, key: action}
+        attempts = list((task.snapshot or {}).get("birthday_attempts") or [])
+        if replaced is not None:
+            # A replaced attempt keeps its original id and parameters: looking
+            # one up by the saved operation id must never return a newer one.
+            attempts.append(replaced)
         self.runtime.application.update_task(
             trusted.user_id, trusted.demo_round_id, trusted.task_id,
             task.revision, task.run_id, task.status, task.checkpoint_id,
-            {**task.snapshot, "birthday_actions": actions},
+            {**task.snapshot, "birthday_actions": actions,
+             "birthday_attempts": attempts},
         )
 
-    def _action(self, trusted, key: str, parameters: dict) -> dict:
+    def _action(self, trusted, key: str, parameters: dict,
+                facts: dict | None = None) -> dict:
         action = self._actions(trusted).get(key)
         if action is not None and action["parameters"] == parameters:
             return action
+        replaced = action
         # Sequential writes of one action need a strictly rising revision
         # (the state layer refuses a stale one); count from the highest ever
         # used so a replaced entry never rewinds the counter.
         revision = 1 + max(
             (stored.get("action_revision", 0)
-             for stored in self._actions(trusted).values()
+             for stored in (*self._actions(trusted).values(),
+                            *self._attempts(trusted))
              if stored.get("parameters", {}).get("__action__")
              == parameters["__action__"]),
             default=0,
         )
         action = {"operation_id": str(uuid4()), "parameters": parameters,
                   "action_revision": revision}
-        self._remember(trusted, key, action)
+        if facts is not None:
+            # Display facts freeze with the attempt. They are not part of the
+            # action parameters, so old stored bindings keep comparing equal.
+            action["facts"] = facts
+        self._remember(trusted, key, action, replaced)
         return action
 
-    def _parameters_for(self, trusted, operation_ref: str) -> dict:
+    def _action_for(self, trusted, operation_ref: str) -> dict:
         for stored in self._actions(trusted).values():
             if stored.get("operation_id") == operation_ref:
-                return stored.get("parameters") or {}
+                return stored
+        for stored in self._attempts(trusted):
+            if stored.get("operation_id") == operation_ref:
+                return stored
         return {}
+
+    def _parameters_for(self, trusted, operation_ref: str) -> dict:
+        return self._action_for(trusted, operation_ref).get("parameters") or {}
 
     def _freeze_id(self, trusted) -> str | None:
         freeze = self._actions(trusted).get("freeze") or {}
@@ -277,9 +380,11 @@ class BirthdayTaskPorts:
             )
 
         def confirmation_preparer(context, action):
-            parameters = self._parameters_for(trusted, action.parameters_ref)
+            stored = self._action_for(trusted, action.parameters_ref)
+            parameters = stored.get("parameters") or {}
             record = runtime.confirmations.create(
-                context, action, _display_fields(action.action_name, parameters))
+                context, action,
+                _display_fields(action.action_name, parameters, stored.get("facts")))
             runtime.application.bind_ref(context.user_id, context.demo_round_id,
                                          context.task_id, "confirmation",
                                          record.confirmation_id)
@@ -289,14 +394,16 @@ class BirthdayTaskPorts:
             return record
 
         def verification_preparer(context, action, confirmation, risk):
-            parameters = self._parameters_for(trusted, action.parameters_ref)
+            stored = self._action_for(trusted, action.parameters_ref)
+            parameters = stored.get("parameters") or {}
             summary = VerificationSummary(
                 operation_id=context.operation_id, action_revision=context.action_revision,
                 source_confirmation_id=confirmation.confirmation_id,
                 source_confirmation_version=confirmation.confirmation_version,
                 action_name=action.action_name, amount_fen=parameters.get("amount_fen"),
                 payee=None,
-                display_fields=_display_fields(action.action_name, parameters),
+                display_fields=_display_fields(
+                    action.action_name, parameters, stored.get("facts")),
             )
             challenge = runtime.gateway.create_verification(
                 _trusted_of(context), "action_step_up", context.operation_id,
@@ -320,8 +427,10 @@ class BirthdayTaskPorts:
                 raise SecurityError("ACCESS_DENIED") from exc
 
         def validate_summary(context, action, confirmation, summary):
-            parameters = self._parameters_for(trusted, action.parameters_ref)
-            fields = _display_fields(action.action_name, parameters)
+            stored = self._action_for(trusted, action.parameters_ref)
+            parameters = stored.get("parameters") or {}
+            fields = _display_fields(
+                action.action_name, parameters, stored.get("facts"))
             return (summary.amount_fen == parameters.get("amount_fen")
                     and summary.payee is None
                     and summary.display_fields == fields
@@ -394,9 +503,9 @@ class BirthdayTaskPorts:
 
     def _security_context(self, trusted, operation_id, *, release_authorization_id=None):
         revision = 1
-        for stored in self._actions(trusted).values():
-            if stored.get("operation_id") == operation_id:
-                revision = stored.get("action_revision", 1)
+        stored = self._action_for(trusted, operation_id)
+        if stored:
+            revision = stored.get("action_revision", 1)
         base = self.runtime._context(trusted, UUID(operation_id), revision)
         return base.model_copy(update={
             "release_authorization_id": release_authorization_id,
@@ -410,8 +519,8 @@ class BirthdayTaskPorts:
             deliver_by=request.deliver_by,
         ))
 
-    def _check(self, context, key, parameters) -> GateAnswer:
-        action = self._action(context, key, parameters)
+    def _check(self, context, key, parameters, facts=None) -> GateAnswer:
+        action = self._action(context, key, parameters, facts)
         gate, _executor = self._gate(context)
         descriptor = ActionDescriptor(
             action_name=parameters["__action__"], parameters_ref=action["operation_id"],
@@ -428,6 +537,16 @@ class BirthdayTaskPorts:
         return GateAnswer(decision.decision, action["operation_id"],
                           reason_code=decision.reason_codes[0] if decision.reason_codes
                           else "SECURITY_NOT_ALLOWED")
+
+    def _execute_verified(self, context, key, parameters, operation_id) -> PortsWrite:
+        if operation_id is not None:
+            stored = self._actions(context).get(key) or {}
+            if stored.get("operation_id") != str(operation_id):
+                # A captured original that is not this item's live attempt is
+                # never resubmitted as a fresh write.
+                return PortsWrite(executed=False, state="failed", result=None,
+                                  operation_id=None)
+        return self._execute(context, key, parameters)
 
     def _execute(self, context, key, parameters) -> PortsWrite:
         action = self._actions(context).get(key)
@@ -472,74 +591,155 @@ class BirthdayTaskPorts:
     def freeze_execute(self, context, plan):
         return self._execute(context, "freeze", self._FREEZE_PARAMETERS(plan))
 
-    def _order_request(self, context, plan, item):
+    def _order_request(self, context, plan, item, quantity: int):
         detail = self.runtime.application.get_controlled_detail(
             context.user_id, context.demo_round_id, plan.delivery_ref,
         )
         if detail is None:
             return None
-        deliver_by = plan.deliver_by
-        if len(deliver_by) == 10:  # a bare date means end of that day, Beijing time
-            deliver_by += "T23:59:59+08:00"
         return CreateOrderInput(
-            product_id=item["product_id"], quantity=1,
+            product_id=item["product_id"], quantity=quantity,
             expected_total_fen=item["amount_fen"],
             delivery=DeliveryInput(
                 recipient_name=detail.payload["recipient_name"],
                 phone=detail.payload["phone"], address=detail.payload["address"],
-                deliver_by=deliver_by,
+                deliver_by=_deliver_by(plan),
             ),
         )
 
     @staticmethod
-    def _enriched(plan, item) -> dict:
+    def _enriched(plan, identity: tuple[str, str], item: dict) -> dict:
         """The flow's order rows carry ids and amounts; the merchant facts
-        travel on the plan items (the bank's own product cache)."""
-        source = next((row for row in plan.items
-                       if row.get("product_id") == item["product_id"]), {})
+        travel on the plan items (the bank's own product cache), matched by the
+        stable item id when the new protocol carries one, else by the product."""
+        protocol, name = identity
+        field = "item_id" if protocol == "item" else "product_id"
+        source = next((row for row in plan.items if row.get(field) == name), {})
         return {**source, **{k: v for k, v in item.items() if v is not None}}
 
-    def _order_parameters(self, context, plan, item) -> dict | None:
-        item = self._enriched(plan, item)
-        request = self._order_request(context, plan, item)
+    def _identity_conflict(self, context, plan, kind: str,
+                           identity: tuple[str, str]) -> bool:
+        """A legacy product key may not stand in for an item the backend has
+        already bound to a stable item id: the plan carries one, or a stored
+        item attempt for the same product exists. Downgrading there would let
+        one product own two attempts again."""
+        if identity[0] != "legacy":
+            return False
+        product_id = identity[1]
+        if any(row.get("product_id") == product_id and row.get("item_id")
+               for row in plan.items):
+            return True
+        prefixes = (f"{kind}:item/", "order:item/")
+        return any(
+            key.startswith(prefixes)
+            and (stored.get("parameters") or {}).get("product_id") == product_id
+            for key, stored in self._actions(context).items()
+        )
+
+    def _frozen_order(self, context, identity: tuple[str, str]) -> dict:
+        """The create-order attempt's own frozen parameters for this item."""
+        stored = self._actions(context).get(_action_key("order", identity)) or {}
+        return stored.get("parameters") or {}
+
+    def _order_binding(self, context, plan, item):
+        """(key, parameters, facts, reason) for one order attempt."""
+        identity = _item_identity(plan, item)
+        if identity is None or self._identity_conflict(context, plan, "order", identity):
+            return None, None, None, "ITEM_IDENTITY_AMBIGUOUS"
+        quantity = _quantity_of(item)
+        if quantity is None:
+            return None, None, None, "ITEM_QUANTITY_INVALID"
+        enriched = self._enriched(plan, identity, item)
+        parameters = {
+            "__action__": "bank.create_order", "product_id": enriched["product_id"],
+            "amount_fen": enriched["amount_fen"],
+            "merchant_id": enriched["merchant_id"],
+            "merchant_name": enriched["merchant_name"], "purpose": enriched["name"],
+            "category": enriched.get("category", "shopping"),
+        }
+        facts = {"quantity": quantity,
+                 "unit_price_fen": enriched["amount_fen"],
+                 "deliver_by": _deliver_by(plan),
+                 "account_id": plan.payer_account_id}
+        if identity[0] == "item":
+            unit_price_fen = enriched.get("unit_price_fen")
+            if not isinstance(unit_price_fen, int) or unit_price_fen <= 0:
+                return None, None, None, "ITEM_UNIT_PRICE_MISSING"
+            if unit_price_fen * quantity != enriched["amount_fen"]:
+                return None, None, None, "ITEM_AMOUNT_MISMATCH"
+            # Only the stable item id joins the binding: quantity and price are
+            # already inside the frozen request, and delivery stays on the plan.
+            parameters["item_id"] = identity[1]
+            facts["unit_price_fen"] = unit_price_fen
+        request = self._order_request(context, plan, enriched, quantity)
         if request is None:
-            return None
-        return {"__action__": "bank.create_order", "product_id": item["product_id"],
-                "amount_fen": item["amount_fen"],
-                "merchant_id": item["merchant_id"],
-                "merchant_name": item["merchant_name"], "purpose": item["name"],
-                "category": item.get("category", "shopping"),
-                "request": request.model_dump(mode="json")}
+            return None, None, None, "DELIVERY_REFERENCE_INVALID"
+        parameters["request"] = request.model_dump(mode="json")
+        return _action_key("order", identity), parameters, facts, None
 
     def order_check(self, context, plan, item):
-        parameters = self._order_parameters(context, plan, item)
-        if parameters is None:
+        key, parameters, facts, reason = self._order_binding(context, plan, item)
+        if reason is not None:
             return GateAnswer(SecurityDecisionCode.BLOCK, str(uuid4()),
-                              reason_code="DELIVERY_REFERENCE_INVALID")
-        return self._check(context, f"order:{item['product_id']}", parameters)
+                              reason_code=reason)
+        return self._check(context, key, parameters, facts)
 
-    def order_execute(self, context, plan, item):
-        parameters = self._order_parameters(context, plan, item)
-        if parameters is None:
+    def order_execute(self, context, plan, item, *, operation_id=None):
+        key, parameters, _facts, reason = self._order_binding(context, plan, item)
+        if reason is not None:
             return PortsWrite(executed=False, state="failed", result=None,
                               operation_id=None)
-        return self._execute(context, f"order:{item['product_id']}", parameters)
+        return self._execute_verified(context, key, parameters, operation_id)
 
-    def _capture_parameters(self, context, plan, item, order_id) -> dict:
-        item = self._enriched(plan, item)
-        return {"__action__": "bank.capture_frozen", "amount_fen": item["amount_fen"],
-                "merchant_id": item["merchant_id"],
-                "merchant_name": item["merchant_name"],
-                "purpose": item["name"], "category": item.get("category", "shopping"),
-                "order_id": order_id}
+    def _capture_binding(self, context, plan, item, order_id):
+        """(key, parameters, facts, reason) for one capture attempt."""
+        identity = _item_identity(plan, item)
+        if identity is None or self._identity_conflict(context, plan, "capture", identity):
+            return None, None, None, "ITEM_IDENTITY_AMBIGUOUS"
+        quantity = _quantity_of(item)
+        if quantity is None:
+            return None, None, None, "ITEM_QUANTITY_INVALID"
+        enriched = self._enriched(plan, identity, item)
+        # Paying an order reads that order's own creation parameters: a later
+        # quote must not rewrite what the created order actually says.
+        frozen = self._frozen_order(context, identity)
+        amount_fen = frozen.get("amount_fen", enriched["amount_fen"])
+        frozen_quantity = (frozen.get("request") or {}).get("quantity", quantity)
+        parameters = {"__action__": "bank.capture_frozen",
+                      "amount_fen": amount_fen,
+                      "merchant_id": frozen.get("merchant_id", enriched["merchant_id"]),
+                      "merchant_name": frozen.get("merchant_name",
+                                                  enriched["merchant_name"]),
+                      "purpose": frozen.get("purpose", enriched["name"]),
+                      "category": frozen.get("category",
+                                             enriched.get("category", "shopping")),
+                      "order_id": order_id}
+        facts = {"quantity": frozen_quantity,
+                 "unit_price_fen": (amount_fen // frozen_quantity
+                                    if frozen_quantity else amount_fen),
+                 "deliver_by": _deliver_by(plan),
+                 "account_id": plan.payer_account_id}
+        if identity[0] == "item":
+            parameters["item_id"] = identity[1]
+            parameters["product_id"] = frozen.get("product_id",
+                                                  enriched["product_id"])
+        return _action_key("capture", identity), parameters, facts, None
 
     def capture_check(self, context, plan, item, order_id):
-        return self._check(context, f"capture:{item['product_id']}",
-                           self._capture_parameters(context, plan, item, order_id))
+        key, parameters, facts, reason = self._capture_binding(
+            context, plan, item, order_id)
+        if reason is not None:
+            return GateAnswer(SecurityDecisionCode.BLOCK, str(uuid4()),
+                              reason_code=reason)
+        return self._check(context, key, parameters, facts)
 
-    def capture_execute(self, context, plan, item, order_id):
-        return self._execute(context, f"capture:{item['product_id']}",
-                             self._capture_parameters(context, plan, item, order_id))
+    def capture_execute(self, context, plan, item, order_id, *, operation_id=None):
+        key, parameters, _facts, reason = self._capture_binding(
+            context, plan, item, order_id)
+        if reason is not None:
+            return PortsWrite(executed=False, state="failed", result=None,
+                              operation_id=None)
+        return self._execute_verified(context, key, parameters, operation_id)
 
     # ------------------------------------------------------- §3.5 release
 
@@ -584,8 +784,7 @@ class BirthdayTaskPorts:
         return authorization.freeze_id
 
     def requery(self, context, plan, target, operation_id):
-        stored = next((action for action in self._actions(context).values()
-                       if action["operation_id"] == str(operation_id)), None)
+        stored = self._action_for(context, str(operation_id)) or None
         if stored is None:
             return None
         descriptor = ActionDescriptor(
