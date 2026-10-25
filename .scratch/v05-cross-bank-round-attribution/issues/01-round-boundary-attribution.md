@@ -39,4 +39,6 @@ Core scenarios: RA01—RA05，见本规格；关联原XL-B及轮次隔离要求�
 - 旧API身份/任务受阻、真实写claim有效、旧上下文先STALE_ROUND；D2内部端口经过真实确认/验证仍可付款已知D1订单。未证明页面/正常HTTP可注入旧编号；不新增政策，最小平台资源核对票仅建议。
 - 原PR290与四项已知失败未改。归因通过不代表原银行专项验收通过。
 - 独立Standards/Spec子代理复核均0项必须修复，分别复跑3 passed；轻微模型调用措辞建议已修正。相关原用例4 passed, 32 deselected in 18.50s。
-- PR与CI待记录；不以模型替身/ASGI检查冒充真实模型/外部TCP/页面E2E，不重复跑无关全后端/模型评测。
+- [PR #294](https://github.com/DrErwin/hackerthon-bank-agent/pull/294) 已提交并附执行对话，交中控排队，未自行合并。代码提交`db66250`；之后仅事实/措辞/交付记录。rebase到`fd6cd703846a9614e32cff1434fdfe343fdd18c8`只引入主线文档及其他评测文档，运行实现未变。
+- CI实查head `74e9471` 的[Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40168942779/job/121095667265) failure且job未启动，GitHub原因为账号近期付款失败或消费额度需提高；属于Actions环境阻塞，不记CI绿。中控合入前复核最终head。现CI显式银行命令仍仅旧评测文件，本轮3项由上面的本地命令留证。
+- 不以模型替身/ASGI检查冒充真实模型/外部TCP/页面E2E，不重复跑无关全后端/模型评测。只读归因已交；平台最小修复票仍是建议，未代替中控正式分派，未新增银行轮次政策。

@@ -67,3 +67,5 @@ python -m pytest -q ../evals/mockbank/test_birthday_round_attribution.py --tb=sh
 相关原测试另跑 **4 passed, 32 deselected in 18.50s**：真实生日完整链、花付款后停止、无装配网关拒绝，以及`test_stale_round_authorization_cannot_finalize`。最后一项是原安全组件Rig单测，验证finalizer自身的显式STALE_ROUND分支；不冒称本轮真实端口越过了更早的memory轮次门。
 
 独立Standards复核0项必须修复，独立复跑3 passed in 14.24s；Spec/真实性复核0项必须修复，独立复跑3 passed in 13.32s。Spec建议修正文件开头“模型从不被调用”的措辞，已改为“无外部模型请求、API使用一次脚本响应”，不改变运行行为。本票只读归因完成，原专项与跨轮次验收仍blocked。
+
+交付：[PR #294](https://github.com/DrErwin/hackerthon-bank-agent/pull/294)，未自行合并。实查head `74e9471` 的[Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40168942779/job/121095667265)因账号付款/额度问题未启动，记为CI环境阻塞；新增归因文件也未包含在现CI显式旧银行评测命令中，不能以CI绿替代本轮3项实跑。当前分支rebase只新增主线文档，运行实现与测试基线相同。
