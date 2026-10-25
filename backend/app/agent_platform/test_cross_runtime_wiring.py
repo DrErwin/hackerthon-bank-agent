@@ -155,6 +155,7 @@ def test_real_composition_mounts_cross_and_traces_children(tmp_path):
     assert summary.comparison.as_of == min(batch.as_of for batch in reference_batches.values())
     rows = [row for batch in current_batches.values() for row in batch.transactions]
     reference_rows = [row for batch in reference_batches.values() for row in batch.transactions]
+    assert reference_rows  # This seeded composition must exercise a real comparison.
     assert summary.transaction_count == len(rows) > 0
     assert summary.consumption_gross_fen == sum(row.amount_fen for row in rows if row.nature == "consumption")
     assert summary.consumption_refund_fen == sum(row.amount_fen for row in rows if row.nature == "refund")
