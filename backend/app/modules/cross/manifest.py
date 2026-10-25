@@ -8,7 +8,7 @@ CROSS_MANIFEST = ModuleManifest(
     module_name="cross", version="0.5.0-cross-2", owner="Erwin",
     description=(
         "生活目标编排：减支（账单对比/签约盘点→逐项受控退订→总回执）；"
-        "养老金（资金范围/留存采用→D1→逐笔转账）；生日（真实商品→预算采用→冻结→"
+        "养老金（选择真实入账/本人账户或家人去向→留存采用→D1→逐笔转账）；生日（真实商品→预算采用→冻结→"
         "受控配送表单→下单→按订单核销→限定释放，银行事实逐步可读，写动作走生日安全门）"
     ),
     implementation_kind="workflow", dependencies=["bank_gateway", "security_gate"],

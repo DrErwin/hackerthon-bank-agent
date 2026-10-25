@@ -12,6 +12,8 @@ from uuid import uuid4
 import pytest
 
 from app.contracts.common import TaskStatus
+from app.contracts.bank import Transaction
+from app.contracts.bills import BillDetails, AccountSourceAsOf
 from app.contracts.cross import CrossScenario, CrossStartInput
 from app.contracts.platform import StartTransferInput, TrustedContext
 from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
@@ -34,8 +36,9 @@ class ScriptedBillsDetails:
     """Bills details + accounts stub; accounts answers draw from a shared
     balance queue so a refresh observes a changed bank fact (review F9)."""
 
-    def __init__(self, income_fen, balances=None):
+    def __init__(self, income_fen, balances=None, transactions=None):
         self.income_fen = income_fen
+        self.transactions = transactions
         self.balances = balances if balances is not None else [1_000_000]
 
     def start(self, trusted, request, *, thread_id=None):
@@ -50,10 +53,15 @@ class ScriptedBillsDetails:
                 allowed_actions=[], recovery_required=False, recovery_reason=None)
         mode = getattr(request, "mode", "summary")
         if mode == "details":
-            data = {"transactions": [
-                {"transaction_id": "in_1", "amount_fen": self.income_fen,
-                 "direction": "transfer_in", "occurred_at": NOW.isoformat()},
-            ]}
+            rows = self.transactions if self.transactions is not None else [Transaction(
+                transaction_id="in_1", account_id="A1", amount_fen=self.income_fen,
+                direction="inflow", nature="transfer", occurred_at=NOW, category="transfer",
+                counterparty_id=None, counterparty_name="养老金发放", counterparty_account_masked=None,
+                channel="bank", summary="养老金到账", original_transaction_id=None, original_occurred_at=None)]
+            data = BillDetails(scope=request.scope, category=None,
+                transactions=sorted(rows, key=lambda row: (row.occurred_at, row.account_id, row.transaction_id)),
+                source_as_of=[AccountSourceAsOf(account_id=a, as_of=NOW) for a in request.scope.account_ids],
+                as_of=NOW).model_dump(mode="json")
             message = "已读取本月流水。"
         else:
             data = {"consumption_net_fen": 0, "comparison": {"delta_fen": 0},
@@ -77,11 +85,14 @@ class ScriptedBillsDetails:
 class ScriptedTransfer:
     """transfer.start_transfer child with scripted outcomes (confirm -> done)."""
 
-    def __init__(self, script):
+    def __init__(self, script, inputs=None):
         # A shared list makes one queue span every child of the composition.
         self.script = script if isinstance(script, list) else list(script)
+        self.inputs = inputs
 
     def start(self, trusted, request, *, thread_id=None):
+        if self.inputs is not None:
+            self.inputs.append(request)
         # A spend always waits for its own confirmation before any outcome.
         return ModuleResult(task_id=trusted.task_id, run_id=trusted.run_id,
             status=TaskStatus.WAITING_APPROVAL, data=None, message="请确认转账。",
@@ -126,7 +137,7 @@ PAYEES_DATA = {"payees": [
 
 
 def pension_composition(tmp_path, *, income_fen=500000, transfers=("success", "success"),
-                        mandates=None, balances=None, blocked=()):
+                        mandates=None, balances=None, blocked=(), transactions=None, transfer_inputs=None):
     transfer_queue = list(transfers)
     balance_queue = list(balances) if balances is not None else [1_000_000]
     application = __import__("app.storage.application", fromlist=["ApplicationStore"]).ApplicationStore(
@@ -143,7 +154,7 @@ def pension_composition(tmp_path, *, income_fen=500000, transfers=("success", "s
     register_subscription(harness.registry, lambda trusted, trace: ScriptedPorts(bank, gate_states),
                           lambda: NOW)
     harness.registry.register_module(
-        BILLS_MANIFEST, lambda trusted, saver, trace: ScriptedBillsDetails(income_fen))
+        BILLS_MANIFEST, lambda trusted, saver, trace: ScriptedBillsDetails(income_fen, transactions=transactions))
     stubs = accounts_manifest("list_accounts")
     harness.registry.register_module(
         stubs, lambda trusted, saver, trace: ScriptedBillsDetails(income_fen, balance_queue))
@@ -158,7 +169,7 @@ def pension_composition(tmp_path, *, income_fen=500000, transfers=("success", "s
 
     harness.registry.register_module(payees, lambda trusted, saver, trace: PayeesStub(0))
     harness.registry.register_transfer(TRANSFER_MANIFEST,
-                                       lambda trusted, saver, trace: ScriptedTransfer(transfer_queue))
+                                       lambda trusted, saver, trace: ScriptedTransfer(transfer_queue, transfer_inputs))
     register_cross(harness, lambda: NOW)
     real_now = datetime.now(timezone.utc)
     application.create_session("S1", "U1", "D1", real_now.isoformat(),
@@ -319,7 +330,7 @@ def test_p05_cancelling_first_never_inflates_the_funds_scope(tmp_path):
     # Income facts are unchanged by the cancel: still 5000, not 5000+25.
     options = [item.label for item in back.interaction.options]
     assert options  # back is the basis menu after the F5 chain above
-    assert any("本月实际入账合计 5000.00 元" in label for label in options)
+    assert any("本月实际入账 5000.00 元" in label for label in options)
     assert not any("5025.00" in label or "5125.00" in label for label in options)
 
 

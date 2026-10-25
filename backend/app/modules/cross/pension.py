@@ -84,7 +84,8 @@ class PensionFlow:
         if not isinstance(result, dict):
             return []
         return [row for row in result.get("transactions") or []
-                if row.get("direction") == "transfer_in"]
+                if row.get("direction") == "inflow" and row.get("nature") == "transfer"
+                and row.get("account_id") == self.pension["payer"]]
 
     def _balance(self, account_id: str):
         for account in self.pension["accounts"]:
@@ -303,16 +304,9 @@ class PensionFlow:
 
     def _ask_basis(self, trusted):
         incomes = self._income_transactions()
-        income_total = sum(row["amount_fen"] for row in incomes)
-        choices = []
-        if incomes:
-            choices.append((f"本月实际入账合计 {money(income_total)} 元",
-                            {"kind": "pension_basis", "basis": "selected_income"}))
         balance = self._balance(self.pension["payer"])
         accounts_ok = bool(self.pension.get("accounts_ok"))
-        if accounts_ok and balance is not None:
-            choices.append((f"当前可用余额 {money(balance)} 元",
-                            {"kind": "pension_basis", "basis": "available_balance"}))
+        choices = self._basis_choices(incomes, balance)
         if not choices:
             return self.entry._ask(trusted, self.state,
                                    "账户与入账情况暂时都查不到，本次先不安排；"
@@ -355,11 +349,20 @@ class PensionFlow:
         choices = [(f"转给 {p['name_masked']}（{p['account_masked']}）",
                     {"kind": "pension_payee", "payee_id": p["payee_id"],
                      "name": p["name_masked"]}) for p in payees]
+        own_accounts = [a for a in self.pension["accounts"]
+                        if a["account_id"] != self.pension["payer"]]
+        choices = [(f"转到 本人·{a['display_name']}（{a['account_masked']}）",
+                    {"kind": "pension_own_account", "target_account_id": a["account_id"],
+                     "name": f"本人·{a['display_name']}"}) for a in own_accounts] + choices
         choices.append(("去向已选好，开始办理", {"kind": "pension_adopt"}))
         remaining = self._remaining()
-        prompt = (f"本次还可安排 {money(remaining)} 元。要转给哪位收款人？"
+        prompt = (f"本次还可安排 {money(remaining)} 元。请选择本人账户或收款人："
                   "（逐笔选择，每笔转账前还会有确认）")
-        if not payees:
+        if not payees and own_accounts:
+            if self.pension.get("payees_ok") is False:
+                prompt += "保存的收款人暂时查不到，已查到的本人账户仍可选择。"
+                choices.append(("重新查询收款人", {"kind": "pension_retry_payees"}))
+        elif not payees:
             if self.pension.get("payees_ok") is False:
                 prompt = "收款人暂时查不到（不是没有收款人）。可以重新查询或停止本次安排。"
                 choices = [("重新查询收款人", {"kind": "pension_retry_payees"}),
@@ -462,8 +465,12 @@ class PensionFlow:
             pension["basis"] = picked["basis"]
             if picked["basis"] == "selected_income":
                 incomes = self._income_transactions()
-                pension["income_transaction_ids"] = [row["transaction_id"] for row in incomes]
-                pension["base_fen"] = sum(row["amount_fen"] for row in incomes)
+                selected_ids = picked.get("income_transaction_ids")
+                if not selected_ids or not set(selected_ids) <= {row["transaction_id"] for row in incomes}:
+                    return self._ask_basis(trusted)
+                pension["income_transaction_ids"] = list(selected_ids)
+                pension["base_fen"] = sum(row["amount_fen"] for row in incomes
+                                           if row["transaction_id"] in selected_ids)
             else:
                 pension["base_fen"] = self._balance(pension["payer"])
             pension["phase"] = "reserve"
@@ -478,6 +485,11 @@ class PensionFlow:
             return entry._advance_pension(trusted, self.state)
         if kind == "pension_payee":
             pension["allocations"].append({"payee_id": picked["payee_id"],
+                                           "name": picked["name"], "amount_fen": None})
+            pension["phase"] = "amount"
+            return self._ask_amount(trusted)
+        if kind == "pension_own_account":
+            pension["allocations"].append({"target_account_id": picked["target_account_id"],
                                            "name": picked["name"], "amount_fen": None})
             pension["phase"] = "amount"
             return self._ask_amount(trusted)
@@ -536,7 +548,7 @@ class PensionFlow:
             if claimed is None:
                 return self._ask_basis(trusted)
             correction = []
-            if claimed != income_total and claimed != balance:
+            if claimed not in {row["amount_fen"] for row in incomes} and claimed != income_total and claimed != balance:
                 facts = f"本月实际入账 {money(income_total)} 元" if incomes else "本月入账暂无可查"
                 if self.pension.get("accounts_ok") and balance is not None:
                     facts += f"，当前可用余额 {money(balance)} 元"
@@ -545,15 +557,15 @@ class PensionFlow:
                 correction.append(f"您说的 {money(claimed)} 元与银行记录不一致：{facts}。以哪个为准？")
             prompt = "\n".join(correction) if correction else "请选择资金范围："
             return self.entry._ask(trusted, self.state, prompt,
-                                   self._basis_choices(income_total, balance))
+                                   self._basis_choices(incomes, balance))
         # Text in other phases never names a money target (bank facts only).
         return self._phase_view(trusted)
 
-    def _basis_choices(self, income_total, balance):
-        choices = []
-        if income_total:
-            choices.append((f"本月实际入账合计 {money(income_total)} 元",
-                            {"kind": "pension_basis", "basis": "selected_income"}))
+    def _basis_choices(self, incomes, balance):
+        choices = [(f"本月实际入账 {money(row['amount_fen'])} 元 · "
+                    f"{row['occurred_at'][:10]} · {row['counterparty_name']} · {row['summary']}",
+                    {"kind": "pension_basis", "basis": "selected_income",
+                     "income_transaction_ids": [row["transaction_id"]]}) for row in incomes]
         # A failed accounts read offers no balance basis — zero would be a
         # fabricated fact, and a chosen None base crashes later maths (N1).
         if self.pension.get("accounts_ok") and balance is not None:
@@ -595,7 +607,8 @@ class PensionFlow:
         for index, allocation in enumerate(pension["allocations"], 1):
             plan.add_step(state, {
                 "step_id": f"transfer:{index}", "action": "transfer.start_transfer",
-                "kind": "write", "payee_id": allocation["payee_id"],
+                "kind": "write", "payee_id": allocation.get("payee_id"),
+                "target_account_id": allocation.get("target_account_id"),
                 "payee_name": allocation["name"], "amount_fen": allocation["amount_fen"],
                 "depends_on": []})
         pension["phase"] = "running"
