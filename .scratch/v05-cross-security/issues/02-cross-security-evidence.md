@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `evals/security/`
 
-Status: in_progress — 2026-10-25 已领取后端准备与局部专项；平台09已合入#279，前端02及业务05尚阻塞页面专项。真实模型/页面未运行。
+Status: blocked — 后端准备与局部专项已交付草稿PR #291，34节点通过；完整专项等待前端02/业务05及真实故障观察入口。全目录152通过/1既有断言失败未豁免，真实模型/页面未运行。
 
 Package accepted by: Erwin
 
@@ -87,7 +87,7 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 
 ## Delivery record
 
-- 实现：后端准备、可运行专项与分层计划已实现；PR待提交，未合入。完整真实专项仍blocked。
+- 实现：后端准备、可运行专项与分层计划已实现；[PR #291](https://github.com/DrErwin/hackerthon-bank-agent/pull/291) 已创建（Draft），未合入。完整真实专项仍blocked。
 - 本票验证：后端局部批次A/B各34 passed，真实模型未运行，页面/完整专项blocked；证据见下方及运行台账。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
@@ -135,3 +135,9 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 - 最小复现：`SEC-L-002/v01` 四类秘密输入HTTP均400，旧判定要求前三400/cookie202且送脱敏planner。4类都到达前置保护、planner调用0；模型/持久化/历史/普通响应/审计秘密命中均0，资金提交0。10观察断言9通过/1失败。
 - [脱敏复现](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-existing-secret-outlet-repro.json.gz)、[全套失败摘要](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-security-directory-regression-failed.json.gz)已归档并登台账；相关既有runner/test/API/audit与origin/main无差异。不是新生日探针失败，也不是#271英文密码出口问题的证明。
 - 未修改原期望或宣称全套已绿；建议中控另票核对cookie处理的评测断言，本票只回报观察，不越界改业务/平台/审计或裁定新安全规则。
+
+### PR回交
+
+- [PR #291](https://github.com/DrErwin/hackerthon-bank-agent/pull/291)，分支 `codex/v05-cross-security-02`，提交 `3d6a1cc`（后续票据回填另提交）；基于最新主线9a479ea，工作区为隔离security-evals。与PR270样例票分开，未自行合并。
+- Standards/Spec最终复验均无剩余必须项；全目录既有cookie断言失败仍显式保留，未被审查通过代替。
+- 本票可向包05交付后端复现入口、允许/拒绝对照、真实生日资金数字证据及待实接矩阵；不能解锁前端02的业务05依赖或完整安全验收。完整模型/页面和Erwin本人审阅仍待，版本/共享项目跟踪由中控维护。
