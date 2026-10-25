@@ -49,6 +49,22 @@ backend/.venv/Scripts/python -m uvicorn app.agent_platform.local_demo:create_loc
 
 ## 验证和故障
 
+### 生日一次响应丢失（v05-cross-platform/12）
+
+服务端配置 `birthday_response_loss_once` 默认 `false`，旧配置省略也保持关闭。只在专属数据目录的单进程隔离演示/测试实例中设置 `true`：每次构建运行实例，为演示用户 `U1` 的下一次生日银行写入武装一次故障。银行先真实提交，再延迟 6 秒；现有网关 4 秒超时，任务显示待核实。未确认、未验证或无执行授权仍不能写入，失败的越权调用也不会消耗这次故障。
+
+启动时沿用上方后端命令，但在该实例自己的配置文件设置独立 `data_directory`、`demo_round_id` 和允许来源，并选独立端口（例如 `--port 8124`）；不要指向共享演示数据。配置文件路径由 `BANK_LOCAL_CONFIG` 指定，秘密仍只保留本地。现有启动脚本使用共享默认端口，隔离复现时直接启动后端。
+
+调用真实生日入口，选择 500 元、花和蛋糕及有效配送资料；通过冻结确认与双因子后，应出现“冻结结果还待核实”。选择“核实原操作后再试”，按原 `operation_id` 查询银行 B14，不能重新发起冻结。核实后可继续原任务；下一次生日写入不再注入故障。测试入口（从 `backend/` 执行）：
+
+```powershell
+python -m pytest -q app/agent_platform/test_birthday_runtime_wiring.py -k configured_response_loss
+```
+
+这是服务端启动配置，普通用户、聊天和模型没有武装入口；不是 B28 的 HTTP 管理能力。故障不会存入数据库，新建运行实例会重新武装；复现后把开关设回 `false` 再重启。该回归直接驱动真实业务入口、安全门和银行，模型构建由替身完成，不代表真实模型、HTTP 或页面 E2E 通过。页面受控配送及结构化视图仍依赖业务票 05；预算引用/版本入口缺口由业务线另行处理。
+
+2026-10-25 独立核查发现旧业务缺陷：冻结未知后取消，再核实原操作会重新提出下单确认；XL-B06“未知后停止只收尾”仍受阻，复现与提供方见[缺陷记录](../../../.scratch/v05-cross-platform/research/birthday-unknown-cancel-gap-2026-10-25.md)。故障入口可供复现，不能将该路径报告为验收通过。
+
 ```powershell
 backend/.venv/Scripts/python -m pytest -q backend/app/agent_platform/test_local_demo.py
 ```
