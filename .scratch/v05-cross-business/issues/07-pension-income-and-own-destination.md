@@ -12,7 +12,7 @@ Owner: Erwin（授权执行对话代行）
 
 Directory: `backend/app/modules/cross/`
 
-Status: implemented / integration_blocked — 2026-10-25 实现及双轴复审通过，Draft PR #297待中控按284/292依赖排序；完整E2E及风险事实仍未接受。
+Status: implemented / merge_prepared — 2026-10-25 第二批前四项已合入，Draft PR #297等价同步后交中控最终核对；完整E2E及风险事实仍未接受。
 
 Accepted by: Erwin（授权执行对话代行）
 
@@ -20,9 +20,9 @@ Accepted at: 2026-10-25
 
 Core scenarios: XL-P01/P02/P03，回归 XL-P04—P06、XL-X02—X05。
 
-Blocked by: 实施无新增业务裁定；完整真实账单装配/可合并交付依赖
+Blocked by: 本票最终合入由中控核对执行；真实账单装配前置
 [PR #284](https://github.com/DrErwin/hackerthon-bank-agent/pull/284) 与
-[PR #292](https://github.com/DrErwin/hackerthon-bank-agent/pull/292)，未合时仅隔离组合验证。
+[PR #292](https://github.com/DrErwin/hackerthon-bank-agent/pull/292) 已在第二批合入（4d9bd57 / e402bc4）；本次不重带其补丁。
 风险/参数事实由原安全平台线承担，不在本票代填；未知保持暂停。
 
 ## What to build
@@ -55,3 +55,10 @@ main `0930d6be59c728b9dc0ef4c4ef0b5430da12943e`。README/manifest 两处冲突�
 本轮 Cross、真实生日装配和未知后停止恢复 **70 passed in 111.71s**；独立 Standards/Spec
 均 PASS（必须项/建议均0），Spec 独立复验2项通过。未改风险/参数或上游案例数据，未另跑全量。
 仍保持Draft、依赖#284/#292实际合入；#295案例组合由中控续验。不扩大首批CI例外、不宣称E2E。
+
+2026-10-25（第二批最终准备）：Erwin已另行批准第二批298→284→292→295→297及仅本批CI计费本地验证例外。
+前四项已合入，原head `9e25a8f` 的五条提交rebase至main `3239fd75417e8f1e47aea0c0db83d734cdfffe6c`，
+range-diff五条均为“=”，无冲突/代码变化。Cross与原head及受测五项组合`0aed529`完全一致；
+整个backend/evals也与该受测组合一致，沿用70项/Spec独立2项/五项155+1及两轴PASS，不新跑测试。
+本票新增仅准备说明；养老金2500/1000仍是方案，首笔安全核对不足暂停、第二笔未派发，不写成已转出。
+CI仍按新head实际结果记录于PR正文，计费未启动为Blocked；例外不是CI绿，也不等于本对话获准合并。

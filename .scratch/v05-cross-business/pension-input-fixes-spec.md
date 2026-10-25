@@ -1,6 +1,6 @@
 # 养老金真实入账与本人账户接入：business/07
 
-Status: implemented / integration_blocked — 2026-10-25 主线冲突整理已续派；与已完成规划的06分支独立，保留Draft交付及上游组合依赖。
+Status: implemented / merge_prepared — 2026-10-25 第二批前置已合入，等价同步准备交中控；与06独立，仍保持Draft，不代表完整E2E接受。
 
 Owner: Erwin 授权执行对话；Directory: `backend/app/modules/cross/`。
 
