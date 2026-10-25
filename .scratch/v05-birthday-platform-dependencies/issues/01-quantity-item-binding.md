@@ -31,6 +31,7 @@ Core scenarios: P01/P02/P07/P08/P11；[P01—P11验证框架](../spec.md#6-testi
 - [ ] 旧任务不能唯一映射执行项时不猜测或覆盖，保留原事实；局部无法修改如实记限制，不当整条要求完成。
 - [ ] 优先复用operation_id作一次动作attempt身份；check返回的原号由Cross pending保存，execute在新协议中明确回传并核对，requery始终原号；新旧签名/单件兼容须Cross确认，不只按“当前同商品”挑动作。
 - [ ] 本目录保留原动作不可变参数；完整确认/必要验证授权版本由安全02提供后联合核对实际可回读，不在01跨目录仿造历史存储。数量接线可单独验证，编辑历史边界未就绪仍blocked；旧可变ID/版本不能代替历史，秘密/配送原文不进普通快照。
+- [ ] 与Cross明确check回交后如何捕获原operation/参数版本/确认版本；execute及grant/bind只消费捕获绑定，不能从新计划的当前商品/freeze键重挑。发布前的pending不能被普通resume读作已发布，具体由03/05及Cross08交付。
 
 ## Verification / downstream
 

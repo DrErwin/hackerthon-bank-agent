@@ -17,7 +17,7 @@ Date / reader: 2026-10-25，Erwin授权的Cross消费方设计对话。
 |---|---|---|
 | 原本就在安全的input节点，没有待执行动作 | 现有原交互、服务端选项和检查点 | 沿普通F10；不伪造撤离记录，也不因此声称确认/验证编辑已覆盖 |
 | 旧动作尚未claim（后台领取执行资格） | 安全02核验原attempt并永久封锁旧写入，必要审计齐备后的持久撤离证据 | 平台03受控交接给Cross；旧确认/验证/迟到授予均不能重启原动作 |
-| 原下单已claim，但银行明确失败、已证明无订单且无在途 | 平台核实的原操作失败结果、无订单/无在途依据和对应不可变旧attempt | 另一条受控交接路径；不要求无claim证据、不删旧claim；新替代以后重新采用/确认 |
+| 原下单已claim，但银行明确失败、已证明无订单且无在途 | 平台核实的原操作失败结果、无订单/无在途依据和对应不可变旧attempt | 不要求无claim证据、不删旧claim；有原编辑受理则受控交接，无则原号核实后普通新input，详见§7 |
 | claim在先、未知、查询异常或仅not_found | 只有原号观察事实，不能证明可替代 | 不进入可能在途项编辑；原号核实。capture失败也不代表它的已建订单不存在 |
 
 已建未付/已付项不可改写；仍可编辑其他证实未成单且无在途项。新input仅是重新讨论方案，
@@ -28,7 +28,7 @@ Date / reader: 2026-10-25，Erwin授权的Cross消费方设计对话。
 
 | 提供接缝 | 最小输入 | 最小输出 / Cross核对 |
 |---|---|---|
-| 01→原BirthdayPorts | TrustedContext、原BirthdayPlan、服务端项快照；已有check/execute方法签名保留 | 每项有稳定item/step身份、product_id、显式quantity、服务单价、行小计和原送达/受控配送引用；平台按此下单和展示，不能product_id碰撞 |
+| 01→原BirthdayPorts | TrustedContext、原BirthdayPlan、服务端项快照；保留原方法名和结果形状，execute显式原号的兼容扩展见§7 | 每项有稳定item/step身份、product_id、显式quantity、服务单价、行小计和原送达/受控配送引用；平台按此下单和展示，不能product_id碰撞 |
 | 04→03专用后台编辑入口 | 已认证TrustedContext及原F10 request_id/interaction_id/selected_option_id；text为空 | 平台从原任务重读绑定，不采信前端传入的item/attempt/operation/hash或editable标记；该入口不注册为模型工具 |
 | 03→Cross专用进入编辑入口 | TrustedContext + 原请求的持久edit_ref；只在本次专用调用或其精确受控恢复中可解析 | 解析为下述完整绑定和一种可信proof；普通resume/text/模型字典即使知道edit_ref也不能激活它。可参考既有平台专用来源隔离方式，但不复用预算来源作为商品编辑授权 |
 | Cross→03 | 原edit_ref、源已发布checkpoint_ref、隔离待发布checkpoint_ref及对应ModuleResult | 原task_id、新input交互及业务plan_revision；平台用严格原任务CAS同时发布检查点引用/结果/新task_revision；不是Cross自行宣称已发布 |
@@ -36,6 +36,7 @@ Date / reader: 2026-10-25，Erwin授权的Cross消费方设计对话。
 **edit_ref背后的服务端最小绑定**：user/session/round/task、原请求及请求摘要、原交互/选项、
 原task_revision、plan_revision、源已发布checkpoint_ref、目标（freeze目标或稳定执行项）、attempt_id、action_name、operation_id、
 action_revision、原参数引用及可读取快照、确认ID/版本、关联挑战和限定授权的历史引用/必要脱敏快照。
+attempt_id在此是逻辑含义，可直接用该次operation_id表达，不要求新增第二个UUID或公共字段。
 任务版本与业务计划版本不同；后续平台自有写入产生的dispatch/CAS版本须与原接受版本显式关联，不能只读最新revision跳过冲突。
 冻结目标不伪造商品项；order/capture绑定相应项，capture还须关联已建订单及原创建参数。
 
@@ -50,6 +51,8 @@ proof为内部两类之一，**不新增公开SecurityDecision/ConfirmationDecis
 新同款替代项与历史项分开，新项的新attempt/确认只在其重新采用后办理；同一原项重放或查询沿原号。
 
 ## 3. 持久顺序与失败恢复
+
+以下指已有专用编辑受理的交接；无原受理的明确失败替代走§7，不强造edit_ref。
 
 1. 03核对原主体、当前交互/原任务阶段及原项/attempt，固定原编辑请求关联；若准备记录失败，不能开始撤离。
 2. 普通未提交路线调用安全02。撤离须与claim、旧授权grant/store/bind及挑战准备资格持久排序；
@@ -121,3 +124,30 @@ Cross按撤离事实表达“原动作未提交，没有该笔冻结”，不能
 本页为接口建议，具体名称和最终绑定待提供方收口。
 纯文档仅做内容/链接锚点/编号/格式/差异空白检查，不跑测试、模型、CI，不写产品代码或新实现PR。
 本地两份文档23处相对链接/锚点及差异空白核对通过；分支`codex/v05-birthday-g3-interface`本地提交回交，不推送/合并。
+
+## 7. 对平台c5959dd候选的消费核对（静态，未闭合提供能力）
+
+完整读取本地`c5959dd6afcdac4c3745c04c9ef41b310dcda97d`的本组平台`spec.md`“G3最小内部快照/调用候选”及`decision.md`（基线3239fd7）；
+以下只确认字段/时序关系，不修改对方稿、不表示接口已实现或G1/G2本人已批准。拟议方法名和keyword均为后台接口建议。
+
+| 候选关系 | 消费方结论与最小兼容条件 |
+|---|---|
+| operation_id作为attempt | **足够，无需第二UUID。** 一次freeze/order/capture各有自己的原号及不可变参数；同一尝试的检查/执行/恢复沿原号。合法撤离或明确失败后重新采用的新尝试必须新原号，即使商品/数量/参数碰巧相同。原号不是可自由调用的授权令牌，仍核对主体、项、动作、版本和原参数 |
+| check返回原号，execute显式带回 | **方向一致，现签名不足。** 保留GateAnswer.operation_id，Cross在check后持久保存原号及item/参数绑定；也覆盖非冻结动作ALLOW后直接_submit的分支，不能只在等待确认时保存。新协议的execute显式带回该原operation_id（拟议后台keyword），平台精确解析不可变attempt并校验，不能按最新商品键挑选；冻结ALLOW仍照原规则拒绝 |
+| grant_release / bind_freeze | **必须捕获原绑定。** grant使用原pending.operation_id、原确认ID/版本及冻结上下文；bind已有operation_id参数可复用，同时绑定该原attempt的限定授权引用。迟到grant/bind/指针写回均不读取“当前freeze”当原动作，不把旧pending授权挪给新尝试；真实active冻结收尾不失效 |
+| 原确认版本从哪里来 | **仍缺明确提供方式。** 当前GateAnswer/InteractionRequest有operation_id/record_ref，没有确认版本；不能声称Cross已拿到版本。建议平台在check时将确认版本/参数/授权上下文按原号持久冻结，Cross通过原号对应的可信只读视图捕获版本或其不可变上下文引用，再显式带回。不得迟到时按可变confirmation_id重新查最新版；不因此新增公共字段 |
+| item_id复用step_id | **可复用，但非现成映射。** 仅当step_id是服务端持久且与商品执行项一一对应、未变项跨plan_revision保持、新同款替代项有新step_id；freeze仍是任务级资金动作。现生日orders主要按product_id定位，须先由01/08补稳定项映射，不能拿执行事实投影行或product_id硬充同款多项身份 |
+| 旧单件调用 | **原则一致，但“已指定quantity”措辞需修正。** 现`birthday.py:67—76、100、299`的旧项/订单已显式quantity=1，字段存在本身不能标记升级。仅在服务端可核验旧调用绑定、每商品一项且原操作/参数唯一对应时，旧显式1或旧省略为1的语义可保留。quantity>1，或服务端已进入新item/operation绑定的调用，缺必要身份不得降级旧键；未能判定协议或唯一映射则blocked，不猜测重建。旧已办/未知沿保存的原号查，不重发。此为对c5959dd的具体兼容差异，只回交，不改平台稿 |
+| 两类proof命名 | `withdrawn_unsubmitted`与本页`retired_before_claim`语义对应；`verified_failed_no_order`一致。最终可统一一套私有名称，不按客户端字符串授予能力。两类均要原绑定/历史及必要审计，不把claimed/completed或任意失败当无订单证明 |
+| 明确失败的新替代入口 | **接受候选的两种来源区分。** 已有精确编辑受理事实时，以原request/operation恢复核实，不因interaction=None先截断，也不因历史记录跳过当前任务/会话/终止检查；没有原受理时，不能拿旧确认ID走专用编辑捷径，而是原query/resume核实失败并保存可信结果/无订单无在途依据，父任务仍可办理才发布普通新input替代选项，再走当前F10采用与新逐动作确认。不伪造edit_request、无claim证明或新授权 |
+
+check/execute/grant/bind的上述新绑定尚非现运行能力；普通失败替代输入也不能绕过§3的检查点发布边界。
+平台候选`begin_birthday_edit`与`enter_birthday_edit`的职责可对应本页专用后台入口：edit_context可为按edit_ref解析的当前调用只读视图，
+但不能只是可被普通resume构造的字典。**源checkpoint精确绑定、待发布隔离、持久单胜者、CAS同次发布引用/结果必须保留**；
+对方此版未纳入不构成删除理由，真实saver/加载/发布提供能力仍由03/08协同核实，未具备继续blocked。
+`decision.md`的完整/首批收窄两选项均为本人未决；确认/验证编辑完整要求不删、不代选，G1/G2与实施批准另取。
+
+本节独立Spec/Standards初审各有1项P2必须澄清、建议0，均指“quantity字段存在即升级”会误拒现有单件调用。
+修订提交`a3b287c217d43a3663192896dd6d2d9fa833150e`已按真实旧quantity=1及服务端绑定/唯一历史映射修正。
+两轴静态复审均PASS：各自原P2关闭，新增必须项0、建议0；未测试、运行模型或CI。
+本轮基于已交付e4cb7b7仅增补本页，未动票据、平台稿、297/06或shared tracker；新绑定、检查点发布、G1/G2及完整验证编辑仍按前述条件blocked。

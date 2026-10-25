@@ -1,6 +1,6 @@
 # 平台提供条件：文档核查与双轴审查
 
-Status: closeout_material_reviewed / implementation_blocked — 本轮依赖材料双轴复核通过，G1/G2/G3仍待决定/提供方确认，四票全部planned/blocked；未实施。
+Status: g3_material_reviewed / implementation_blocked — 本轮G3依赖材料双轴复核通过；G1/G2/G3仍待决定/提供方确认，原四票及新增05全部planned/blocked；未实施。
 
 固定源码main：`af779df431a7f650851ffe3e2ede8b763dcdb1c5`。
 文档审查base：`dab17d030b4a4a481280d5cc5900176db38c9aeb`；只快进中控文档，没有运行代码变化。
@@ -45,3 +45,14 @@ Status: closeout_material_reviewed / implementation_blocked — 本轮依赖材�
 - 作者补明G3原grant/bind必须捕获原pending.operation/确认版本，不能迟到后按当前freeze键重挑原动作；仍只是Cross待核对的兼容签名，无代码变动。
 - 修订`02b1a6ea29857f8acd6abae34114362f8d7572be`补核：Standards PASS，原非阻塞建议关闭，剩余必须项0/建议0；Spec PASS，必须项0/建议0。两位均只读，不执行源码、测试、模型、CI或改文件；此后仅回填本记录。
 - 最终七份Markdown的53个本地链接/锚点、票号、围栏、四票planned/blocked及差异空白通过，仓库链接检查通过。最后fetch主线`c02c70d476f04d5d788c7c5852bc613efc3dc66f`；相对本轮基线3239fd7，所核查security/audit/银行verification/生日runtime/contracts/正式契约/PRD无变化。主线推进不冒称本材料已获实施或本人安全接受。
+
+## G3消费方对账收口（2026-10-25，当前轮）
+
+- 精确消费方原稿S-G3：本地提交`e4cb7b7dad5ef78b31e52c64e845f7db8a55ea78`、父c0752632f088857838661b13739ce2170466f0e6、产品基线2a070b9；完整路径`.scratch/v05-cross-business/birthday-g3-interface-review.md`、blob`3ae7559a14f36b1e501f274b8d0f36baed510f33`。已全文只读；原稿不改。
+- 新增[g3-reconciliation](g3-reconciliation.md)：区分已一致方向、提供缺口、本人政策；明确先受理预留、后安全依据、隔离候选、持久单胜者、同次task CAS发布及普通/异常恢复只读已发布源。原operation经过check/execute/grant/bind的捕获与显式消费列成表；接口名/签名仍待Cross确认。
+- 静态核查main c02c70d：现saver精确ID读取并不保证通道值不可变，已有put会覆盖同namespace/channel/version；据此新增[05存储窄票](issues/05-immutable-edit-checkpoint.md)，而非预设通用框架。memory归属/namespace透传可复用，未证实另需memory票。
+- 03增加05真实前置；双方先确认设计、05可先实现，03/08再接线，不互等对方代码形成环。旧源缺失或无法核验不回latest补证；新协议首次可办理状态建立完整published_ref。完整原要求及G1/G2未决保持，原01—04和新增05均planned/blocked。
+- 本轮仅本组Markdown；不改Cross08、安全原稿、业务/安全/银行/评测代码、共享跟踪与completion。不运行源码、测试、模型或CI；本地提交后回交中控，不push、不建实施PR。
+- 固定初审f6b653f（内容后保持不变，仅补提交原因为63efd2d28f01632809d63de5411c3a6c33022693）：Standards两项必修——03正式Blocked by/spec依赖表须纳入05、提交须有why正文；Spec PASS，必修0/建议0。两项均已修复，未改变政策或范围。
+- 修订`1bed96a4623345652c952226a44b54f516f6c6ae`双轴复核：Standards PASS，原2项必修关闭、剩余必修0/建议0；Spec保持PASS，必修0/建议0。两位均仅只读；此后只回填本记录。
+- 最终九份Markdown、76个本地链接/锚点、五票编号/blocked状态/围栏及diff空白检查通过，仓库链接检查通过。以上是文档静态证据，不是实现/运行/真人接受；本地提交后回交。

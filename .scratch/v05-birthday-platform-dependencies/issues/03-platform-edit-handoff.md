@@ -9,7 +9,9 @@ Directory: `backend/app/agent_platform/`
 Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
 Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
 Implementation assignee / accepted at: 未领取。
-Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)及本人所选G2完整条件；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)核对[候选G3快照/接口](../spec.md#g3最小内部快照候选待cross08逐项核对不是公共新模型)；中控授权。[PR #298](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)已合主线6ce7fb0，保留其预算来源边界，不在本轮整理原PR。
+Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)、[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)及本人所选G2完整条件；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)核对[候选G3快照/接口](../spec.md#g3最小内部快照候选待cross08逐项核对不是公共新模型)；中控授权。[PR #298](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)已合主线6ce7fb0，保留其预算来源边界，不在本轮整理原PR。
+
+新增真实提供前置：[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)。现有精确读/CAS可复用，但不可变候选和原子发布策略尚未交付；[G3对账](../g3-reconciliation.md)为待核对方案，不是已实现保证。
 Core scenarios: P02/P03/P04/P05/P06/P07/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 
 ## What to build
@@ -37,6 +39,10 @@ Core scenarios: P02/P03/P04/P05/P06/P07/P08/P09/P10/P11；[P01—P11验证框架
 - [ ] G3候选专用后台入口和Cross进入编辑方法不注册模型工具，不接受普通resume自报edit_context；新旧单件/显式operation协议及两条依据须Cross确认后才实施。
 - [ ] 已受理编辑的精确原request在原操作失败核实后可受控恢复，不以当前interaction=None自动拒死或产生新授权；无原受理事实时由Cross08沿原查询保存失败后发布新普通input，旧确认不能作编辑捷径。
 - [ ] 若本人选首批收窄，只接入准备资格尚未开始且获安全02证明的确认态；验证码/动作验证等待保持blocked，原完整修改验收要求不删、不写已完成。
+- [ ] 撤离前先CAS固定同edit_ref、精确源已发布ref及唯一候选ref；同参竞争沿同一受理记录，异参冲突，版本变化不盲取最新值。
+- [ ] Cross只按源ref准备隔离候选，05封存胜者；同次task CAS发布胜出checkpoint_id、snapshot完整ref、ModuleResult、新revision及完成投影。不能先写最新检查点再把任务CAS当隔离。
+- [ ] G3普通start/resume/异常分支同样使用已发布ref；handoff中只读原结果/待核对，不推进旧动作。取消按真实原操作收尾；取消/终态/新会话胜出则不得发布候选。
+- [ ] 精确读取仍须不可变内容保障；旧task.checkpoint_id、namespace和原状态不能唯一核验时编辑blocked，不回latest、不新补hash伪证或重编号。
 
 ## Verification / downstream
 

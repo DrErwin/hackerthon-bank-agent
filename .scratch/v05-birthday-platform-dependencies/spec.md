@@ -9,7 +9,7 @@ Implementation assignee / accepted at: 未领取。
 用户应能真正订两束花，并修改尚未形成订单且没有在途提交的剩余方案；不能只改页面数量，也不能让旧确认在修改后继续写入。本轮没有运行复现，以下均为固定源码推演。
 
 - 本worktree起点 main `af779df431a7f650851ffe3e2ede8b763dcdb1c5`；独立分支 `codex/v05-birthday-platform-dependencies`。中控材料入主线后，本地文档基线快进至`dab17d030b4a4a481280d5cc5900176db38c9aeb`，仅文档变化，所查运行代码未变。
-- 本轮收口另用本地文档分支`codex/v05-birthday-dependency-closeout`，基线`3239fd75417e8f1e47aea0c0db83d734cdfffe6c`；旧分支与原证据不改。当前四票仍全部planned/blocked。
+- 本轮收口另用本地文档分支`codex/v05-birthday-dependency-closeout`，基线`3239fd75417e8f1e47aea0c0db83d734cdfffe6c`；旧分支与原证据不改。原四票及本轮新增05全部planned/blocked。
 - Cross材料固定提交 `1d7f1fab8d5e2622c1d319e178abf9f1654fc73c`，基线608255f，读取该提交完整三份文件，不以其最后一条commit的单文件差异代替材料：
   [缺口/数量设计](../v05-cross-business/birthday-quantity-gap.md)、
   [设计审查](../v05-cross-business/birthday-quantity-design-review.md)、
@@ -18,6 +18,7 @@ Implementation assignee / accepted at: 未领取。
 - [现行契约](../../docs/contracts/公共契约-2026-09-23.md)：§5.4、§6.5 F10/F15、§3.5与§8；[安全原则](../../docs/principles/02-security-platform.md)保持确认绑定和原操作恢复。
 - 已查main、所有本地/远端已取回refs的本组路径历史：新slug尚无票；原platform13/PR292、14/PR296虽未合仍占号，不在原组重占。Cross07/08与预算来源01/02均不改；原security01/04不是本次安全撤离交付。
 - **精确安全来源S-G2**：本地提交`bce306d07e429b8ce604dd8232fa58cd3836f0a3`，父`f21db3b00c6365132323f85b104c184a88aa4a20`，基线41c01ae；完整文件`.scratch/v05-birthday-security-review/review.md`，Git blob `53f9196dc9d2a16c1bc92b6235902b840fc3343a`。已通过`git show`读取；本轮读取时该文件尚不在所选main，按本地固定Git对象引用，不宣称远端可读，也不修改或复制覆盖原稿。它是AI安全评议，G2-A/B/C仍待Erwin本人决定，不能用原设计双轴PASS替代。
+- **精确消费方来源S-G3**：本地`e4cb7b7dad5ef78b31e52c64e845f7db8a55ea78`的`.scratch/v05-cross-business/birthday-g3-interface-review.md`，父c0752632f088857838661b13739ce2170466f0e6、产品基线2a070b9、blob`3ae7559a14f36b1e501f274b8d0f36baed510f33`。全文只读不改。其检查点P2已纳入[本组G3对账与提供条件](g3-reconciliation.md)，不把消费建议写成最终接口已确认。
 
 ## 1. 现状：什么能复用，哪里真的缺
 
@@ -30,7 +31,7 @@ Implementation assignee / accepted at: 未领取。
 | [API app](../../backend/app/api/app.py) L335—384、[确认请求模型](../../backend/app/contracts/api.py) | F10先走current_input_task；draft只收转账字段；resume只传choice=resume；F15只收approve/cancel | 均不是现成的Cross“先退出旧待办再编辑”入口，不能借cancel或聊天revise冒充 |
 | [安全状态](../../backend/app/security/state.py) L217—383、420—500；[执行器](../../backend/app/security/gate.py) L1073—1180 | 新确认可递增版本；claim在SQLite事务内取得；已有claim先按原操作观察。没有非终止式撤离方法 | 查到“无claim”到下一刻claim可能产生，任务锁或银行not_found都不能单独证明未提交；需要security原子守卫 |
 | 安全状态L57—68及L536起；[Cross生日](../../backend/app/modules/cross/birthday.py) L422—450 | claim.state只有processing/completed/unknown，completed不等于银行成功；冻结确认批准后、写前可能已经授予限定释放 | 必须看银行实际结果。撤离待冻结验证不能把旧释放授权转给新freeze_operation；已冻结则保留原限定收尾 |
-| [任务快照/CAS](../../backend/app/storage/application.py)、原检查点 | 可保存任务私有记录、版本、原操作引用并恢复；security已有同库私有持久状态 | 未发现必须新增ApplicationStore表/方法的证据，暂不建storage票；安全记录由security所有，不能让平台直接改其SQL |
+| [任务快照/CAS](../../backend/app/storage/application.py)、[saver](../../backend/app/storage/checkpoints.py) | 可同次CAS写checkpoint_id/完整snapshot/revision；可精确ID+namespace读取 | 初轮没有证实新的存储缺口；本轮发现latest读取及共享channel-version覆盖、候选无封存，新增05窄存储前置。现字段不等于已实现隔离/单胜者/发布；安全SQL仍归security |
 
 以上表格是初轮固定源码推演；本轮所选main已包含PR298（6ce7fb0）及292，不再把它们写为待合。PR296的b41ef64是原订单门固定来源；本轮不整理任何原PR。预算来源、订单范围门和快照保留仍须兼容，它们不交付本次数量或安全编辑能力。初轮占号结论只说明当时来源；本轮沿用原01—04，不重复建票。
 
@@ -87,7 +88,7 @@ F15 cancel表示停止，安全get/create/answer也没有“撤离但不终止�
 - 已有claim无论processing、unknown还是completed，都不能只凭状态推断无提交；completed也可能是银行失败，交原号观察其准确结果。
 - 旧确认/验证、原授权快照和失败事实保留，不把cancelled/expired改作隐含“编辑”，不清空任务安全终止。安全02同时约束gate/claim/旧验证回调，不让任何旧路径绕过撤离。
 - 待冻结验证可能已有§3.5的pending_freeze授权：原动作确证未提交并撤离后，须以该原绑定处理旧未生效授权（现有pending_freeze→invalid可复用，具体由G2审阅），保留历史且不挪用到新freeze_operation；不能让新input后的停止反复查询一个永远未提交的旧冻结而假报未知。新冻结仍须新的有效冻结确认/限定授权；已有真实冻结及其active合法收尾不作废、不追加资金。授权与原动作事实矛盾时拒绝，不猜测清除。会话级验证是否可复用只沿原规则，动作级验证不跨新attempt扩权。
-- 必要审计写入失败仍fail closed，先复用既有事件和证据引用；未证实需要audit/storage新原语，不先拆新票。
+- 必要审计写入失败仍fail closed，先复用既有事件和证据引用；审计本身未证实需要audit/storage新原语。G3候选不可变保存的独立缺口见05，不与审计原子事务混称。
 G2须Erwin本人按本阶段代行安全职责明确审阅；AI设计通过不代替其决定，也不写成Ringo本人签核。
 
 **S-G2提出的补齐条件全部纳入，不能把上述初稿直接用于实施。** 以下分清不应削弱的约束和待选择的新语义；通俗例子与两种范围见[本人决策稿](decision.md)。G2-A/B/C是本次安全问题编号，与此前D1/D2业务裁定无关。
@@ -113,7 +114,7 @@ G2须Erwin本人按本阶段代行安全职责明确审阅；AI设计通过不�
 它不接受source=human、editable=true或客户端候选hash，不注册为模型工具；普通resume不能凭字典声称已撤离。
 平台与Cross08需先约定一个受控的“进入原任务编辑”方法/命令：Cross消费后台核实的持久撤离引用，修改自己的检查点并返回新input；API或模型不能伪造该引用。**该方法目前没有实现，G3待双方确认**。
 
-顺序必须是：核对原任务和当前绑定 → 安全02按本人所选范围作持久排序并完成必要审计，或原号核实明确失败 → 固定编辑请求记录 → Cross08进入编辑检查点 → 现有任务CAS发布新input。先有撤离记录而必要审计未齐，不能越过此门。
+顺序收口为：03先以原CAS固定同一编辑请求、精确源已发布ref与唯一待发布ref → 安全02按本人所选范围排序并审计，或原号核实明确失败 → Cross08只按该源准备隔离候选 → 05封存唯一胜者 → 03以严格原版本在同次任务CAS发布胜出ref/结果/完成投影。准备受理记录失败不开始撤离；必要审计未齐不交Cross；候选落库不是已发布。
 同一请求恢复沿同一撤离记录与原绑定，不重新授权/新建attempt；安全撤离成功而检查点/结果CAS/HTTP回执失败时，旧动作仍不能写，新input未完成则不假报已完成。
 重开后先按原记录恢复发布，再接新的数量输入；不能把当下新计划当原请求结果。正常快照、生日原参数和预算来源历史均保留。
 API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；中断恢复只限已有持久编辑事实的精确请求，不给所有F10开重试。
@@ -129,7 +130,7 @@ API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；
 | 取消/终态/安全终止/旧会话 | 不恢复购买；仅现有历史读取和获准收尾。冻结/释放未知先核实，不用编辑绕过资金约束 |
 
 私有安全状态的持久事务和原任务CAS不要求一个跨层大事务：安全撤离先持久，任务发布晚失败时保持拒绝并可受控恢复。
-若实施发现现有存储不能持久重放该关联，应回中控提供失败步骤再补storage单目录票；本轮不跨目录实现或承诺已验证原子性。
+本轮静态核对已明确候选不可变保存缺口，补[05：候选检查点一次封存](issues/05-immutable-edit-checkpoint.md)，仍不跨目录实现或承诺已验证原子性。精确读取和task CAS复用现有能力，发布策略由03/08实现；memory已有归属与namespace透传，未证实其新增缺口，不另拆票。
 
 #### G3最小内部快照候选（待Cross08逐项核对，不是公共新模型）
 
@@ -140,7 +141,7 @@ API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；
 | 计划与执行项 | 原plan_revision；稳定item_id（如已有step_id可保持一一对应即复用）；product_id、merchant_id/name、name/category沿原服务事实；quantity、unit_price_fen、amount_fen（行小计）及原服务报价绑定；共同deliver_by/delivery_ref仍在原计划上，不把配送原文复制到项 |
 | 一次动作尝试 | **复用operation_id作为attempt身份**，不另造无意义的第二UUID；绑定item_id、action_name（freeze/order/capture）、action_revision、parameters_ref和不可变原参数；相应order_id/原银行结果保留。冻结仍是任务资金动作，不假装成商品项 |
 | 旧确认/验证/授权 | confirmation_id/version之外，须有当时完整脱敏确认/参数/必要授权验证快照，或确能回读的不可变版本引用；challenge/限定授权引用也绑定原operation。旧可变ID查询不能冒充当时历史 |
-| 编辑受理事实 | 可信主体/会话/轮次/原task、原F10 request/interaction/option、后台接受时的task_revision、plan_revision及项/operation/action_revision；原绑定与必要审计引用，原检查点/冻结事实引用。记录只证明编辑受理依据，不授予新购买 |
+| 编辑受理事实 | 可信主体/会话/轮次/原task、原F10 request/interaction/option、后台接受task_revision/后续dispatch关联、plan_revision及项/operation/action_revision；必要审计/冻结依据；源已发布与预留候选完整ref（thread+namespace+id）、源内容绑定和同edit_ref的胜者完成投影。记录不是新购买授权 |
 
 后台依据分两条，**不得混成一张“无claim证明”**：
 
@@ -159,8 +160,8 @@ API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；
 2. 新协议的execute必须带回该次check所得operation_id及原项绑定（建议后台keyword参数；最终签名待Cross确认），平台核对它与当前未撤离attempt一致；不得按“最新相同商品”重挑operation。查询沿现有requery并带**精确原operation_id**；新替代项产生新原号，同一尝试恢复不换号。
    限定授权继续优先用现有grant_release/bind_freeze，但拟要求显式传递原pending.operation_id与原确认版本或等效冻结上下文（bind已有原号参数优先复用）；平台以捕获的原attempt校验，不能迟到后再按当前freeze键选取“原动作”。该兼容签名也待Cross核对。
 3. 旧未升级单件调用继续旧每商品唯一/quantity省略为1的既有语义；不能在新协议缺item_id/operation或已指定quantity时静默回落旧键。旧已办/未知映射只沿原号，不猜测重建；无法一一映射须回交具体兼容缺口。
-4. 拟议Harness后台`begin_birthday_edit(trusted, input_request_id, interaction_id, selected_option_id)`只接G1专用入口；从私有记录加载上述冻结事实。拟议Cross后台`enter_birthday_edit(trusted, edit_context, thread_id)`消费该次后台只读视图，核对原plan/item/attempt、当前阶段和持久审计依据后返回同task的ModuleResult新input。**两个方法当前均不存在，命名/签名及存储读取责任待双方核对。**edit_context只由后台从实际记录组装、不是普通resume字段或模型工具；不是凭知道ID、类型或editable布尔值即可通过。
-5. Cross只更新自己的检查点及新候选；平台以原版本CAS发布。若原请求已完成，恢复原冻结结果/版本；若发布中断，重读同一绑定和完整审计再完成原步骤。当前新计划/迟到grant的指针不能覆盖，终态/会话恢复仍按现规则复核。
+4. 拟议Harness后台`begin_birthday_edit(trusted, input_request_id, interaction_id, selected_option_id)`只接G1专用入口；加载后台冻结事实并预留唯一ref。拟议Cross后台`enter_birthday_edit(trusted, edit_context, thread_id)`还须接精确源已发布ref和预留候选ref，返回后台包`edit_ref/source_checkpoint_ref/candidate_checkpoint_ref/ModuleResult`，不是自行发布。**两个方法当前均不存在，命名/签名及读取责任待双方核对。**edit_context不是普通resume字段、模型工具或客户端标记。
+5. Cross只写隔离待发布候选，03读取05首次胜者再CAS同次发布引用/结果/版本/完成投影。G3任务普通恢复和异常路径只读已发布ref；handoff未完成不推进旧动作，不能沿用默认latest。候选或CAS失败不宣布新input生效，完成请求只重放原胜者，取消/新会话/终态先胜后不得回挂孤立候选。详见[对账协议](g3-reconciliation.md#最小协议候选先预留后安全再隔离准备最后发布)。
 
 **对账例子**：原花item-A/order-A/capture-A已付199；蛋糕item-B的order-B尚未提交且合法撤离，换同款花建立item-C/order-C/capture-C，新花仅199、累计398。原A不改成quantity=2，B的撤离历史不删；原冻结500不变，无在途且全部结清后差额仍由银行事实核实。若B原操作已经明确银行失败且无订单，则保留B失败，走第二种依据提出C，不删除claim以凑第一种依据。
 
@@ -172,10 +173,11 @@ G3等待Cross08核对：项ID是否可复用step_id；原operation承担attempt�
 |---|---|---|
 | [01 数量/稳定项/展示](issues/01-quantity-item-binding.md) | agent_platform | 与Cross08约定内部项/attempt；按同文件顺序先处理原PR296。无需等待293即可隔离验证数量装配 |
 | [02 安全撤离](issues/02-security-retire-unsubmitted.md) | security | G2本人安全审阅；提供无claim与claim原子竞争的窄拒绝接缝，不依赖Cross08完整实现 |
-| [03 原任务编辑交接](issues/03-platform-edit-handoff.md) | agent_platform | 01 + 02 + G3；与PR298同Harness改动按中控安排顺序。可用明确stand-in自验，真实Cross由08消费 |
+| [03 原任务编辑交接](issues/03-platform-edit-handoff.md) | agent_platform | 01 + 02 + 05 + G3；与PR298同Harness改动按中控安排顺序。可用明确stand-in自验，真实Cross由08消费 |
 | [04 F10接入](issues/04-api-edit-entry.md) | api | 03 + G1；不代做预算来源API02，也不将其未合当成商品编辑的业务依赖，具体同文件顺序交中控 |
+| [05 候选不可变封存](issues/05-immutable-edit-checkpoint.md) | storage | 静态源码证实的窄缺口；与03/08先约定ref/绑定，交付后03方可验证单胜者/发布。无需等03/08代码先完成 |
 
-全部planned/blocked，实施还需中控明确授权。G1/G2-A/B/C/G3不闭合不能把确认或验证等待态编辑标完成。若本人选择首批收窄，只能把满足准备守卫的确认态作为首批子范围，验证码/验证等待仍明确blocked，原完整需求不删；四票不会因本稿自动进入ready或开工。
+原01—04及新增05全部planned/blocked，实施还需中控明确授权；03的真实前置补05。G1/G2-A/B/C/G3不闭合不能把确认或验证等待态编辑标完成。若本人选首批收窄，验证码/验证等待仍blocked，原完整需求不删；本稿不激活任何票。
 Cross08的数量/安全节点局部可在01接口稳定且实施获授权后推进；整票仍需02→03→04接入与原等待态组合验证；个人预算路径另等原cross06及其既有依赖。
 真实联合验收复用[v05-cross-e2e/03：生日E2E](../v05-cross-e2e/issues/03-birthday-e2e.md)，页面承接[v05-cross-frontend/02](../v05-cross-frontend/issues/02-birthday-ui.md)，不另造总验收票、不修改其状态。
 
@@ -197,6 +199,10 @@ Cross08的数量/安全节点局部可在01接口稳定且实施获授权后推�
 | P09 / Q03/Q06 | 发码准备资格/实际发出/登记与撤离的各种胜序；晚到grant/store/bind及birthday_release CAS不得重建旧pending或覆盖新指针；准备结果不明不编辑 |
 | P10 / Q03/Q06 | 旧挑战失败/到期先胜、撤离先胜、旧会话及懒刷新时限；安全gate与银行验证两侧一致，已发生终止不可复活；本人选首批收窄时验证态仍blocked |
 | P11 / Q05/Q06 | 新确认UPSERT后旧完整版本仍可回读；必要审计失败回滚，撤离已持久但审计不齐保持封锁，重启不把有记录当已审计 |
+| P12 / Q03/Q06 | 精确ID仍可能被同namespace/channel-version覆盖；隔离候选不可变，旧put/put_writes不能绕过 |
+| P13 / Q03/Q06 | 同edit_ref跨进程双准备只返回同一持久胜者；候选写后任务CAS失败，普通/异常resume仍读已发布源且不推进旧动作 |
+| P14 / Q06 | 候选封存、发布CAS、receipt各断点；取消/终态/新会话/其他方案胜出则孤立候选不生效；历史重放不回挂旧input |
+| P15 / Q03/Q06 | 旧单件调用与旧任务ref区分；缺源ID/值绑定不回latest补证；check/execute/grant/bind捕获并回传同一原绑定 |
 
 实施时分开记录平台局部、真实安全/银行装配、HTTP、页面/模型E2E和本人安全接受。本轮只做内容、链接/锚点、编号、格式、diff空白检查，不运行测试、模型、全量或CI。
 
