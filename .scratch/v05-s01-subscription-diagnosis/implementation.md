@@ -1,5 +1,7 @@
 # Issue #302 实施证据
 
+当前开发验证：132项通过；双轴最终复核与PR/CI结果待下文补充。
+
 2026-10-25；票 [v05-s01-subscription-diagnosis/01：明确单项停止扣费不得静默降级为盘点](issues/01-untyped-action-clarification.md)；[规格](spec.md)。
 
 ## 先失败后修复
@@ -35,12 +37,18 @@ D:/hackerthon-bank-agent/backend/.venv/Scripts/python.exe -m pytest -q app/modul
 
 同一命令：**120 passed in 37.88s**，JUnit [implementation-tests.xml](implementation-tests.xml) 为当轮。新增公开工厂测试现为 43 项，新增真实 Harness/隔离 MockBank 集成仍为 6 项；其余为未修改的订阅与平台订阅回归。新增的查询/否定/旧批量失败样例全部通过。语法解析、本票 Markdown 文件目标、差异空白检查通过。没有运行无关全量、真实模型或页面。
 
-## 第二轮复审与最终定向复验
+## 第二轮复审与当轮定向复验
 
 复审固定 head `fe152e48474ae2350ae4ccfecc20a358797a4b5c`：首轮必须项已闭合，但 Standards 仍有 2 项 P2（前句查询否决后句明确办理、正向“不要再扣”跨到后续动作被当否定）；Spec 有 1 项必须（前述分句作用范围），另指出保留退订记录吞掉停扣指令。补 6 个公开工厂正向对照，先为 **6 failed / 9 passed in 3.99s**。
 
 最小修正为按标点分句去除查询表达后查找正向动作；查询名词只排除其自身提及，不否决同分句其他明确指令。否定检测排除正向未来续扣表达，再保留原整体否定保护。没有新增通用解析器、状态或公共字段。
 
-同一受影响命令最终 **126 passed in 27.87s**；[implementation-tests.xml](implementation-tests.xml) 当前记录为126例、0失败/错误/跳过。新公开工厂 49 项、新真实 Harness/隔离 MockBank 集成 6 项，另71项既有回归。前述旧XML/探针与74da8d9逐文件比较无差异，原失败没有覆盖。
+同一受影响命令当轮 **126 passed in 27.87s**；[implementation-tests.xml](implementation-tests.xml) 当轮记录为126例、0失败/错误/跳过。新公开工厂 49 项、新真实 Harness/隔离 MockBank 集成 6 项，另71项既有回归。前述旧XML/探针与74da8d9逐文件比较无差异，原失败没有覆盖。
 
 中控最新停止线：开发、必要定向验证、独立审查与PR回交后停止；实际 S01 和页面/真实模型端到端验收由 Erwin 后续另行安排。本轮只形成[E2E验收方案](e2e-acceptance-plan.md)，不执行。
+
+## 第三轮复审、同步主线与当前结果
+
+固定 `a57e01ac9ce319b7c86dd17ff43f7c425cd7b17e`：此前剩余项闭合；Standards 指出收窄后果后缀使普通后果询问回归，Spec 指出时间/日期询问遗漏，各1项必须。六个公开工厂对照先 **6 failed / 27 passed in 3.61s**；按疑问词前后位置及“告诉/告知我”读请求类别修正，没有商户或整句特判。
+
+随后 rebase 到最新 main **1b3afec5336e5906f87259c7b1c903823cc574e1**（预算storage #293、API #299；未改subscription/agent_platform），再次运行同一定向命令：**132 passed in 21.24s**。当前XML为132例、0失败/错误/跳过；新Fake公开工厂55项、新真实Harness/隔离MockBank6项、既有71项。此前“最终”数字仅对应当轮，当前交付只以本段和当前XML为准。实际E2E未执行，方案已形成，开发回交后停止。
