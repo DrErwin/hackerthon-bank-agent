@@ -54,6 +54,9 @@ export interface ShellDataSource {
   listMessages(threadId: string): Promise<MessageView[]>;
   listTasks(threadId: string): Promise<TaskEnvelope[]>;
   getTask(taskId: string): Promise<TaskEnvelope>;
+  // Cross-linkage parents expose durable child tasks; the page answers on the
+  // child that owns the current interaction, never on the parent.
+  listChildren?(taskId: string): Promise<TaskEnvelope[]>;
   listTaskRecords(taskId: string): Promise<TaskRecordsView>;
   sendMessage(threadId: string, body: { request_id: string; text: string }): Promise<MessageAccepted>;
   provideInput(

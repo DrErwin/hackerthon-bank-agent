@@ -18,13 +18,16 @@ export function WaitingCard({ message, facts, id }: { message: string; facts: Di
   );
 }
 
-export function InputCard({ interaction, active, busy, selectedLabel, onSelect, onSubmitText, id }: {
+export function InputCard({ interaction, active, busy, selectedLabel, onSelect, onSubmitText, textLabel, id }: {
   interaction: InteractionRequest;
   active: boolean;
   busy: boolean;
   selectedLabel: string | null;
   onSelect: (optionId: string, label: string) => void;
   onSubmitText?: (text: string) => Promise<boolean>;
+  // Cross-linkage menus ask for values (an amount, a date, a controlled
+  // reference) with the same selection interaction; the answer is typed.
+  textLabel?: string;
   id: string;
 }) {
   const [text, setText] = useState("");
@@ -34,13 +37,14 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
     payer_account_id: "付款账户编号", merchant_hint: "商户名称",
   };
   const inputLabel = labels[field];
+  const typingLabel = inputLabel ?? textLabel;
   return (
     <Card
       title={interaction.prompt}
       labelledBy={id}
       readOnly={!active}
       highlight={active}
-      badge={active ? <StatusBadge tone="pending" icon="✎" text={inputLabel ? "等您补充" : "等您选择"} /> : <ReadOnlyStamp text={selectedLabel ? "已选择" : "已结束"} />}
+      badge={active ? <StatusBadge tone="pending" icon="✎" text={typingLabel ? "等您补充" : "等您选择"} /> : <ReadOnlyStamp text={selectedLabel ? "已选择" : "已结束"} />}
     >
       {active ? (
         <div className="sh-choices">
@@ -50,19 +54,19 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
               <span aria-hidden="true">›</span>
             </button>
           ))}
-          {inputLabel && onSubmitText && (
+          {typingLabel && onSubmitText && (
             <form className="sh-modify" onSubmit={async (event) => {
               event.preventDefault();
               if (!text.trim() || busy) return;
               if (await onSubmitText(text)) setText("");
             }}>
-              <label htmlFor={id + "-input"}>{inputLabel}</label>
+              <label htmlFor={id + "-input"}>{typingLabel}</label>
               <input id={id + "-input"} value={text} onChange={(event) => setText(event.target.value)}
                 inputMode={field === "amount_fen" ? "decimal" : "text"} autoComplete="off" disabled={busy} required />
-              <button className="sh-btn sh-btn-primary" disabled={busy || !text.trim()}>补充并继续</button>
+              <button className="sh-btn sh-btn-primary" disabled={busy || !text.trim()}>{textLabel ? "填好了，继续" : "补充并继续"}</button>
             </form>
           )}
-          <p className="sh-hint">{inputLabel ? "填写后继续这项办理，不会另起一笔。" : "请自己点选，系统不会替您默认选择。"}</p>
+          <p className="sh-hint">{textLabel ? "可以点上面的选项，也可以直接打字。" : inputLabel ? "填写后继续这项办理，不会另起一笔。" : "请自己点选，系统不会替您默认选择。"}</p>
         </div>
       ) : (
         <p className="sh-readonly-line">{selectedLabel ? "您选择了：" + selectedLabel : "这一步已经结束。"}</p>

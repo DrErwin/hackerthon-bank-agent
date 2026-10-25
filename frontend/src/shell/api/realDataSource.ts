@@ -45,6 +45,11 @@ export function createRealDataSource(): ShellDataSource {
       return envelope(await get<TaskView>("/tasks/" + encodeURIComponent(taskId)));
     },
 
+    async listChildren(taskId) {
+      const children = await get<TaskView[]>("/tasks/" + encodeURIComponent(taskId) + "/children");
+      return children.map(envelope);
+    },
+
     listTaskRecords: (taskId) => get<TaskRecordsView>("/tasks/" + encodeURIComponent(taskId) + "/records"),
 
     sendMessage: (threadId, body) =>
