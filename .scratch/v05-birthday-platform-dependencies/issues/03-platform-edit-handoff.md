@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（2026-10-26 已实施；Harness/API 接线与真实 Cross 消费留 04/08）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/agent_platform/`
-Status: implemented — 2026-10-26 实施完成、提交 `8e93485` 已推分支，两轴独立审查进行中；Harness/API 接线与真实 Cross 消费留 04/08。
+Status: done — 2026-10-26 实施与三轮两轴复验闭合（规范轴 PASS；规格轴 M1—M5 + R1 全部闭合）、PR #310 squash 合入 `d5c069c`；真实 Cross 消费（08）、真实 E2E 与页面验收未由本票完成。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)、[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)及本人所选G2完整条件；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)核对[候选G3快照/接口](../spec.md#g3最小内部快照候选待cross08逐项核对不是公共新模型)；中控授权。[PR #298](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)已合主线6ce7fb0，保留其预算来源边界，不在本轮整理原PR。
@@ -81,4 +81,11 @@ API04与Cross08消费；真实联合验收复用原E2E03。G1未收口前不宣�
   - **规范轴 PASS**（无必须修；建议：票号带标题、README 表述与代码一致、接缝断言 `writes_task_id` 归属、编辑选项已上真卡而 API04 未接）。
   - **规格轴 FAIL**，4 项必须修：**M1** harness 未接线 root/普通/异常发布，三个发布入口零生产调用者会让真实任务永无 `published_ref`、编辑必 `SOURCE_UNAVAILABLE`（`harness.py` 与本票同目录，不能推给 04/08）；**M2** harness 在 entry 返回后用旧 `task.revision` 做 CAS（已核实 `harness.py:626/763`、`1139/1234`），本票给 verify_wait 又加一次 entry 内写，属加重，须重读后再 CAS；**M3** 只拒了 PARTIALLY_SUCCEEDED，NEEDS_ATTENTION 等不可判断态仍可进编辑；**M4** 发布 CAS 用新鲜 revision 而非受理时的严格 `accepted_version`。
   - 规格轴确认作者声称的 Harness 修订号问题**属实**，且判定「既有但本票加重、同目录，票内必修」。
-- 回修中（同一分支）：M1 拟在 `agent_platform` 内做发布用 saver 适配器（`put/put_writes` → 预留候选 → 05 封存 → 同次任务 CAS 发布；`get_tuple/get` 读已发布 ref），另修 `ValueError("TASK_CHANGED")` 被 503 映射、README 表述、`writes_task_id` 断言。
+- 回修（同一分支，三轮，均已两轴复验）：
+  1) M1—M4（Harness 接 root/普通/异常发布、entry 后重读 revision、拒不可判断态、发布用受理严格版本）+ 规范建议；
+  2) N1（不可发布 root 保留原失败/待核实结果、不丢卡）+ N2（无 `request_id` 时转换身份用「等待卡 interaction_id + 发布 revision + 回答摘要」，同答重试可恢复）+ M5（`PARTIALLY_SUCCEEDED` 早退返回已发布历史结果）+ 复验建议；
+  3) R1（`recover_session` 对已有 `birthday_g3.published_ref` 的任务迁移前显式拒绝；legacy 非 G3 恢复不受影响）。
+  实测：`app/agent_platform` **372 passed / 13 skipped**（本票 49+14 例）、`app/modules/cross` **93 passed**、`app/api/test_app.py` **85 passed**；
+  本对话在 rebase 后独立复跑 `app/agent_platform` 372 passed/13 skipped，并定向复跑 R1 两条用例通过。
+- 交付：[PR #310](https://github.com/DrErwin/hackerthon-bank-agent/pull/310) squash 合入 `d5c069c`。
+- 未做：真实 Cross 候选准备（票 08 `CrossBirthdayHandoff.prepare`）、API 04 接线、G3 跨会话恢复适配器（当前显式拒绝）、旧任务/legacy 编辑仍 `SOURCE_UNAVAILABLE`、真实 E2E/页面/本人接受。
