@@ -47,12 +47,15 @@ def test_actual_bank_income_and_own_destination_on_combined_inputs(tmp_path):
         current = entry.resume(who, {"selected_option_id": option_id(current, "家庭")})
         current = entry.resume(who, {"text": "1000元"})
         current = entry.resume(who, {"selected_option_id": option_id(current, "去向已选好")})
+        assert "2 笔转账，合计 3500.00 元" in current.message
         current = entry.resume(who, {"selected_option_id": option_id(current, "采用并开始办理")})
         active = runtime.application.get_active_arrangement("U1", "D1", "A1").record
         assert active.funds_basis == "selected_income"
         assert active.income_transaction_ids == ["real-pension"]
         assert active.base_fen == 500000 and active.living_reserve_fen == 150000
-        assert [step.amount_fen for step in current.data.steps if step.action == "transfer.start_transfer"] == [250000, 100000]
+        transfers = [step for step in current.data.steps if step.action == "transfer.start_transfer"]
+        assert len(transfers) == 2 and transfers[0].amount_fen == 250000
+        assert transfers[1].amount_fen is None and transfers[1].status is None
         child = runtime.application.get_task("U1", "D1", current.data.interaction_task_id)
         assert child.snapshot["result"]["status"] == "needs_attention"
         assert child.snapshot["result"]["data"]["payee"]["account_masked"] == runtime.gateway.get_account(who, "A5").data.account_masked
@@ -60,6 +63,6 @@ def test_actual_bank_income_and_own_destination_on_combined_inputs(tmp_path):
         print(json.dumps({"income_transaction_ids": active.income_transaction_ids,
             "base_fen": active.base_fen, "reserve_fen": active.living_reserve_fen,
             "planned_transfers_fen": [250000, 100000], "first_child_status": "needs_attention",
-            "non_seed_writes": 0}, ensure_ascii=False))
+            "second_transfer_dispatched": False, "non_seed_writes": 0}, ensure_ascii=False))
     finally:
         runtime.gateway.close()
