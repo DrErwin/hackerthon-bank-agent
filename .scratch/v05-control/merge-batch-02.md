@@ -1,10 +1,10 @@
 # 第二批优先合入材料（2026-10-25）
 
-Status: approved / merge_in_progress — Erwin于2026-10-25在本对话明确批准本批五项及CI计费本地验证例外；正在按顺序同步并核对分支，实际合入逐项登记。仅批准不代表已经合入或E2E接受。
+Status: merged — Erwin于2026-10-25明确批准本批五项及CI计费本地验证例外；298→284→292→295→297已依次实际squash合入，最终代码main为2a070b9。五项新head的CI均计费未启动，未记绿；合入不等于E2E或最终接受。
 
 本批选择五个已有PR，目的是让减支场景开始真实E2E，并让预算专用输入的API接线开工。它们补齐真实账单入口、隔离案例、养老金入账/本人账户选择以及预算输入来源；不是整版验收，也不改变风险信息不足时暂停办理的规则。
 
-## 建议批准的范围与顺序
+## 已批准范围与顺序（原候选版本）
 
 | 顺序 / PR | 实施票与单目录 | 业务结果 | 精确候选head |
 |---|---|---|---|
@@ -49,7 +49,7 @@ Status: approved / merge_in_progress — Erwin于2026-10-25在本对话明确批
 | 295 | [40169072679 / 121096041887](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40169072679/job/121096041887) |
 | 297 | [40177249180 / 121120506315](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40177249180/job/121120506315) |
 
-拟提交Erwin的决定：是否按以上顺序合入这五项，并**仅对本批**采用已记录的本地验证作为计费故障期间的合入依据，CI仍记Blocked。首批五PR的批准不能自动移用。批准来源遵循[Review与合并原则](../../docs/principles/03-review-and-merge.md)及根AGENTS本阶段Erwin本人审查规则；AI审查不代签真人。
+原申请已获Erwin明确回复：按以上顺序合入，并**仅对本批**采用已记录的本地验证作为计费故障期间的合入依据，CI仍记Blocked。此为第二批自身批准，没有移用首批例外。批准来源遵循[Review与合并原则](../../docs/principles/03-review-and-merge.md)及根AGENTS本阶段Erwin本人审查规则；AI审查不代签真人。
 
 ## 合入后可推进与继续保留
 
@@ -63,4 +63,16 @@ Status: approved / merge_in_progress — Erwin于2026-10-25在本对话明确批
 
 Erwin于2026-10-25对本对话第二批问题卡明确回复：**“批准本批五项及CI例外（推荐）”**。批准范围为#298→#284→#292→#295→#297及其等价同步，按已记录本地验证合入，CI仍记Blocked；不含#293等其他PR、共享数据库升级、#160新政策或最终安全/体验/E2E接受。不再重复请求本批批准。
 
-中控开始按顺序同步最新main，核对受审补丁、依赖及运行树；各项最终head、squash提交和实际验证随后逐项登记。若出现非等价改动或新失败，按原材料暂停对应项并修复复审。
+五项作者均在干净独立worktree顺序同步最新main，原提交range-diff全部等价，仅追加各自准备记录；使用明确旧head的force-with-lease更新原PR。中控复核准确目录差异、新head计费注释并以expected_head_sha逐项squash；292仅移植自身3提交，未重复284祖先，base已改main。五项均已从远端元数据核实merged=true。
+
+| PR | 最终合入head | 实际squash提交 | 最终head检查 |
+|---|---|---|---|
+| 298 | `7670c8f1cc217c27aa2280dbfeb899b4f61d77b3` | `6ce7fb03a3765df00773885953151619c43f52c7` | [CI计费未启动](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40184895685/job/121143509746) |
+| 284 | `6ae4f4a56dee7d8c57bb78ffe08134e0c8753aa3` | `4d9bd5774461e177b0289a80a9c00663386fa34b` | [CI计费未启动](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40185244819/job/121144547831) |
+| 292 | `7a43d4f9c7a4b7797db62c202062fe8d584688de` | `e402bc4d6c4a70be8082fb4b79cbd77b483e2dc2` | [CI计费未启动](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40185488889/job/121145275952) |
+| 295 | `ba023807a4baf510293567adaac06314840d0b26` | `3239fd75417e8f1e47aea0c0db83d734cdfffe6c` | [CI计费未启动](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40185840929/job/121146318571) |
+| 297 | `b1e9486106c5eed8de076a2c51650bfc861edc59` | `2a070b9cf992a109d8b54718a49dc3e3b56bd236` | [CI计费未启动](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40186132694/job/121147180497) |
+
+**合入后核对**：main `2a070b9cf992a109d8b54718a49dc3e3b56bd236` 的backend/evals/frontend/tools/.github以及养老金组合探针与受测 `0aed529dfff0a4e557bb66340370bea51632a769` 零差异。backend tree仍为 `83b766fd3c15bec6939511049ec4b8ef1e3adb3c`，evals tree仍为 `977ce1d074c6fcd0eee18f4039bda0c191b6b6ba`。因此沿用既有156唯一节点与双轴结果，不重复跑相同测试、全量或503诊断；这是运行代码等价核对，不是新测试批或页面E2E。
+
+**已发下游开始信号**：原来源/存储对话已开始 `v05-budget-adoption-origin/02` 的API实现；原E2E对话已开始 `v05-cross-e2e/01` 的真实页面/模型/HTTP/隔离银行实跑，先S01再关键变体。新API代码、实际E2E结果和后续养老金/生日路径各自回交，不由本批合入代验收。293/296/294/291/290及生日新语义没有纳入批准。
