@@ -1,10 +1,11 @@
 """Ticket v05-birthday-platform-dependencies/01: real quantity and stable items.
 
-The platform ports are exercised exactly as the orchestrator calls them, over
-the real security gate and the real isolated mock bank. Stand-in plan rows
-stand for the server snapshot Cross08 will send once its own ticket lands; they
-are not a public protocol. The legacy single-item shape (no ``item_id``) must
-keep behaving exactly as before, including its stored parameter shape.
+The platform ports are exercised the way the orchestrator calls them today,
+plus the captured-original keyword Cross08 will pass once its own ticket lands,
+over the real security gate and the real isolated mock bank. Stand-in plan rows
+stand for the server snapshot Cross08 will send; they are not a public
+protocol. The legacy single-item shape (no ``item_id``) must keep behaving
+exactly as before, including its stored parameter shape.
 """
 
 from uuid import UUID, uuid4
@@ -83,14 +84,20 @@ def test_quantity_flows_to_confirmation_and_the_real_bank(tmp_path):
 
         stored = actions(runtime)["order:item/item-flower-1"]
         assert stored["parameters"]["item_id"] == "item-flower-1"
-        assert stored["parameters"]["quantity"] == 2
-        assert stored["parameters"]["unit_price_fen"] == 19900
-        assert stored["parameters"]["account_id"] == "A1"
-        assert stored["parameters"]["deliver_by"] == NORMALIZED_DELIVER_BY
+        # Only the stable item id joins the binding; the request itself freezes
+        # quantity and total, and delivery stays on the plan.
+        assert "quantity" not in stored["parameters"]
+        assert "account_id" not in stored["parameters"]
+        assert "deliver_by" not in stored["parameters"]
         request = stored["parameters"]["request"]
         assert request["quantity"] == 2
         assert request["expected_total_fen"] == 39800
         assert request["delivery"]["deliver_by"] == NORMALIZED_DELIVER_BY
+        facts = stored["facts"]
+        assert facts["quantity"] == 2
+        assert facts["unit_price_fen"] == 19900
+        assert facts["deliver_by"] == NORMALIZED_DELIVER_BY
+        assert facts["account_id"] == "A1"
 
         record = confirmation(runtime, who, answer.interaction.record_ref)
         fields = {field.name: field.value_text for field in record.display_fields}
@@ -250,7 +257,7 @@ def test_changed_parameters_keep_the_replaced_attempt_readable(tmp_path):
         one = row(item_id="item-flower-1", quantity=1)
         ports.order_check(who, plan(one), one)
         original = actions(runtime)["order:item/item-flower-1"]
-        assert original["parameters"]["quantity"] == 1
+        assert original["parameters"]["request"]["quantity"] == 1
 
         # The same item now wants two: a new attempt and operation, while the
         # old attempt stays readable by its saved id with its original params.
@@ -258,7 +265,8 @@ def test_changed_parameters_keep_the_replaced_attempt_readable(tmp_path):
         ports.order_check(who, plan(two), two)
         stored = actions(runtime)["order:item/item-flower-1"]
         assert stored["operation_id"] != original["operation_id"]
-        assert stored["parameters"]["quantity"] == 2
+        assert stored["parameters"]["request"]["quantity"] == 2
+        assert stored["facts"]["quantity"] == 2
         assert stored["action_revision"] > original["action_revision"]
         assert attempts(runtime) == [original]
         assert ports._action_for(who, original["operation_id"]) == original
@@ -301,8 +309,10 @@ def test_capture_refuses_quantity_without_item_identity(tmp_path):
     ports = runtime.birthday.ports_factory(who)
     try:
         legacy = row()
-        assert ports.capture_check(who, plan(legacy), legacy, "order-1").decision in (
-            SecurityDecisionCode.BLOCK, SecurityDecisionCode.REQUIRE_CONFIRMATION)
+        # Without a create-order source for that order id the gate blocks, not
+        # asks: an unverified order reference is never a payable target.
+        assert ports.capture_check(who, plan(legacy), legacy, "order-1").decision is (
+            SecurityDecisionCode.BLOCK)
         ambiguous = row(quantity=2)
         answer = ports.capture_check(who, plan(ambiguous), ambiguous, "order-1")
         assert answer.decision is SecurityDecisionCode.BLOCK
@@ -310,3 +320,68 @@ def test_capture_refuses_quantity_without_item_identity(tmp_path):
         assert not [key for key in actions(runtime) if key.startswith("capture:item/")]
     finally:
         runtime.gateway.close()
+
+
+def test_legacy_call_never_downgrades_an_item_binding(tmp_path):
+    runtime, _entry = composition(tmp_path)
+    who = trusted(runtime)
+    ports = runtime.birthday.ports_factory(who)
+    try:
+        # A stored item attempt for this product exists: a later id-less call
+        # must not open a second, product-keyed attempt beside it.
+        item = row(item_id="item-flower-1")
+        ports.order_check(who, plan(item), item)
+        plain = row()
+        answer = ports.order_check(who, plan(plain), plain)
+        assert answer.decision is SecurityDecisionCode.BLOCK
+        assert answer.reason_code == "ITEM_IDENTITY_AMBIGUOUS"
+        assert "order:p_flower" not in actions(runtime)
+
+        # The plan itself already carries the stable id for this product.
+        hybrid = row(item_id="item-flower-2")
+        answer = ports.order_check(
+            who, plan(hybrid), {**plain, "product_id": "p_flower"})
+        assert answer.reason_code == "ITEM_IDENTITY_AMBIGUOUS"
+    finally:
+        runtime.gateway.close()
+
+
+def test_capture_reads_the_orders_own_creation_parameters(tmp_path):
+    runtime, _entry = composition(tmp_path)
+    who = trusted(runtime)
+    ports = runtime.birthday.ports_factory(who)
+    item = row(item_id="item-flower-1")
+    try:
+        _answer, outcome = order_to_bank(runtime, ports, who, plan(item), item)
+        order_id = runtime.gateway.get_operation(
+            who, UUID(outcome.operation_id)).operation.receipt.order.order_id
+
+        # A fresh quote for the same item must not rewrite the created order.
+        requoted = {**item, "amount_fen": 29900, "unit_price_fen": 29900}
+        capture = ports.capture_check(who, plan(requoted), requoted, order_id)
+        assert capture.decision is SecurityDecisionCode.REQUIRE_CONFIRMATION
+        stored = actions(runtime)["capture:item/item-flower-1"]
+        assert stored["parameters"]["amount_fen"] == 19900
+        assert stored["facts"]["unit_price_fen"] == 19900
+        record = confirmation(runtime, who, capture.interaction.record_ref)
+        fields = {field.name: field.value_text for field in record.display_fields}
+        assert fields["amount"] == "199.00 元"
+        assert fields["unit_price"] == "199.00 元"
+    finally:
+        runtime.gateway.close()
+
+
+def test_display_label_stays_stable_for_an_older_attempt():
+    from .birthday_runtime import _display_fields
+
+    parameters = {"amount_fen": 19900, "product_id": "p_flower",
+                  "merchant_name": "邻里花店", "purpose": "鲜花礼盒"}
+    legacy = {field.name: field.label for field in
+              _display_fields("bank.create_order", parameters)}
+    assert legacy["amount"] == "金额"  # a pre-change confirmation still matches
+    assert "quantity" not in legacy
+    new = {field.name: field.label for field in
+           _display_fields("bank.create_order", parameters,
+                           {"quantity": 1, "unit_price_fen": 19900})}
+    assert new["amount"] == "金额（小计）"
+    assert new["quantity"] == "数量"

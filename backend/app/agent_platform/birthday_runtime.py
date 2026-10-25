@@ -53,9 +53,14 @@ _ACTION_LABELS = {
 
 
 _ORDER_ACTIONS = ("bank.create_order", "bank.capture_frozen")
-# The old callers already sent an explicit ``quantity=1``; the field itself
-# proves nothing, so the legacy product-key path survives only for that shape.
-_LEGACY_QUANTITIES = (None, 1)
+
+
+def _is_legacy_quantity(quantity) -> bool:
+    """The old shape is exactly ``None`` or the integer ``1``; ``True`` and
+    ``1.0`` must not slip through as one."""
+    return quantity is None or (
+        isinstance(quantity, int) and not isinstance(quantity, bool) and quantity == 1
+    )
 
 
 def _display_fields(action_name: str, parameters: dict,
@@ -65,7 +70,10 @@ def _display_fields(action_name: str, parameters: dict,
     fields = [DisplayField(name="action", label="办理事项",
                            value_text=_ACTION_LABELS.get(action_name, action_name))]
     if "amount_fen" in parameters:
-        label = "金额（小计）" if action_name in _ORDER_ACTIONS else "金额"
+        # Only a new-protocol attempt carries display facts; an older stored
+        # confirmation must keep matching its own recorded label.
+        label = "金额（小计）" if action_name in _ORDER_ACTIONS and facts is not None \
+            else "金额"
         fields.append(DisplayField(name="amount", label=label,
                                    value_text=f"{_yuan(parameters['amount_fen'])} 元"))
     if "product_id" in parameters:
@@ -109,7 +117,7 @@ def _item_identity(plan, item: dict) -> tuple[str, str] | None:
     product_id = item.get("product_id")
     if not isinstance(product_id, str) or not product_id:
         return None
-    if item.get("quantity", 1) not in _LEGACY_QUANTITIES:
+    if not _is_legacy_quantity(item.get("quantity", 1)):
         return None
     if sum(1 for row in plan.items if row.get("product_id") == product_id) != 1:
         return None
@@ -605,10 +613,34 @@ class BirthdayTaskPorts:
         source = next((row for row in plan.items if row.get(field) == name), {})
         return {**source, **{k: v for k, v in item.items() if v is not None}}
 
+    def _identity_conflict(self, context, plan, kind: str,
+                           identity: tuple[str, str]) -> bool:
+        """A legacy product key may not stand in for an item the backend has
+        already bound to a stable item id: the plan carries one, or a stored
+        item attempt for the same product exists. Downgrading there would let
+        one product own two attempts again."""
+        if identity[0] != "legacy":
+            return False
+        product_id = identity[1]
+        if any(row.get("product_id") == product_id and row.get("item_id")
+               for row in plan.items):
+            return True
+        prefixes = (f"{kind}:item/", "order:item/")
+        return any(
+            key.startswith(prefixes)
+            and (stored.get("parameters") or {}).get("product_id") == product_id
+            for key, stored in self._actions(context).items()
+        )
+
+    def _frozen_order(self, context, identity: tuple[str, str]) -> dict:
+        """The create-order attempt's own frozen parameters for this item."""
+        stored = self._actions(context).get(_action_key("order", identity)) or {}
+        return stored.get("parameters") or {}
+
     def _order_binding(self, context, plan, item):
         """(key, parameters, facts, reason) for one order attempt."""
         identity = _item_identity(plan, item)
-        if identity is None:
+        if identity is None or self._identity_conflict(context, plan, "order", identity):
             return None, None, None, "ITEM_IDENTITY_AMBIGUOUS"
         quantity = _quantity_of(item)
         if quantity is None:
@@ -631,10 +663,9 @@ class BirthdayTaskPorts:
                 return None, None, None, "ITEM_UNIT_PRICE_MISSING"
             if unit_price_fen * quantity != enriched["amount_fen"]:
                 return None, None, None, "ITEM_AMOUNT_MISMATCH"
-            parameters.update(item_id=identity[1], quantity=quantity,
-                              unit_price_fen=unit_price_fen,
-                              account_id=plan.payer_account_id,
-                              deliver_by=_deliver_by(plan))
+            # Only the stable item id joins the binding: quantity and price are
+            # already inside the frozen request, and delivery stays on the plan.
+            parameters["item_id"] = identity[1]
             facts["unit_price_fen"] = unit_price_fen
         request = self._order_request(context, plan, enriched, quantity)
         if request is None:
@@ -659,34 +690,35 @@ class BirthdayTaskPorts:
     def _capture_binding(self, context, plan, item, order_id):
         """(key, parameters, facts, reason) for one capture attempt."""
         identity = _item_identity(plan, item)
-        if identity is None:
+        if identity is None or self._identity_conflict(context, plan, "capture", identity):
             return None, None, None, "ITEM_IDENTITY_AMBIGUOUS"
         quantity = _quantity_of(item)
         if quantity is None:
             return None, None, None, "ITEM_QUANTITY_INVALID"
         enriched = self._enriched(plan, identity, item)
+        # Paying an order reads that order's own creation parameters: a later
+        # quote must not rewrite what the created order actually says.
+        frozen = self._frozen_order(context, identity)
+        amount_fen = frozen.get("amount_fen", enriched["amount_fen"])
+        frozen_quantity = (frozen.get("request") or {}).get("quantity", quantity)
         parameters = {"__action__": "bank.capture_frozen",
-                      "amount_fen": enriched["amount_fen"],
-                      "merchant_id": enriched["merchant_id"],
-                      "merchant_name": enriched["merchant_name"],
-                      "purpose": enriched["name"],
-                      "category": enriched.get("category", "shopping"),
+                      "amount_fen": amount_fen,
+                      "merchant_id": frozen.get("merchant_id", enriched["merchant_id"]),
+                      "merchant_name": frozen.get("merchant_name",
+                                                  enriched["merchant_name"]),
+                      "purpose": frozen.get("purpose", enriched["name"]),
+                      "category": frozen.get("category",
+                                             enriched.get("category", "shopping")),
                       "order_id": order_id}
-        facts = {"quantity": quantity, "unit_price_fen": enriched["amount_fen"],
+        facts = {"quantity": frozen_quantity,
+                 "unit_price_fen": (amount_fen // frozen_quantity
+                                    if frozen_quantity else amount_fen),
                  "deliver_by": _deliver_by(plan),
                  "account_id": plan.payer_account_id}
         if identity[0] == "item":
-            unit_price_fen = enriched.get("unit_price_fen")
-            if not isinstance(unit_price_fen, int) or unit_price_fen <= 0:
-                return None, None, None, "ITEM_UNIT_PRICE_MISSING"
-            if unit_price_fen * quantity != enriched["amount_fen"]:
-                return None, None, None, "ITEM_AMOUNT_MISMATCH"
-            parameters.update(item_id=identity[1],
-                              product_id=enriched["product_id"],
-                              quantity=quantity, unit_price_fen=unit_price_fen,
-                              account_id=plan.payer_account_id,
-                              deliver_by=_deliver_by(plan))
-            facts["unit_price_fen"] = unit_price_fen
+            parameters["item_id"] = identity[1]
+            parameters["product_id"] = frozen.get("product_id",
+                                                  enriched["product_id"])
         return _action_key("capture", identity), parameters, facts, None
 
     def capture_check(self, context, plan, item, order_id):
@@ -748,8 +780,7 @@ class BirthdayTaskPorts:
         return authorization.freeze_id
 
     def requery(self, context, plan, target, operation_id):
-        stored = next((action for action in self._actions(context).values()
-                       if action["operation_id"] == str(operation_id)), None)
+        stored = self._action_for(context, str(operation_id)) or None
         if stored is None:
             return None
         descriptor = ActionDescriptor(
