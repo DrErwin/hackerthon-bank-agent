@@ -267,6 +267,50 @@ def test_operation_scope_isolation(birthday_runtime, user_context, action, chang
     assert state(bank) == before
 
 
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "Open round-boundary gap: old objects remain usable with a new UUID and an explicit test grant; "
+    "see birthday-evidence.md and .scratch/v05-cross-bank-eval/round-boundary-gap.md"
+))
+@pytest.mark.parametrize("probe", ("get_freeze", "get_order", "capture_frozen", "release_frozen"))
+def test_old_round_objects_with_new_operation_are_denied(
+    birthday_runtime, user_context, record_property, probe,
+):
+    """Unmet package requirement, never counted as a passing isolation check.
+
+    The grant bypasses the real security executor, so this cannot establish a
+    product exploit. Keep strict xfail until the owning directories resolve it.
+    """
+    bank, gateway, _, _ = birthday_runtime
+    gate = gateway(bank)
+    request = prepared_action("capture_frozen", gate, user_context)
+    before = state(bank)
+    next_round = user_context.model_copy(update={"demo_round_id": "D2"})
+    if probe == "get_freeze":
+        result = gate.get_freeze(next_round, request.freeze_id)
+    elif probe == "get_order":
+        result = gate.get_order(next_round, request.order_id)
+    elif probe == "capture_frozen":
+        result = gate.capture_frozen(next_round, uuid4(), request)
+    else:
+        result = gate.release_frozen(next_round, uuid4(), ReleaseFrozenInput(
+            freeze_id=request.freeze_id, amount_fen=50000,
+        ))
+    record_property("round_boundary_probe", json.dumps({
+        "from_round": "D1", "to_round": "D2", "probe": probe,
+        "observed_kind": getattr(result, "kind", None),
+        "observed_operation_status": getattr(result, "operation_status", None),
+        "book_fen": bank.store.get_account("U1", "EVAL_A").book_balance_fen,
+        "frozen_fen": bank.store.get_account("U1", "EVAL_A").frozen_balance_fen,
+    }))
+    if probe in ("get_freeze", "get_order"):
+        assert isinstance(result, QueryFailure), "Old-round bank object was readable"
+    else:
+        assert isinstance(result, QueryFailure) or result.operation_status is OperationStatus.FAILED, (
+            "New-round write succeeded against old-round bank objects under the test grant"
+        )
+    assert state(bank) == before
+
+
 @pytest.mark.parametrize("action", ACTIONS, ids=lambda a: "MB-B07-" + a)
 @pytest.mark.parametrize("authorized", [None, False], ids=["missing-grant", "denied-grant"])
 def test_unauthorized_writes_never_reach_bank(birthday_runtime, user_context, action, authorized):

@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `evals/mockbank/`
 
-Status: in_progress — 2026-10-25 中控正式委派；只实施 evals/mockbank/，共享进度由中控登记。
+Status: blocked — 评测实现及已通过银行事实可交付；跨轮次旧对象隔离未满足，待中控分派提供方核对/修复，不能收口专项验收。
 
 Accepted by: Erwin（授权执行对话，银行专项）
 
@@ -29,6 +29,7 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 ## Blocked by
 
 - [v05-cross-platform/07：生日模拟银行与网关](../../v05-cross-platform/issues/07-birthday-bank-services.md)
+- 前置07已随 PR #261/#262 合入；新发现[跨轮次旧对象边界缺口](../round-boundary-gap.md)待平台/安全及必要服务/存储提供方核对，不由本票擅定规则或越界修复。
 
 ## Start when
 
@@ -37,9 +38,9 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 
 ## Acceptance criteria
 
-- [ ] 银行事实证明冻结500、消费467、释放33；消费199后无在途可释放301。
+- [x] 银行事实证明冻结500、消费467、释放33；消费199后全部已发起付款核实为终态，可释放301。
 - [ ] 各写动作的重复、异参、未知回查、订单防重扣、跨用户/轮次和存储故障均有可重复记录。
-- [ ] 固定种子重置后结论可复现，实际银行结果及账本计数一致；报告清楚标为银行专项，非页面 E2E。
+- [x] 固定种子独立建库重置后结论可复现，实际银行结果及账本计数一致；报告标为银行专项，非B26管理重置、非页面 E2E。
 
 ## Verification
 
@@ -59,8 +60,10 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 - 检查订单金额/商户/分类、账户归属、耗尽冻结、独立种子重建与服务重启；实际跨目录缺口记录后交中控，不越界修复。
 - 银行专项不能证明页面/HTTP/真实模型/安全门/真人接受，B28 实际装配另行标注。
 
-- 实现 / PR / 合入：未开始。
-- 本票验证：未运行。
+- 实现：`evals/mockbank/test_birthday_bank_eval.py`；[银行事实和覆盖证据](../../../evals/mockbank/birthday-evidence.md)、[原始JUnit](../../../evals/mockbank/birthday-results.xml)。分支 `codex/v05-cross-bank-eval-01`，独立 worktree（本机）`C:/Users/57652/.codex/worktrees/v05-cross-bank-eval-01/hackerthon-bank-agent`。PR待创建，不自行合并。
+- 本票验证：最终银行/服务/存储合跑 **149 passed, 4 xfailed in 32.97s**（其中生日37通过、4项strict xfail为未满足轮次要求）；`--runxfail -k old_round_objects`实跑4 failed，保留缺口不算通过。完整后端1588 passed in 893.93s。专项及完整后端范围分别记录，不将任何一项当作页面E2E。
+- AI独立审查：Standards轴无代码必须项，要求回填交付记录；Spec轴发现跨轮次覆盖缺口及同一记录问题。已补失败探针、回填事实并保持跨轮次验收blocked；最终复审待记录。
+- 银行事实可提供给包05作为B13/B14/B22/B08及账本对照；包05真实故障依赖B28装配（平台09已交付时明确残留），完整轮次隔离还依赖新缺口核对/修复。未发起真实模型、HTTP或页面E2E，未签真人安全/PM接受。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
