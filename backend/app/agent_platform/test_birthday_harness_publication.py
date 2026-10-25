@@ -599,7 +599,7 @@ def test_harness_replays_a_published_conversion_with_the_current_run_id(
 
 
 def test_harness_cross_session_recovery_fails_closed_for_a_g3_task(tmp_path):
-    """Known limitation: G3 cross-session recovery never silently forks state."""
+    """R1: G3 cross-session recovery refuses before any migration."""
     from datetime import datetime, timedelta, timezone
 
     runtime, _entry = composition(tmp_path)
@@ -610,6 +610,7 @@ def test_harness_cross_session_recovery_fails_closed_for_a_g3_task(tmp_path):
         task = runtime.application.get_task("U1", "D1", "HARNESS_RECOVER")
         published = task.snapshot["birthday_g3"]["published_ref"]
         completed = len(task.snapshot["birthday_g3"]["completed"])
+        result_before = task.snapshot["result"]
         thread_id = task.checkpoint_thread_id
 
         now = datetime.now(timezone.utc)
@@ -620,38 +621,60 @@ def test_harness_cross_session_recovery_fails_closed_for_a_g3_task(tmp_path):
             user_id="U1", session_id="S2", task_id="HARNESS_RECOVER",
             run_id=str(uuid4()), parent_task_id=None, demo_round_id="D1")
 
-        failure = None
-        try:
-            runtime.harness.recover_session(stranger)
-        except Exception as exc:  # noqa: BLE001 - explicit failure is acceptable
-            failure = exc
-        if failure is None:
-            # The known gap: the stored result can be returned, but the next real
-            # resume along the old publication must fail explicitly, not fork.
-            with pytest.raises(PermissionError):
-                runtime.harness.resume(
-                    stranger.model_copy(update={"run_id": str(uuid4())}),
-                    {}, request_id=uuid4())
+        # The unsupported G3 recovery fails explicitly and returns no old card.
+        with pytest.raises(PermissionError) as refused:
+            returned = runtime.harness.recover_session(stranger)
+            assert returned is not None  # never reached
+        assert str(refused.value) == "DEPENDENCY_UNAVAILABLE"
+        # The ordinary same-session contract is unchanged (no recovery needed).
+        with pytest.raises(ValueError, match="SESSION_RECOVERY_NOT_REQUIRED"):
+            runtime.harness.recover_session(who)
 
-        # In no case did it silently write the legacy latest namespace, publish a
-        # new conversion or fake a result. The task may have moved sessions, so
-        # read the exact thread through the store rather than a session-scoped
-        # memory checkpointer.
+        # No migration and no completion marker were written before the refusal.
+        current = runtime.application.get_task("U1", "D1", "HARNESS_RECOVER")
+        assert current.session_id == "S1"
+        assert "session_recovery" not in current.snapshot
+        assert current.snapshot["birthday_g3"]["published_ref"] == published
+        assert len(current.snapshot["birthday_g3"]["completed"]) == completed
+        assert current.snapshot["result"] == result_before
+        # It never silently wrote the legacy latest namespace or a new result.
         saver = runtime.application.checkpoint_saver(
             "U1", "D1", "HARNESS_RECOVER")
         assert saver.get_tuple({
             "configurable": {"thread_id": thread_id}}) is None
-        current = runtime.application.get_task("U1", "D1", "HARNESS_RECOVER")
-        assert current.snapshot["birthday_g3"]["published_ref"] == published
-        assert len(current.snapshot["birthday_g3"]["completed"]) == completed
-        # It may return the old card or the explicit "interrupted, verify the
-        # original task" presentation; it never fakes a new/successful state.
-        last = current.snapshot["result"]
-        assert last["status"] in {"waiting_input", "needs_attention"}
-        if last["status"] == "needs_attention":
-            assert last["recovery_required"] is True
-            assert last["error"]["code"] == "DEPENDENCY_UNAVAILABLE"
-            assert current.snapshot["capability_fault"]["reason_code"] == (
-                "PUBLIC_CAPABILITY_INTERRUPTED")
+    finally:
+        runtime.gateway.close()
+
+
+def test_harness_legacy_non_g3_task_still_recovers_to_a_new_session(tmp_path):
+    """Control: the R1 refusal does not disable ordinary (non-G3) recovery."""
+    from datetime import datetime, timedelta, timezone
+
+    runtime, _entry = composition(tmp_path)
+    intent = "养老金到了，帮我安排本月的钱"
+    request_id, who = _seeded_task(runtime, "HARNESS_LEGACY", intent)
+    try:
+        started = runtime.harness.handle_message(who, request_id, intent)
+        assert started.status is TaskStatus.WAITING_INPUT, started.message
+        task = runtime.application.get_task("U1", "D1", "HARNESS_LEGACY")
+        assert "birthday_g3" not in task.snapshot
+        assert task.session_id == "S1"
+
+        now = datetime.now(timezone.utc)
+        runtime.application.create_session(
+            "S2", "U1", "D1", now.isoformat(),
+            (now + timedelta(days=1)).isoformat())
+        stranger = TrustedContext(
+            user_id="U1", session_id="S2", task_id="HARNESS_LEGACY",
+            run_id=str(uuid4()), parent_task_id=None, demo_round_id="D1")
+
+        recovered = runtime.harness.recover_session(stranger)
+
+        assert recovered.task_id == "HARNESS_LEGACY"
+        current = runtime.application.get_task("U1", "D1", "HARNESS_LEGACY")
+        assert current.session_id == "S2"
+        assert current.snapshot["session_recovery"]["phase"] == "complete"
+        assert "result" in current.snapshot
+        assert "birthday_g3" not in current.snapshot
     finally:
         runtime.gateway.close()

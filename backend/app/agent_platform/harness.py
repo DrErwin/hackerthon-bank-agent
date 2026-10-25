@@ -889,6 +889,14 @@ class AgentHarness:
             if task.session_id == trusted.session_id and not marker_matches:
                 raise ValueError("SESSION_RECOVERY_NOT_REQUIRED")
 
+            # R1: a G3 birthday task keeps its Cross state in an isolated sealed
+            # namespace, and cross-session recovery of that state is not wired
+            # yet (tickets 04/08). Refuse BEFORE any session/marker change instead
+            # of silently returning the old card and failing on the next resume.
+            g3 = (task.snapshot or {}).get("birthday_g3") or {}
+            if isinstance(g3.get("published_ref"), dict):
+                raise PermissionError("DEPENDENCY_UNAVAILABLE")
+
             if marker_matches:
                 source_session_id = marker["source_session_id"]
                 previous_run_id = marker["source_run_id"]
