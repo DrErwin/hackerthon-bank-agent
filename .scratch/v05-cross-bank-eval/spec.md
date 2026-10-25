@@ -1,6 +1,6 @@
 # 银行专项验收工作规格
 
-Status: blocked — 2026-10-25 已交银行事实与评测实现；跨轮次旧对象边界未满足，待提供方核对/修复；PR及复审按票记录。
+Status: blocked — 2026-10-26 只读核查与责任判断完成；跨轮次旧对象边界拆出存储/服务修复票，本组新增评测收口票 02，待提供方合入后执行。
 
 Owner: Erwin
 
@@ -19,6 +19,7 @@ Package: [v05-cross-linkage/packages/06-bank-eval：银行专项验收](../v05-c
 ## 独立票与依赖
 
 - [v05-cross-bank-eval/01：银行事实和防重专项验收](issues/01-birthday-bank-evidence.md)。
+- [v05-cross-bank-eval/02：跨轮次旧对象边界回归收口](issues/02-round-object-regression.md) — 依赖 [v05-bank-round-objects/01](../v05-bank-round-objects/issues/01-object-round-storage.md)、[02](../v05-bank-round-objects/issues/02-object-round-services.md)。
 
 依赖、核心场景和可检查的验收写在各票。总顺序及跨组关系见[已批准拆票方案](../v05-cross-linkage/ticket-proposal.md)。
 

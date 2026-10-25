@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `evals/mockbank/`
 
-Status: blocked — 评测实现及已通过银行事实可交付；跨轮次旧对象隔离未满足，待中控分派提供方核对/修复，不能收口专项验收。
+Status: blocked — 评测实现及已通过银行事实可交付；跨轮次旧对象隔离未满足，2026-10-26 已拆出 [v05-bank-round-objects/01（storage）](../../v05-bank-round-objects/issues/01-object-round-storage.md)、[02（services）](../../v05-bank-round-objects/issues/02-object-round-services.md) 与本组 [02 评测收口](02-round-object-regression.md)，待提供方修复后由 02 收口。
 
 Accepted by: Erwin（授权执行对话，银行专项）
 
@@ -29,7 +29,7 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 ## Blocked by
 
 - [v05-cross-platform/07：生日模拟银行与网关](../../v05-cross-platform/issues/07-birthday-bank-services.md)
-- 前置07已随 PR #261/#262 合入；新发现[跨轮次旧对象边界缺口](../round-boundary-gap.md)待平台/安全及必要服务/存储提供方核对，不由本票擅定规则或越界修复。
+- 前置07已随 PR #261/#262 合入；新发现[跨轮次旧对象边界缺口](../round-boundary-gap.md)待平台/安全及必要服务/存储提供方核对，不由本票擅定规则或越界修复。2026-10-26 已拆出修复票：[v05-bank-round-objects/01](../../v05-bank-round-objects/issues/01-object-round-storage.md)、[02](../../v05-bank-round-objects/issues/02-object-round-services.md) 及本组 [02 评测收口](02-round-object-regression.md)。
 
 ## Start when
 
@@ -71,3 +71,5 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 ## Comments
 
 2026-10-24：按 PM 已批准拆分发布，来源为[拆票方案候选 18](../../v05-cross-linkage/ticket-proposal.md)。票面 Owner 为目录归属，不表示其本人已领取。
+
+2026-10-26：跨轮次旧对象边界完成只读核查与责任判断（见[核查报告](../../v05-bank-round-objects/verification.md)），核查时点 main `38b3b81`（01:34 起 origin/main=`5b652e1`，仅前端走查文档）；组合基线命令见 [round-boundary-gap.md](../round-boundary-gap.md)，3+41+8+5=57 节点实跑 53 passed / 4 xfailed；`--runxfail` 仍 4 failed。结论：产品入口上游门已覆盖（旧会话/任务 401/404、真实 claim/释放授权拒绝、PR #296 订单来源门），不能写成页面/HTTP 可越权；但银行对象层仍缺轮次归属，包06验收第4条在该层未满足。后续依赖 [v05-bank-round-objects/01（storage）](../../v05-bank-round-objects/issues/01-object-round-storage.md) → [02（services）](../../v05-bank-round-objects/issues/02-object-round-services.md) → [v05-cross-bank-eval/02 评测收口](02-round-object-regression.md)；本票保持 blocked，未改评测期望。
