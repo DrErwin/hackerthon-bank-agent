@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/agent_platform/`
 
-Status: developed — 组合验证及独立双轴审查通过；[PR #292](https://github.com/DrErwin/hackerthon-bank-agent/pull/292) 为依赖284的Draft，待中控处理前序与合入。CI计费未启动，不记为通过。
+Status: ready_for_merge — 284/298已合入；本批及CI计费本地例外已由Erwin批准，待中控合入
 
 Blocked by: [v05-bills-cross-input/01：账单公开工厂接收类型化输入](../../v05-bills-cross-input/issues/01-typed-input.md)，[Depends on PR #284](https://github.com/DrErwin/hackerthon-bank-agent/pull/284)。实施在其分支上做隔离组合，未将其写成已合入。
 
@@ -52,3 +52,12 @@ Verification: 在 PR #284 组合上先复现旧断言失败，再验证真实 Sp
 - CI：head `05c137f` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40168791897/job/121095223353) 结论failure，注解明确账户付款/spending limit导致job未启动；无执行证据，不代批例外。后续纯文档回填不主动触发/等待新CI。
 - Spec 对 `05c137f` 建议采纳复核 PASS、必须项0；未重复无关测试。真实模型/业务HTTP/页面E2E、CI通过、真人安全/PM接受均未由本票完成。
 - 下游：随284合入后，旧“账单应failed”的平台回归阻塞解除，可进入减支/养老金真实页面联调；本票自身不表示两主线E2E通过。原交接两项银行20ms短超时遗留不由本票处理。
+
+## 2026-10-25 批准后的PR292仅自身提交同步
+
+- 中控已实际将284 squash合入main4d9bd5774461e177b0289a80a9c00663386fa34b，298亦已合入。本批及CI计费本地验证例外由Erwin批准，不重复申请，不等同CI绿、真人安全签核或版本接受；本对话不自行合并。
+- 开工原worktree干净，原292 head6f0a56de3ca1f58ace98703f5d5555b9c0585af9；明确以旧284边界198586a7c149da886f81e36f125cc29031c51b02，执行rebase --onto新main。仅自身f7a1c3b/05c137f/6f0a56d移为fff72c9/8550cd8/22c686c，未重复284祖先或298。票据补本记录前新head22c686c92fb5d0f57f9a2c7262bf429d00364366。
+- 旧范围198586a..6f0a56d与新范围4d9bd57..22c686c的range-diff三项均为“=”；完整补丁字节相同，SHA256 `4515c4f88193c3c1c06ca7da1780e6320128403b367b9859bcae2440252b1182`。平台测试文件blob仍为a41e4239e05c56e20dae15c30bed90d3865dedb5，与原292和五项组合受测0aed529相同。
+- 差异仅agent_platform/test_cross_runtime_wiring.py及本票；沿用原21项、原Standards/Spec双轴PASS，以及五项组合37fb62f的155+1=156唯一节点通过/双轴0必须项。源码等价，没有新跑测试、全量或503诊断，不借用其他组合160项。
+- PR实际base已核对为main；本次保留该base，原Dependent Draft历史仅作旧记录。链接、差异空白与源码等价检查通过。旧组合/失败证据不改写，503根因仍未定。
+- 原分支将以明确旧head6f0a56de3ca1f58ace98703f5d5555b9c0585af9的force-with-lease更新，新head CI状态由推送后的PR说明与回交实时记录；计费未启动仍Blocked，本地例外不称CI通过。不改其他PR/票或共享进度。
