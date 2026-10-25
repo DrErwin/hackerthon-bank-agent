@@ -3,7 +3,7 @@
 Ticket ID: v05-birthday-platform-dependencies/03
 Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银行](../../v05-cross-linkage/packages/01-platform-bank.md)
 Spec: [平台提供条件及最小规格](../spec.md)
-Type: 开发（本轮只规划，不实施）
+Type: 开发（2026-10-26 已实施；Harness/API 接线与真实 Cross 消费留 04/08）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/agent_platform/`
 Status: implemented — 2026-10-26 实施完成、提交 `8e93485` 已推分支，两轴独立审查进行中；Harness/API 接线与真实 Cross 消费留 04/08。
@@ -77,4 +77,8 @@ API04与Cross08消费；真实联合验收复用原E2E03。G1未收口前不宣�
      `task.revision` 做 CAS，而生日 ports 在 entry 内已 CAS 任务快照——即 Cross 生日流经 Harness 的普通 resume 可能本就未接通；
      本票未改 harness，待审查判定是否属本票范围。
   3. 第二依据 `verified_failed_no_order` 与「原操作失败核实后恢复」归 Cross08/API04；旧任务编辑按 `SOURCE_UNAVAILABLE` 明确 blocked。
-- 两轴独立子代理审查（AI，非本人/Ringo 签核）：**进行中**，必须项闭合后再提交 PR。
+- 两轴独立子代理审查（AI，非本人/Ringo 签核）：
+  - **规范轴 PASS**（无必须修；建议：票号带标题、README 表述与代码一致、接缝断言 `writes_task_id` 归属、编辑选项已上真卡而 API04 未接）。
+  - **规格轴 FAIL**，4 项必须修：**M1** harness 未接线 root/普通/异常发布，三个发布入口零生产调用者会让真实任务永无 `published_ref`、编辑必 `SOURCE_UNAVAILABLE`（`harness.py` 与本票同目录，不能推给 04/08）；**M2** harness 在 entry 返回后用旧 `task.revision` 做 CAS（已核实 `harness.py:626/763`、`1139/1234`），本票给 verify_wait 又加一次 entry 内写，属加重，须重读后再 CAS；**M3** 只拒了 PARTIALLY_SUCCEEDED，NEEDS_ATTENTION 等不可判断态仍可进编辑；**M4** 发布 CAS 用新鲜 revision 而非受理时的严格 `accepted_version`。
+  - 规格轴确认作者声称的 Harness 修订号问题**属实**，且判定「既有但本票加重、同目录，票内必修」。
+- 回修中（同一分支）：M1 拟在 `agent_platform` 内做发布用 saver 适配器（`put/put_writes` → 预留候选 → 05 封存 → 同次任务 CAS 发布；`get_tuple/get` 读已发布 ref），另修 `ValueError("TASK_CHANGED")` 被 503 映射、README 表述、`writes_task_id` 断言。
