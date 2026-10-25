@@ -1,4 +1,4 @@
-"""Read-only attribution: real runtime/gate/executor; no external model requests.
+"""PR296 regression over the real runtime/gate/executor; no external model requests.
 
 Configuration-only same-file round restart is NOT the specified B26 reset.
 Internal ports probes do not establish an HTTP or browser exploit.
@@ -178,7 +178,7 @@ def test_real_claim_gate_and_limited_release_reject_old_round(composition, recor
     record_property("write_boundary", "real claims deny direct calls; stale ports/finalize rejected STALE_ROUND by active-round memory scope; actual gate separately BLOCK ACCESS_DENIED; bank unchanged")
 
 
-def test_current_task_internal_port_can_pay_known_old_order(composition, record_property):
+def test_current_task_rejects_old_order_and_pays_its_own_order(composition, record_property):
     old, _, _ = composition("D1")
     old_who, _, _, old_ports, old_freeze, created = old_bank_objects(old)
     old_release_id = old_ports._release_id(old_who)
@@ -195,16 +195,45 @@ def test_current_task_internal_port_can_pay_known_old_order(composition, record_
         grant=lambda ref: ports.grant_release(who, plan, ref))
     ports.bind_freeze(who, plan, str(frozen.operation_id))
     old_order_id = created.receipt.order.order_id
-    # Deliberately pass a known old ID at the INTERNAL port seam; no claim injection.
+    # The former successful exploit is retained in the immutable historical XML.
+    # Current platform must refuse it before confirmation AND before execution.
+    def assert_old_order_denied():
+        before = bank_state(current)
+        with closing(connect(current.birthday.state.path)) as connection:
+            confirmations_before = connection.execute("SELECT COUNT(*) FROM security_confirmations").fetchone()[0]
+        denied = ports.capture_check(who, plan, item, old_order_id)
+        assert denied.decision is SecurityDecisionCode.BLOCK, denied
+        assert denied.reason_code == "ACCESS_DENIED" and denied.interaction is None
+        outcome = ports.capture_execute(who, plan, item, old_order_id)
+        assert not outcome.executed
+        assert bank_state(current) == before
+        with closing(connect(current.birthday.state.path)) as connection:
+            assert connection.execute("SELECT COUNT(*) FROM security_confirmations").fetchone()[0] == confirmations_before
+
+    assert_old_order_denied()
+    own_created = approved_write(current, who,
+        lambda: ports.order_check(who, plan, item), lambda: ports.order_execute(who, plan, item))
+    own_order_id = own_created.receipt.order.order_id
+    assert own_order_id != old_order_id
+    # A legitimate same-product order must not authorize the foreign order.
+    assert_old_order_denied()
     paid = approved_write(current, who,
-        lambda: ports.capture_check(who, plan, item, old_order_id),
-        lambda: ports.capture_execute(who, plan, item, old_order_id))
-    order = current.gateway.get_order(who, old_order_id).data.order
+        lambda: ports.capture_check(who, plan, item, own_order_id),
+        lambda: ports.capture_execute(who, plan, item, own_order_id))
+    order = current.gateway.get_order(who, own_order_id).data.order
     assert order.payment_status == "paid" and order.payment_transaction_id == paid.receipt.transaction_id
+    old_order = current.gateway.get_order(who, old_order_id).data.order
+    assert (old_order.payment_status, old_order.payment_transaction_id) == ("unpaid", None)
     old_view = current.gateway.get_freeze(who, old_freeze.receipt.freeze_id).data
     new_view = current.gateway.get_freeze(who, frozen.receipt.freeze_id).data
     assert old_view.remaining_fen == 50000
     assert (new_view.captured_total_fen, new_view.remaining_fen) == (19900, 30100)
+    settled = bank_state(current)
+    repeated = ports.capture_execute(who, plan, item, own_order_id)
+    assert repeated.result.operation_id == paid.operation_id
+    assert bank_state(current) == settled
+    assert len(settled["order_payments"]) == 1
+    assert len([row for row in settled["ledger_entries"] if row["operation_id"] == str(paid.operation_id)]) == 1
     # Actual runtime only registers birthday write handlers on this gate.
     birthday_gate, _ = ports._gate(who)
     assert birthday_gate.registry.get("bank.get_freeze") is None
@@ -213,7 +242,9 @@ def test_current_task_internal_port_can_pay_known_old_order(composition, record_
     assert model.calls == 0
     record_property("internal_port_probe", json.dumps({
         "configuration_restart_only": True, "real_confirmation_and_step_up": True,
-        "old_order_payment_status": order.payment_status,
+        "old_order_payment_status": old_order.payment_status,
+        "old_order_confirmation_and_execute_denied": True,
+        "own_order_payment_status": order.payment_status,
         "old_freeze_remaining_fen": old_view.remaining_fen,
         "new_freeze_captured_fen": new_view.captured_total_fen,
         "new_freeze_remaining_fen": new_view.remaining_fen,
