@@ -34,7 +34,10 @@
           "path": "s01-live-20261025-01/03-failed-task-context.png",
           "sha256": "aa3d54a62efa97c0ab2142bfd5adc9503afce21f0a185f68e5168ad759cdc4d6"
         }
-      ]
+      ],
+      "observer_source": "evals/cross/live_capture.py",
+      "observer_code_sha256": "83b53692b294209577755b458dc8f9b882997378095209e6c44de0ce4e394681",
+      "metadata_note": "Original gzip observer_sha256 was altered by digit redaction and is not verifiable. This explicit non-secret source hash supplements it; the original report and its JSON SHA256 are unchanged."
     }
   ]
 }
