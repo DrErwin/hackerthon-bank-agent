@@ -6,8 +6,9 @@ Spec: [G3对账与发布条件](../g3-reconciliation.md)
 Type: 开发（本轮只读核查与规划）
 Owner: Erwin（v0.5统一负责）
 Directory: `backend/app/storage/`
-Status: planned / blocked — 未授权实施；原四票同样不实施。
-Implementation assignee / accepted at: 未领取。
+Status: in_progress — 2026-10-26 本人「按交接开始」后由授权执行对话领取并开工；只在本目录实施。
+Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
+领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 中控明确实施授权；与[本组03：受控编辑交接](03-platform-edit-handoff.md)及[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)在设计层确认候选ref/绑定/首次胜者语义；不依赖对方代码先完成，不形成实现循环。
 Core scenarios: P12—P17；原Q03/Q06及XL-B05/X08，定义见[规格框架](../spec.md#6-testing-decisions只设计未运行)。
 

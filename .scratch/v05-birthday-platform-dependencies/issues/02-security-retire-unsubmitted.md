@@ -6,9 +6,9 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/security/`
-Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
-Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
-Implementation assignee / accepted at: 未领取。
+Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置为 01/05 交付后的目录顺序及 G2-B 跨库权威胜序核对，未开始编码。
+Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
+领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 中控明确授权实施；Erwin本人按本阶段代行安全职责确认[两选项及G2-A/B/C条件](../decision.md)，包括旧动作拒绝、挑战对后续任务的作用、准备/授权/claim竞争和审计恢复；G2-B收窄建议不是既定范围，AI设计审查不代替决定。
 Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 

@@ -6,9 +6,9 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/agent_platform/`
-Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
-Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
-Implementation assignee / accepted at: 未领取。
+Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置 01+02+05 未交付，未开始编码。
+Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
+领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)、[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)及本人所选G2完整条件；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)核对[候选G3快照/接口](../spec.md#g3最小内部快照候选待cross08逐项核对不是公共新模型)；中控授权。[PR #298](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)已合主线6ce7fb0，保留其预算来源边界，不在本轮整理原PR。
 
 新增真实提供前置：[本组05：候选检查点一次封存](05-immutable-edit-checkpoint.md)。现有精确读/CAS可复用，但不可变候选和原子发布策略尚未交付；[G3对账](../g3-reconciliation.md)为待核对方案，不是已实现保证。

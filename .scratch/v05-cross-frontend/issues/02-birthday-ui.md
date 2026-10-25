@@ -12,19 +12,20 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `frontend/`
 
-Status: blocked — 页面走查前置改为 [v05-cross-business/05](../../v05-cross-business/issues/05-birthday-delivery-and-structured-facts.md)（配送受控入口 + 结构化收尾视图）；该票交付后再走查生日页面。
+Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置 `v05-cross-business/05` 已合入（#288/#289），页面走查材料按最新事实更新中；**本人批准页面前不编码**。
 
 Package accepted by: Erwin
 
 Package accepted at: 2026-10-25
 
-Execution assignee: 待 Erwin 转交具体执行对话
+Execution assignee: Erwin 授权的执行对话（本对话，AI 代理）
 
-Accepted by: 未记录（具体实施票）
+Accepted by: Erwin 授权执行对话（本对话，AI 代理）
 
-Accepted at: 未记录
+Accepted at: 2026-10-26
 
 Planning approved by: PM，2026-10-24「认可，按此方案推进」。只批准规划/拆票，不代表本票实施或安全签核已获批准。
+领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 
 Core scenarios: XL-B01—B06、X08；定义见[共享规格 §5](../../v05-cross-linkage/spec.md)及[E2E 设计](../../../evals/cross/representative-cases.md)。
 

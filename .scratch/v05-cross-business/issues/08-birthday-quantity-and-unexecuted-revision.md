@@ -12,13 +12,10 @@ Owner: Erwin（v0.5阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: planned / blocked — 未授权实施；平台候选01—05及G1/G2本人决定、G3真实提供条件未闭合；适用个人预算路径仍等待06。
+Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置为平台 01 接口稳定与 02/03 交付，未开始编码；适用个人预算路径仍等待 06。
 
-Planning assignee: Erwin授权执行对话 01a17183-271b-7663-9517-f31a994de51d
-
-Planning accepted at: 2026-10-25
-
-Implementation assignee / accepted at: 未领取。
+Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
+领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 
 Core scenarios: XL-B01/B02/B03/B04/B05/B06/B07，回归XL-X02/X05/X08；
 见[共享场景](../../v05-cross-linkage/spec.md)、[本票Q01—Q10框架](../birthday-quantity-gap.md#6-testing-decisions仅框架未写或运行)。

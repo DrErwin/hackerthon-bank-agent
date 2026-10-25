@@ -6,9 +6,10 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/agent_platform/`
-Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
+Status: in_progress — 2026-10-26 本人「按交接开始」后由授权执行对话领取并开工；只在本目录实施。
 Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
-Implementation assignee / accepted at: 未领取。
+Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
+领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 中控明确授权实施；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)确认内部项/attempt格式；与[PR #296：订单来源门](https://github.com/DrErwin/hackerthon-bank-agent/pull/296)同一birthday_runtime文件按先合原PR再开本票的顺序处理（这是文件合入顺序，不冒称数量依赖其新能力）。
 Core scenarios: P01/P02/P07/P08/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 

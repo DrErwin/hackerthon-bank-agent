@@ -6,9 +6,9 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/api/`
-Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
-Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
-Implementation assignee / accepted at: 未领取。
+Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置为 03 交付及 G1 按契约 §8 确认，未开始编码。
+Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
+领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: [本组03：原任务编辑交接](03-platform-edit-handoff.md)；规格G1按契约§8完成跨方确认并更新正式契约/必要模型示例；中控明确授权。与[v05-budget-adoption-origin/02：原F10输入身份接入平台来源](../../v05-budget-adoption-origin/issues/02-api-f10-origin.md)的同文件修改交中控顺序安排，不代做其能力，亦不冒称它是商品编辑的业务前置。
 Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 
