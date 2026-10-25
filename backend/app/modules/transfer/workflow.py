@@ -137,12 +137,13 @@ class TransferWorkflow:
         ).model_dump(mode="json")
 
     @staticmethod
-    def _fail(code: str, source: str, message: str, *, recoverable: bool = False) -> dict:
+    def _fail(code: str, source: str, message: str, *, recoverable: bool = False,
+              field: str | None = None) -> dict:
         return {
             "status": (TaskStatus.NEEDS_ATTENTION if recoverable else TaskStatus.FAILED).value,
             "message": message,
             "error": ModuleError(
-                code=code, source=source, field=None, reason=message, upstream_code=None,
+                code=code, source=source, field=field, reason=message, upstream_code=None,
             ).model_dump(mode="json"),
             "interaction": None,
             "recovery_required": recoverable,
@@ -386,6 +387,11 @@ class TransferWorkflow:
                 "wait_kind": "details", "next": "wait", "message": "请补充必要信息。",
             }
         if decision.decision == SecurityDecisionCode.PAUSE:
+            if decision.reason_codes[0] == "ARRANGEMENT_CONFLICT":
+                return self._fail(
+                    "ARRANGEMENT_CONFLICT", "platform", decision.message,
+                    recoverable=True, field="payer_account_id",
+                )
             return self._fail(
                 decision.reason_codes[0], "security",
                 # A reused execution claim means the bank may already have the transfer.
