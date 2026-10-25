@@ -1,6 +1,6 @@
 # 养老金真实入账与本人账户接入：business/07
 
-Status: approved_scope / implementing — 2026-10-25 中控明确续派；与已完成规划的06分支独立。
+Status: implemented / integration_blocked — 2026-10-25 主线冲突整理已续派；与已完成规划的06分支独立，保留Draft交付及上游组合依赖。
 
 Owner: Erwin 授权执行对话；Directory: `backend/app/modules/cross/`。
 
