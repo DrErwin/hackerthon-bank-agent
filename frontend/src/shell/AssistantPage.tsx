@@ -34,11 +34,13 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const timeline = useMemo(() => buildTimeline(messages, tasks, conversation.cardLinks, childIds), [messages, tasks, conversation.cardLinks, childIds]);
   const latestTaskId = timeline.filter((item) => item.type === "task").at(-1)?.envelope.task.task_id;
   const exampleHints = slots.slots.flatMap((slot) => slot.exampleHints ?? []);
-  const inputTasks = topTasks.filter(({ task }) =>
+  const inputTasks = [...tasks.values()].filter(({ task }) =>
     task.status === "waiting_input" && task.interaction?.kind === "input"
     && task.allowed_actions.includes("provide_input") && !task.recovery_required
     && !conversation.bootRecovery.has(task.task_id));
-  const pendingApproval = topTasks.filter(({ task }) => task.status === "waiting_approval").length;
+  // A cross child owns the pending answer while its parent stays "running", so the
+  // spoken summary counts every task; records and the pending nav stay parent-level.
+  const pendingApproval = [...tasks.values()].filter(({ task }) => task.status === "waiting_approval").length;
   const finished = topTasks.filter(({ task }) => isTerminal(task)).length;
 
   // Expanding a card never moves the reader. Only incoming chat messages follow

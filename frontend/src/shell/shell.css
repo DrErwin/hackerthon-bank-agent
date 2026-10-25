@@ -324,7 +324,7 @@
    .sh-steps from the verification card; only status tones and the current step
    highlight are new, and every colour comes from the existing tokens. */
 .sh-cross-plan { gap: 14px; }
-.sh-cross-commit { padding: 12px 14px; font-size: 17px; line-height: 1.5; color: #7a2e0e; background: var(--brand-tint); border: 1px solid #ffd5b0; border-radius: 12px; }
+.sh-cross-commit { padding: 12px 14px; font-size: 18px; line-height: 1.5; color: #7a2e0e; background: var(--brand-tint); border: 1px solid #ffd5b0; border-radius: 12px; }
 .sh-cross-steps .sh-cross-step { gap: 10px; }
 .sh-cross-step .sh-step-head { align-items: flex-start; flex-wrap: wrap; }
 .sh-cross-step .sh-step-head strong { min-width: 0; }
