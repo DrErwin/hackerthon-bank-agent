@@ -20,15 +20,13 @@ from datetime import datetime
 from uuid import uuid4
 
 from app.contracts.bank import ListProductsInput
-from app.storage.application import BudgetOccupationExceededError
 from app.contracts.common import SecurityDecisionCode, TaskStatus
-from app.contracts.cross import BudgetRef
-from app.contracts.cross import CrossScenario
 from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
 
 from . import plan
 from .birthday_ports import BirthdayPlan
 from .plan import money
+from .personal_budget import PersonalBudget, BudgetPending
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _REF = re.compile(r"^[A-Za-z0-9-]{8,64}$")
@@ -43,7 +41,7 @@ class BirthdayFlow:
 
     DEFAULTS = {
         "phase": "facts", "payer": None,
-        "budget_limit_fen": None, "budget_id": None, "budget_version": 1,
+        "budget_limit_fen": None, "budget_id": None, "budget_version": None,
         "deliver_by": None, "delivery_ref": None, "products": [],
         "chosen": [], "freeze": None, "orders": [],
         "pending": None, "holding": None, "commitment_id": None,
@@ -54,7 +52,10 @@ class BirthdayFlow:
         self.entry, self.state, self.ports = entry, state, ports
         data = state.get("birthday")
         if data is None:
-            data = {}
+            given = state.get("constraints") or {}
+            data = {"budget_limit_fen": given.get("budget_fen"),
+                    "payer": given.get("payer_account_id"), "delivery_ref": given.get("delivery_ref"),
+                    "deliver_by": given.get("deliver_by")}
             state["birthday"] = data
         for key, default in self.DEFAULTS.items():
             data.setdefault(key, default)
@@ -168,6 +169,8 @@ class BirthdayFlow:
             rows = accounts["result"].get("accounts") or []
             if rows and not self.b["payer"]:
                 self.b["payer"] = rows[0]["account_id"]
+            if self.b["payer"] not in {row["account_id"] for row in rows}:
+                raise BudgetPending("付款账户不在本人已查询账户中。")
         if not self.b["products"] and self.b["phase"] == "facts":
             found = self.ports.products(trusted, ListProductsInput(purpose="birthday"))
             data = getattr(found, "data", None)
@@ -178,9 +181,29 @@ class BirthdayFlow:
             self.b["products"] = [p.model_dump(mode="json") if hasattr(p, "model_dump") else p
                                   for p in data.products]
             self.b["phase"] = "budget"
+        personal = PersonalBudget(entry, state)
+        if not personal.p.get("prepared"):
+            if personal.p.get("mode") in ("candidate", "limit") and state.get("result"):
+                return ModuleResult.model_validate(state["result"])
+            candidate = personal.prepare(trusted)
+            if candidate is not None:
+                return candidate
+            personal.p["prepared"] = True
         return self._phase_view(trusted)
 
     def _phase_view(self, trusted):
+        if self.b["phase"] == "budget" and self.b["budget_limit_fen"] is not None:
+            if self.b["budget_limit_fen"] <= 0:
+                raise BudgetPending("本次生日上限为0，不冻结或购买；请明确调整后再办理。")
+            self.b["phase"] = "date"
+        if self.b["phase"] == "date" and self.b["deliver_by"]:
+            self.b["phase"] = "delivery"
+        if self.b["phase"] == "delivery" and self.b["delivery_ref"]:
+            detail = self.entry.harness.application.get_controlled_detail(
+                *self.state["actor"][:2], self.b["delivery_ref"], task_id=self.state["actor"][2])
+            if detail is None or detail.kind != "delivery":
+                raise BudgetPending("配送引用不属于本任务，请通过原受控表单重新提交。")
+            self.b["phase"] = "pick"
         handler = {
             "facts": self.advance,
             "budget": self._ask_budget, "date": self._ask_date,
@@ -194,7 +217,8 @@ class BirthdayFlow:
 
     def _ask_budget(self, trusted):
         return self._ask(trusted, "这次生日安排的预算上限是多少元？（可输入金额，如“500元”）",
-                         [("停止本次安排", {"kind": "b_stop"})])
+                         [("设置本月当前账户全部消费的个人预算", {"kind": "personal_begin"}),
+                          ("停止本次安排", {"kind": "b_stop"})])
 
     def _ask_date(self, trusted):
         return self._ask(trusted, "希望在哪一天前送到？（可输入日期，如 2026-10-30）",
@@ -207,7 +231,7 @@ class BirthdayFlow:
             "配送原文不要发到聊天里。",
             [("停止本次安排", {"kind": "b_stop"})])
         return result.model_copy(update={"interaction": result.interaction.model_copy(
-            update={"required_fields": ["delivery"]})})
+            update={"required_fields": ["delivery"]}), "data": None})
 
     def _ask_pick(self, trusted):
         products = self.b["products"]
@@ -231,6 +255,7 @@ class BirthdayFlow:
         return self._ask(trusted, prompt, choices)
 
     def _ask_adopt(self, trusted):
+        PersonalBudget(self.entry, self.state).check_freeze_room(trusted)
         items = self._chosen_items()
         total = self._total(items)
         delivery = (f"受控配送引用 {self.b['delivery_ref'][:8]}…（原文只走专用入口）"
@@ -239,6 +264,12 @@ class BirthdayFlow:
                  f"送达到 {self.b['deliver_by']} 前；{delivery}；",
                  f"商品合计 {yuan(total)} 元，将按预算上限一次性冻结 "
                  f"{yuan(self.b['budget_limit_fen'])} 元，未消费部分结束时退回。"]
+        personal = self.state.get("personal_budget", {})
+        if personal.get("view"):
+            view = personal["view"]
+            lines.append(f"个人预算限额 {yuan(view['personal_limit_fen'])} 元，账单已用 {yuan(view['used_fen'])} 元，"
+                f"个人剩余 {money(view['remaining_fen'])} 元；另有未结占用 {yuan(personal.get('occupied_fen', 0))} 元、"
+                f"尚未反映到本次账单的已核实消费 {yuan(personal.get('gap_fen', 0))} 元。")
         lines.append("采用后开始办理：冻结→下单→按订单核销付款；每一步仍会单独确认，"
                      "冻结确认里会写明结束时只退未消费部分。")
         return self._ask(trusted, "\n".join(lines),
@@ -327,6 +358,9 @@ class BirthdayFlow:
 
     def apply_text(self, trusted, text: str):
         from .pension import parse_amount_fen
+        personal = PersonalBudget(self.entry, self.state).text(trusted, text)
+        if personal is not None:
+            return personal
         if self.b.get("holding"):
             return self._replay_holding(trusted)  # B1: text never bypasses
         phase = self.b["phase"]
@@ -335,14 +369,8 @@ class BirthdayFlow:
             if fen is None or fen <= 0:
                 return self._ask_budget(trusted)
             self.b["budget_limit_fen"] = fen
-            # One personal budget per user and month: competing tasks share the
-            # id, so the serialized occupation seam guards them against each
-            # other (B07 / M3).
-            month = self.entry.clock().strftime("%Y-%m")
-            self.b["budget_id"] = f"bud_{self.state['actor'][0]}_{month}"
-            self.b["budget_version"] = 1
             self.b["phase"] = "date"
-            return self._ask_date(trusted)
+            return self._phase_view(trusted)
         if phase == "date":
             candidate = text.strip()
             if not _DATE.match(candidate):
@@ -388,6 +416,7 @@ class BirthdayFlow:
         return self._run_freeze(trusted)
 
     def _run_freeze(self, trusted):
+        PersonalBudget(self.entry, self.state).check_freeze_room(trusted)
         answer = self.ports.freeze_check(trusted, self._plan())
         return self._gate(trusted, answer, ("freeze", None))
 
@@ -466,11 +495,16 @@ class BirthdayFlow:
 
     def _submit(self, trusted, target):
         kind, item_id = target
+        budget = PersonalBudget(self.entry, self.state)
+        budget.refresh(trusted)
+        if kind == "freeze":
+            budget.reserve(trusted)
         plan_data = self._plan()
-        application = self.entry.harness.application
         if kind == "freeze":
             outcome = self.ports.freeze_execute(trusted, plan_data)
             if outcome.state == "verify_wait":
+                self.b["freeze_submission"] = "not_submitted_verification"
+                self.entry._save(trusted, None, self.state)
                 return self._verify_wait(trusted, outcome)
             self._remember_write(kind, item_id, outcome)
             self.b["pending"] = None
@@ -478,41 +512,17 @@ class BirthdayFlow:
                       plan_data.freeze_amount_fen, "status": outcome.state,
                       "freeze_id": None, "authorization": "granted"}
             self.b["freeze"] = record
+            if outcome.state == "unknown":
+                budget.frozen(record)
+            elif outcome.state == "failed" and not outcome.executed:
+                budget.close()
             if outcome.state == "completed" and outcome.result is not None:
                 record["freeze_id"] = getattr(outcome.result.receipt, "freeze_id", None) \
                     if hasattr(outcome.result, "receipt") else None
                 if not record["freeze_id"]:
                     record["freeze_id"] = self.ports.bind_freeze(
                         trusted, plan_data, record["operation_id"])
-                try:
-                    self._register_commitment(record)
-                except BudgetOccupationExceededError as exceeded:
-                    # The freeze succeeded but the serialized cap refused the
-                    # occupation (e.g. a competing task won the room first):
-                    # reverse it immediately under the limited authorization and
-                    # report the honest numbers — no purchase may start.
-                    self.b["stop_reason"] = "business_failure"
-                    release = self.ports.finalize(trusted, plan_data, "budget_exceeded")
-                    self.b["released"] = asdict(release)
-                    self.b["phase"] = "finalize"
-                    if release.status not in ("released", "nothing_to_release"):
-                        return self.entry._view(trusted, self.state,
-                            "预算不够，已停止购买；刚冻结资金的释放结果仍待核实，不宣称已退回。")
-                    user, round_id, task_id = self.state["actor"]
-                    others = application.list_budget_commitments(
-                        user, round_id, self.b["budget_id"], include_closed=True)
-                    consumed_before = sum(
-                        c.committed_fen - c.unconsumed_fen for c in others
-                        if c.task_id != task_id)
-                    return self.entry._done(
-                        trusted, self.state, TaskStatus.FAILED,
-                        f"预算不够：该预算当前已占用/消费 {yuan(consumed_before)} 元，"
-                        f"再冻结 {yuan(record['amount_fen'])} 元会超过上限 "
-                        f"{yuan(self.b['budget_limit_fen'])} 元"
-                        f"（合计需 {yuan(consumed_before + record['amount_fen'])} 元）。"
-                        f"已按限定授权把刚冻结的 "
-                        f"{yuan(release.released_amount_fen)} 元"
-                        "原额退回，本次不购买。")
+                self._register_commitment(record)
                 self.b["phase"] = "orders"
                 return self._run_next_order(trusted)
             if outcome.state == "unknown":
@@ -537,6 +547,7 @@ class BirthdayFlow:
                 return self._run_capture(trusted, item)
             if outcome.state == "unknown":
                 item["order"] = "unknown"
+                budget.unknown(outcome.operation_id)
                 self.b["holding"] = "unknown_order"
                 return self._holding_view(trusted)
             item["order"] = "failed"
@@ -558,6 +569,7 @@ class BirthdayFlow:
                 return self._run_next_order(trusted, skip=item["product_id"])
             if outcome.state == "unknown":
                 item["capture"] = "unknown"
+                budget.unknown(outcome.operation_id)
                 self.b["holding"] = "unknown_capture"
                 return self._holding_view(trusted)
             item["capture"] = "failed"
@@ -577,6 +589,7 @@ class BirthdayFlow:
                 return self._finalize(trusted)
             return self._failed_stop(trusted)
         item = pending[0]
+        PersonalBudget(self.entry, self.state).refresh(trusted)
         # A changed or unavailable quote surfaces BEFORE its confirmation is
         # asked for; an old confirmation never approves new money (B03).
         fresh = self._refresh_price(trusted, item)
@@ -586,6 +599,7 @@ class BirthdayFlow:
         return self._gate(trusted, answer, ("order", item["product_id"]))
 
     def _run_capture(self, trusted, item):
+        PersonalBudget(self.entry, self.state).refresh(trusted)
         answer = self.ports.capture_check(trusted, self._plan(), item,
                                           item.get("order_id"))
         return self._gate(trusted, answer, ("capture", item["product_id"]))
@@ -668,25 +682,7 @@ class BirthdayFlow:
                     self._remember_write("freeze", None, outcome)
                 freeze["freeze_id"] = freeze_id
                 freeze["status"] = "completed"
-                try:
-                    self._register_commitment(freeze)
-                except BudgetOccupationExceededError:
-                    # The room vanished while the freeze was unknown: reverse
-                    # the verified freeze and fail honestly (review N2).
-                    self.b["stop_reason"] = "business_failure"
-                    release = self.ports.finalize(trusted, self._plan(),
-                                                  "budget_exceeded")
-                    self.b["released"] = asdict(release)
-                    self.b["holding"] = None
-                    self.b["phase"] = "finalize"
-                    if release.status not in ("released", "nothing_to_release"):
-                        return self.entry._view(trusted, self.state,
-                            "预算不够，已停止购买；刚核实冻结的释放结果仍待核实，不宣称已退回。")
-                    return self.entry._done(
-                        trusted, self.state, TaskStatus.FAILED,
-                        f"预算不够：核实后这笔冻结已无额度可用。已按限定授权把刚核实的 "
-                        f"{yuan(release.released_amount_fen)} 元"
-                        "原额退回，本次不购买。")
+                self._register_commitment(freeze)
                 self.b["holding"] = None
                 if self.b.get("stop_reason"):
                     return self._finalize(trusted)
@@ -733,65 +729,16 @@ class BirthdayFlow:
     # ------------------------------------------------------------------ budget seam
 
     def _register_commitment(self, freeze: dict) -> None:
-        from app.contracts.cross import BudgetCommitment
-
-        application = self.entry.harness.application
-        user, round_id, task_id = self.state["actor"]
-        budget = BudgetRef(budget_id=self.b["budget_id"],
-                           version=self.b["budget_version"])
-        commitment_id = f"bc_{task_id[:12]}"
-        commitments = application.list_budget_commitments(
-            user, round_id, budget.budget_id, include_closed=True)
-        consumed = sum(c.committed_fen - c.unconsumed_fen for c in commitments
-                       if c.commitment_id != commitment_id)
-        record = BudgetCommitment(
-            budget_ref=budget, task_id=task_id, commitment_id=commitment_id,
-            committed_fen=freeze["amount_fen"], unconsumed_fen=freeze["amount_fen"],
-            freeze_id=freeze.get("freeze_id"),
-            operation_ids=[freeze["operation_id"]], settled_transaction_ids=[],
-            state="active", updated_at=self.entry.clock())
-        application.register_budget_commitment(
-            user, round_id, record,
-            max_in_flight_fen=self.b["budget_limit_fen"] - consumed)
-        self.b["commitment_id"] = record.commitment_id
+        PersonalBudget(self.entry, self.state).frozen(freeze)
 
     def _own_commitment(self):
-        application = self.entry.harness.application
-        user, round_id, _ = self.state["actor"]
-        for record in application.list_budget_commitments(user, round_id,
-                                                          self.b["budget_id"],
-                                                          include_closed=True):
-            if record.commitment_id == self.b["commitment_id"]:
-                return record
-        return None
+        return PersonalBudget(self.entry, self.state).own()
 
     def _consume_commitment(self, item: dict) -> None:
-        application = self.entry.harness.application
-        user, round_id, _ = self.state["actor"]
-        record = self._own_commitment()
-        if record is None:
-            return
-        updated = record.model_copy(update={
-            "unconsumed_fen": record.unconsumed_fen - item["amount_fen"],
-            "settled_transaction_ids": [*record.settled_transaction_ids,
-                                        item.get("transaction_id") or ""],
-            "updated_at": self.entry.clock()})
-        application.update_budget_commitment(user, round_id, record.commitment_id, updated)
+        PersonalBudget(self.entry, self.state).consume(item)
 
     def _close_commitment(self) -> None:
-        application = self.entry.harness.application
-        user, round_id, _ = self.state["actor"]
-        record = self._own_commitment()
-        if record is None:
-            return
-        # Closing means the occupation ends: committed shrinks to what was
-        # really consumed, so history never counts released money as spending.
-        application.update_budget_commitment(
-            user, round_id, record.commitment_id,
-            record.model_copy(update={
-                "committed_fen": record.committed_fen - record.unconsumed_fen,
-                "unconsumed_fen": 0, "state": "closed",
-                "updated_at": self.entry.clock()}))
+        PersonalBudget(self.entry, self.state).close()
 
     # ------------------------------------------------------------------ ending
 
@@ -817,6 +764,15 @@ class BirthdayFlow:
             self.b["pending"] = None
         freeze = self.b.get("freeze")
         if not freeze:
+            budget = PersonalBudget(self.entry, self.state)
+            hold = budget.own()
+            if hold and self.b.get("freeze_submission") == "intent":
+                self.b["freeze"] = {"operation_id": str(hold.operation_ids[0]),
+                    "amount_fen": hold.committed_fen, "status": "unknown", "freeze_id": None}
+                self.b["holding"] = "unknown_freeze"
+                return self._finalize(trusted)
+            if hold:
+                budget.close()  # acknowledged verify_wait: the write was not submitted
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
                                     "已停止办理。本次没有冻结资金，也没有下单或付款。")
         unknown = self.b.get("holding") in (
@@ -830,8 +786,17 @@ class BirthdayFlow:
         outcome = self.ports.finalize(trusted, self._plan(),
                                       self.b.get("stop_reason") or "completed")
         self.b["released"] = asdict(outcome)
+        if outcome.status in ("released", "nothing_to_release") and outcome.remaining_fen != 0:
+            return self.entry._view(trusted, self.state,
+                "释放已有回复，但尚不能核实剩余冻结为零；占用保留，只继续原收尾核实。")
         if outcome.status in ("released", "nothing_to_release"):
             self._close_commitment()
+        budget = PersonalBudget(self.entry, self.state)
+        if budget.own() is not None:
+            try:
+                budget.refresh(trusted, for_write=False)  # never gates original closure
+            except BudgetPending:
+                budget.p["view"] = None
         lines = []
         for item in self.b["orders"]:
             name, amount = item["name"], item["amount_fen"]

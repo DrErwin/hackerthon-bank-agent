@@ -31,7 +31,7 @@ def month_range(now: datetime, months_ago: int) -> tuple[datetime, datetime]:
     return start, end
 
 from app.contracts.common import TaskStatus
-from app.contracts.cross import CrossStep, CrossTaskView
+from app.contracts.cross import BudgetView, CrossStep, CrossTaskView
 
 # Statuses that hold the parent's single user-response or side-effect slot.
 HOLDING = frozenset({
@@ -171,5 +171,7 @@ def build_view(state: dict, summary: str, *, active_step_id: str | None = None,
         active_step_id=active_step_id,
         interaction_task_id=interaction_task_id,
         arrangement=None,
+        budget=BudgetView.model_validate(state["personal_budget"]["view"])
+            if (state.get("personal_budget") or {}).get("view") else None,
         stop_reason=state.get("stop_reason"),
     )
