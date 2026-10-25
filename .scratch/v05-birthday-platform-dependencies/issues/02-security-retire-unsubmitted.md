@@ -12,6 +12,21 @@ Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；a
 Blocked by: 中控明确授权实施；Erwin本人按本阶段代行安全职责确认[两选项及G2-A/B/C条件](../decision.md)，包括旧动作拒绝、挑战对后续任务的作用、准备/授权/claim竞争和审计恢复；G2-B收窄建议不是既定范围，AI设计审查不代替决定。
 Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 
+## 实施设计（2026-10-26 本对话补充，按 [G2-B 胜序](../verification-authority.md)）
+
+1. **应用库新表 `security_retirements`**（本目录，只加表）：`retirement_id PK`、`user_id/demo_round_id/task_id/operation_id/action_revision`、`state`（`pending_proof`|`sealed`|`conflict`）、`original_binding_json`（原参数绑定摘要、确认 id/版本、编辑 request 关联）、`bank_evidence_json`（06 返回的 retirement_id/挑战 id/时间）、`audit_ref`、`created_at/sealed_at`、`UNIQUE(user,demo_round_id,task,operation,action_revision)`。
+2. **两段式**（避免把银行调用塞进应用库事务）：
+   - `begin_retirement(context, action, now)`：单一应用库事务内核对归属/任务未终止；`get_execution` 已有 claim（processing/completed/unknown）→ 抛拒绝（只能原号观察）；记录不存在则写 `pending_proof`；同参重放返回原记录，异参冲突。
+   - `seal_retirement(context, retirement_id, bank_evidence, now)`：事务内重新确认无 claim、受理记录仍是本人任务与原绑定；写 `sealed` + `bank_evidence` + 审计引用；同参幂等。若 claim 在此期间出现 → 记 `conflict` 并拒绝。
+3. **claim 拒绝**：`claim_execution` 在既有事务内查 `security_retirements`，只要该 (task, operation_id, action_revision) 存在 `pending_proof` 或 `sealed` → 抛 `SecurityStateError("ACTION_RETIRED")`，旧动作永远不能再领取。撤销/终态路径不变。
+4. **确认历史保留**：`create_confirmation` 的 UPSERT 覆盖前，把当时的**完整脱敏 ConfirmationRecord**（含 display_fields、参数 ref、版本）写入新表 `security_confirmation_history`（同事务）；`get_confirmation_history(confirmation_id, version)` 只读回读。不改旧 `cancelled/expired` 含义。
+5. **pending_freeze 授权退役**：仅当 `sealed` 且原绑定一致时，把该 operation 的 `pending_freeze` 授权按原绑定置 `invalid`，原因写 `RETIRED_UNSUBMITTED`（不写成 FREEZE_FAILED）；真实 `active` 授权不动；并列 `birthday_release` 指针回写时按原 attempt + CAS 校验（`update_task` 的 revision 检查已有，补 attempt 比较）。
+6. **审计**：seal 的同一应用库事务内用 `AuditJournal.append_in_transaction` 写既有事件（`security.retired_unsubmitted` 证据引用），失败整笔回滚；撤离已持久但审计不齐→保持 `pending_proof` 不放行。
+7. **平台回调（03 提供）**：`begin` → 调银行 06 `retire_action_challenges` → `seal`；银行拒绝（先失败/先过期/已通过）直接返回不可编辑原因，不写 `sealed`。
+8. 不新增公开 `SecurityDecision`/任务状态枚举；本目录测试用隔离库+真实 `AuditJournal` 路径。
+
+以上为设计，实施前需 06 交付；`pending_freeze` 具体列名与 `birthday_release` 指针校验以实际源码为准，不改契约。
+
 ## What to build
 
 提供当前生日动作的窄后台接缝：与执行claim在同一持久事务中决定“旧attempt已安全撤离”或“已经领取，须观察原操作”。
