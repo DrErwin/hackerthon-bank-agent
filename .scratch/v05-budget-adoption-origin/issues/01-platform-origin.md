@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: in_review — 平台实现、定向/完整后端回归与独立双轴审查通过，待CI阻塞处理及Erwin合入；不代表API/cross联调或安全接受
+Status: in_review / merge_prepared — 已获Erwin第二批本PR合入及CI计费本地验证例外，完成等价同步；待中控核对并squash，尚未合入，不代表API/cross联调或最终安全接受
 
 Blocked by: None（289已合入，296已整理；无需新增storage表或等待#293接口变更）
 
@@ -65,4 +65,22 @@ Core scenarios: O01—O08，定义见规格；预算业务语义仍由 cross06 �
 - **Standards**：`platform12_standards_review`独立审查PASS，硬规范违反0、气味建议0；独立来源测试 **35 passed in 9.18s**。确认目录、CAS/锁、派发前复核、来源隔离及接入边界符合要求。
 - **Spec**：`platform12_spec_review`独立审查PASS，必须修复0、建议0；独立来源测试 **35 passed in 9.19s**。确认历史优先分流、原写严格绑定、冻结结果、并发及上下文隔离符合规格。
 - **CI**：受审head的Repository checks未启动，GitHub注明账户近期付款失败或需提高spending limit；这是外部账单阻塞，不能记作绿灯。本PR未获此前首批PR的CI/合入例外，不自行豁免。
-- **下一步**：全量已按释放槽位顺序通过，交Erwin处理CI阻塞与合入决定；API02仍待本接缝稳定合入和中控信号后接线，cross06按自己的采用映射/稳定attempt/准确事实实现只读恢复，再做真实联合验收。298/296均未获此前五PR的合入/CI例外，上述AI审查不代替真人安全签核。
+- **当时下一步**：全量按释放槽位顺序通过，交Erwin处理CI阻塞与合入决定；298/296当时均未获此前首批五PR的合入/CI例外。以下第二批本人批准仅更新298的当前准备状态，296仍未获本批批准。API02仍待本接缝稳定合入和中控信号，cross06仍按自己的采用映射/稳定attempt/准确事实接线；AI审查不代替最终真人安全接受。
+
+## 第二批批准后的合入准备（2026-10-25）
+
+**本人批准来源**：Erwin在中控对话答复“批准本批五项及CI例外（推荐）”；[中控主线记录](../../v05-control/dispatch-2026-10-25.md#1818-核查新平台材料与第二批明确批准)，固定来源`41c01aed544718f459e8dffcea3be3de42df18e0`。仅覆盖298→284→292→295→297及等价同步，允许以已记录本地验证作为CI账户计费故障期间依据；CI仍Blocked，不扩到296/293、数据库升级、新安全政策或最终安全/体验接受。本执行者只准备原PR，中控核对并squash；没有自行合并。
+
+| 项目 | 精确版本 |
+|---|---|
+| 原base | `0930d6be59c728b9dc0ef4c4ef0b5430da12943e` |
+| 原head | `5ebc1332d958f08e1900ab19cfb6815e737384d6` |
+| 最新main / 新base | `41c01aed544718f459e8dffcea3be3de42df18e0` |
+| 四条原提交rebase后的head | `6b8ca8d2de28ac26bad1d9298ffeff9b09513954` |
+| 原受测 / 受审head | `4f1824789baf88048eae32367d4c008624f3fc4b` / `2c8dae93b2ffcc6e13a177744fa0ec3f7e323449` |
+
+干净的原独立worktree中fetch后rebase，无冲突、无产品/测试代码改动；主线相对旧base仅有Markdown变化。四条range-diff均为`=`：15d4d12→108b93a、2c8dae9→5080035、4f18247→d6eea83、5ebc133→6b8ca8d。原/新累计补丁逐字节相同，SHA256均为`f99662c442fcc882044da187d9097c1da4bab5b0393d5fcfc1981f44e6edcf09`。此后只补本票准备记录，不改受测实现。
+
+对原head、原1752受测head、原双轴受审head与新head逐一比较：排除docs/.scratch后的**651个受版本管理文件全部相同**，backend/evals/frontend/tools/.github各子树一致；含本票后台实现和测试。原1752 JUnit、退出码0、日志/XML哈希再次核对不变。因此沿用1752/87及双轴35独立复验证据，不重复跑全量/定向，不运行模型。
+
+本地保留`refs/codex/v05-budget-origin-01-before-approved-sync`指向旧5ebc133；`backend/.venv/validation/pr298-approved-main-sync/`保存原/新补丁、原四提交、range-diff及equivalence.json，原完整测试证据未覆盖。原PR分支以明确旧head的force-with-lease更新；最终发布head由PR与回交给出。本票未新增业务代码或公共字段，不改共享进度、其他PR或生日新四票（仍planned/blocked）。
