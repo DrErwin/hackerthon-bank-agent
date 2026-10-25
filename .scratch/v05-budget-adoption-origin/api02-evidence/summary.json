@@ -31,6 +31,21 @@
     }
   ],
   "sha256": {
+    "directed-final-manifest.json": "b4f9dbc0b764700f8de3f692c174697326b01a577ab29c62b7f18d84bb2f8a2f",
+    "directed-final.log": "09f7cd05d3081a73e738049c61c5f4e85fef00225ba9f39ceb38588dabf4e633",
+    "directed-final.log.gz": "69b925dc0ec2261a5c246b35117ee077ae3301517a1804e0b10284c17cff730f",
+    "directed-final.xml": "3dae22ba348042960ff89e59d0accb5f848af1947e7b151c3b4029a84f1c7abe",
+    "environment.json": "c4392ccb117503683f7b3e5bbdae6dc17475706e5b4d798ecab3899c1767ded5",
+    "rebased-final-manifest.json": "e9830c6a31eef3da6ad1a63ac5a72f5c05bd939eff8f0383283a077b4629be81",
+    "rebased-final.log": "dc748ecf3b2a49f82d7544b6d2d7be2c1a4784989c25864477987699be922d30",
+    "rebased-final.log.gz": "249022c52a427e49d8acffb3d891a00f6bcb75689151d3b880acefed3f34f7f9",
+    "rebased-final.xml": "463fff503ad73fde0e98f5462c5372df7e6f8682bc01dc02009cdb52fc70295a",
+    "targeted-manifest.json": "ba00710d8d553e94129cb77bf669a1cc2a076122112a450d1660dc9325e60609",
+    "targeted.log": "4f89978782125479eea3b7f33b98accae1557c73508448e06aac63717c03060b",
+    "targeted.log.gz": "94816e9b7e7c93b731033cd5223f4948809ad4d4f93d23bd154cefe9e8cf11bb",
+    "targeted.xml": "2a1436529d2a439ed90374c511a2bbe591ce9706619d3c7739cd8b9cf7b45095"
+  },
+  "original_text_sha256_before_lf": {
     "directed-final-manifest.json": "8d79ba11208ebef961d9e9b362c35562e6d88b5f578c780226b690da4c1a8a77",
     "directed-final.log": "6b7ba99accd8dfcfa64c14797ac203149725190bedacce079990d583c4c8467e",
     "directed-final.xml": "3dae22ba348042960ff89e59d0accb5f848af1947e7b151c3b4029a84f1c7abe",
@@ -41,5 +56,23 @@
     "targeted-manifest.json": "95f09e94aa0527d0abc72d3996c7145df48f87e38e136c0ad22cfc5323c2c1b4",
     "targeted.log": "164df0eaf40ce9433a267fa3980b401b66896116bca0e46c7583efa549e580b2",
     "targeted.xml": "2a1436529d2a439ed90374c511a2bbe591ce9706619d3c7739cd8b9cf7b45095"
-  }
+  },
+  "raw_log_archives": {
+    "directed-final.log": {
+      "archive": "directed-final.log.gz",
+      "original_bytes_sha256": "6b7ba99accd8dfcfa64c14797ac203149725190bedacce079990d583c4c8467e",
+      "archive_sha256": "69b925dc0ec2261a5c246b35117ee077ae3301517a1804e0b10284c17cff730f"
+    },
+    "rebased-final.log": {
+      "archive": "rebased-final.log.gz",
+      "original_bytes_sha256": "6c11473bb3a99e1d2c58b0416cf5b30d0ba74f393c0179caab3071e61de066df",
+      "archive_sha256": "249022c52a427e49d8acffb3d891a00f6bcb75689151d3b880acefed3f34f7f9"
+    },
+    "targeted.log": {
+      "archive": "targeted.log.gz",
+      "original_bytes_sha256": "164df0eaf40ce9433a267fa3980b401b66896116bca0e46c7583efa549e580b2",
+      "archive_sha256": "94816e9b7e7c93b731033cd5223f4948809ad4d4f93d23bd154cefe9e8cf11bb"
+    }
+  },
+  "text_format": "Repository JSON/log text uses LF; .log.gz preserves original captured log bytes. No test rerun for normalization."
 }
