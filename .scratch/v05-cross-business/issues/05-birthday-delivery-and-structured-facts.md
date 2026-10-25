@@ -42,7 +42,7 @@ Core scenarios: XL-B01、XL-B02、XL-B04、XL-B05、XL-B06；定义见[共享规
 
 - [03：生日编排](03-birthday-orchestration.md)（#274）与 [v05-cross-platform/09 生日真实装配](../../v05-cross-platform/issues/09-birthday-runtime-wiring.md)（#279）已合入。
 - 契约字段已存在（`CrossStep.order_id / payment_status / result_ref`、`CrossTaskView.budget`），本票只补齐「填进去」与「收受控资料」，不新增公共契约语义；确需新增字段时按[公共改动流程](../../../docs/principles/03-review-and-merge.md#公共底座与-api-改动)先提平台票。
-- 若发现平台侧（`backend/app/api/`）仍需分支配合，回 [v05-cross-platform/11](11-child-interaction-and-text-input.md) 或另开平台票，不在本目录跨目录修改。
+- 若发现平台侧（`backend/app/api/`）仍需分支配合，回 [v05-cross-platform/11](../../v05-cross-platform/issues/11-child-interaction-and-text-input.md) 或另开平台票，不在本目录跨目录修改。
 
 ## Acceptance criteria
 

@@ -1,7 +1,8 @@
 # v05-cross-business/05 执行与交接
 
 执行对话：01a17183-271b-7663-9517-f31a994de51d；日期：2026-10-25。
-基线：origin/main `4bba921`；分支 `codex/v05-cross-business-05`；仅实施 cross。
+创建基线：origin/main `4bba921`；随后 rebase 到 `640fe71`（新增仅前端/docs）；
+分支 `codex/v05-cross-business-05`；仅实施 cross。
 主工作区未改动。前端 01、平台 11 与 PR #281/#282 未接管；共享跟踪与 completion 未更新。
 
 ## 决定与能力记录
@@ -38,4 +39,6 @@
 
 ## 验证及审查
 
-待本轮测试、独立审查与 PR 结果回填。真实模型与浏览器 E2E 未运行，真人安全/PM 验收未代签。
+- 规范轴：独立子代理 review_standards 对 `640fe71...e4ae5a1` 审查 PASS；必须项 0、建议 0。
+  未复跑主对话全量测试，不代替真人安全或 PM 验收。
+- 原票轴、全量测试与 PR：待回填。真实模型与浏览器 E2E 未运行，真人安全/PM 验收未代签。

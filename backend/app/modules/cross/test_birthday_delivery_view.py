@@ -111,6 +111,24 @@ def test_stop_during_unknown_payment_only_queries_then_releases(tmp_path):
     assert ports.capture_executes == ["P_FLOWER"]
 
 
+def test_verified_freeze_binding_clears_old_unknown_without_guessing_amount(tmp_path):
+    ports = ScriptedBirthdayPorts(freeze="unknown")
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    run_to_freeze(entry)
+    held = entry.resume(parent_trusted(), {"choice": "approve"})
+    entry.resume(parent_trusted(), {"selected_option_id": option_id(held, "核实原操作")})
+    # Binding verified the original freeze id; the optional receipt read gave
+    # no amount, so it stays empty while the verified ending is still visible.
+    done = confirm_until_settled(entry)
+    assert done.status is TaskStatus.SUCCEEDED
+    frozen = next(s for s in done.data.steps if s.step_id == "birthday-freeze")
+    assert frozen.status is TaskStatus.SUCCEEDED and frozen.result_ref == "fz_001"
+    assert frozen.amount_fen is None
+    remaining = next(s for s in done.data.steps if s.step_id == "birthday-remaining")
+    assert remaining.status is TaskStatus.SUCCEEDED and remaining.amount_fen == 0
+
+
 @pytest.mark.parametrize("stop_after_flower", [False, True])
 def test_receipts_match_real_bank_at_waiting_and_complete_states(tmp_path, stop_after_flower):
     from app.agent_platform.test_birthday_runtime_wiring import (

@@ -656,6 +656,12 @@ class BirthdayFlow:
             freeze_id = self.ports.bind_freeze(trusted, self._plan(),
                                                freeze["operation_id"])
             if freeze_id:
+                # The binding itself verifies this original freeze exists.
+                # A second receipt read may be unavailable; that cannot leave
+                # its identity unknown forever or invent an unreturned amount.
+                self.b.setdefault("write_facts", {}).setdefault("freeze", {}).update(
+                    status="completed", operation_id=freeze["operation_id"],
+                    result_ref=freeze_id)
                 outcome = self.ports.requery(trusted, self._plan(), "freeze",
                                               freeze["operation_id"])
                 if outcome is not None and outcome.state == "completed":
