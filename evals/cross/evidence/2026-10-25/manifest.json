@@ -1,0 +1,40 @@
+{
+  "reports": [
+    {
+      "batch_id": "s01-live-20261025-01",
+      "case_id": "XL-S01",
+      "status": "failed",
+      "report": "s01-live-20261025-01.json.gz",
+      "summary": "s01-live-20261025-01.md",
+      "json_sha256": "95cf45a276d56bd5812467e5bf616289499d76b93d09ce2081a85ce630a75f87",
+      "status_counts": {
+        "failed": 1,
+        "passed": 0,
+        "blocked_design_rows": 25
+      },
+      "assertions": {
+        "goal_failed": true,
+        "bank_writes_zero": true,
+        "keep_unchanged": true
+      },
+      "attachments": [
+        {
+          "path": "s01-live-20261025-01/01-ready.png",
+          "sha256": "2373f006554c014f3c0fb7515131409e0836902b960388d2771d9013a9840a05"
+        },
+        {
+          "path": "s01-live-20261025-01/02-routing-failure.png",
+          "sha256": "5c14fe460baceb608be0deba08662dc50c1bd41f8bcbed469d754c576ee0ceac"
+        },
+        {
+          "path": "s01-live-20261025-01/02-routing-failure.txt",
+          "sha256": "837aa4fe7c486de6b27470966a5230f2723400939f6f3342eae8a4f7f2380810"
+        },
+        {
+          "path": "s01-live-20261025-01/03-failed-task-context.png",
+          "sha256": "aa3d54a62efa97c0ab2142bfd5adc9503afce21f0a185f68e5168ad759cdc4d6"
+        }
+      ]
+    }
+  ]
+}
