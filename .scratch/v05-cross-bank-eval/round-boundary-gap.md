@@ -4,7 +4,7 @@
 
 Source ticket: [v05-cross-bank-eval/01：银行事实和防重专项验收](issues/01-birthday-bank-evidence.md)。
 
-Status: open — 2026-10-26 只读核查与责任判断完成：原约定要求银行在对象归属层独立拒绝；产品路径上游门已覆盖（#294/#296），银行对象层缺口由存储/服务两票修复，评测收口另票。未实施，未获目录窗口。
+Status: open — 2026-10-26 只读核查与责任判断完成：释放收尾链路有明文（M14/安全§3.1），B13/B22/B11 对象层补轮次属防御纵深决策（待 Owner 确认）；产品路径上游门已覆盖（#294/#296），银行对象层缺口由存储/服务两票候选修复，评测收口另票。未实施，未获目录窗口。
 
 2026-10-26 核查入口：[v05-bank-round-objects 核查与责任判断](../v05-bank-round-objects/verification.md)。
 
@@ -40,9 +40,11 @@ python -m pytest -q ../evals/mockbank/test_birthday_bank_eval.py -k old_round_ob
 
 ## 2026-10-26 责任判断与最小票
 
-核查时点 main `38b3b81`（运行代码同 `5347dd7`）；截至 2026-10-26 01:34，origin/main 已前进到 `5b652e1`（仅 `.scratch/v05-cross-frontend/` 走查文档，无运行代码差异）。核查结论：
+核查时点 main `38b3b81`（运行代码同 `5347dd7`）；01:34 起 origin/main `5b652e1`（仅 `.scratch/v05-cross-frontend/` 走查文档，无运行代码差异），01:50 起含本组核查/票据提交。核查结论：
 
 - **产品路径已覆盖**：旧轮次会话 401、旧任务 GET/resume 404；真实安全 claim/旧释放授权拒绝；平台订单来源门（PR #296，`620746a`）拒绝跨任务与旧轮次订单；B13/B22 不是模型工具、无 HTTP 路由。四项探针只经显式测试授权，**不能写成产品可越权**。
-- **银行对象层仍缺**：`freezes`/`orders` 无轮次归属，B13/B22/B11/B12 只按用户；而操作编号已按 `(user, round)` 绑定（`bank_operation_scopes`）。原约定（银行附件 §2/§4、安全附件 §2/§3.1、包06验收第4条）要求银行在对象归属层独立拒绝；平台 §6.9 是并行前门，不替代银行归属校验。
+- **责任分层**：释放收尾链路有明文——公共契约 §9 M14 把“错误用户／冻结／**轮次**拒绝”列给 cross+security+mockbank，安全附件 §3.1 明确“银行仍校验可信主体对原冻结的释放权限”；B13/B22 读取与 B11 核销只有归属语义（银行附件 §2/§4/§9.3/§11）+ 包06验收第4条，把轮次纳入对象归属是**防御纵深实现决策**，不是契约字面要求。规范的轮次切换是 B26 重置（清冻结/订单），当前 F30/F31 未实现；四项探针的“同库换 round 不重置”不是规范支持方式。选择补对象归属而不是改评测适配平台门，需 Owner 确认并记录。
+- 平台核对普通请求轮次的依据是公共契约 §6.4/§6.5/§6.3；§6.9 只讲 `ResourceRef` 资源读取，不能当银行对象前门。
+- 实现层不一致：`bank_operation_scopes` 自 v0.3 起按 `(user, round)` 绑定操作编号、B14 按轮次拒绝（契约只要求编号绑定身份）；对象没有轮次属同一银行服务内的实现不一致。
 - 复跑确认（隔离临时目录）：`--runxfail` 四项仍 4 failed；组合基线命令 `test_birthday_round_attribution.py + test_birthday_bank_eval.py + app/agent_platform/test_birthday_order_scope.py + app/agent_platform/test_birthday_runtime_wiring.py` = 3+41+8+5 = 57 节点，实跑 **53 passed, 4 xfailed in 83.82s**（2026-10-26；与 `evals/mockbank/round-attribution.md` 记录一致）。
-- 修复票：[存储 01](../v05-bank-round-objects/issues/01-object-round-storage.md) → [服务 02](../v05-bank-round-objects/issues/02-object-round-services.md) → [评测收口 02](issues/02-round-object-regression.md)。存储/服务与生日线共用，按生日存储 05 完成后申请单目录窗口；不做共享库迁移，旧 v4 对象库按既有先例明确拒绝加载。
+- 修复票（待 Owner 决策后）：[存储 01](../v05-bank-round-objects/issues/01-object-round-storage.md) → [服务 02](../v05-bank-round-objects/issues/02-object-round-services.md) → [评测收口 02](issues/02-round-object-regression.md)。storage 当前正被生日线（`codex/v05-birthday-immutable-checkpoint`，`3e38506`/`c886660`）使用，须等其合入并 rebase；不做共享库迁移，旧 v4 含对象行库按既有先例明确拒绝加载。
