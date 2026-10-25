@@ -74,6 +74,7 @@ export function useConversation(source: ShellDataSource) {
   const [connected, setConnected] = useState(false);
   const [messages, setMessages] = useState<MessageView[]>([]);
   const [tasks, setTasks] = useState<Map<string, TaskEnvelope>>(new Map());
+  const [serverChildIds, setServerChildIds] = useState<Set<string>>(new Set());
   const [cardLinks, setCardLinks] = useState<CardLink[]>([]);
   const [history, setHistory] = useState<Record<string, HistoryEntry[]>>({});
   const [confirmations, setConfirmations] = useState<Record<string, ConfirmationView>>({});
@@ -100,6 +101,7 @@ export function useConversation(source: ShellDataSource) {
   const awaitingMessageId = useRef<string | null>(null);
   const refreshedCancellations = useRef(new Set<string>());
   const refreshErrors = useRef(new Map<string, string>());
+  const childParents = useRef(new Map<string, string>());
 
   const expire = useCallback(() => {
     setExpired(true);
@@ -117,6 +119,38 @@ export function useConversation(source: ShellDataSource) {
       return next;
     });
   }, []);
+
+  // A cross parent's children own the current confirmation/verification answer.
+  // Reading them publishes the child tasks to the API and lets their own cards
+  // render inside the parent plan; the parent itself is never answered for them.
+  const loadChildren = useCallback(async (parentId: string) => {
+    if (!source.listChildren) return;
+    try {
+      const children = await source.listChildren(parentId);
+      setTasks((current) => {
+        const next = new Map(current);
+        for (const envelope of children) {
+          const existing = next.get(envelope.task.task_id);
+          if (!existing || existing.task.task_revision <= envelope.task.task_revision) {
+            next.set(envelope.task.task_id, {
+              ...envelope,
+              timelineAt: existing?.timelineAt ?? envelope.task.snapshot_at,
+            });
+          }
+        }
+        return next;
+      });
+      for (const envelope of children) childParents.current.set(envelope.task.task_id, parentId);
+      setServerChildIds((current) => {
+        const next = new Set(current);
+        for (const envelope of children) next.add(envelope.task.task_id);
+        return next;
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) expire();
+      // The parent card still shows the plan's own step states without the child views.
+    }
+  }, [expire, source]);
 
   const loadThread = useCallback(async (markRecovery: boolean) => {
     if (loadFlight.current) {
@@ -161,6 +195,9 @@ export function useConversation(source: ShellDataSource) {
           }
           return next;
         });
+        await Promise.all(taskList
+          .filter(({ task, module }) => module === "cross" && !isTerminal(task))
+          .map(({ task }) => loadChildren(task.task_id)));
         setConfirmations((previous) => {
           const next = recovery ? {} : { ...previous };
           for (const records of recordLists) {
@@ -214,7 +251,7 @@ export function useConversation(source: ShellDataSource) {
     } finally {
       if (loadFlight.current === run) loadFlight.current = null;
     }
-  }, [source]);
+  }, [loadChildren, source]);
 
   const enter = useCallback(async () => {
     const entered = await source.enterSession({ request_id: newRequestId() });
@@ -276,7 +313,15 @@ export function useConversation(source: ShellDataSource) {
           setMessages((current) => mergeMessages(current, [message]));
           if (message.role === "assistant") setAwaitingReply(false);
         } else if (event.event_type === "task_updated") {
-          upsertTask(event.payload as ShellTask, event.module);
+          const task = event.payload as ShellTask;
+          upsertTask(task, event.module);
+          if (event.module === "cross") {
+            if (!isTerminal(task)) void loadChildren(task.task_id);
+          } else {
+            // A child moved on: its parent plan card shows the new step state.
+            const parentId = childParents.current.get(task.task_id);
+            if (parentId) void loadChildren(parentId);
+          }
         } else if (event.event_type === "session_expired") {
           expire();
         } else if (event.event_type === "stream_error") {
@@ -296,7 +341,7 @@ export function useConversation(source: ShellDataSource) {
       },
     );
     return unsubscribe;
-  }, [expire, expired, loadThread, source, threadId, upsertTask]);
+  }, [expire, expired, loadChildren, loadThread, source, threadId, upsertTask]);
 
   // A proxy can leave an apparently open event stream after losing its upstream.
   // While a message is outstanding, read persisted results; never resend it.
@@ -703,6 +748,7 @@ export function useConversation(source: ShellDataSource) {
     connected,
     messages,
     tasks,
+    serverChildIds,
     cardLinks,
     history,
     confirmations,

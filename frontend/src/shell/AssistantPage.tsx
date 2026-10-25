@@ -27,15 +27,19 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const bodyRef = useRef<HTMLDivElement>(null);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
   const pinned = useRef(true);
-  const timeline = useMemo(() => buildTimeline(messages, tasks, conversation.cardLinks), [messages, tasks, conversation.cardLinks]);
+  // Cross-linkage children belong inside their parent card, so they never get a
+  // record, a "continue" entry or a counter of their own.
+  const childIds = conversation.serverChildIds;
+  const topTasks = [...tasks.values()].filter(({ task }) => !childIds.has(task.task_id));
+  const timeline = useMemo(() => buildTimeline(messages, tasks, conversation.cardLinks, childIds), [messages, tasks, conversation.cardLinks, childIds]);
   const latestTaskId = timeline.filter((item) => item.type === "task").at(-1)?.envelope.task.task_id;
   const exampleHints = slots.slots.flatMap((slot) => slot.exampleHints ?? []);
-  const inputTasks = [...tasks.values()].filter(({ task }) =>
+  const inputTasks = topTasks.filter(({ task }) =>
     task.status === "waiting_input" && task.interaction?.kind === "input"
     && task.allowed_actions.includes("provide_input") && !task.recovery_required
     && !conversation.bootRecovery.has(task.task_id));
-  const pendingApproval = [...tasks.values()].filter(({ task }) => task.status === "waiting_approval").length;
-  const finished = [...tasks.values()].filter(({ task }) => isTerminal(task)).length;
+  const pendingApproval = topTasks.filter(({ task }) => task.status === "waiting_approval").length;
+  const finished = topTasks.filter(({ task }) => isTerminal(task)).length;
 
   // Expanding a card never moves the reader. Only incoming chat messages follow
   // the bottom, and only while the reader has not scrolled back into history.
@@ -114,8 +118,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
       </div>
       {awayFromLatest && <button type="button" className="sh-back-latest" onClick={jumpToLatest}>回到最新消息 ↓</button>}
       <SafetyRail />
-      {[...tasks.values()].some(({ task }) => !isTerminal(task)) && <nav className="sh-pending-nav" aria-label="正在办理">
-        <span>继续办理：</span>{[...tasks.values()].filter(({ task }) => !isTerminal(task)).map(({ task }) =>
+      {topTasks.some(({ task }) => !isTerminal(task)) && <nav className="sh-pending-nav" aria-label="正在办理">
+        <span>继续办理：</span>{topTasks.filter(({ task }) => !isTerminal(task)).map(({ task }) =>
           <button type="button" className="sh-link-btn" key={task.task_id} onClick={() => {
             const target = document.getElementById("task-" + task.task_id);
             let ancestor = target?.parentElement;

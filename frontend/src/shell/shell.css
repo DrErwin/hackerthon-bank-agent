@@ -319,3 +319,23 @@
 .sh-pending-nav button { min-height: 44px; }
 .sh-action-feedback { padding: 10px 12px; background: var(--brand-tint); border-radius: 8px; margin: 8px 0; }
 @media (max-width: 480px) { .sh-guided { padding: 14px; } .sh-quick-actions .sh-btn { flex: 1 1 40%; } }
+
+/* v0.5 cross-linkage plan card (票 v05-cross-frontend/01). The plan body reuses
+   .sh-steps from the verification card; only status tones and the current step
+   highlight are new, and every colour comes from the existing tokens. */
+.sh-cross-plan { gap: 14px; }
+.sh-cross-commit { padding: 12px 14px; font-size: 17px; line-height: 1.5; color: #7a2e0e; background: var(--brand-tint); border: 1px solid #ffd5b0; border-radius: 12px; }
+.sh-cross-steps .sh-cross-step { gap: 10px; }
+.sh-cross-step .sh-step-head { align-items: flex-start; flex-wrap: wrap; }
+.sh-cross-step .sh-step-head strong { min-width: 0; }
+.sh-cross-step .sh-step-state { flex: 0 0 auto; white-space: nowrap; }
+.sh-step-tone-success .sh-step-no { color: #fff; background: var(--success); border-color: var(--success); }
+.sh-step-tone-success .sh-step-state { color: var(--success); }
+.sh-step-tone-danger .sh-step-no { color: #fff; background: var(--danger); border-color: var(--danger); }
+.sh-step-tone-danger .sh-step-state { color: var(--danger); }
+.sh-step-tone-warning .sh-step-no { color: #fff; background: var(--warning); border-color: var(--warning); }
+.sh-step-tone-warning .sh-step-state { color: var(--warning); }
+.sh-step-tone-neutral .sh-step-state { color: var(--ink3); }
+.sh-cross-step.sh-step-active { background: var(--brand-tint); box-shadow: inset 0 0 0 2px var(--brand); }
+.sh-cross-current { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.sh-cross-current .sh-card { border-color: #ffd5b0; }
