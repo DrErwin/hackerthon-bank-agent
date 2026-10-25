@@ -346,9 +346,13 @@ class PensionFlow:
             return self.entry._advance_pension(trusted, self.state)
         payees = [p for p in self.pension["payees"]
                   if p.get("payee_id")] or []
-        choices = [(f"转给 {p['name_masked']}（{p['account_masked']}）",
-                    {"kind": "pension_payee", "payee_id": p["payee_id"],
-                     "name": p["name_masked"]}) for p in payees]
+        choices = []
+        for payee in payees:
+            name = payee["name_masked"]
+            if payee.get("remark"):
+                name += f"·{payee['remark']}"
+            choices.append((f"转给 {name}（{payee['account_masked']}）",
+                            {"kind": "pension_payee", "payee_id": payee["payee_id"], "name": name}))
         own_accounts = [a for a in self.pension["accounts"]
                         if a["account_id"] != self.pension["payer"]]
         choices = [(f"转到 本人·{a['display_name']}（{a['account_masked']}）",
@@ -563,9 +567,11 @@ class PensionFlow:
 
     def _basis_choices(self, incomes, balance):
         choices = [(f"本月实际入账 {money(row['amount_fen'])} 元 · "
-                    f"{row['occurred_at'][:10]} · {row['counterparty_name']} · {row['summary']}",
+                    f"{row['occurred_at'][:19].replace('T', ' ')} · "
+                    f"{row['counterparty_name']} · {row['summary']}（第{index}笔）",
                     {"kind": "pension_basis", "basis": "selected_income",
-                     "income_transaction_ids": [row["transaction_id"]]}) for row in incomes]
+                     "income_transaction_ids": [row["transaction_id"]]})
+                   for index, row in enumerate(incomes, 1)]
         # A failed accounts read offers no balance basis — zero would be a
         # fabricated fact, and a chosen None base crashes later maths (N1).
         if self.pension.get("accounts_ok") and balance is not None:

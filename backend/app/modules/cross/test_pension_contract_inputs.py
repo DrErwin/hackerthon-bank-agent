@@ -1,6 +1,7 @@
 """PI01—PI05: bank contract income and public own-account discovery."""
 
 from uuid import uuid4
+from datetime import timedelta
 from contextlib import nullcontext
 from unittest.mock import patch
 
@@ -48,6 +49,30 @@ def test_contract_income_candidates_are_selected_not_summed(tmp_path):
     record = harness.application.get_active_arrangement("U1", "D1", "A1").record
     assert record.income_transaction_ids == ["pension"] and record.base_fen == 500000
     assert inputs[0].payee.kind == "saved" and inputs[0].payee.payee_id == "P_MOM"
+
+
+def test_same_day_same_amount_income_has_distinct_labels_and_stale_choices_fail(tmp_path):
+    later = NOW + timedelta(hours=1)
+    _, entry, _, _ = pension_composition(tmp_path, transactions=[
+        income("morning", 500000), income("later", 500000, occurred_at=later)])
+    started = entry.start(parent_trusted(), CrossStartInput(request_id=uuid4(), goal="安排本月养老金"))
+    basis = entry.resume(parent_trusted(), {"selected_option_id": option_id(started, "直接安排资金")})
+    options = [row for row in basis.interaction.options if "本月实际入账" in row.label]
+    assert len(options) == len({row.label for row in options}) == 2
+    assert later.strftime("%H:%M:%S") in options[1].label
+    refreshed = entry.resume(parent_trusted(), {"text": "5000元"})
+    with pytest.raises(ValueError, match="INVALID_OPTION"):
+        entry.resume(parent_trusted(), {"selected_option_id": options[1].id})
+    entry.resume(parent_trusted(), {"selected_option_id": option_id(refreshed, "第2笔")})
+    # The adopted source is externally visible after the ordinary plan adoption.
+    debits = entry.resume(parent_trusted(), {"text": "1500元"})
+    dest = entry.resume(parent_trusted(), {"selected_option_id": option_id(debits, "算进留存")})
+    entry.resume(parent_trusted(), {"selected_option_id": option_id(dest, "妈妈")})
+    dest = entry.resume(parent_trusted(), {"text": "2500元"})
+    adopt = entry.resume(parent_trusted(), {"selected_option_id": option_id(dest, "去向已选好")})
+    entry.resume(parent_trusted(), {"selected_option_id": option_id(adopt, "采用并开始办理")})
+    record = entry.harness.application.get_active_arrangement("U1", "D1", "A1").record
+    assert record.income_transaction_ids == ["later"]
 
 
 @pytest.mark.parametrize("payees_unavailable", [False, True])
