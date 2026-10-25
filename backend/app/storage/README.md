@@ -8,7 +8,7 @@
 
 ## v0.3 接入
 
-`StoragePaths.from_env()` 默认把数据放在用户目录的 `.ai-banking-agent/`，也可用 `BANK_AGENT_DATA_DIR` 指向持久化目录。应用和模拟银行分别使用 `application.sqlite3`、`mock_bank.sqlite3`；部署时这两个文件必须放在持久化卷上。创建 `ApplicationStore(paths.application)` 会执行应用库 v4 迁移，重复初始化不会清空数据。银行服务单独创建 `MockBankStore(paths.bank)` 并执行银行库 v3 迁移。
+`StoragePaths.from_env()` 默认把数据放在用户目录的 `.ai-banking-agent/`，也可用 `BANK_AGENT_DATA_DIR` 指向持久化目录。应用和模拟银行分别使用 `application.sqlite3`、`mock_bank.sqlite3`；部署时这两个文件必须放在持久化卷上。创建 `ApplicationStore(paths.application)` 会执行应用库 v6 迁移，重复初始化不会清空数据。银行服务单独创建 `MockBankStore(paths.bank)` 并执行银行库迁移。
 
 应用入口只导出 `ApplicationStore`。所有任务读取、确认／验证／记忆引用和工具操作记录都要求用户与演示轮次；确认引用不能跨任务绑定，验证引用不能跨会话绑定。引用关联不代表安全授权，安全模块仍须核验原记录、具体动作和有效状态。`checkpoint_saver(user_id, demo_round_id, task_id)` 先核对任务归属，再返回只接受该任务内部 thread_id 的 LangGraph saver。外层须先持久化操作编号，再调用银行；结果未知时只用原编号回查。任务快照只保存脱敏展示与受控引用，不存验证码或完整账户资料。记忆正文与管理机制由后续 06 票接 Deep Agents Store；这里仅保存任务关联引用，06 仍须验证正文的用户与轮次隔离。
 
@@ -47,3 +47,44 @@ task = store.transition_task_session(
 - `controlled_details`：受控资料原文（`delivery` / `payee` / `payee_search`）按本人、轮次、任务存储；`get_controlled_detail` 越权一律返回 `None`，不泄露存在性。原文是否可进入某条路径由 API/安全层决定，存储本身不是脱敏边界。
 
 存储不判断生活费、银行余额、限额或风控；金额上限等业务参数由调用方以参数传入。
+
+## 已采用个人预算（v05-adopted-budget-storage/01，应用库 v6）
+
+`adopted_budgets` 保存现行 `AdoptedBudget`，按可信 user/round 隔离，每个 budget_id 可保留多个版本、最多一个 active。只新增表及索引，v5 任务、安排、占用和受控资料原样保留。
+
+- `adopt_budget(user_id, demo_round_id, record, expected_task_revision=..., previous_version=...)`：受控写入。初次 version=1 / previous_version=None；改版 version=旧版+1 / previous_version=旧版。一个事务内核对记录归属、来源任务、任务 revision 和当前 active 版本，再将旧版 superseded 并写入新版。竞争失败抛 `ValueError`，不部分提交。
+- 同源任务的 adoption_interaction_id 绑定不可变的原采用快照和任务 revision；精确重放返回原版本的当前状态，不重复写入。同交互异参（包括换 budget_id/version）拒绝。原采用已 superseded 时，重放也不会复活旧版本。
+- `get_adopted_budget(user_id, demo_round_id, BudgetRef(...))`：按准确版本返回记录（含 superseded），不存在或其他用户/轮次返回 None。调用方须核对 status，不能把查到历史记录当作 active。
+- `list_adopted_budgets(user_id, demo_round_id, include_superseded=False)`：默认只返回本轮 active 候选，显式可读历史；每条保留原 scope/purpose/source_task_id，排序不代表优先级。cross 必须按真实付款账户、消费日期及用途筛选，多条重叠先澄清，省略引用也要检查。
+
+下面展示后续 cross 的调用接缝，尚未接线。actor 和任务来自可信上下文；`verified_record` 是 cross 完成原 F10 adopt、原交互、当前计划版本、原 scope/purpose/limit 快照核对后生成的 `AdoptedBudget`，不是模型输入。task.revision 是应用任务版本，不是 plan_revision；传入核对时读取的同一个值。
+
+```python
+from app.contracts import BudgetRef
+
+# 初次采用：verified_record.version == 1、status == "active"
+adopted = application.adopt_budget(
+    actor.user_id, actor.demo_round_id, verified_record,
+    expected_task_revision=task.revision,
+)
+saved = application.get_adopted_budget(
+    actor.user_id, actor.demo_round_id,
+    BudgetRef(budget_id=adopted.budget_id, version=adopted.version),
+)
+candidates = application.list_adopted_budgets(actor.user_id, actor.demo_round_id)
+
+# 重新明确采用：revised_record 保留 budget_id、version=adopted.version+1，
+# 携带新的采用交互及快照；modified_task 是本次验证时读取的来源任务。
+revised = application.adopt_budget(
+    actor.user_id, actor.demo_round_id, revised_record,
+    expected_task_revision=modified_task.revision,
+    previous_version=adopted.version,
+)
+occupations = application.list_budget_commitments(
+    actor.user_id, actor.demo_round_id, revised.budget_id,
+)
+```
+
+存储不解析 cross 检查点、不验证 F10 的选项或计划业务快照；来源任务存在和版本一致本身不等于采用授权。上述真实性由 cross 调用前保证，写接口不暴露为模型工具/HTTP。业务层还须保存生日 task_id 与 budget_ref 的绑定、刷新 L01、判断额度及冻结前登记 pending；本票没有完成这些路径。`list_budget_commitments` 仍按同 budget_id 返回各版本未关闭占用，不因采用改版清除旧占用。
+
+重置沿用演示轮次更换：新 demo_round_id 读取不到旧采用状态，原轮次记录保留供追溯。没有新增清库/重置接口；同轮次重开数据库也不会自动撤销采用。

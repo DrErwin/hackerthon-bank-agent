@@ -8,12 +8,12 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from app.contracts import AdoptedArrangement, BudgetCommitment, TaskStatus
+from app.contracts import AdoptedArrangement, AdoptedBudget, BudgetCommitment, BudgetRef, TaskStatus
 
 from .database import connect, parameter_digest, transaction
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 class ArrangementConflictError(ValueError):
@@ -325,6 +325,25 @@ class ApplicationStore:
                     created_at TEXT NOT NULL
                 )""")
                 connection.execute("PRAGMA user_version = 5")
+            if version < 6:
+                connection.execute("""CREATE TABLE IF NOT EXISTS adopted_budgets (
+                    user_id TEXT NOT NULL,
+                    demo_round_id TEXT NOT NULL,
+                    budget_id TEXT NOT NULL,
+                    version INTEGER NOT NULL CHECK(version >= 1),
+                    source_task_id TEXT NOT NULL REFERENCES tasks(task_id),
+                    adoption_interaction_id TEXT NOT NULL,
+                    task_revision INTEGER NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('active', 'superseded')),
+                    record_json TEXT NOT NULL,
+                    PRIMARY KEY(user_id, demo_round_id, budget_id, version),
+                    UNIQUE(user_id, demo_round_id, source_task_id, adoption_interaction_id)
+                )""")
+                connection.execute("""CREATE UNIQUE INDEX IF NOT EXISTS
+                    adopted_budgets_one_active_version
+                    ON adopted_budgets(user_id, demo_round_id, budget_id)
+                    WHERE status = 'active'""")
+                connection.execute("PRAGMA user_version = 6")
 
     def create_session(
         self, session_id: str, user_id: str, demo_round_id: str, created_at: str, expires_at: str,
@@ -829,6 +848,106 @@ class ApplicationStore:
             payer_account_id=row["payer_account_id"],
             status=row["status"],
         )
+
+    def adopt_budget(
+        self, user_id: str, demo_round_id: str, record: AdoptedBudget, *,
+        expected_task_revision: int, previous_version: int | None = None,
+    ) -> AdoptedBudget:
+        """Persist a caller-verified adoption; this is not an authorization API.
+
+        The controlled cross caller verifies F10 adopt, the original interaction,
+        plan version and scope/purpose/limit snapshot before calling. Here the
+        trusted actor, source task revision, replay identity and version change
+        are checked in one write transaction. Exact replays return the original
+        version with its current status, even after the task has moved on.
+        """
+        if (record.user_id, record.demo_round_id) != (user_id, demo_round_id):
+            raise ValueError("budget is not in scope")
+        if record.status != "active":
+            raise ValueError("only an active adoption may be submitted")
+        if (previous_version is None and record.version != 1) or (
+            previous_version is not None
+            and (previous_version < 1 or record.version != previous_version + 1)
+        ):
+            raise ValueError("budget adoption must follow the previous version")
+        with transaction(self.path) as connection:
+            _require_task_in_scope(connection, user_id, demo_round_id, record.source_task_id)
+            replay = connection.execute(
+                """SELECT * FROM adopted_budgets WHERE user_id = ? AND demo_round_id = ?
+                   AND source_task_id = ? AND adoption_interaction_id = ?""",
+                (user_id, demo_round_id, record.source_task_id, record.adoption_interaction_id),
+            ).fetchone()
+            if replay is not None:
+                if (replay["record_json"] != _stable_dump(record)
+                        or replay["task_revision"] != expected_task_revision):
+                    raise ValueError("budget adoption interaction conflicts with its original request")
+                return self._adopted_budget(replay)
+            task = connection.execute(
+                "SELECT revision FROM tasks WHERE task_id = ?",
+                (record.source_task_id,),
+            ).fetchone()
+            if task["revision"] != expected_task_revision:
+                raise ValueError("budget source task changed concurrently")
+            current = connection.execute(
+                """SELECT version FROM adopted_budgets
+                   WHERE user_id = ? AND demo_round_id = ? AND budget_id = ?
+                   AND status = 'active'""",
+                (user_id, demo_round_id, record.budget_id),
+            ).fetchone()
+            if (current["version"] if current else None) != previous_version:
+                raise ValueError("budget active version changed concurrently")
+            if current is not None:
+                connection.execute(
+                    """UPDATE adopted_budgets SET status = 'superseded'
+                       WHERE user_id = ? AND demo_round_id = ? AND budget_id = ?
+                       AND version = ?""",
+                    (user_id, demo_round_id, record.budget_id, previous_version),
+                )
+            connection.execute(
+                "INSERT INTO adopted_budgets VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)",
+                (user_id, demo_round_id, record.budget_id, record.version,
+                 record.source_task_id, record.adoption_interaction_id, expected_task_revision,
+                 _stable_dump(record)),
+            )
+            return record
+
+    @staticmethod
+    def _adopted_budget(row) -> AdoptedBudget:
+        # The immutable request snapshot permits replay after supersession.
+        return AdoptedBudget.model_validate_json(row["record_json"]).model_copy(
+            update={"status": row["status"]},
+        )
+
+    def get_adopted_budget(
+        self, user_id: str, demo_round_id: str, budget_ref: BudgetRef,
+    ) -> AdoptedBudget | None:
+        """Read an exact version, including superseded history, within trusted scope."""
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                """SELECT record_json, status FROM adopted_budgets
+                   WHERE user_id = ? AND demo_round_id = ? AND budget_id = ? AND version = ?""",
+                (user_id, demo_round_id, budget_ref.budget_id, budget_ref.version),
+            ).fetchone()
+            return self._adopted_budget(row) if row else None
+        finally:
+            connection.close()
+
+    def list_adopted_budgets(
+        self, user_id: str, demo_round_id: str, *, include_superseded: bool = False,
+    ) -> list[AdoptedBudget]:
+        """Return scoped candidates; cross decides account/date/purpose applicability."""
+        connection = connect(self.path)
+        try:
+            rows = connection.execute(
+                """SELECT record_json, status FROM adopted_budgets
+                   WHERE user_id = ? AND demo_round_id = ?
+                   AND (status = 'active' OR ?) ORDER BY budget_id, version""",
+                (user_id, demo_round_id, include_superseded),
+            ).fetchall()
+            return [self._adopted_budget(row) for row in rows]
+        finally:
+            connection.close()
 
     def register_budget_commitment(
         self, user_id: str, demo_round_id: str, record: BudgetCommitment, *,
