@@ -1,6 +1,6 @@
 # Issue301诊断与分层验证
 
-Status: implemented_locally / review_pending — 仅平台入口修复，未合入，真实页面S01仍Failed待新批次复验。
+Status: implemented_locally / ai_reviewed / pr_submitted — 仅平台入口修复，Draft PR303未合入，真实页面S01仍Failed待新批次复验。
 Ticket: [v05-cross-platform/15：完整生活目标与单项业务入口区分](../issues/15-life-goal-routing.md)
 Spec: [目标与验证框架](issue301-routing-spec.md)
 Base: 855497fa16616595eac8cfac9013ec701ffe942d；branch codex/v05-platform301-routing。

@@ -1,6 +1,6 @@
 # Issue #301：生活目标与单项业务的入口区分
 
-Status: in_progress — 已授权平台内诊断、最小修复、针对性验证与独立PR；不授权合并。
+Status: developed / locally_verified / ai_reviewed — 已提交Draft PR303；待CI、合入及真实页面复验，不授权自行合并。
 Owner: Erwin；Execution assignee: Codex；Accepted at: 2026-10-25。
 Package: [v05-cross-linkage/packages/01-platform-bank：公共接缝与模拟银行](../../v05-cross-linkage/packages/01-platform-bank.md)
 Source issue: [Issue #301](https://github.com/DrErwin/hackerthon-bank-agent/issues/301)
