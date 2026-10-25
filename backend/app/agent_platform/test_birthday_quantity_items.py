@@ -342,6 +342,12 @@ def test_legacy_call_never_downgrades_an_item_binding(tmp_path):
         answer = ports.order_check(
             who, plan(hybrid), {**plain, "product_id": "p_flower"})
         assert answer.reason_code == "ITEM_IDENTITY_AMBIGUOUS"
+
+        # A row with the field present but empty is the new shape without an
+        # identity, not the old callers' omission.
+        blank = {**row(), "item_id": ""}
+        answer = ports.order_check(who, plan(blank), blank)
+        assert answer.reason_code == "ITEM_IDENTITY_AMBIGUOUS"
     finally:
         runtime.gateway.close()
 

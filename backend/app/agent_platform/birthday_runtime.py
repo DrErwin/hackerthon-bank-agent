@@ -112,8 +112,12 @@ def _item_identity(plan, item: dict) -> tuple[str, str] | None:
     plan row per product); anything else must not silently fall back to it.
     """
     item_id = item.get("item_id")
-    if isinstance(item_id, str) and item_id.strip():
-        return "item", item_id.strip()
+    if item_id is not None:
+        # A row that carries the field but no usable id belongs to the new
+        # protocol: it must not quietly fall back to the product key.
+        if isinstance(item_id, str) and item_id.strip():
+            return "item", item_id.strip()
+        return None
     product_id = item.get("product_id")
     if not isinstance(product_id, str) or not product_id:
         return None
