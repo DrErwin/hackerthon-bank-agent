@@ -15,6 +15,7 @@ consumption never counts twice, competing tasks cannot double-spend one cap.
 from __future__ import annotations
 
 import re
+from dataclasses import asdict
 from datetime import datetime
 from uuid import uuid4
 
@@ -112,6 +113,30 @@ class BirthdayFlow:
     def _ask(self, trusted, prompt, choices):
         return self.entry._ask(trusted, self.state, prompt, choices)
 
+    def _remember_write(self, kind, item_id, outcome):
+        """Keep only displayable bank facts; never checkpoint delivery payloads."""
+        key = kind if item_id is None else f"{kind}:{item_id}"
+        record = self.b.setdefault("write_facts", {}).setdefault(key, {})
+        record.update(status=outcome.state, operation_id=outcome.operation_id)
+        if outcome.state != "completed" or outcome.result is None:
+            return
+        receipt = getattr(outcome.result, "receipt", None)
+        if kind == "freeze" and receipt is not None:
+            record.update(amount_fen=getattr(receipt, "frozen_amount_fen", None),
+                          result_ref=getattr(receipt, "freeze_id", None),
+                          remaining_fen=getattr(receipt, "remaining_fen", None))
+        elif kind == "order":
+            order = getattr(outcome.result, "order", None) or getattr(receipt, "order", None)
+            if order is not None:
+                record.update(order_id=getattr(order, "order_id", None),
+                              amount_fen=getattr(order, "total_fen", None),
+                              payment_status=getattr(order, "payment_status", None))
+                record["result_ref"] = record["order_id"]
+        elif kind == "capture" and receipt is not None:
+            record.update(amount_fen=getattr(receipt, "captured_amount_fen", None),
+                          result_ref=getattr(receipt, "transaction_id", None),
+                          remaining_fen=getattr(receipt, "remaining_fen", None))
+
     # ------------------------------------------------------------------ advance
 
     def advance(self, trusted) -> ModuleResult:
@@ -176,11 +201,13 @@ class BirthdayFlow:
                          [("停止本次安排", {"kind": "b_stop"})])
 
     def _ask_delivery(self, trusted):
-        return self._ask(
+        result = self._ask(
             trusted,
-            "请通过配送信息专用入口填写收件人、电话和地址，然后把生成的受控引用编号发给我"
-            "（原始内容不要发到聊天里）。请输入引用编号。",
+            "请在配送信息专用表单填写收件人、电话和地址，提交后继续选择商品。"
+            "配送原文不要发到聊天里。",
             [("停止本次安排", {"kind": "b_stop"})])
+        return result.model_copy(update={"interaction": result.interaction.model_copy(
+            update={"required_fields": ["delivery"]})})
 
     def _ask_pick(self, trusted):
         products = self.b["products"]
@@ -335,10 +362,9 @@ class BirthdayFlow:
                 self.state["actor"][0], self.state["actor"][1], ref,
                 task_id=self.state["actor"][2])
             if detail is None or detail.kind != "delivery":
-                return self._ask(trusted,
-                                 "这个引用编号查不到对应的配送信息（需先在专用入口填写）。"
-                                 "请核对后重发，或选择停止。",
-                                 [("停止本次安排", {"kind": "b_stop"})])
+                result = self._ask_delivery(trusted)
+                return result.model_copy(update={"message":
+                    "查不到对应的配送信息，请通过专用表单重新提交，或停止本次安排。"})
             self.b["delivery_ref"] = ref
             self.b["phase"] = "pick"
             return self._ask_pick(trusted)
@@ -377,7 +403,9 @@ class BirthdayFlow:
             state["waiting"] = "gate"
             return ModuleResult(
                 task_id=trusted.task_id, run_id=trusted.run_id,
-                status=TaskStatus.WAITING_APPROVAL, data=None,
+                status=TaskStatus.WAITING_APPROVAL,
+                data=entry._view_data(self.state, answer.interaction.prompt
+                                      if answer.interaction else "请确认。"),
                 message=answer.interaction.prompt if answer.interaction else "请确认。",
                 interaction=answer.interaction,
                 error=None, allowed_actions=["confirm", "cancel"],
@@ -429,7 +457,8 @@ class BirthdayFlow:
                              "verify": outcome.verify.model_dump(mode="json")}
         return ModuleResult(
             task_id=trusted.task_id, run_id=trusted.run_id,
-            status=TaskStatus.WAITING_APPROVAL, data=None,
+            status=TaskStatus.WAITING_APPROVAL,
+            data=self.entry._view_data(self.state, outcome.verify.prompt),
             message=outcome.verify.prompt,
             interaction=outcome.verify, error=None,
             allowed_actions=["verify", "cancel"], recovery_required=False,
@@ -443,6 +472,7 @@ class BirthdayFlow:
             outcome = self.ports.freeze_execute(trusted, plan_data)
             if outcome.state == "verify_wait":
                 return self._verify_wait(trusted, outcome)
+            self._remember_write(kind, item_id, outcome)
             self.b["pending"] = None
             record = {"operation_id": outcome.operation_id, "amount_fen":
                       plan_data.freeze_amount_fen, "status": outcome.state,
@@ -463,6 +493,11 @@ class BirthdayFlow:
                     # report the honest numbers — no purchase may start.
                     self.b["stop_reason"] = "business_failure"
                     release = self.ports.finalize(trusted, plan_data, "budget_exceeded")
+                    self.b["released"] = asdict(release)
+                    self.b["phase"] = "finalize"
+                    if release.status not in ("released", "nothing_to_release"):
+                        return self.entry._view(trusted, self.state,
+                            "预算不够，已停止购买；刚冻结资金的释放结果仍待核实，不宣称已退回。")
                     user, round_id, task_id = self.state["actor"]
                     others = application.list_budget_commitments(
                         user, round_id, self.b["budget_id"], include_closed=True)
@@ -476,7 +511,7 @@ class BirthdayFlow:
                         f"{yuan(self.b['budget_limit_fen'])} 元"
                         f"（合计需 {yuan(consumed_before + record['amount_fen'])} 元）。"
                         f"已按限定授权把刚冻结的 "
-                        f"{yuan(release.released_amount_fen or record['amount_fen'])} 元"
+                        f"{yuan(release.released_amount_fen)} 元"
                         "原额退回，本次不购买。")
                 self.b["phase"] = "orders"
                 return self._run_next_order(trusted)
@@ -489,6 +524,7 @@ class BirthdayFlow:
             outcome = self.ports.order_execute(trusted, plan_data, item)
             if outcome.state == "verify_wait":
                 return self._verify_wait(trusted, outcome)
+            self._remember_write(kind, item_id, outcome)
             self.b["pending"] = None
             item["order_operation_id"] = outcome.operation_id
             if outcome.state == "completed" and outcome.result is not None:
@@ -511,6 +547,7 @@ class BirthdayFlow:
                                                  item.get("order_id"))
             if outcome.state == "verify_wait":
                 return self._verify_wait(trusted, outcome)
+            self._remember_write(kind, item_id, outcome)
             self.b["pending"] = None
             item["capture_operation_id"] = outcome.operation_id
             if outcome.state == "completed" and outcome.result is not None:
@@ -600,7 +637,8 @@ class BirthdayFlow:
             interaction = pending.get("interaction") or {}
             return ModuleResult(
                 task_id=trusted.task_id, run_id=trusted.run_id,
-                status=TaskStatus.WAITING_APPROVAL, data=None,
+                status=TaskStatus.WAITING_APPROVAL,
+                data=self.entry._view_data(self.state, interaction.get("prompt", "请确认。")),
                 message=interaction.get("prompt", "请确认。"),
                 interaction=InteractionRequest.model_validate(interaction)
                 if interaction else None,
@@ -618,6 +656,10 @@ class BirthdayFlow:
             freeze_id = self.ports.bind_freeze(trusted, self._plan(),
                                                freeze["operation_id"])
             if freeze_id:
+                outcome = self.ports.requery(trusted, self._plan(), "freeze",
+                                              freeze["operation_id"])
+                if outcome is not None and outcome.state == "completed":
+                    self._remember_write("freeze", None, outcome)
                 freeze["freeze_id"] = freeze_id
                 freeze["status"] = "completed"
                 try:
@@ -628,13 +670,20 @@ class BirthdayFlow:
                     self.b["stop_reason"] = "business_failure"
                     release = self.ports.finalize(trusted, self._plan(),
                                                   "budget_exceeded")
+                    self.b["released"] = asdict(release)
                     self.b["holding"] = None
+                    self.b["phase"] = "finalize"
+                    if release.status not in ("released", "nothing_to_release"):
+                        return self.entry._view(trusted, self.state,
+                            "预算不够，已停止购买；刚核实冻结的释放结果仍待核实，不宣称已退回。")
                     return self.entry._done(
                         trusted, self.state, TaskStatus.FAILED,
                         f"预算不够：核实后这笔冻结已无额度可用。已按限定授权把刚核实的 "
-                        f"{yuan(release.released_amount_fen or freeze['amount_fen'])} 元"
+                        f"{yuan(release.released_amount_fen)} 元"
                         "原额退回，本次不购买。")
                 self.b["holding"] = None
+                if self.b.get("stop_reason"):
+                    return self._finalize(trusted)
                 self.b["phase"] = "orders"
                 return self._run_next_order(trusted)
             return self._holding_view(trusted)
@@ -655,17 +704,22 @@ class BirthdayFlow:
             outcome = self.ports.requery(trusted, self._plan(), holding_kind,
                                           operation_id)
             if outcome is not None and outcome.state == "completed":
+                self._remember_write(holding_kind, item["product_id"], outcome)
                 if holding_kind == "order":
                     item["order"] = "completed"
-                    order_view = getattr(outcome.result, "order", None)
-                    item["order_id"] = getattr(order_view, "order_id", None)
+                    item["order_id"] = self.b["write_facts"][
+                        f"order:{item['product_id']}"].get("order_id")
                     self.b["holding"] = None
+                    if self.b.get("stop_reason"):
+                        return self._finalize(trusted)
                     return self._run_capture(trusted, item)
                 item["capture"] = "completed"
                 receipt = getattr(outcome.result, "receipt", None)
                 item["transaction_id"] = getattr(receipt, "transaction_id", None)
                 self._consume_commitment(item)
                 self.b["holding"] = None
+                if self.b.get("stop_reason"):
+                    return self._finalize(trusted)
                 return self._run_next_order(trusted, skip=item["product_id"])
             return self._holding_view(trusted)
         return self._holding_view(trusted)
@@ -749,6 +803,12 @@ class BirthdayFlow:
         return self._finalize(trusted)
 
     def _finalize(self, trusted):
+        self.b["phase"] = "finalize"
+        if self.b.get("stop_reason"):
+            self.state["stop_reason"] = self.b["stop_reason"]
+        if self.b.get("holding") in ("gate", "verify"):
+            self.b["holding"] = None
+            self.b["pending"] = None
         freeze = self.b.get("freeze")
         if not freeze:
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
@@ -756,14 +816,16 @@ class BirthdayFlow:
         unknown = self.b.get("holding") in (
             "unknown_freeze", "unknown_order", "unknown_capture", "unknown_release")
         if unknown:
-            return self.entry._view(
-                trusted, self.state,
+            return self._ask(
+                trusted,
                 "已停止新增办理，资金仍待核实：原操作编号保留，核实后才能按限定授权收尾；"
-                "不抢先释放、不换号重办。")
+                "不抢先释放、不换号重办。",
+                [("核实原操作后收尾", {"kind": "b_retry_query"})])
         outcome = self.ports.finalize(trusted, self._plan(),
                                       self.b.get("stop_reason") or "completed")
-        self.b["released"] = outcome
-        self._close_commitment()
+        self.b["released"] = asdict(outcome)
+        if outcome.status in ("released", "nothing_to_release"):
+            self._close_commitment()
         lines = []
         for item in self.b["orders"]:
             name, amount = item["name"], item["amount_fen"]
@@ -789,7 +851,7 @@ class BirthdayFlow:
         lines.append("已付款项不退；以上是订单与资金事实，不代表商品已送达。")
         paid = any(o.get("capture") == "completed" for o in self.b["orders"])
         reason = self.b.get("stop_reason")
-        if outcome.status == "needs_attention":
+        if outcome.status in ("needs_attention", "blocked"):
             return self.entry._view(trusted, self.state, "\n".join(lines))
         if reason and reason != "completed":
             status = TaskStatus.PARTIALLY_SUCCEEDED if paid else TaskStatus.CANCELLED

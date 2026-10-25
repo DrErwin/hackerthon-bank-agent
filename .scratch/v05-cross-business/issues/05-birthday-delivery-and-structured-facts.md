@@ -12,17 +12,17 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: ready-for-agent — 2026-10-25 由 PM 走查批准新开；票 02 页面走查的前置。
+Status: in_progress — 2026-10-25 授权执行对话已领取，在独立 worktree 实施。
 
 Package accepted by: Erwin
 
 Package accepted at: 2026-10-24
 
-Execution assignee: 待登记
+Execution assignee: Erwin 授权的执行对话 01a17183-271b-7663-9517-f31a994de51d
 
-Accepted by: 未记录（具体实施票）
+Accepted by: Erwin（授权执行对话代行）
 
-Accepted at: 未记录
+Accepted at: 2026-10-25
 
 Planning approved by: PM，2026-10-25 页面走查裁定「先开后端票补配送入口＋结构化视图，再走查票 02」。
 
