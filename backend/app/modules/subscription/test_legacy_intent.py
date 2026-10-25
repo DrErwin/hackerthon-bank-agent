@@ -70,6 +70,9 @@ def test_stop_and_future_renewal_requests_match_the_actual_mandate(text, mandate
     "优酷已经停止自动扣费了，帮我查一下", "优酷已经停止自动扣费了",
     "优酷的自动扣费可以停止吗", "看看云端网盘的解约结果",
     "我不需要把优酷的代扣停止", "不用把云端网盘的续费关闭", "我只是看优酷的取消信息",
+    "优酷的自动扣费什么时候停止", "请告诉我优酷停止自动扣费的日期",
+    "优酷停止自动扣费的日期是什么", "取消优酷自动扣费有什么后果",
+    "取消优酷自动扣费的后果是什么", "停止优酷自动扣费有什么后果",
 ])
 def test_denial_query_and_unclear_request_never_enter_confirmation(text):
     task, bank, gate = registered_entry()

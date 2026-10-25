@@ -45,9 +45,11 @@ _NEGATED_CANCEL = re.compile(
     rf"(?!{_NO_FUTURE_DEBIT})(?:(?:不要|别(?!的)|不想|不必|暂不|先不|勿|不是(?:要|想)|(?:不需要|不用)(?!的)){_CLAUSE}{_CANCEL_VERB}"
     rf"|不\s*(?:(?:再|帮我|替我|给我|去|办理|进行)\s*)*{_CANCEL_VERB})")
 _READ_ONLY = re.compile(
-    rf"(?:查|看看|看一下|只(?:是|想|要|想要)?看|了解|咨询|请问){_CLAUSE}{_CANCEL_EXPRESSION}")
+    rf"(?:查|看看|看一下|只(?:是|想|要|想要)?看|了解|咨询|请问|告诉我|告知我){_CLAUSE}{_CANCEL_EXPRESSION}")
+_QUESTION_WORD = r"(?:怎么|如何|怎样|什么|何时|几时|哪天|多久|有何|是否|是不是|有没有|能否|能不能|可不可以|可以帮我|我能)"
 _CANCEL_QUESTION = re.compile(
-    rf"(?:怎么|如何|怎样|是否|是不是|有没有|能否|能不能|可不可以|可以帮我|我能){_CLAUSE}{_CANCEL_EXPRESSION}"
+    rf"{_QUESTION_WORD}{_CLAUSE}{_CANCEL_EXPRESSION}"
+    rf"|{_CANCEL_EXPRESSION}{_CLAUSE}{_QUESTION_WORD}"
     rf"|{_CANCEL_EXPRESSION}{_CLAUSE}(?:了吗|了没有|过吗|成功没|有什么影响|有何后果)"
     rf"|{_CANCEL_EXPRESSION}(?:的)?(?:记录|状态|流程|方法|影响|后果)"
     rf"|(?:能|可以){_CLAUSE}{_CANCEL_EXPRESSION}{_CLAUSE}(?:吗|么)"
