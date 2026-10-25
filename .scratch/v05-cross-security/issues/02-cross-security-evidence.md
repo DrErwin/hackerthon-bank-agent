@@ -12,17 +12,17 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `evals/security/`
 
-Status: blocked — 平台 09 与前端 02 尚未提供真实生日路径；可准备测试输入，专项实跑等待前置。
+Status: in_progress — 2026-10-25 已领取后端准备与局部专项；平台09已合入#279，前端02及业务05尚阻塞页面专项。真实模型/页面未运行。
 
 Package accepted by: Erwin
 
 Package accepted at: 2026-10-24
 
-Execution assignee: 待 Erwin 转交给执行对话（本聊天仅细化规格与票据）
+Execution assignee: Erwin 授权的安全评测执行对话（中控01a16a03-2102-7ad1-8eed-6c524cfc45b9）
 
-Accepted by: 未记录（具体实施票）
+Accepted by: Erwin 授权执行对话，独占 evals/security/ 工作线
 
-Accepted at: 未记录
+Accepted at: 2026-10-25
 
 Planning approved by: PM，2026-10-24「认可，按此方案推进」。只批准规划/拆票，不代表本票实施或安全签核已获批准。
 
@@ -99,3 +99,18 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 2026-10-24（责任更新）：本票本阶段执行由 Erwin 承担；具体票的开工、实现和验证状态仍按实际结果记录。
 
 2026-10-24（接包细化）：Erwin 已领取包 02，要求本聊天拆票、由其他对话执行。沿用原两票及目录/依赖，补齐输入输出、实施顺序、验证和回交；未记录具体执行者领取，未编码、未实跑。
+
+### 2026-10-25 授权接续
+
+- 本轮转交明确授权实现可运行准备与不依赖页面的后端检查；继续沿原票/spec，不另建重复票。不改共享项目跟踪、版本completion或交付包总状态。
+- 已读取 implement/code-review 技能，采用按票与双轴子代理审查流程；implement 文件带 disable-model-invocation，当前无斜杠命令注册，不声称调用了 /implement。
+- 使用隔离 worktree `security-evals`、分支 `codex/v05-cross-security-02`，自最新 origin/main `a1e8889` 开始；与PR270样例票分开。
+- 新入口 [cross-special/README](../../../evals/security/cross-special/README.md)、[运行计划](../../../evals/security/cross-special/plan.json)、[运行器](../../../evals/security/cross-special/run.py)。不读取真实模型配置或调用模型；各测试使用临时独立数据库，HTTP通用回归使用自有随机端口。
+- 平台09/#279及安全01/#272、安全04/#278已合；前端02等待业务05，页面专项继续blocked。B28未知故障未装配、预算/占用版本实接及三主线完整验证依赖分别列于计划，未用局部结果代替。
+
+### 局部批次 A（审查前）
+
+- [报告](../../../evals/security/evidence/2026-10-25-cross-special/batch-a.json)：34 passed、0 failed、0 collection errors；12个可运行检查组通过；真实模型NOT_RUN、页面BLOCKED、真人审阅UNVERIFIED，overall BLOCKED。报告受测基线为a1e8889及其source fingerprint；不等于34个完整业务场景。
+- 新探针实际银行证据：冻结后取消，bank_operations 1→2、freezes 1→1、orders/order_payments均0，冻结余额50000→0分，冻结记录释放50000/核销0；终态后普通恢复未再写。
+- 系统Python缺依赖的收集失败与首轮6通过/1测试断言失败保留于cross-special README。后者实际程序明确拒绝CONFIRMATION_REQUIRED，测试改为断言该拒绝及零银行变化，产品代码未改。
+- 批次A之后加强四归属探针为真实确认answer尝试，并核对原可信确认未变化；后续批次另存，不覆盖A。
