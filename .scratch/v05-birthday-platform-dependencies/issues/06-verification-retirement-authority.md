@@ -6,7 +6,7 @@ Spec: [G2-B 权威胜序与提供方](../verification-authority.md)
 Type: 开发
 Owner: Erwin（v0.5 阶段统一负责）
 Directory: `backend/app/services/`
-Status: implemented — 2026-10-26 实施完成，规格轴首轮 FAIL 5 项回修中、规范轴待结果；未合入、未跑真实链路。
+Status: implemented — 2026-10-26 实施与两轴回修完成（规格轴 4/5 项复验闭合、第 5 项文档已回写；规范轴必须项已补 README），待合入；未跑真实链路。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 本人 2026-10-25 已裁定「完整支持 + 旧验证码例外 G2-B」（[本人裁定](../../v05-control/birthday-owner-decision.md)）；
@@ -65,11 +65,15 @@ Core scenarios: P09/P10；[P01—P17 验证框架](../spec.md#6-testing-decision
 
 - 实现：`backend/app/services/mock_bank/verification.py`（银行库新增 `bank_verification_retirements` 表，只加表；
   `retire_action_challenges` 单事务内先按既有规则惰性过期、再判定 passed/failed/expired 拒绝、否则写退役行，
-  无挑战也写；`create_verification` 拦截已退役尝试并让任务级终止扫描跳过退役尝试；四个迟到入口拒绝）、
-  `backend/app/services/bank_gateway/gateway.py`（纯转发）、`backend/app/services/test_verification_retirement.py`。
-  分支 `codex/v05-birthday-verification-retirement`，PR 待审查闭合后提交（本记录先于合入）。
-- 定向验证：`app/services` **70 passed**（基线 60 + 新增 10）；`app/security` + 会话验证复用 **434 passed**；
-  CI 同款 `evals/mockbank` **14 passed**；本对话在 rebase 后复核 `app/services` 70 passed、`app/security/test_gate.py` 25 passed。
+  无挑战也写；`create_verification` 拦截已退役尝试并让任务级终止扫描跳过退役尝试；**五个**迟到入口拒绝——
+  `resend_code`/`verify_code`/`start_face`/`verify_face`/`get_demo_code`；只读 `retirement_for` 可回查退役事实）、
+  `backend/app/services/bank_gateway/gateway.py`（纯转发）、`backend/app/services/README.md`、
+  `backend/app/services/mock_bank/README.md`、`backend/app/services/bank_gateway/README.md`（逐接缝登记）、
+  `backend/app/services/test_verification_retirement.py`。
+  分支 `codex/v05-birthday-verification-retirement`，提交 `be1c287`（实现）+ `57c755f`（回修）；PR 待审查闭合后提交。
+- 定向验证：`app/services` **75 passed**（基线 60 + 新增 **15**）；调用方 `app/security`
+  （427）+ `agent_platform/test_session_verification_reuse.py` 合计 **434 passed**；
+  CI 同款 `evals/mockbank` **14 passed**。未跑真实跨库联合/E2E/全量 CI。
 - **与票面的偏差（已由规格轴审查指出并登记）**：
   1. 票面写「把仍 pending 的挑战标记 `retired`」，但 `challenge_status` 枚举在 `contracts/` 且本票禁止改契约，
      故退役事实落**独立表**、挑战行不删不改（符合「历史保留」AC）；补充只读 `retirement_for(...)` 让调用方可读到退役事实。
@@ -78,7 +82,9 @@ Core scenarios: P09/P10；[P01—P17 验证框架](../spec.md#6-testing-decision
   3. 被拒退役整笔回滚，事务内的惰性过期不落库（挑战行仍 pending），会在下次读取/扫描按既有规则终态化；
      不是「永远 pending」，已补断言说明。
   4. 实现在事务内先定位该尝试再惰性过期，与票面文字顺序相反但结果等价（审查已确认）。
+  5. 两层 `retire_action_challenges` 为 keyword-only；原因码只在后台内部/机器码，不作为 API 用户文案。
 - 双轴独立子代理审查（AI，非本人/Ringo 签核）：**规格轴首轮 FAIL**（5 项必须修：退役事实可读+偏差登记、
-  `get_demo_code` 守卫、自报 operation 口径登记、拒绝回滚语义补测、票面状态更新），已回修；另按审查建议修正
-  submission 幂等顺序（既有 submission 重放不受退役影响）。**规范轴**结果见 PR。
+  `get_demo_code` 守卫、自报 operation 口径登记、拒绝回滚语义补测、票面状态更新）已全部回修，复验 4 项闭合、
+  第 5 项为本记录（已回写）；另按审查建议修正 submission 幂等顺序（既有 submission 重放不受退役影响）。
+  **规范轴首轮 FAIL**（必须修：两份模块 README 未登记新接缝），已补 `services/`、`mock_bank/` 与 `bank_gateway/` README。
 - 未做：真实跨库联合（应用库+银行库）、P09/P10 真实 E2E、02/03 联合、全量后端/CI——按票留给 02/03 与本人。
