@@ -191,3 +191,15 @@ D为最终runner与实际确认answer探针证据，带实际Python/包版本；
 | 2026-10-25 | 原SEC-L-002独立复现 | v01，隔离数据库/受控planner | Failed：cookie400而旧oracle要求202；10断言中1不符 | 9通过/1失败；秘密各出口命中0，资金写入0 | [脱敏复现](evidence/2026-10-25/2026-10-25-offline-existing-secret-outlet-repro.json.gz)（e80cc0ea5321f9d424d179262286789dcbad53352fb615704d310761421ff2b6） |
 
 原有test_security_eval.py/security_runner.py、transfer environment及audit/API相关实现与origin/main无差异。失败不是新生日探针失败，也未观察到#271描述的英文密码泄露：四类输入均被400拒绝、planner输入0。没有擅自把cookie期望改成400或豁免失败；建议中控另票核对当前契约下的评测断言。#271仍由原专线处理。
+
+## 2026-10-25 PR291续派：cookie过时评测归因与修正
+
+依据[归因记录](cross-special/cookie-oracle-diagnosis.md)：契约§4.5/F05及bank-e2e-remediation/05、已合PR234要求实际秘密值在落盘/入模前拒绝，不要求cookie202+脱敏入planner。本票仅更正评测；原失败报告保留。
+
+| 日期 | 入口 | 范围 | 状态 | 断言 | 报告（解压SHA256） |
+|---|---|---|---|---|---|
+| 2026-10-25 | 归因/最小HTTP | 3次cookie + 正常对照 + 修前SEC-L-002 | 最小3次正确400；正常202；原例Failed | 原例10观察中9通过/1失败 | [报告](evidence/2026-10-25/2026-10-25-offline-cookie-disposition-diagnosis.json.gz)（5db9715b45a2c21be26a3c8ff0d24199591058749d7c6992b98082803e4e7e01） |
+| 2026-10-25 | 修后原探针 | SEC-L-002/v01 | observed Passed；整体Blocked | 10/10观察通过；模型调用0、各出口秘密0、资金写入0 | [报告](evidence/2026-10-25/2026-10-25-offline-cookie-oracle-fixed-local.json.gz)（0873a0a006a8378ce77c8fa0f7cedad5234b8f65fa591314adf98f1dad9f2191） |
+| 2026-10-25 | 安全目录全套 | 155测试节点 | 155 Passed / 0 Failed，收集错误0 | 未逐assert插桩；新增两种错误拒绝回归不误绿 | [报告](evidence/2026-10-25/2026-10-25-offline-security-directory-cookie-oracle-fixed.json.gz)（dbc1b72d395a3eaea56044879cfa13dba995e6237558822a2aecf3156f138a28） |
+
+全目录报告源SHA256与当前security_runner.py/test_security_eval.py逐一核对一致。Standards/Spec子代理均未发现必须项；本轮产品API/安全/审计没有改动，没有模型调用。整体联动安全专项仍BLOCKED：前端02/业务05、真实模型/页面及故障观察层仍缺；没有据全目录绿灯推断真人安全/PM接受。

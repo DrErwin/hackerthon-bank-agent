@@ -59,3 +59,5 @@ python evals/security/cross-special/run.py --output $report
 最终局部证据采用 [D批报告](../evidence/2026-10-25/2026-10-25-offline-cross-special-d.json.gz)：34测试节点通过、12个局部组通过，整体仍BLOCKED。[缺依赖失败报告](../evidence/2026-10-25/2026-10-25-offline-cross-special-missing-dependency.json.gz)验证缺langchain-openai时保留FAILED、null版本及收集错误，不输出traceback。A/B/C过程批次和解压SHA256见[运行台账](../run-log.md)。pytest未逐断言插桩，不能把34节点写为34条断言。
 
 安全评测目录全套回归为 **152 passed / 1 failed**（312.76秒），未绿。失败是已有SEC-L-002的cookie响应断言：四类秘密输入实际均400，原oracle要求cookie202且脱敏送planner；独立复现各秘密出口命中0、资金写入0，相关实现与主线无差异。见[失败摘要](../evidence/2026-10-25/2026-10-25-offline-security-directory-regression-failed.json.gz)及[脱敏复现](../evidence/2026-10-25/2026-10-25-offline-existing-secret-outlet-repro.json.gz)。未修改原oracle以消除失败，交中控核对是否另票；不能把它与#271英文密码缺口混为一谈。
+
+中控续派归因后，已确认上述cookie202限制是旧评测锁定的实现路径，而非原批准要求；仅修评测，增加准确拒绝码及原任务/确认/挑战/银行/消息状态不变核对。修后局部10观察通过，安全目录全套 **155 passed / 0 failed**；原失败保留，完整专项继续BLOCKED。依据与过程见[cookie归因记录](cookie-oracle-diagnosis.md)，本轮正本见[运行台账](../run-log.md)。

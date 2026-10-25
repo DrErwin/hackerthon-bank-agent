@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `evals/security/`
 
-Status: blocked — 后端准备与局部专项已交付草稿PR #291，34节点通过；完整专项等待前端02/业务05及真实故障观察入口。全目录152通过/1既有断言失败未豁免，真实模型/页面未运行。
+Status: blocked — 后端准备与局部专项已交付草稿PR #291，34节点通过；完整专项等待前端02/业务05及真实故障观察入口。原152/1失败保留；续派归因修正过时评测后全目录155通过/0失败，真实模型/页面未运行。
 
 Package accepted by: Erwin
 
@@ -88,7 +88,7 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 ## Delivery record
 
 - 实现：后端准备、可运行专项与分层计划已实现；[PR #291](https://github.com/DrErwin/hackerthon-bank-agent/pull/291) 已创建（Draft），未合入。完整真实专项仍blocked。
-- 本票验证：后端局部批次A/B各34 passed，真实模型未运行，页面/完整专项blocked；证据见下方及运行台账。
+- 本票验证：后端局部批次A/B各34 passed，续派修正cookie过时评测后全目录155 passed；真实模型未运行，页面/完整专项blocked；证据见下方及运行台账。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
 - 真人安全签核 / PM 最终验收：未由本票代签。
 
@@ -141,3 +141,14 @@ Core scenarios: XL-X02—X08、B05—B07；定义见[共享规格 §5](../../v05
 - [PR #291](https://github.com/DrErwin/hackerthon-bank-agent/pull/291)，分支 `codex/v05-cross-security-02`，提交 `3d6a1cc`（后续票据回填另提交）；基于最新主线9a479ea，工作区为隔离security-evals。与PR270样例票分开，未自行合并。
 - Standards/Spec最终复验均无剩余必须项；全目录既有cookie断言失败仍显式保留，未被审查通过代替。
 - 本票可向包05交付后端复现入口、允许/拒绝对照、真实生日资金数字证据及待实接矩阵；不能解锁前端02的业务05依赖或完整安全验收。完整模型/页面和Erwin本人审阅仍待，版本/共享项目跟踪由中控维护。
+
+### 中控续派：cookie剩余失败归因与评测修正（2026-10-25）
+
+- 授权范围：先复现并追溯原批准要求；确认过时断言后只修evals/security，不为变绿修改产品规则。PR270不再改，未调用模型。
+- 归因依据：公共契约§4.5/F05及§6.4、bank-e2e-remediation/05、已合PR234/5699acb（依赖PR233/4cc8ab1）要求实际凭据不落盘/不入模型，允许前置拒绝。旧eval提交3ca78be硬编码cookie202+脱敏送planner，是旧API路径，不是原需求。
+- 修前：原失败稳定复现；最小HTTP3次均400/USE_VERIFICATION_ENDPOINT，消息/任务/银行不变、planner/银行提交0；同环境正常请求202 waiting_approval，资金0。原完整探针四类均正确拒绝，只有旧cookie路径断言失败。
+- 修正仅security_runner.py/test_security_eval.py：要求四类准确400/错误码，逐次比较消息/后台任务/业务任务、原任务、可信确认、验证挑战和银行状态；planner输入0；保留秘密各出口扫描。两种错误拒绝（400 INVALID_ARGUMENT、503 DEPENDENCY_UNAVAILABLE）必须Failed，不能把任意拒绝判安全。
+- 定向3测试通过；最终加强确认/挑战比较后，全目录155 passed/0 failed/0收集错误。修后SEC-L-002/v01局部10/10观察通过，完整用例仍Blocked。
+- 双子代理独立审查：Standards无必须项/无代码异味建议；Spec确认修的是过时评测路径，非单纯为绿改期望，无必须项。静态审查与全目录结果分别记录。
+- [归因](../../../evals/security/cross-special/cookie-oracle-diagnosis.md)、[修后局部](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-cookie-oracle-fixed-local.json.gz)、[全目录](../../../evals/security/evidence/2026-10-25/2026-10-25-offline-security-directory-cookie-oracle-fixed.json.gz)及解压SHA256台账齐备，原152/1失败未覆盖。
+- 专项仍未完成：真实模型/页面/故障装配与相关前端02/业务05依赖未解锁；Erwin本人安全审阅/PM接受未代签。#160政策/#271实现未接管。
