@@ -1,6 +1,6 @@
 # F10 个人预算采用来源：最小前置设计
 
-Status: proposed / research_only — 待中控决定最小实施票；本文不是实施授权。
+Status: design_reviewed / research_only — 双轴设计审查通过，待中控决定最小实施票；本文不是实施授权。
 
 Owner: Erwin（中控授权本执行对话调查与设计）
 
@@ -125,3 +125,5 @@ cross 采用验证与生日 E2E 复用[原 cross06 票](https://github.com/DrErw
 ## Further Notes
 
 已读取本机 to-spec/to-tickets；disable-model-invocation 且无显式工具入口，按已授权范围手工执行流程，不声称调用斜杠命令。用户已明确要求调查、规格和票建议，不作实施授权推定。code-review 双子代理用于本次设计双轴审查，不把设计审查写成代码/安全验收。
+
+独立审查：Standards 初轮 1 项恢复分流澄清已修；复审 PASS，必修/建议均 0；Spec 复审 PASS，必修/建议均 0，并独立重跑缺口探针。详见[审查记录](review.md)。仅设计与现状探针通过，运行接缝尚未实施。
