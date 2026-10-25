@@ -355,6 +355,11 @@ def test_child_confirmation_and_verification_records_reach_the_generic_endpoints
     ).status_code == 200
     trusted = api.record_context(identity, "confirmation", "CONF-CHILD")
     assert trusted.task_id == confirmation_child.task_id
+    # The public route now reaches the security service instead of the missing
+    # record registry, so it answers 409 (stale/unknown) rather than the old 404.
+    routed = client.get("/api/v1/confirmations/CONF-CHILD", headers=ORIGIN)
+    assert routed.status_code == 409
+    assert routed.json()["error"]["code"].startswith("CONFIRMATION_")
 
     # Reading the children again is idempotent and never re-binds the record.
     assert client.get(
@@ -403,11 +408,36 @@ def test_cross_parent_text_answer_reaches_the_module(cross_app):
     assert RESUMED == [{"text": "1500"}]
 
 
+def test_cross_text_answer_still_rejects_labelled_verification_codes(cross_app):
+    """Ticket 11: forwarding cross text must not become a code-entry backdoor.
+
+    The cross branch only relaxes the bare 4—8 digit guard; a labelled credential
+    is still refused before the module sees it and the task does not move.
+    """
+
+    client, _api, _child_script, parent_script, add_parent, _thread = cross_app
+    parent = add_parent(result=cross_waiting_input())
+    RESUMED.clear()
+    rejected = client.post(
+        f"/api/v1/tasks/{parent.task_id}/inputs",
+        json={"request_id": str(uuid4()), "interaction_id": "CX1", "text": "验证码是 123456"},
+        headers=ORIGIN,
+    )
+    assert rejected.status_code == 400
+    assert rejected.json()["error"]["code"] == "USE_VERIFICATION_ENDPOINT"
+    assert RESUMED == []
+    assert parent_script == []
+    current = client.get(f"/api/v1/tasks/{parent.task_id}", headers=ORIGIN).json()["data"]
+    assert current["status"] == "waiting_input"
+    assert current["interaction"]["interaction_id"] == "CX1"
+
+
 def test_cross_parent_option_answer_keeps_the_choice_contract(cross_app):
     """The option path still answers exactly as before; text and option never mix."""
 
     client, _api, _child_script, parent_script, add_parent, _thread = cross_app
     parent = add_parent(result=cross_waiting_input())
+    RESUMED.clear()
     conflicted = client.post(
         f"/api/v1/tasks/{parent.task_id}/inputs",
         json={
@@ -419,6 +449,7 @@ def test_cross_parent_option_answer_keeps_the_choice_contract(cross_app):
     assert conflicted.status_code == 400
     assert conflicted.json()["error"]["code"] == "INVALID_OPTION"
     assert parent_script == []
+    assert RESUMED == []
 
     RESUMED.clear()
     parent_script.append(succeeded())

@@ -832,13 +832,16 @@ class ApiService:
                      f"{summary['capability_name']}:{summary['step_id']}"))
             views.append(self.task_view(identity, child_id))
         for view in views:
-            if view.interaction and view.interaction.record_ref:
+            interaction = view.interaction
+            if interaction and interaction.record_ref and interaction.kind in {"confirmation", "verification"}:
                 # §6.5: a child task is published here, not by publish_task, so its
                 # confirmation/verification record has to be bound here too; else
                 # F14—F17 answer 404 for a task the page can already see.
+                # INSERT OR IGNORE keeps first-writer-wins: the record id itself is
+                # opaque and the security layer still re-checks owner and session,
+                # so a collision can never hand one task another task's record.
                 self.store.write("INSERT OR IGNORE INTO api_records VALUES (?, ?, ?)",
-                                 (view.interaction.kind, view.interaction.record_ref,
-                                  view.task_id))
+                                 (interaction.kind, interaction.record_ref, view.task_id))
         return views
 
     def events_for_session(self, identity, thread_id, cursor):

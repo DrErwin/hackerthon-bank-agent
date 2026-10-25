@@ -43,6 +43,7 @@ $env:BANK_API_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000'
 | POST / GET `/threads/{id}/messages` | 受理消息，查询完整消息；POST 返回 202 |
 | GET `/threads/{id}/events` | SSE，支持 Last-Event-ID 继续持久事件序列 |
 | GET `/tasks`、GET `/tasks/{id}` | 原任务快照及待恢复列表 |
+| GET `/tasks/{id}/children` | 联动父任务的全部子任务（直接返回 `TaskView[]`，不是分页对象）；子任务的确认 / 验证提交仍打子任务自己的路径 |
 | GET `/tasks/{id}/records` | 按任务只读回放确认单与验证历史（本人任务，跨会话可读，不含验证码原文） |
 | GET `/reports/{id}` | F21 受控报告卡片：校验本人范围，只返回报告卡内容，不含原始全量明细（v04-platform/01） |
 | POST `/reports/{id}/exports`、GET `/exports/{id}`、GET `/exports/{id}/download` | F22—F24 导出链路（v04-platform/02）：卡片导出为普通操作即时就绪；明细导出创建敏感导出任务，须重新完成本次验证（basic_identity 验证码）后生成 CSV；下载核验本人、当前会话与验证授权，未就绪 409 |
@@ -58,6 +59,12 @@ $env:BANK_API_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000'
 | POST `/admin/audit/exports` | F35 管理端审计导出：管理员按当前轮次（可选 `task_id`）冻结范围并生成 JSON 证据包；文件仍经 F24 下载（复用第 42 行 `/exports/{id}/download`，audit 分支复核管理身份与创建时范围） |
 
 普通消息不批准资金动作；意图判断交给 Harness。任务缺金额时，inputs.text 为人民币元，例如 `500` 或 `500 元`，API 转成契约中的整数分。账户及收款人选项只接受当前交互 / 当前查询产生的编号。资料表单的完整账号不回传聊天、SSE 或请求回执。
+
+### 联动父子任务与交互记录（v05-cross-platform/11）
+
+- 联动父任务的子任务只通过 `GET /tasks/{id}/children` 发布到 API 层；**客户端必须先读一次 children**，子任务的确认单 / 验证挑战记录才会登记，之后 F14—F17（`/confirmations/{id}`、`/verifications/{id}`）才能按子任务工作。读 children 幂等，不会改写已有归属。
+- 子任务的回答一律打到子任务自己的 `task_id`；父任务的 `allowed_actions` 不含 `confirm` / `verify`。
+- 联动父任务（`module=cross`）的 `POST /tasks/{id}/inputs` 接受两种回答：`selected_option_id` 走原有选项校验；`text` 作为模块控制值（金额、日期、受控引用编号）原样转交模块，由 cross 自己解析、不可用时重问。该文本不是自由叙述：API 只保存请求体 HMAC，模块只保存解析后的金额 / 日期 / 引用；带标签的凭证仍会被 `USE_VERIFICATION_ENDPOINT` 拦下，裸 4—8 位数字按金额放行。文本回答后模块签发新的 `interaction_id`，旧交互变为 `INTERACTION_STALE`。
 
 POST `/threads/{id}/messages` 在意图理解前返回 202，`MessageAccepted.task_id` 此时为空。API 原子保存用户消息和待处理消息记录，再调用 Harness 的公开 `handle_message()` 结果：`ReplyOnly` 只保存关联为空的助手消息；转账结果才创建 API 任务链接，并通过同一消息历史和 SSE 发布任务状态。普通闲聊、聊天中的“确认”及外部指令不经过 API 关键词规则，也不创建确认或验证入口。
 
