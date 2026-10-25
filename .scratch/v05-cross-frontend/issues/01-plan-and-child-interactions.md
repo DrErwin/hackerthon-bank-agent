@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `frontend/`
 
-Status: delivered — 2026-10-25 实现并合入（PR [#283](https://github.com/DrErwin/hackerthon-bank-agent/pull/283)，squash `e9517b8`）；200% 缩放 / 读屏、真实页面联调与 E2E 未做，另记。
+Status: delivered — 2026-10-25 实现合入（#283 `e9517b8`），按独立审查修复后补合（#286 `25ccb96`）；200% 缩放 / 读屏、真实页面联调与 E2E 未做，另记。
 
 Package accepted by: Erwin
 
@@ -51,9 +51,9 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 ## Acceptance criteria
 
 - [x] 实施前提交方案总览、子卡片及结果状态的具体版式/文案并记录 PM 走查结论。（[page-plan-01.md](../page-plan-01.md) §11，Erwin 2026-10-25 认可）
-- [x] 采用方案与确认具体业务不同；调用后端真实 allowed_actions，不靠聊天肯定词自动放行。（父卡只展示步骤与「采用」菜单，无「全部批准」；子任务确认卡按子任务 `allowed_actions` 渲染，测试 `loads children from the API and renders the child's confirmation inside the plan`）
-- [x] 多个任务、插入查询、等待、失败、未知、断线/刷新时不丢目标和已办项，旧确认不可用。（父任务快照的步骤状态在刷新后由服务端恢复，子任务经 `GET /tasks/{id}/children` 取回；旧确认由服务端 `allowed_actions` 决定只读。**未验证**：200% 缩放与读屏真机走查、真实页面断线恢复留证）
-- [x] 复用原转账/退订验证卡；检查键盘、200% 缩放及读屏标签，本票页面结果留证。（子任务经同一 `TaskBlock` 用原 slot 渲染，确认/验证卡未改；`aria-current` 标记当前步骤、原生 `<details>`/`<button>` 保证键盘可达。**未验证**：200% 缩放与读屏实测，留真实页面走查）
+- [x] 采用方案与确认具体业务不同；调用后端真实 allowed_actions，不靠聊天肯定词自动放行。（父卡无「全部批准」；子任务确认卡按子任务 `allowed_actions` 渲染并打子任务 `answerConfirmation`，测试 `loads children from the API and renders the child's confirmation inside the plan`；菜单态无视图时仍显示「采用≠已办」承诺句，见 #286）
+- [ ] 多个任务、插入查询、等待、失败、未知、断线/刷新时不丢目标和已办项，旧确认不可用。**部分**：父快照步骤状态与子任务经 `GET /tasks/{id}/children` 刷新恢复、旧确认由服务端 `allowed_actions` 决定只读；但子任务未进恢复门禁、子任务读取失败只有一条提示无重试、断线恢复未留证 → 不打勾。
+- [ ] 复用原转账/退订验证卡；检查键盘、200% 缩放及读屏标签，本票页面结果留证。**部分**：复用原卡、步骤有 `aria-label`/`aria-current`、键盘可达；但 **200% 缩放与读屏实测未做**，键盘焦点实测未留证 → 不打勾。
 
 ## 执行与回交
 
@@ -82,10 +82,20 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 ## Delivery record
 
 - 方案走查：2026-10-25 通过（Erwin 认可版式与文案；追加批准联动菜单输入框，见 [page-plan-01.md](../page-plan-01.md) §11）。
-- 实现 / PR / 合入：`frontend/` 一次性实现（联动总览卡、子任务嵌套、结果/停止、恢复与输入框；跨域类型经 `frontend/scripts/generate_contract_schema.py` 生成）；PR [#283](https://github.com/DrErwin/hackerthon-bank-agent/pull/283) **已合入**（squash `e9517b8`，2026-10-25）。原堆叠 PR #282 因基分支（平台票 11 分支）合入后被删而自动关闭，rebase 到 main 后以 #283 重开。合入前独立 AI 复审未在时限内返回结果，**属未完成审查**，不作为通过证据。
-- 本票验证：`npm test` 79 passed（含新增 9 条联动用例）；`npm run build` 通过；rebase 到合入后的 main 复跑仍 79 passed / tsc 通过。**未做**：200% 缩放与读屏实测、真实页面 HTTP 联调、断线恢复留证——这部分留真实页面走查与 [E2E 包 05](../../v05-cross-linkage/packages/05-cross-e2e.md)。
+- 实现 / PR / 合入：`frontend/` 实现（联动总览卡、子任务嵌套、结果/停止、恢复与输入框；跨域类型经 `frontend/scripts/generate_contract_schema.py` 生成）：
+  - PR [#283](https://github.com/DrErwin/hackerthon-bank-agent/pull/283) **已合入**（squash `e9517b8`）。原堆叠 PR #282 因基分支（平台票 11 分支）合入后被删而自动关闭，rebase 到 main 后以 #283 重开。
+  - 合入前独立 AI 复审未在时限内返回；**合入后**收到复审结论「需修改」，其中 2 条 P0 已修：修复 PR [#286](https://github.com/DrErwin/hackerthon-bank-agent/pull/286) **已合入**（squash `25ccb96`）。
+- 审查发现与处理（AI 自审，非真人）：
+
+| 编号 | 问题 | 处理 |
+|---|---|---|
+| P0-1 | 菜单态 `data=None`，输入框判断依赖 `crossPlan(task)` → 真实后端永不出现，养老金金额/留存、生日预算日期无入口 | 改为按 `module/kind/选项数` 判断；补 `data:null` 用例（#286） |
+| P0-2 | 采用屏（`data=None`）无父卡，走查裁定「采用≠已办」承诺句缺失 | 父卡 `view` 可空，菜单/运行态无视图时仍显示承诺句与停止话术（#286） |
+| P1 | `interaction_task_id=null` 时所有未开始步骤被标为当前（`aria-current` 假阳性）、缺每步 `aria-label`、安全暂停文案丢失、未知步无查询入口、历史子卡不可回看、子任务读取失败静默、读屏计数漏子任务、承诺句 17px | 均已修（#286） |
+| 未修（如实保留） | 子任务未进恢复门禁；纯点选菜单也显示输入框；`/children` 未登记进公共契约 §6.5；确认/验证交互的 Ringo 审查（本阶段代行）未记录；200%/读屏/真实联调/E2E | 见下与 Comments |
+- 本票验证：`npm test` **80 passed**（含 10 条联动用例）、`npm test` 复跑稳定、`npm run build` 与 `tsc -b` 通过（#286 最终批次）。**未做**：200% 缩放与读屏实测、真实页面 HTTP 联调、断线恢复留证、键盘焦点实测——留真实页面走查与 [E2E 包 05](../../v05-cross-linkage/packages/05-cross-e2e.md)。
 - 联合 E2E：未因本票发布而通过；由[联动 E2E 包](../../v05-cross-linkage/packages/05-cross-e2e.md)统一关联。
-- 真人安全签核 / PM 最终验收：未由本票代签。
+- 真人安全签核 / PM 最终验收：未由本票代签；确认/验证交互的 Ringo 审查（本阶段由 Erwin 代行）**尚未记录**。
 
 ## Comments
 
@@ -105,3 +115,5 @@ Core scenarios: XL-S01、XL-P01、X02—X05、X08；定义见[共享规格 §5](
 - 子任务确认/验证卡完全复用原组件与 slot（转账/退订卡外观与规则未改）。
 - 追加批准项：联动菜单在可选项少于 3 个时显示输入框「也可以直接打字回答，例如 1500 或 1500元」+「填好了，继续」，文本经 `provideInput` 走模块自校验（平台票 11 已放行）。
 - 未做：200% 缩放 / 读屏实测、真实页面与 HTTP 联调、断线恢复留证（留真实走查与 E2E 包 05）。
+
+2026-10-25（审查后修复）：合入后收到独立 AI 复审（非真人，未跑测试、未实机）：2 条 P0 + 11 条 P1。两条 P0 都是「真实后端与测试 fixture 不一致」——菜单态 `data=None` 使输入框永不出现、采用屏无父卡导致「采用≠已办」承诺句缺失；已由 #286 修复（`25ccb96`）。同时修了 `aria-current` 假阳性、步骤 `aria-label`、安全暂停文案、未知步查询入口、历史子卡折叠、子任务读取失败提示、读屏计数与承诺句字号，并补了「确认打子任务 record」「无全部批准」「null 不误标」三类断言。**未修项**：子任务未进恢复门禁、纯点选菜单也显示输入框、`GET /tasks/{id}/children` 未登记进公共契约 §6.5、确认/验证交互的 Ringo 审查记录缺失、200%/读屏/真实联调/E2E。本票 AC3/AC4 因此回退为未打勾。
