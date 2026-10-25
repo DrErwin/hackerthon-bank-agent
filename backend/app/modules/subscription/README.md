@@ -15,6 +15,14 @@
 
 退订为**三级敏感**：提交银行前由安全门持久化脱敏 `AuthorizationSnapshot`（写前快照），快照或开始日志写入失败则暂停、不提交银行（PRD §五第 10 项；契约 §4.5 / §5.5）。确认按钮 + `basic_identity`/`scope=session` 验证码、同会话复用与不刷脸均不变。
 
+## 旧聊天入口的意图边界（Issue #302）
+
+旧 `StartTransferInput` 由模块按用户原话区分盘点和退订；明确“停止 / 终止自动扣费”或“不再续费 / 续订 / 扣费”走既有退订流程。先查本人银行签约，目标不明、多候选或批量要求逐项选择；单项明确也只先进入原确认门，随后基础身份验证和统一执行器。
+
+否定退订、询问方法/状态、只读和未明确办理的表达保留盘点，不因为模型选了 cancel 能力就办理。此判断只选流程，不提供执行授权。结构化 `SubscriptionListInput` / `SubscriptionCancelInput` 仍按原契约处理。
+
+回归见 `test_legacy_intent.py`（公开注册工厂 + 假端口）和 `test_legacy_intent_integration.py`（真实 Harness / 安全门 / 隔离 MockBank；脚本规划器、测试风险事实）。实施及证据见 [本票规格](../../../../.scratch/v05-s01-subscription-diagnosis/spec.md)。
+
 ## 私有工具（不进模型目录，只经任务级安全门与统一执行器）
 
 | 工具 | 银行能力 | 权限 | 相位 |
