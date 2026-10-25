@@ -42,13 +42,14 @@ _CANCEL_INTENT = re.compile(_CANCEL_EXPRESSION)
 # itself treated as a denial. "Do not renew/debit again" remains a positive stop.
 _CLAUSE = r"[^，。！？；,.!?;\n]*"
 _NEGATED_CANCEL = re.compile(
-    rf"(?:不要|别(?!的)|不想|不必|暂不|先不|勿|不是(?:要|想)|(?:不需要|不用)(?!的)){_CLAUSE}{_CANCEL_VERB}"
-    rf"|不\s*(?:(?:再|帮我|替我|给我|去|办理|进行)\s*)*{_CANCEL_VERB}")
+    rf"(?!{_NO_FUTURE_DEBIT})(?:(?:不要|别(?!的)|不想|不必|暂不|先不|勿|不是(?:要|想)|(?:不需要|不用)(?!的)){_CLAUSE}{_CANCEL_VERB}"
+    rf"|不\s*(?:(?:再|帮我|替我|给我|去|办理|进行)\s*)*{_CANCEL_VERB})")
 _READ_ONLY = re.compile(
     rf"(?:查|看看|看一下|只(?:是|想|要|想要)?看|了解|咨询|请问){_CLAUSE}{_CANCEL_EXPRESSION}")
 _CANCEL_QUESTION = re.compile(
     rf"(?:怎么|如何|怎样|是否|是不是|有没有|能否|能不能|可不可以|可以帮我|我能){_CLAUSE}{_CANCEL_EXPRESSION}"
-    rf"|{_CANCEL_EXPRESSION}{_CLAUSE}(?:了吗|了没有|过吗|成功没|记录|状态|流程|方法|影响|后果)"
+    rf"|{_CANCEL_EXPRESSION}{_CLAUSE}(?:了吗|了没有|过吗|成功没|有什么影响|有何后果)"
+    rf"|{_CANCEL_EXPRESSION}(?:的)?(?:记录|状态|流程|方法|影响|后果)"
     rf"|(?:能|可以){_CLAUSE}{_CANCEL_EXPRESSION}{_CLAUSE}(?:吗|么)"
     rf"|(?:已经|已){_CLAUSE}{_CANCEL_VERB}{_CLAUSE}(?:了|成功|生效)")
 _BATCH_WORDS = ("全部", "所有", "统统", "都退", "都关", "一键", "全都")
@@ -70,10 +71,15 @@ def _actor(context: TrustedContext) -> tuple[str, str, str]:
 def wants_cancel(intent_text: str) -> bool:
     """The module decides what it does; the planner only routes to this module."""
 
-    if (_NEGATED_CANCEL.search(intent_text) or _READ_ONLY.search(intent_text)
-            or _CANCEL_QUESTION.search(intent_text)):
+    clauses = re.split(r"[，。！？；,.!?;\n]", intent_text)
+    if any(_NEGATED_CANCEL.search(clause) for clause in clauses):
         return False
-    return _CANCEL_INTENT.search(intent_text) is not None
+    # A read-only clause must not veto an independent stop instruction. Remove
+    # inquiry expressions first, so mentions such as "cancellation records" do
+    # not create a new action or swallow a separate imperative in the clause.
+    return any(_CANCEL_INTENT.search(_READ_ONLY.sub("", _CANCEL_QUESTION.sub("", clause)))
+               for clause in clauses)
+
 
 
 def risk_observations(intent_text: str) -> list[str]:

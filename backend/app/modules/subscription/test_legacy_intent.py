@@ -43,6 +43,12 @@ def test_negated_cancellation_stays_read_only_even_under_cancel_candidate():
     ("别再扣优酷视频的钱了", "sub_001"),
     ("请把不需要的优酷自动扣费停止", "sub_001"),
     ("先查一下账单，帮我停止优酷的自动扣费", "sub_001"),
+    ("先查一下优酷的退订记录，然后帮我停止优酷的自动扣费", "sub_001"),
+    ("先查一下退订记录，帮我停止优酷的自动扣费", "sub_001"),
+    ("先了解一下取消的后果，然后帮我停止优酷的自动扣费", "sub_001"),
+    ("不要再扣费了请帮我取消优酷自动续费", "sub_001"),
+    ("优酷以后不要再自动扣费了请取消它", "sub_001"),
+    ("请停止优酷自动扣费并保留退订记录", "sub_001"),
 ])
 def test_stop_and_future_renewal_requests_match_the_actual_mandate(text, mandate_id):
     task, bank, gate = registered_entry()
