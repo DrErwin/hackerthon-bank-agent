@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/agent_platform/`
 
-Status: in_progress
+Status: developed — 本地全量与独立双轴审查通过；[PR #296](https://github.com/DrErwin/hackerthon-bank-agent/pull/296) 为依赖289的Draft，交中控排队，未合并/未真人接受。CI计费未启动。
 
 Blocked by: [v05-cross-platform/12：生日响应丢失装配与原号核实](12-birthday-response-loss-assembly.md)，[Depends on PR #289](https://github.com/DrErwin/hackerthon-bank-agent/pull/289)。本票在其 head 上独立组合，未将前序写成已合入。
 
@@ -59,4 +59,8 @@ Verification: 真实 ports / 确认 / 双因子 / 执行器 / 银行，临时SQL
 - 反例核对六类银行事实（accounts/freezes/orders/order_payments/ledger_entries/bank_operations）均未变化，未新增付款确认；提交前绑定失效同样零副作用。合法付款仅一次19900分，冻结剩余30100分；原编号回查/重启/重复观察无新扣款。
 - 独立 Standards 轴 PASS，必须项0、建议0，独立新测试8 passed in 37.98s；独立 Spec/真实性轴 PASS，必须项0、建议0，独立新旧组合13 passed in 64.25s。无文件返修要求，AI结果不是安全负责人本人批准。
 - 模拟银行专项回归 `../evals/mockbank/test_mockbank_eval.py`：14 passed in 1.42s，临时数据库，无模型调用。
-- 差异空白、改动Python编译、项目及本票链接/锚点/围栏检查通过。全量、PR进行中；真实模型/业务HTTP/页面E2E、CI通过及真人接受未完成。平台12/13与业务未知后取消修复仍各走原PR，不在本票混合。
+- 后端全量：本worktree以PR289 head `18a3f39`为基线组合本票，从backend运行 `python -m pytest -q --basetemp=<本worktree专属临时目录>`，**1599 passed in 875.71s**；未拿该组合结果冒充最新main或其他未合PR的全量结果。解释器复用本线既有隔离虚拟环境，cwd及导入源码为本worktree；不访问共享演示数据、不发外部模型请求。
+- 差异空白、改动Python编译、项目及本票链接/锚点/围栏检查通过。真实模型/业务HTTP/页面E2E、CI通过及真人接受未完成。平台12/13与业务未知后取消修复仍各走原PR，不在本票混合。
+- 交付：[PR #296](https://github.com/DrErwin/hackerthon-bank-agent/pull/296)，base=`codex/v05-platform12-birthday-response-loss`，Draft。前序289合入后须按squash规则只保留本票提交再更新main。代码提交 `4a414ac`；后续仅回填审查/验证证据。未自行合并。
+- CI：head `ac31e2e` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40171713488/job/121103742255) 结论failure，注解明确账户付款/spending limit使job未启动，无测试执行证据；不代批例外。后续仅文档回填按路径过滤不主动触发/等待新CI。
+- 可解锁：评测/联调线在组合289+本票后，复验PR294内部旧订单付款反例应被拒绝。原归因报告/历史失败事实保持，不在本票改evals或声称普通页面注入曾可达；整体跨轮次/B26重置、页面、专业安全及PM接受仍分别验收。
