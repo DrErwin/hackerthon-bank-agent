@@ -20,6 +20,8 @@ Ticket: [v05-cross-bank-round-attribution/01：生日跨轮次边界的真实装
 
 发布的294只带 `evals/mockbank/`及本工作组材料，依赖296；验证组合不推送成另一PR。测试源码差异和最终提交在票据交付记录中固定。每次测试均使用pytest临时SQLite，不碰共享演示库。模型连接器使用既有脚本替身；D1 API建任务一次脚本路由响应，内部付款端口模型调用为0。
 
+发布stack的父提交是296固定head，不夹带main093相对296的其他目录变更；本组在该发布stack另跑 **3 passed in 10.42s**，[记录](round-attribution-stack-results.xml)。组合与发布stack两处更新后的测试文件blob均为 `c6ca4be9d360f73f00ada3c29efb8d3eaa061285`；`birthday_runtime.py`的发布stack/source296 blob均为 `632291f0594d161680ad562220ff5b6231972b6a`。这两种Git基线明确区分，不能互冒充。
+
 ## 历史证据保留与断言纠正
 
 原[不可变归因报告](https://github.com/DrErwin/hackerthon-bank-agent/blob/eb24d739e3c3a431d34f1d164b6aca1a8cfe4470/evals/mockbank/round-attribution.md)记录：D2当前任务经真实确认、双因素和执行claim，曾付款D1已知旧订单199；那是内部端口探针，未证明外部产品注入可达。[原3项通过的JUnit](evidence/round-scope-history/pr294-eb24d73-before296.xml)保留旧结果，不能当成296后的行为。
@@ -29,6 +31,8 @@ Ticket: [v05-cross-bank-round-attribution/01：生日跨轮次边界的真实装
 已把原 `test_current_task_internal_port_can_pay_known_old_order`改为 `test_current_task_rejects_old_order_and_pays_its_own_order`：确认前及执行前均拒绝旧订单、不产生确认/资金副作用；建立本任务同商品合法订单后仍拒绝旧订单；真实确认/双因素后正常支付合法订单一次，重复执行观察原操作不再扣款。旧订单保持unpaid，D1冻结仍500，D2本任务付款199后剩301。
 
 反向检查：更新后的回归在**main093、不含296**时为 **1 failed, 2 passed in 15.18s**，因为旧订单仍能取得确认；[原始记录](evidence/round-scope-history/main093-without296-regression.xml)。说明回归能够识别缺少296的组合，不是无条件通过。
+
+两份失败历史XML只规范CRLF为LF，以通过差异空白检查；解析后的XML内容、时间、失败原因、计数均严格相同。原294修复前通过XML保持原blob，不改写历史结论。
 
 ## 当前各层结果
 

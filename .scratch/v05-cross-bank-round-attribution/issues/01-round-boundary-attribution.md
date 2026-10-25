@@ -26,7 +26,7 @@ Core scenarios: RA01—RA05，见本规格；关联原XL-B及轮次隔离要求�
 
 ## 交付及验证
 
-- 独立临时SQLite、真实build_runtime、安全门/执行器、确认/验证、网关与银行；不使用常量允许写回调，不调真实模型。
+- 本组装配探针使用独立临时SQLite、真实build_runtime、安全门/执行器、确认/验证、网关与银行，不使用常量允许写回调、不调真实模型；组合中的290裸银行测试allow属于另一层，单列边界，不混为真实安全门证据。
 - 核对旧会话/任务、旧授权、缺claim、当前轮次新任务使用旧对象的不同结果。
 - 区分真实ASGI测试请求、直接内部端口探针、静态路径检查和未实现入口；不写页面E2E或实际外部HTTP越权已证实。
 - 在原归因上复验296的现有规则接线，保留历史失败并将当前测试改为旧订单拒绝与合法订单对照；不修改后端、不裁定银行新政策、不删除290四项strict xfail。
@@ -37,7 +37,7 @@ Core scenarios: RA01—RA05，见本规格；关联原XL-B及轮次隔离要求�
 以下为**首次只读归因历史**（294原head `eb24d739e3c3a431d34f1d164b6aca1a8cfe4470`，尚无296来源门），不得套用为修复后当前行为。当前结论及验证见文末。
 
 - 基线 `9a479ea4414635772fdb723c02b0fc70b76a1a55`；分支 `codex/v05-bank-round-attribution-02`；独立worktree `C:/Users/57652/.codex/worktrees/v05-bank-round-attribution-02/hackerthon-bank-agent`。
-- [归因报告](../../../evals/mockbank/round-attribution.md)及[可执行探针](../../../evals/mockbank/test_birthday_round_attribution.py)，[原始JUnit](../../../evals/mockbank/round-attribution-results.xml)。最终3 passed in 14.28s。
+- [当时归因报告](https://github.com/DrErwin/hackerthon-bank-agent/blob/eb24d739e3c3a431d34f1d164b6aca1a8cfe4470/evals/mockbank/round-attribution.md)及[当时探针](https://github.com/DrErwin/hackerthon-bank-agent/blob/eb24d739e3c3a431d34f1d164b6aca1a8cfe4470/evals/mockbank/test_birthday_round_attribution.py)，[当时JUnit](../../../evals/mockbank/evidence/round-scope-history/pr294-eb24d73-before296.xml)。当时3 passed in 14.28s，仅说明首次归因断言符合当时行为。
 - 旧API身份/任务受阻、真实写claim有效、旧上下文先STALE_ROUND；D2内部端口经过真实确认/验证仍可付款已知D1订单。未证明页面/正常HTTP可注入旧编号；不新增政策，最小平台资源核对票仅建议。
 - 原PR290与四项已知失败未改。归因通过不代表原银行专项验收通过。
 - 独立Standards/Spec子代理复核均0项必须修复，分别复跑3 passed；轻微模型调用措辞建议已修正。相关原用例4 passed, 32 deselected in 18.50s。
@@ -52,5 +52,7 @@ Core scenarios: RA01—RA05，见本规格；关联原XL-B及轮次隔离要求�
 - 组合worktree `C:/Users/57652/.codex/worktrees/v05-bank-294-296-verify/hackerthon-bank-agent`，本地组合HEAD `577f560199a449ff9df20d6017e65025d7ad7cb3`：main合原294、再合296；之后仅替换本组测试、取入290原评测单文件。backend相对组合HEAD零工作区修改。
 - 原294旧断言在296组合 **1 failed, 2 passed in 16.11s**，因为实际BLOCK而非原来要求的确认；保留历史XML和旧报告Git引用，修正当前回归断言。新回归在main093无296时反向 **1 failed, 2 passed in 15.18s**，真实检出旧门缺失。
 - 新本组回归组合单跑 **3 passed in 10.39s**；定向本组+290银行+296来源门+生日装配 **53 passed, 4 xfailed in 74.96s**。4xfail仍是290裸银行测试allow下对象接口边界，不计通过、不据此断言产品越权。真实门下拒绝旧订单，合法本任务订单只付199一次。
+- 发布分支按仓库依赖规则叠在296固定head上，仅保留294自身评测/材料；`b41ef64...HEAD`没有backend差异。该发布stack另跑本组 **3 passed in 10.42s**，[发布stack原始记录](../../../evals/mockbank/round-attribution-stack-results.xml)。其父基线与含main093的完整验证组合分别记录，不混称相同Git HEAD；更新测试blob均为 `c6ca4be9d360f73f00ada3c29efb8d3eaa061285`。
 - [当前完整报告](../../../evals/mockbank/round-attribution.md)、[组合JUnit](../../../evals/mockbank/round-attribution-combined-results.xml)及[历史证据](../../../evals/mockbank/evidence/round-scope-history/pr294-eb24d73-before296.xml)可核对精确来源和层级。没有全后端/真实模型/外部TCP/页面E2E/共享演示数据操作。
-- 待本轮两位独立子代理规范/规格审查；PR294仍未合并，原专项及安全/页面E2E/真人接受不关闭，原五PR合入批准不扩用。
+- 本轮独立Spec/真实性审查0项必须项，验证组合复跑3 passed in 9.82s。Standards审查0项代码必须项、1项历史证据链接必须项及失败XML行尾空白工具检查；已改为固定历史链接，失败XML仅CRLF→LF（解析后的XML内容/元数据严格相同），待只读复核。Standards独立组合复跑3 passed in 10.21s。
+- PR294仍未合并，原专项及安全/页面E2E/真人接受不关闭，原五PR合入批准不扩用。
