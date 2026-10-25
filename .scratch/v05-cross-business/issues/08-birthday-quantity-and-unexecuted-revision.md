@@ -12,7 +12,7 @@ Owner: Erwin（v0.5阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: planned / blocked — 未授权实施；平台数量透传、确认展示与安全退回编辑接缝待中控另派；适用个人预算路径仍等待06。
+Status: planned / blocked — 未授权实施；平台候选01—04及G1/G2本人决定、G3提供消费协同未闭合；适用个人预算路径仍等待06。
 
 Planning assignee: Erwin授权执行对话 01a17183-271b-7663-9517-f31a994de51d
 
@@ -31,10 +31,14 @@ Core scenarios: XL-B01/B02/B03/B04/B05/B06/B07，回归XL-X02/X05/X08；
 ## Blocked by / Start when
 
 - 中控明确授权本票实施并确认平台交付边界；本轮只有规划授权。
-- 平台由Erwin另派**单目录**任务，尚无新票号：真实CreateOrderInput不再写死quantity=1；
-  确认展示及参数绑定含实际数量/价格/时间；确认/验证待办安全退出为新输入的接缝经验证。
-  动作键能区分同一商品的历史已办项与新替代项，并保留原attempt/operation供回查，不只按product_id覆盖。
-  不将已完成平台09冒称覆盖此缺口，也不在Cross跨目录补代码。
+- 正式候选 [v05-birthday-platform-dependencies/01：真实数量、稳定执行项与原参数确认装配](../../v05-birthday-platform-dependencies/issues/01-quantity-item-binding.md)：
+  数量/价格/时间与动作键、同款新旧项及attempt历史绑定。候选仍planned/blocked，不等于已有能力。
+- 候选 [v05-birthday-platform-dependencies/02：尚未提交动作的原子撤离守卫](../../v05-birthday-platform-dependencies/issues/02-security-retire-unsubmitted.md)：
+  真实持久撤离、claim/授权/挑战竞争及必要审计；G2本人未决定，安全建议不能自动替代原要求。
+- 候选 [v05-birthday-platform-dependencies/03：原任务受控撤离并回到未执行编辑输入](../../v05-birthday-platform-dependencies/issues/03-platform-edit-handoff.md)：
+  消费撤离或已claim明确失败/无订单/无在途两类事实；源检查点精确绑定、待发布隔离及任务CAS同次发布引用/结果，普通resume不读孤立新状态；G3待双方确认。
+- 候选 [v05-birthday-platform-dependencies/04：F10当前生日待办的受控编辑分流](../../v05-birthday-platform-dependencies/issues/04-api-edit-entry.md)：
+  G1状态语义按契约§8确认后接入；不借普通F10/转账draft/取消伪造编辑，不在Cross跨目录补代码。
 - [v05-cross-business/06：个人预算采用、版本与冻结前占用](06-adopted-budget-integration.md)
   是适用个人预算资金路径前置；其[平台来源01](../../v05-budget-adoption-origin/issues/01-platform-origin.md)
   与[API来源02](../../v05-budget-adoption-origin/issues/02-api-f10-origin.md)按原顺序交付。
@@ -69,3 +73,11 @@ Core scenarios: XL-B01/B02/B03/B04/B05/B06/B07，回归XL-X02/X05/X08；
 - 本轮：只读事实核查、规格/最小测试框架和本票；未实施、未跑测试/模型/CI/全量、未新建代码PR。
 - 设计审查：见[本轮记录](../birthday-quantity-design-review.md)，AI审查不等于PM或真人安全签核。
 - 不修改共享跟踪或交付包总状态。编号08经main01—06与已发布07共同核对，07不复用。
+
+## Comments
+
+2026-10-25（G3消费方协同）：以main `2a070b9` 的平台01—04候选及本地安全评议`bce306d`核对，
+补[内部接口建议](../birthday-g3-interface-review.md)。明确未claim撤离与已claim明确失败的两类持久证据、
+稳定项/attempt、历史快照、审计齐备、检查点/CAS恢复及原ports兼容。G1/G2本人尚未决定，G3待提供方收口；
+检查点转换必须有同edit_ref持久单胜者及已发布引用边界，不能仅先写最新检查点再CAS任务。
+确认/验证编辑完整要求保留，安全稿的首批收窄建议不能自动变成整票范围或完成事实。仍只规划，不实施08/06。

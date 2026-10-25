@@ -1,13 +1,15 @@
 # 平台提供条件：文档核查与双轴审查
 
-Status: design_reviewed / implementation_blocked — 材料双轴审查通过，仅planned/blocked票；未实施。
+Status: closeout_material_reviewed / implementation_blocked — 本轮依赖材料双轴复核通过，G1/G2/G3仍待决定/提供方确认，四票全部planned/blocked；未实施。
 
 固定源码main：`af779df431a7f650851ffe3e2ede8b763dcdb1c5`。
 文档审查base：`dab17d030b4a4a481280d5cc5900176db38c9aeb`；只快进中控文档，没有运行代码变化。
 固定Cross材料：`1d7f1fab8d5e2622c1d319e178abf9f1654fc73c`的三份完整Markdown。
 本工作组仅新增spec、本记录和四张单目录计划票，不修改任何原票、产品代码、测试或组合/审计证据。
 
-## 静态检查
+以上为初轮记录。当前收口基线`3239fd75417e8f1e47aea0c0db83d734cdfffe6c`，本地分支`codex/v05-birthday-dependency-closeout`；修改本组规格/四票/记录并新增一页decision。原跨组票、bce306d安全原稿、代码/测试/PR、共享进度及审计原材料均不改。
+
+## 初轮静态检查（历史，截至dab17d0）
 
 - 编号：已查main及取回的未合refs，platform13/14已占，使用尚未存在的新工作组01—04；security原01/04非撤离能力，不重复其交付。
 - 能力：数量/执行项/展示是平台接线；非终止式原子撤离需security；当前F10/普通draft不能承接等待态编辑，API接入须先完成契约§8确认。
@@ -28,4 +30,18 @@ Status: design_reviewed / implementation_blocked — 材料双轴审查通过，
 
 ## 回交边界
 
-本地提交后交中控读取；不推送、不建PR、不向其他对话发送消息。实施需明确授权和真实前置能力交付，planned/blocked不构成开工许可。API02/cross06及Cross08保持原状态。
+本地提交后交中控读取；不推送、不建PR、不向其他对话发送消息。实施需明确授权和真实前置能力交付，planned/blocked不构成开工许可。预算API02按中控既有分派另行推进，本轮不处理；cross06/Cross08及本组四票不因本轮材料改变实施状态。
+
+## 本轮安全依赖收口（2026-10-25）
+
+精确来源S-G2：本地`bce306d07e429b8ce604dd8232fa58cd3836f0a3`，父f21db3b00c6365132323f85b104c184a88aa4a20，基线41c01ae，路径`.scratch/v05-birthday-security-review/review.md`，blob`53f9196dc9d2a16c1bc92b6235902b840fc3343a`。只读原稿全文，不复制覆盖或声称本人接受。
+
+- 纳入迟到grant/pending/bind/平台指针、preparer发码与登记窗口、旧挑战失败/到期、完整旧确认版本、同事务必要审计与断点恢复。
+- 区分现有约束与G2-A/B/C待选新语义；decision列完整范围和首批收窄两项及代价，不采用安全稿的收窄建议作为最终范围，不删除验证码/验证态原要求。
+- 自查银行verification.create_verification也按同task旧failed/动作expired拒绝，完整方案须两侧收口，不能只改gate；跨库可靠胜序未证实，必要提供目录差异待本人选择后明确，不在四票里越界编码。
+- G3给出原operation复用为attempt、显式执行回传、最小项/历史快照、两种编辑依据、旧单件与明确失败路线；只供Cross08核对，未代其确认。
+- 本轮首轮文档检查：七份Markdown、53个本地链接/锚点、四票编号/blocked状态及差异空白通过；未执行源码、测试、模型、CI。
+- 本轮受审提交`9ea40725e93fd7d5f87967884fa1e27804a34164`：Standards必须项0、非阻塞建议1（初轮“最后fetch/PR未合”须标历史，已改标题“初轮静态检查（历史，截至dab17d0）”）；Spec PASS，必须项0、建议0。与初轮结论分别记录，不代表G2本人接受。
+- 作者补明G3原grant/bind必须捕获原pending.operation/确认版本，不能迟到后按当前freeze键重挑原动作；仍只是Cross待核对的兼容签名，无代码变动。
+- 修订`02b1a6ea29857f8acd6abae34114362f8d7572be`补核：Standards PASS，原非阻塞建议关闭，剩余必须项0/建议0；Spec PASS，必须项0/建议0。两位均只读，不执行源码、测试、模型、CI或改文件；此后仅回填本记录。
+- 最终七份Markdown的53个本地链接/锚点、票号、围栏、四票planned/blocked及差异空白通过，仓库链接检查通过。最后fetch主线`c02c70d476f04d5d788c7c5852bc613efc3dc66f`；相对本轮基线3239fd7，所核查security/audit/银行verification/生日runtime/contracts/正式契约/PRD无变化。主线推进不冒称本材料已获实施或本人安全接受。

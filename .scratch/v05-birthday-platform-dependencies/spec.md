@@ -9,6 +9,7 @@ Implementation assignee / accepted at: 未领取。
 用户应能真正订两束花，并修改尚未形成订单且没有在途提交的剩余方案；不能只改页面数量，也不能让旧确认在修改后继续写入。本轮没有运行复现，以下均为固定源码推演。
 
 - 本worktree起点 main `af779df431a7f650851ffe3e2ede8b763dcdb1c5`；独立分支 `codex/v05-birthday-platform-dependencies`。中控材料入主线后，本地文档基线快进至`dab17d030b4a4a481280d5cc5900176db38c9aeb`，仅文档变化，所查运行代码未变。
+- 本轮收口另用本地文档分支`codex/v05-birthday-dependency-closeout`，基线`3239fd75417e8f1e47aea0c0db83d734cdfffe6c`；旧分支与原证据不改。当前四票仍全部planned/blocked。
 - Cross材料固定提交 `1d7f1fab8d5e2622c1d319e178abf9f1654fc73c`，基线608255f，读取该提交完整三份文件，不以其最后一条commit的单文件差异代替材料：
   [缺口/数量设计](../v05-cross-business/birthday-quantity-gap.md)、
   [设计审查](../v05-cross-business/birthday-quantity-design-review.md)、
@@ -16,6 +17,7 @@ Implementation assignee / accepted at: 未领取。
 - 原[PRD §2.4](../../docs/prd/06-跨场景联动-PRD-2026-09-23.md#24-xl-b家人生日安排)：流程4展示数量/费用/时间，流程7只改未执行部分；失败与收尾明确不撤单/退款、未知沿原号。
 - [现行契约](../../docs/contracts/公共契约-2026-09-23.md)：§5.4、§6.5 F10/F15、§3.5与§8；[安全原则](../../docs/principles/02-security-platform.md)保持确认绑定和原操作恢复。
 - 已查main、所有本地/远端已取回refs的本组路径历史：新slug尚无票；原platform13/PR292、14/PR296虽未合仍占号，不在原组重占。Cross07/08与预算来源01/02均不改；原security01/04不是本次安全撤离交付。
+- **精确安全来源S-G2**：本地提交`bce306d07e429b8ce604dd8232fa58cd3836f0a3`，父`f21db3b00c6365132323f85b104c184a88aa4a20`，基线41c01ae；完整文件`.scratch/v05-birthday-security-review/review.md`，Git blob `53f9196dc9d2a16c1bc92b6235902b840fc3343a`。已通过`git show`读取；本轮读取时该文件尚不在所选main，按本地固定Git对象引用，不宣称远端可读，也不修改或复制覆盖原稿。它是AI安全评议，G2-A/B/C仍待Erwin本人决定，不能用原设计双轴PASS替代。
 
 ## 1. 现状：什么能复用，哪里真的缺
 
@@ -30,7 +32,7 @@ Implementation assignee / accepted at: 未领取。
 | 安全状态L57—68及L536起；[Cross生日](../../backend/app/modules/cross/birthday.py) L422—450 | claim.state只有processing/completed/unknown，completed不等于银行成功；冻结确认批准后、写前可能已经授予限定释放 | 必须看银行实际结果。撤离待冻结验证不能把旧释放授权转给新freeze_operation；已冻结则保留原限定收尾 |
 | [任务快照/CAS](../../backend/app/storage/application.py)、原检查点 | 可保存任务私有记录、版本、原操作引用并恢复；security已有同库私有持久状态 | 未发现必须新增ApplicationStore表/方法的证据，暂不建storage票；安全记录由security所有，不能让平台直接改其SQL |
 
-PR296固定b41ef64、PR298固定5ebc133均仍是待合来源，必须保留其订单范围门、来源隔离和快照保留规则；本轮只读，不修改原PR或组合证据。它们不交付本次数量或安全编辑能力。
+以上表格是初轮固定源码推演；本轮所选main已包含PR298（6ce7fb0）及292，不再把它们写为待合。PR296的b41ef64是原订单门固定来源；本轮不整理任何原PR。预算来源、订单范围门和快照保留仍须兼容，它们不交付本次数量或安全编辑能力。初轮占号结论只说明当时来源；本轮沿用原01—04，不重复建票。
 
 ## 2. Solution / User Stories
 
@@ -52,6 +54,7 @@ PR296固定b41ef64、PR298固定5ebc133均仍是待合来源，必须保留其�
 - 确认和VerificationSummary都展示数量、原服务单价、行小计、最晚送达、商品/商户、账户及既有必要内容；冻结继续含限定释放条款。精确时间原样绑定，裸日期只沿原明确转换规则，不将18点变为日末。
 - 下单原快照与实际请求完整一致，金额/数量/时间变更使旧确认不适用。核销显示来自已创建订单及原创建参数绑定，不拿最新商品报价改写已有未付订单。配送只掩码展示，不把原文加进普通显示/模型。
 - 已冻结后新增计划核算由Cross08/06负责；平台不得追加冻结、换账户、自动增预算或重新授予扩大后的资金权。
+- 内部项/attempt的具体最小候选与旧单件兼容见下文G3表，仍只供Cross08核对，不能把本稿当作对方已确认的协议。
 
 ## 4. 确认/验证退回编辑：具体缺口与拟议接缝
 
@@ -80,12 +83,27 @@ F15 cancel表示停止，安全get/create/answer也没有“撤离但不终止�
 - 输入：可信context、原动作/operation/action_revision/确认版本与参数绑定、原编辑请求关联；均从原任务取，不信body自报。作用只限当前生日动作，不是通用取消权限。
 - 在与claim_execution竞争的**同一持久事务边界**，核对归属/原绑定/任务未终止；仅当不存在已领取执行的claim，才记录不可恢复的旧attempt撤离事实并阻止未来claim。
   “查到无claim”再单独写标记或只有进程内锁不合格。旧验证后来成功也不能使旧动作恢复写入。
-- 后台返回语义：原绑定已安全撤离（含幂等原记录引用）；或已有claim须原号观察；或拒绝/依赖不可用。按可信task及原编辑request须能只读找回同一撤离记录，以覆盖撤离后平台快照尚未写入的断点。命名/存储形状由安全方收口，不新增公开SecurityDecision/ConfirmationDecision值。
+- 后台返回语义：原绑定已安全撤离且必要审计齐备（含幂等原记录引用）；或已有claim须原号观察；或拒绝/依赖不可用。按可信task及原编辑request须能只读找回同一撤离记录，以覆盖撤离后平台快照尚未写入的断点。未审计齐备不能作为可编辑输出。命名/存储形状由安全方收口，不新增公开SecurityDecision/ConfirmationDecision值。
 - 已有claim无论processing、unknown还是completed，都不能只凭状态推断无提交；completed也可能是银行失败，交原号观察其准确结果。
 - 旧确认/验证、原授权快照和失败事实保留，不把cancelled/expired改作隐含“编辑”，不清空任务安全终止。安全02同时约束gate/claim/旧验证回调，不让任何旧路径绕过撤离。
 - 待冻结验证可能已有§3.5的pending_freeze授权：原动作确证未提交并撤离后，须以该原绑定处理旧未生效授权（现有pending_freeze→invalid可复用，具体由G2审阅），保留历史且不挪用到新freeze_operation；不能让新input后的停止反复查询一个永远未提交的旧冻结而假报未知。新冻结仍须新的有效冻结确认/限定授权；已有真实冻结及其active合法收尾不作废、不追加资金。授权与原动作事实矛盾时拒绝，不猜测清除。会话级验证是否可复用只沿原规则，动作级验证不跨新attempt扩权。
 - 必要审计写入失败仍fail closed，先复用既有事件和证据引用；未证实需要audit/storage新原语，不先拆新票。
 G2须Erwin本人按本阶段代行安全职责明确审阅；AI设计通过不代替其决定，也不写成Ringo本人签核。
+
+**S-G2提出的补齐条件全部纳入，不能把上述初稿直接用于实施。** 以下分清不应削弱的约束和待选择的新语义；通俗例子与两种范围见[本人决策稿](decision.md)。G2-A/B/C是本次安全问题编号，与此前D1/D2业务裁定无关。
+
+| 必须保持的现有约束 | 必须补齐的提供条件，尚未实现 |
+|---|---|
+| 旧参数/旧确认不批准新动作；原失败/终止不可复活 | 撤离事实不仅与claim竞争，还须覆盖旧确认重发、迟到批准、grant/store/bind限定授权和平台birthday_release指针回写。旧grant在撤离前胜出须按同一原attempt处理pending；撤离胜后不得再创建旧pending，指针回写须校验原attempt与CAS，不能覆盖新指针 |
+| 发码前后不能靠列表为空推断安全；验证失败/时限规则不变 | gate先verification_preparer、后remember_challenge，存在准备中/已发未登记窗口。发码准备资格必须先持久并与撤离排序；准备结果未知不可编辑。旧挑战的发码/重发、验证码/人脸回调也受原退役绑定控制，不能迟到重建旧资格。选收窄范围也需要这个守卫，不是只隐藏验证码卡按钮 |
+| 现行同任务failed/动作级expired会阻止后续动作，旧会话事实也可能终止任务 | **G2-B尚待本人选择**：完整支持时，是否仅将“在权威失败/到期/终止前已经安全撤离”的确切旧动作挑战排除出撤离后的新方案任务级判定。未选择前不排除任何旧挑战；已发生失败、已到期但尚未刷新字段、已有终止均不能因编辑清除。错误次数/时限历史不删、不重置；会话级与其他未撤离动作不扩用例外 |
+| 原确认必须真实可读，不改写旧决定 | create_confirmation复用ID并UPSERT覆盖JSON，单留旧ID/版本可能悬空。替换前保存当时**完整可读的脱敏确认版本**、原参数绑定及必要验证/授权快照或真实可回读的不可变版本；配送/秘密原文不进入普通证据。不得伪造cancelled/expired |
+| 必要审计失败不能给出可编辑事实 | 优先用现有AuditJournal.append_in_transaction在同应用库连接内与撤离记录共同提交，失败整笔回滚；另开append事务不等于原子。若撤离已持久但证据不齐，旧动作继续封锁，补齐同一原事实必要记录后才恢复发布，不能把有记录当已审计，也不回滚成旧动作可写 |
+| 未提交、银行失败、真实冻结是不同事实 | G2-C接受何种pending→invalid新原因待本人确认；现finalizer将invalid解释成FREEZE_FAILED。须保留明确的“安全撤离、未提交”依据并正确呈现无冻结，不能伪造银行失败；active真实冻结的原限定收尾不得作废 |
+
+本轮额外静态核对：[银行验证服务](../../backend/app/services/mock_bank/verification.py)create_verification也会扫描同任务旧failed/动作级expired并抛VerificationTerminated，不只是gate扫描。因此完整选项不能只在security忽略旧挑战；安全、API验证回调及银行验证提供方须证明共享的权威退役/失败/到期胜序。现有应用库与银行库不是已证明的跨库原子边界。若仅凭读取后字段或回调到达时间不能证明，保持blocked；必要提供目录差异交中控追加，不让02/03越界改services或预建通用事务框架。既有动作级验证失败规则不改写成“可错三次”。
+
+**尚待本人选择**：G2-A是否允许已批准但未claim的原动作非终止撤离；G2-B选完整或首批收窄，以及旧挑战后续任务级作用的精确范围；G2-C是否接受确证未提交作为pending授权退役的新原因和真实展示。两选项都须满足历史、迟到授权、准备竞态、审计及恢复条件。收窄建议不是当前最终范围，确认和验证等待态的原要求完整保留。
 
 ### 4.3 平台撤离/恢复与Cross交接G3
 
@@ -95,7 +113,7 @@ G2须Erwin本人按本阶段代行安全职责明确审阅；AI设计通过不�
 它不接受source=human、editable=true或客户端候选hash，不注册为模型工具；普通resume不能凭字典声称已撤离。
 平台与Cross08需先约定一个受控的“进入原任务编辑”方法/命令：Cross消费后台核实的持久撤离引用，修改自己的检查点并返回新input；API或模型不能伪造该引用。**该方法目前没有实现，G3待双方确认**。
 
-顺序必须是：核对原任务和当前绑定 → 安全02持久撤离/原号观察 → 固定编辑请求记录 → Cross08进入编辑检查点 → 现有任务CAS发布新input。
+顺序必须是：核对原任务和当前绑定 → 安全02按本人所选范围作持久排序并完成必要审计，或原号核实明确失败 → 固定编辑请求记录 → Cross08进入编辑检查点 → 现有任务CAS发布新input。先有撤离记录而必要审计未齐，不能越过此门。
 同一请求恢复沿同一撤离记录与原绑定，不重新授权/新建attempt；安全撤离成功而检查点/结果CAS/HTTP回执失败时，旧动作仍不能写，新input未完成则不假报已完成。
 重开后先按原记录恢复发布，再接新的数量输入；不能把当下新计划当原请求结果。正常快照、生日原参数和预算来源历史均保留。
 API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；中断恢复只限已有持久编辑事实的精确请求，不给所有F10开重试。
@@ -113,6 +131,41 @@ API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；
 私有安全状态的持久事务和原任务CAS不要求一个跨层大事务：安全撤离先持久，任务发布晚失败时保持拒绝并可受控恢复。
 若实施发现现有存储不能持久重放该关联，应回中控提供失败步骤再补storage单目录票；本轮不跨目录实现或承诺已验证原子性。
 
+#### G3最小内部快照候选（待Cross08逐项核对，不是公共新模型）
+
+沿用BirthdayPlan已有账户、预算引用/上限/冻结金额、deliver_by、delivery_ref和items，不重复造购物车。下列仅描述后台字段关系，不是客户端可上传的数据。
+
+| 快照 | 建议最小内容与来源 |
+|---|---|
+| 计划与执行项 | 原plan_revision；稳定item_id（如已有step_id可保持一一对应即复用）；product_id、merchant_id/name、name/category沿原服务事实；quantity、unit_price_fen、amount_fen（行小计）及原服务报价绑定；共同deliver_by/delivery_ref仍在原计划上，不把配送原文复制到项 |
+| 一次动作尝试 | **复用operation_id作为attempt身份**，不另造无意义的第二UUID；绑定item_id、action_name（freeze/order/capture）、action_revision、parameters_ref和不可变原参数；相应order_id/原银行结果保留。冻结仍是任务资金动作，不假装成商品项 |
+| 旧确认/验证/授权 | confirmation_id/version之外，须有当时完整脱敏确认/参数/必要授权验证快照，或确能回读的不可变版本引用；challenge/限定授权引用也绑定原operation。旧可变ID查询不能冒充当时历史 |
+| 编辑受理事实 | 可信主体/会话/轮次/原task、原F10 request/interaction/option、后台接受时的task_revision、plan_revision及项/operation/action_revision；原绑定与必要审计引用，原检查点/冻结事实引用。记录只证明编辑受理依据，不授予新购买 |
+
+后台依据分两条，**不得混成一张“无claim证明”**：
+
+- `withdrawn_unsubmitted`：安全02原子撤离且必要审计齐备，附原绑定、撤离/审计引用和本人所选范围下的挑战/未生效授权处理事实。
+- `verified_failed_no_order`：原operation精确银行失败结果及无订单/无在途依据、保留的原claim/attempt和可办理父任务；这里可能已经claim，不要求或伪造无claim撤离记录。claim.state=completed本身不是此依据。
+
+明确失败入口也分清来源：若此前已有精确编辑受理事实，先沿原request/operation核实，再受控恢复该请求，不能被当前interaction=None截断或当成新授权；没有原受理事实时，不拿旧确认ID调用编辑捷径。由Cross08沿原query/resume核实失败并保存后，发布**新的普通input替代选项**，用户再走当前F10选择/采用，原失败不改，新购买仍逐动作确认。
+
+原waiting_input且没有待执行动作的安全节点仍走Cross08原F10，无需制造上述证据。未知、不可判断、已有终止及部分完成终态均不是可编辑依据；needs_attention或现_task_terminated返回false也不够。
+
+#### G3最小调用候选与兼容
+
+优先保留BirthdayPorts现有order_check/order_execute/capture_check/capture_execute、GateAnswer.operation_id及WriteOutcome，不建立通用新授权框架：
+
+1. check输入项增加明确item_id/quantity/unit_price_fen，与原plan字段组成快照；返回现有operation_id，Cross在原pending检查点保存该次原号与稳定item_id，不再只记product_id。
+2. 新协议的execute必须带回该次check所得operation_id及原项绑定（建议后台keyword参数；最终签名待Cross确认），平台核对它与当前未撤离attempt一致；不得按“最新相同商品”重挑operation。查询沿现有requery并带**精确原operation_id**；新替代项产生新原号，同一尝试恢复不换号。
+   限定授权继续优先用现有grant_release/bind_freeze，但拟要求显式传递原pending.operation_id与原确认版本或等效冻结上下文（bind已有原号参数优先复用）；平台以捕获的原attempt校验，不能迟到后再按当前freeze键选取“原动作”。该兼容签名也待Cross核对。
+3. 旧未升级单件调用继续旧每商品唯一/quantity省略为1的既有语义；不能在新协议缺item_id/operation或已指定quantity时静默回落旧键。旧已办/未知映射只沿原号，不猜测重建；无法一一映射须回交具体兼容缺口。
+4. 拟议Harness后台`begin_birthday_edit(trusted, input_request_id, interaction_id, selected_option_id)`只接G1专用入口；从私有记录加载上述冻结事实。拟议Cross后台`enter_birthday_edit(trusted, edit_context, thread_id)`消费该次后台只读视图，核对原plan/item/attempt、当前阶段和持久审计依据后返回同task的ModuleResult新input。**两个方法当前均不存在，命名/签名及存储读取责任待双方核对。**edit_context只由后台从实际记录组装、不是普通resume字段或模型工具；不是凭知道ID、类型或editable布尔值即可通过。
+5. Cross只更新自己的检查点及新候选；平台以原版本CAS发布。若原请求已完成，恢复原冻结结果/版本；若发布中断，重读同一绑定和完整审计再完成原步骤。当前新计划/迟到grant的指针不能覆盖，终态/会话恢复仍按现规则复核。
+
+**对账例子**：原花item-A/order-A/capture-A已付199；蛋糕item-B的order-B尚未提交且合法撤离，换同款花建立item-C/order-C/capture-C，新花仅199、累计398。原A不改成quantity=2，B的撤离历史不删；原冻结500不变，无在途且全部结清后差额仍由银行事实核实。若B原操作已经明确银行失败且无订单，则保留B失败，走第二种依据提出C，不删除claim以凑第一种依据。
+
+G3等待Cross08核对：项ID是否可复用step_id；原operation承担attempt身份与execute显式回传的兼容签名；两种编辑依据/旧完整历史的读取责任；新input检查点及精确恢复。这里没有代替Cross确认，也不改其08/06票。
+
 ## 5. 最小拆票与下游开始条件
 
 | 票 | 唯一实施目录 | 实际前置与交付 |
@@ -122,7 +175,7 @@ API04保留receipt参数冲突、当前会话/轮次/归属和原交互检查；
 | [03 原任务编辑交接](issues/03-platform-edit-handoff.md) | agent_platform | 01 + 02 + G3；与PR298同Harness改动按中控安排顺序。可用明确stand-in自验，真实Cross由08消费 |
 | [04 F10接入](issues/04-api-edit-entry.md) | api | 03 + G1；不代做预算来源API02，也不将其未合当成商品编辑的业务依赖，具体同文件顺序交中控 |
 
-全部planned/blocked，实施还需中控明确授权。G1/G2/G3不闭合不能把确认等待态编辑标完成。
+全部planned/blocked，实施还需中控明确授权。G1/G2-A/B/C/G3不闭合不能把确认或验证等待态编辑标完成。若本人选择首批收窄，只能把满足准备守卫的确认态作为首批子范围，验证码/验证等待仍明确blocked，原完整需求不删；四票不会因本稿自动进入ready或开工。
 Cross08的数量/安全节点局部可在01接口稳定且实施获授权后推进；整票仍需02→03→04接入与原等待态组合验证；个人预算路径另等原cross06及其既有依赖。
 真实联合验收复用[v05-cross-e2e/03：生日E2E](../v05-cross-e2e/issues/03-birthday-e2e.md)，页面承接[v05-cross-frontend/02](../v05-cross-frontend/issues/02-birthday-ui.md)，不另造总验收票、不修改其状态。
 
@@ -141,6 +194,9 @@ Cross08的数量/安全节点局部可在01接口稳定且实施获授权后推�
 | P06 / Q06 | 撤离后、记录后、Cross检查点后、结果CAS后及HTTP回执前各断点，重开/重复/同号异参/新会话/轮次不乱写 |
 | P07 / Q02/Q04/Q07 | 数量/时间/价格变化重新采用确认，冻结后原资金/个人预算/占用不重置；未付项继续计待支付 |
 | P08 / Q03/Q06/Q08 | 越权/终态/安全终止/审计依赖故障拒绝；配送掩码，普通F10与转账/订阅旧流程兼容 |
+| P09 / Q03/Q06 | 发码准备资格/实际发出/登记与撤离的各种胜序；晚到grant/store/bind及birthday_release CAS不得重建旧pending或覆盖新指针；准备结果不明不编辑 |
+| P10 / Q03/Q06 | 旧挑战失败/到期先胜、撤离先胜、旧会话及懒刷新时限；安全gate与银行验证两侧一致，已发生终止不可复活；本人选首批收窄时验证态仍blocked |
+| P11 / Q05/Q06 | 新确认UPSERT后旧完整版本仍可回读；必要审计失败回滚，撤离已持久但审计不齐保持封锁，重启不把有记录当已审计 |
 
 实施时分开记录平台局部、真实安全/银行装配、HTTP、页面/模型E2E和本人安全接受。本轮只做内容、链接/锚点、编号、格式、diff空白检查，不运行测试、模型、全量或CI。
 

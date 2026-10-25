@@ -9,8 +9,8 @@ Directory: `backend/app/security/`
 Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
 Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
 Implementation assignee / accepted at: 未领取。
-Blocked by: 中控明确授权实施；Erwin本人按本阶段代行安全职责确认规格G2，包含旧动作拒绝、claim并发及恢复语义；AI设计审查不代替该决定。
-Core scenarios: P03/P04/P05/P06/P08；[P01—P08验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
+Blocked by: 中控明确授权实施；Erwin本人按本阶段代行安全职责确认[两选项及G2-A/B/C条件](../decision.md)，包括旧动作拒绝、挑战对后续任务的作用、准备/授权/claim竞争和审计恢复；G2-B收窄建议不是既定范围，AI设计审查不代替决定。
+Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 
 ## What to build
 
@@ -23,6 +23,7 @@ Core scenarios: P03/P04/P05/P06/P08；[P01—P08验证框架](../spec.md#6-testi
 输入仅来自可信后台：context、原operation/action_revision/参数/确认版本、原编辑request关联。
 输出语义为带原绑定/幂等关联的持久撤离记录，或须原号观察，或拒绝/依赖不可用；不是ALLOW、不是新采用授权。
 须能按可信task及原request只读找回同一记录，以覆盖撤离落库后平台记录尚未写入的断点；不接受客户端自报operation或授权标记。
+还须绑定原item/operation、完整确认版本/参数、已知挑战/准备资格、限定授权及原request摘要和必要审计引用；安全来源S-G2完整缺口见[规格补齐表](../spec.md#42-security真正需要提供的能力g2)。这里没有新公开裁决枚举或通用授权框架。
 
 ## Acceptance criteria
 
@@ -34,9 +35,15 @@ Core scenarios: P03/P04/P05/P06/P08；[P01—P08验证框架](../spec.md#6-testi
 - [ ] 待冻结验证前已授pending_freeze授权按原绑定处理失效（可复用现有pending_freeze→invalid，须G2确认），历史保留、不挪给新freeze_operation；后续停止不把确证未提交当未知冻结。已有真实冻结active收尾不作废，不追加冻结/金额；事实矛盾拒绝。
 - [ ] 动作级验证不跨新attempt，session级复用沿原规则；不改风险政策、声明权限或#160。
 - [ ] 安全私有持久状态由本目录实现；若确实需要storage/audit/contract新能力，交具体缺口再拆，不在本票跨目录补。
+- [ ] 迟到批准、gate重发、grant/store/bind及平台指针回写都服从原attempt撤离事实；撤离胜后不再生旧pending，grant先胜则原子处理其未生效记录。保留原因，不挪用/作废真实active授权。
+- [ ] 发码准备资格在实际preparer前持久取得，并与撤离排序；准备先胜、结果未知或已发未登记不能用列表为空放编辑。选首批收窄也必须实现此边界。
+- [ ] G2-B未决定前保留全部原失败/超时规则；若选完整，只有本人批准的精确安全撤离挑战例外才可在安全及银行验证两侧一致应用，撤离前已发生失败/到期/终止、其他挑战不例外。无法证明先后保持blocked，不在security跨目录改银行服务。
+- [ ] 旧确认完整脱敏版本、不可变原参数与必要验证/授权快照在覆盖前留存并确能回读，不能只存ID/版本。秘密/配送原文不进普通证据。
+- [ ] 必要审计优先append_in_transaction与撤离同连接提交；失败回滚且不签编辑依据。已持久撤离但证据不齐继续封锁，补齐同一原事实必要记录后才恢复，不伪造取消/ALLOW/完成事件。
+- [ ] invalid既有收尾含义为FREEZE_FAILED；新的未提交撤离原因须经G2-C确认并正确表达“未提交、无冻结”，不能把它当真实银行失败。
 
 ## Verification / downstream
 
-实施后以真实安全状态/执行器验证claim和撤离两种胜序、批准但未claim、迟到验证、重开/持久故障、终止与外来身份。
+实施后以真实安全状态/执行器验证claim、准备资格、迟到grant/绑定和撤离的胜序，批准但未claim、挑战失败/到期先后、完整历史、必要审计中断与重开、终止及外来身份。P09—P11同属本票框架，未编写或运行。
 银行未知/已失败只读观察保持原号。平台03消费本票；本票通过不等于API已能编辑，也不代替本人安全接受。
 本轮未写或运行测试、模型、CI。

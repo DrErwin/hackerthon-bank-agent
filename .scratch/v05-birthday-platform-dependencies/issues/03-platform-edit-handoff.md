@@ -9,8 +9,8 @@ Directory: `backend/app/agent_platform/`
 Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
 Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
 Implementation assignee / accepted at: 未领取。
-Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)的受控进入编辑接缝G3达成一致；中控授权；与[PR #298：预算来源平台接缝](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)同Harness改动按指定合入顺序，不修改该原PR。
-Core scenarios: P02/P03/P04/P05/P06/P07/P08；[P01—P08验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
+Blocked by: [本组01：真实数量与稳定项装配](01-quantity-item-binding.md)、[本组02：安全原子撤离](02-security-retire-unsubmitted.md)及本人所选G2完整条件；与[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)核对[候选G3快照/接口](../spec.md#g3最小内部快照候选待cross08逐项核对不是公共新模型)；中控授权。[PR #298](https://github.com/DrErwin/hackerthon-bank-agent/pull/298)已合主线6ce7fb0，保留其预算来源边界，不在本轮整理原PR。
+Core scenarios: P02/P03/P04/P05/P06/P07/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 
 ## What to build
 
@@ -30,6 +30,13 @@ Core scenarios: P02/P03/P04/P05/P06/P07/P08；[P01—P08验证框架](../spec.md
 - [ ] 未知冻结/付款/释放先核实，原账户/上限/冻结/个人预算约束不被编辑重置。
 - [ ] 待冻结验证被合法撤离后，区分原pending_freeze未生效授权与真实已冻结；新input后停止如实零冻结，不错误进入永久未知，也不撤销已有active收尾。
 - [ ] 必要审计失败停止新动作；没有安全G2或CrossG3时明确blocked，不能仅隐藏旧卡。
+- [ ] 分开接收“已安全撤离且审计齐备”和“原号核实银行明确失败、无订单/无在途”的依据。后者保留已有claim，不要求不可能的无claim证明，不删除失败以凑撤离条件。
+- [ ] 必要审计不齐不向Cross发布可编辑事实；恢复仍核对当前身份/会话/版本/阶段，不能仅凭存在记录。needs_attention或_task_terminated=false不等于可编辑；partially_succeeded终态也不可复活。
+- [ ] 旧grant/绑定迟到写birthday_release指针须核对原attempt与CAS；撤离未提交、真实银行失败及active冻结分别展示，不能把invalid直接投影成真实FREEZE_FAILED。
+- [ ] grant_release/bind_freeze使用Cross pending中捕获的原operation/确认版本或等效冻结上下文，不在迟到回调中重新按“当前freeze键”挑动作；拟议兼容签名等待G3确认。
+- [ ] G3候选专用后台入口和Cross进入编辑方法不注册模型工具，不接受普通resume自报edit_context；新旧单件/显式operation协议及两条依据须Cross确认后才实施。
+- [ ] 已受理编辑的精确原request在原操作失败核实后可受控恢复，不以当前interaction=None自动拒死或产生新授权；无原受理事实时由Cross08沿原查询保存失败后发布新普通input，旧确认不能作编辑捷径。
+- [ ] 若本人选首批收窄，只接入准备资格尚未开始且获安全02证明的确认态；验证码/动作验证等待保持blocked，原完整修改验收要求不删、不写已完成。
 
 ## Verification / downstream
 

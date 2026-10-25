@@ -10,11 +10,12 @@ Status: planned / blocked — 本轮无编码授权，不是ready-for-agent。
 Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
 Implementation assignee / accepted at: 未领取。
 Blocked by: [本组03：原任务编辑交接](03-platform-edit-handoff.md)；规格G1按契约§8完成跨方确认并更新正式契约/必要模型示例；中控明确授权。与[v05-budget-adoption-origin/02：原F10输入身份接入平台来源](../../v05-budget-adoption-origin/issues/02-api-f10-origin.md)的同文件修改交中控顺序安排，不代做其能力，亦不冒称它是商品编辑的业务前置。
-Core scenarios: P03/P04/P05/P06/P08；[P01—P08验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
+Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spec.md#6-testing-decisions只设计未运行)对应Cross08 Q01—Q10及XL-B01—B07。
 
 ## What to build
 
 若G1获确认，复用F10已有请求字段，只有Cross当前confirmation/verification上后端发布的特定编辑选项可走平台03。
+该目标仍待[本人两选项决定](../decision.md)：若选首批收窄，验证码/动作验证等待不发布成功编辑入口，明确blocked；不能把确认态局部能力当全部完成。G1仍按契约§8待确认。
 其他模块及普通input保持原行为；后续数量/商品输入仍由Cross08的F10处理。本票不放宽F15，也不扩大普通转账draft接口。
 
 ## Minimum input / output
@@ -33,6 +34,8 @@ Core scenarios: P03/P04/P05/P06/P08；[P01—P08验证框架](../spec.md#6-testi
 - [ ] 未知/claim先胜时沿原操作核实；新会话/终态不把旧receipt或来源当新写入权。
 - [ ] 原F10输入、F15确认、验证码与普通转账/订阅调用兼容；无新SecurityDecision/状态枚举。
 - [ ] 若公共模型确需变动，先回contracts提供目录；若平台能力未就绪保持blocked，不跨目录补。
+- [ ] UI尚无验证码或已登记挑战列表为空均非安全证明，必须消费02/03的持久准备/撤离与审计依据；旧验证码失败/超时、迟到批准回调不绕过本人所选范围。
+- [ ] 原receipt恢复须重核同一绑定及必要审计完整性，不把安全记录存在、旧确认ID或当下新计划冒充原已完成响应。
 
 ## Verification / downstream
 
