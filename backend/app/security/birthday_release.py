@@ -114,6 +114,7 @@ def grant_release_authorization(
         max_amount_fen=amount_fen,
         granted_at=now,
         status="pending_freeze",
+        action_revision=confirmation.action_revision,
     )
     try:
         return state.store_release_authorization(record)
@@ -600,6 +601,16 @@ class LimitedReleaseFinalizer:
                     evidence_refs=evidence,
                 )
         if authorization.status == "invalid":
+            if authorization.invalid_reason == "RETIRED_UNSUBMITTED":
+                # The attempt was withdrawn before any bank submission: there is
+                # no freeze and this is not a real bank failure.
+                return self._stop(
+                    context, action, authorization, status="nothing_to_release",
+                    code=SecurityDecisionCode.BLOCK, reasons=["RETIRED_UNSUBMITTED"],
+                    rules=["retired-unsubmitted-has-no-release"],
+                    message="旧动作未提交，没有该笔冻结，无需释放。",
+                    evidence_refs=evidence,
+                )
             return self._stop(
                 context, action, authorization, status="blocked",
                 code=SecurityDecisionCode.BLOCK, reasons=["FREEZE_FAILED"],

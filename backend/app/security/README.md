@@ -81,3 +81,20 @@ Issue #191 将公开退订能力及私有银行退订工具统一按 `SENSITIVE`
 ## 本人查询公开能力（bank-e2e-remediation/08a）
 
 策略 v04-local-demo-read-6 独立冻结 `transfer.list_accounts`、`transfer.list_payees` 两条只读公开声明；当前本人/轮次、transfer.read 权限及全字段匹配才准入。它们只能复用现有私有读取，不能提交资金、获取他人身份或跳过执行器。未知能力与声明漂移继续拒绝；平台08独立注册业务入口。
+
+## v0.5 生日旧动作原子撤离（v05-birthday-platform-dependencies/02）
+
+2026-10-26：为生日「等确认/等验证码时修改尚未提交商品」提供安全侧两段式接缝。旧动作的 claim、确认版本在应用库，旧挑战失败/过期事实在银行库且两库没有跨库事务，因此安全侧只做「受理」与「封存」两种持久事实，银行侧退役由票 06 负责，平台编排由票 03 消费：
+
+- `begin_retirement(context, action, now, *, task_state_resolver)`：单一应用库事务内核对身份、任务未终止、仍无执行 claim，写 `pending_proof`；同参重放返回原记录，异参/已 conflict 拒绝。受理只证明「正在尝试安全撤离」，**不是**编辑依据，也不授予新动作权限。
+- `seal_retirement(context, retirement_id, bank_evidence, now, *, audit_writer, task_state_resolver)`：同一应用库事务内重读受理记录、核对原绑定（含原 `session_id`）、再次确认无 claim、复核任务未终止后，带着票 06 银行退役证据原子写 `sealed` + `audit_ref`。收尾 `get_retirement(context, task_id, operation_id, action_revision)` 只读回查，供平台 03 在断点恢复时按原 task/attempt 找回同一记录；记录存在本身不自动等于可编辑，03 仍须核对当前会话/任务版本/阶段。
+- `claim_execution`：同一事务内查该 `(task, operation, action_revision)`。存在 `sealed` → `ACTION_RETIRED`（旧动作永不提交）；存在 `pending_proof` → **允许**按原规则领取，并在本事务把该受理记录置 `conflict`，此后 seal 永不可能签发依据。这是对齐[权威胜序 §2](../../../.scratch/v05-birthday-platform-dependencies/verification-authority.md)：一次失败的编辑尝试不能永久废掉已批准的旧付款，`completed` 也不等于银行成功，仍按原号的事实处置。
+- 谁被拦截：已有 claim 的旧动作受理（`OPERATION_UNKNOWN`，只能原号观察）；已封存的旧尝试领取（`ACTION_RETIRED`）；sealed 之后迟到 `store_release_authorization`（`ACTION_RETIRED`，平台因此不再写旧 `birthday_release` 指针）；对 `pending_proof`/`sealed` 尝试重发或批准确认（`ACTION_RETIRED`）；`SecurityGate.check_action` 对 `sealed` 返回 `BLOCK/ACTION_RETIRED`、对已领取的 `conflict` 返回 `BLOCK/OPERATION_UNKNOWN`，不产出 ALLOW 假象。
+- 谁被放行/不变：无 claim 的确认/验证等待态可以受理（仍要银行退役成功才封存）；`pending_proof` 期间旧动作照原规则可被 claim（权威 §2）；普通动作、非生日动作、既有终态/越权/claim 并发语义不变；`active` 冻结授权、真实银行失败原因（`FREEZE_FAILED`）与既有收尾路径不变。
+- 受影响模块：`agent_platform/`（票 03/04 消费，本票未改；03 必须传入与 claim 同一 `task_state_resolver`，并自行做平台指针的原 attempt/CAS 比较）、`api/`（后续 F10 受控编辑入口分流）、`modules/cross/`（票 08 编排）、`frontend/`（未提交/无冻结的页面文案另需走查）。
+- 切换时点：无公共契约变更；`CREATE TABLE IF NOT EXISTS` 新表，旧库无需迁移；`FreezeReleaseAuthorization` 新增的 `action_revision`、`invalid_reason` 均为可选字段，旧 JSON 直接读为 `None`。新策略版本为 `v05-birthday-retirement-1`（合成 `SecurityDecision.policy_version`），不改变既有安全门 POLICY_VERSION。
+- 新表与语义：`security_retirements`（`user_id/demo_round_id/task_id/operation_id/action_revision` 唯一，`pending_proof|sealed|conflict`，存原绑定、银行退役证据、审计引用与时间）；`security_confirmation_history`（`(confirmation_id, version)` 主键，`create_confirmation` 覆盖旧版本前保存完整脱敏 `ConfirmationRecord`，含 `display_fields`、参数 ref、版本与当时 decision，供只读回读）。秘密/配送原文不进入普通证据；审计证据快照只带绑定与银行退役事实。
+- 审计：票面字面的 `security.retired_unsubmitted` 事件在冻结 `AuditEvent` 枚举中不存在，故复用既有 `security.decided` 外壳：合成决定为 `BLOCK`、`reason_codes=["RETIRED_UNSUBMITTED"]`、带银行退役证据与参数绑定快照；事件外壳 `run_id` 取可信 `context.run_id` 并计算同一 run 的下一个 sequence，`audit_ref` 即事件 id。`audit_writer` 就是 `AuditJournal.append_in_transaction`，与 `sealed` 同一应用库 connection 提交；任何审计失败整笔回滚并保持 `pending_proof`，同参重试可恢复。
+- 保留的取舍（审查已确认，不为迎合口味改语义）：`OPERATION_UNKNOWN`/`RETIREMENT_STALE`/`ACTION_RETIRED` 等是安全私有 reason code，不新增公共枚举；`invalid_reason` 是 security 私有 JSON 可选字段，用于让收尾区分「未提交」与真实银行失败；同一 attempt 出现 `active` 授权视为事实矛盾而失败性拒绝（授权本身不动）；claim 抢先时先提交 `conflict` 再在事务外抛错，使「冲突已持久」与「调用方拿不到编辑依据」同时成立。
+- 已知前提：当前退役入口只服务生日资金写（`BIRTHDAY_WRITE_NAMES` 均为 `SENSITIVE`），因此审计合成决定按 `OperationLevel.SENSITIVE` 记录；若未来用于更低等级动作，须先把真实等级带入绑定并经安全审阅，不能默默放宽。
+- 验证：`backend/app/security/test_retirement.py` 28 项（两段式受理/封存、审计回滚与重试、claim 竞争与权威 §2 取舍、平台任务终态、会话绑定、确认重发/批准与 gate ALLOW 抑制、确认历史、pending_freeze 退役与 active 边界、06 银行退役兼容）；本目录全量 455 passed，`app/agent_platform/test_birthday_runtime_wiring.py` + `app/modules/cross/test_cross_birthday.py` 24 passed，`app/api/test_app.py` 85 passed。真实 E2E、03 平台编排、06 真实联合验证与本人安全接受仍待。
