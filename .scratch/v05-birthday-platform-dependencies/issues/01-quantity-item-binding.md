@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/agent_platform/`
-Status: in_progress — 2026-10-26 本人「按交接开始」后由授权执行对话领取并开工；只在本目录实施。
+Status: implemented — 2026-10-26 实施、两轴独立审查完成（规范 PASS / 规格回修后 PASS），已合入 `e14f30d`；真实 E2E 与验收未由本票完成。
 Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
@@ -38,4 +38,18 @@ Core scenarios: P01/P02/P07/P08/P11；[P01—P11验证框架](../spec.md#6-testi
 
 实施后使用公开ports和真实隔离银行验证两件398元、变价/时间、同款替代只付新项一次及恢复，平台只在本目录写测试。
 不等待293即可自验该装配；真实个人预算另循cross06原依赖。Cross08消费本票，等待态修改仍依赖本组02/03/04。
-本轮只有静态规划与文档检查，无测试/模型/CI运行；不改Cross08/06或原PR。
+
+## Delivery record（2026-10-26 本对话实施）
+
+- 实现：`backend/app/agent_platform/birthday_runtime.py`；测试 `backend/app/agent_platform/test_birthday_quantity_items.py`（11 例，真实安全门 + 真实隔离模拟银行，stand-in 计划快照）。
+  提交/PR：`codex/v05-birthday-quantity-items`，[PR #306](https://github.com/DrErwin/hackerthon-bank-agent/pull/306)，squash 合入 `e14f30d`。
+- 实际行为：`quantity` 进 `CreateOrderInput`、行小计=单价×数量；稳定 `item_id` 决定动作键/attempt/核销绑定；
+  旧显式 `quantity=1` 的参数形状逐字不变（在途旧任务按原号恢复）；歧义一律拒绝不降级；
+  确认/验证展示数量、原单价、小计、最晚送达、付款账户；核销读该订单自己的建单参数；被替换 attempt 留历史仍可按原号回查。
+- 定向验证：`app/agent_platform` **306 passed/13 skipped**；回修后 `app/agent_platform + app/modules/cross`（含生日/预算）**373 passed/13 skipped**；
+  审查子代理独立回归 **402 passed/13 skipped**。未跑真实模型/页面 E2E/CI。
+- 双轴独立子代理审查（AI，非本人/Ringo 签核）：**规范轴 PASS**（无必须修，采纳 4 条建议）；
+  **规格轴首轮 FAIL**（4 项必须修：旧键降级、核销取新报价、原号回查、展示标签在途兼容），全部回修后复验 **PASS**；
+  复验残余「空 `item_id` 回落旧键」已补修并加用例。
+- 如实边界：「合法撤离后的新 attempt 不复活旧操作」需安全 02 的撤离事实，属 03 联合验证；本票只交 attempt 身份与历史不被覆盖。
+  Cross08 提供真实 `item_id`/数量属 `v05-cross-business/08`；真实 E2E 与安全/体验接受由本人后续安排。

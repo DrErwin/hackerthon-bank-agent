@@ -6,7 +6,7 @@ Spec: [G3对账与发布条件](../g3-reconciliation.md)
 Type: 开发（本轮只读核查与规划）
 Owner: Erwin（v0.5统一负责）
 Directory: `backend/app/storage/`
-Status: in_progress — 2026-10-26 本人「按交接开始」后由授权执行对话领取并开工；只在本目录实施。
+Status: implemented — 2026-10-26 实施、两轴独立审查完成（规范轴 PASS / 规格轴 PASS），PR #307 合入中；真实 E2E 与验收未由本票完成。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 中控明确实施授权；与[本组03：受控编辑交接](03-platform-edit-handoff.md)及[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)在设计层确认候选ref/绑定/首次胜者语义；不依赖对方代码先完成，不形成实现循环。
@@ -39,4 +39,22 @@ SqliteCheckpointSaver已有namespace/精确ID读取，但checkpoint_blobs按(thr
 ## Verification / downstream
 
 未来定向验证设计：隔离临时库检查共享version覆盖、同edit并发/重开、重复/冲突、旧put绕过、写中失败及原保存器回归；P16/P17再检查无edit/source根封存与原start重试、普通输入/事实/异常后继的完整source保护、普通缺源拒绝冒充根。源/根候选封存后仍未由03发布时，不能用它宣称活动状态已生效。
-本轮只交验收设计，不运行测试/模型/CI或实现代码；真实E2E由Erwin后续亲自安排，材料双轴回交后即停。03依赖本票真实交付；G1/G2本人决定及G3消费签名仍另行取得。
+
+## Delivery record（2026-10-26 本对话实施）
+
+- 实现：`backend/app/storage/checkpoints.py`（封存接口与 `put`/`put_writes`/`delete_thread` 拒绝）、
+  `backend/app/storage/application.py`（应用库 v7 只加 `checkpoint_seals` 表与索引，不回填）、
+  `backend/app/storage/README.md`；测试 `backend/app/storage/test_immutable_checkpoint.py`（12 例）。
+  提交/PR：`codex/v05-birthday-immutable-checkpoint`，[PR #307](https://github.com/DrErwin/hackerthon-bank-agent/pull/307)。
+- 定向验证：`python -m pytest app/storage -q` → **69 passed**；调用方 `app/agent_platform/test_harness.py`
+  `app/modules/cross/test_cross_birthday.py` → **57 passed**；另 `app/modules/bills app/modules/subscription app/memory`
+  → **495 passed**（实施者报告，已由本对话在 rebase 后重跑 `app/storage` 复核 69 passed）。未跑全量后端/真实模型/CI。
+- 双轴独立子代理审查（AI，非本人/Ringo 签核）：**规范轴 PASS**（必须修 1：README 把「跨进程竞争」写成已由自动测试覆盖，
+  实际只测同进程多线程——已改为如实措辞并注明双进程探针复核非固化为测试）；**规格轴 PASS**（8 条 AC 全满足；
+  必须修 2 项为记录类：本记录 + v7 新表获批，见下）。
+- **中控确认（本对话，Erwin 授权）**：新增最小表 `checkpoint_seals` 与应用库 v7 属票面允许的「必要最小持久元数据」——
+  现有表无法承载 (thread, namespace)/(thread, binding_digest) 唯一绑定，且必须与检查点写同事务；
+  只加表+索引、不回填、不迁移共享库、不清理历史。旧代码拒绝 v7 库属既有既定行为（新隔离数据目录使用）。
+- 如实边界：05 不能独立证明 source 已由 03 发布、不能核验 root 的「03 原 start 预留」语义（归 03 CAS 与 08 消费）；
+  旧任务未封存历史不能当 source，G3 旧任务编辑仍按对账稿 blocked；只提供同步封存接口，未加 async 孪生（03 现为同步调用）。
+- 真实 E2E、200%/读屏、页面与安全接受未由本票完成。
