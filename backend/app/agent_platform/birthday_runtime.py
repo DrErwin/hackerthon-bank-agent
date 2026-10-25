@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 
 from app.contracts.bank import (
     CaptureFrozenInput, CreateOrderInput, DeliveryInput, FreezeFundsInput,
-    ListProductsInput, OperationResult, QueryFailure, QueryOk,
+    ListProductsInput, OperationResult, OrderResult, QueryFailure, QueryOk,
 )
 from app.contracts.common import (
     Category, DisplayField, OperationStatus, Phase, SecurityDecisionCode, TaskStatus,
@@ -38,7 +38,7 @@ from app.security.birthday_release import (
     grant_release_authorization,
 )
 from app.security.gate import DeterministicExecutor, SecurityError
-from app.security.state import SQLiteSecurityState
+from app.security.state import SQLiteSecurityState, SecurityStateError
 
 
 def _yuan(fen) -> str:
@@ -161,6 +161,40 @@ class BirthdayTaskPorts:
         if operation.operation_status is OperationStatus.SUCCEEDED and operation.receipt:
             return operation.receipt.freeze_id
         return None
+
+    def _order_source_allowed(self, trusted, order_id: str | None) -> bool:
+        """An ID is usable only through this task's authorized create + B14 receipt."""
+        if not order_id:
+            return False
+        for stored in self._actions(trusted).values():
+            if stored["parameters"].get("__action__") != "bank.create_order":
+                continue
+            operation_id = UUID(stored["operation_id"])
+            action = ActionDescriptor(action_name="bank.create_order",
+                parameters_ref=str(operation_id), resource_refs=[], phase=Phase.EXECUTION)
+            try:
+                claim = self.wiring.state.get_execution(
+                    self._security_context(trusted, str(operation_id)), action)
+            except SecurityStateError:
+                continue  # A different task's stored operation is not this task's authority.
+            if (claim is None or claim.decision is None
+                    or claim.decision.decision is not SecurityDecisionCode.ALLOW):
+                continue
+            lookup = self.runtime.gateway.get_operation(trusted, operation_id)
+            if isinstance(lookup, QueryFailure):
+                if lookup.error.code == "ACCESS_DENIED":
+                    continue
+                raise ValueError("ORDER_SOURCE_UNAVAILABLE")
+            if lookup.lookup == "not_found" or lookup.operation.operation_status is OperationStatus.PROCESSING:
+                raise ValueError("ORDER_SOURCE_UNAVAILABLE")
+            operation = lookup.operation
+            if (operation.operation_id == operation_id
+                    and operation.operation_type == "bank.create_order"
+                    and operation.operation_status is OperationStatus.SUCCEEDED
+                    and isinstance(operation.receipt, OrderResult)
+                    and operation.receipt.order.order_id == order_id):
+                return True
+        return False
 
     def _gate(self, trusted):
         runtime = self.runtime
@@ -293,9 +327,18 @@ class BirthdayTaskPorts:
                     and summary.display_fields == fields
                     and confirmation.display_fields == fields)
 
+        def authorize_tool(context, action, declaration):
+            if not self.wiring.policy.authorize_tool(context, action, declaration):
+                return False
+            if action.action_name == "bank.capture_frozen":
+                caller = _trusted_of(context)
+                parameters = self._parameters_for(caller, action.parameters_ref)
+                return self._order_source_allowed(caller, parameters.get("order_id"))
+            return True
+
         gate = SecurityGate(
             registry, runtime.confirmations,
-            scope_authorizer=self.wiring.policy.authorize_tool,
+            scope_authorizer=authorize_tool,
             task_state_resolver=runtime._task_terminated,
             risk_assessor=self.wiring.policy.assess_risk,
             confirmation_preparer=confirmation_preparer,
