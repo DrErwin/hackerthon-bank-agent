@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/security/`
-Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置为 01/05 交付后的目录顺序及 G2-B 跨库权威胜序核对，未开始编码。
+Status: implemented — 2026-10-26 实施完成、提交 `f855a23` 已推分支，两轴独立审查进行中；未合入、未跑真实链路。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 中控明确授权实施；Erwin本人按本阶段代行安全职责确认[两选项及G2-A/B/C条件](../decision.md)，包括旧动作拒绝、挑战对后续任务的作用、准备/授权/claim竞争和审计恢复；G2-B收窄建议不是既定范围，AI设计审查不代替决定。
@@ -61,4 +61,24 @@ Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spe
 
 实施后以真实安全状态/执行器验证claim、准备资格、迟到grant/绑定和撤离的胜序，批准但未claim、挑战失败/到期先后、完整历史、必要审计中断与重开、终止及外来身份。P09—P11同属本票框架，未编写或运行。
 银行未知/已失败只读观察保持原号。平台03消费本票；本票通过不等于API已能编辑，也不代替本人安全接受。
-本轮未写或运行测试、模型、CI。
+
+## Delivery record（2026-10-26 本对话实施）
+
+- 实现：`backend/app/security/state.py`（新增 `security_retirements`、`security_confirmation_history` 两表，只加表；
+  `begin_retirement`/`seal_retirement`/`get_retirement`/`get_confirmation_history`；`claim_execution` 对
+  `pending_proof`/`sealed` 抛 `ACTION_RETIRED`；`create_confirmation` 覆盖前归档完整旧确认；
+  `store_release_authorization` 原子拒绝 sealed 之后的迟到 grant）、
+  `backend/app/security/birthday_release.py`（`invalid + RETIRED_UNSUBMITTED` 收尾报 `nothing_to_release`，不误报 FREEZE_FAILED）、
+  `backend/app/security/test_retirement.py`（17 例，隔离临时应用库 + 真实 `AuditJournal`，先列失败模式）。
+  分支 `codex/v05-birthday-security-retire`，提交 `f855a23`（已 rebase 到含 06 合入的 main）；PR 待两轴审查闭合后提交。
+- 定向验证：`app/security` **444 passed**（427 既有 + 17 新增）；本对话在 rebase 后复跑
+  `app/security + test_birthday_runtime_wiring + test_cross_birthday` = **468 passed**。未跑全量后端/真实模型/CI。
+- **与票面的偏差（作者已列，待两轴审查判定可接受性）**：
+  1. 已有 claim 时用 security 私有码 `OPERATION_UNKNOWN`（票面「之类」），另引入 `RETIREMENT_STALE`/`ACTION_RETIRED`/`AUDIT_UNAVAILABLE`，未加公共枚举。
+  2. 审计复用既有 `security.decided`（冻结契约无 `security.retired_unsubmitted` 事件型，不改契约），带 BLOCK + `RETIRED_UNSUBMITTED` + 银行退役证据。
+  3. security 私有 `FreezeReleaseAuthorization` JSON 增可选 `invalid_reason`（非 contracts、非 SQL 列，旧行可解析），用于区分退役与真实失败。
+  4. 同一 attempt 出现 `active` 授权时 seal 失败性拒绝（比票面「一律不动」更严）。
+  5. `birthday_release` 指针回写本体在 `agent_platform`，本票未跨目录改；迟到 grant 已被安全侧原子挡住，但 03 仍须在 `update_task` 前做原 attempt/CAS 比较。
+  6. begin 只收 context/action（`ExecutionSecurityContext` 没有编辑 request 字段），原编辑 request 关联由 03 映射，未造新公共模型。
+- **未做**：03 平台编排、06 银行侧改动、真实跨库联合/E2E、全量后端/CI、独立安全审查与本人接受。
+- 两轴独立子代理审查（AI，非本人/Ringo 签核）：**进行中**，必须项闭合后再提交 PR。
