@@ -3,10 +3,7 @@
 from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossStep
 
-
-def _item_key(item: dict) -> str:
-    """A plan row's execution identity (ticket 08), independent of the product."""
-    return item.get("item_id") or item["product_id"]
+from .plan import item_key
 
 
 def build_birthday_steps(birthday: dict) -> list[CrossStep]:
@@ -27,7 +24,7 @@ def build_birthday_steps(birthday: dict) -> list[CrossStep]:
         append("birthday-freeze", "bank.freeze_funds", freeze)
     remaining = freeze.get("remaining_fen")
     for index, item in enumerate(birthday.get("orders", [])):
-        key = _item_key(item)
+        key = item_key(item)
         order = facts.get(f"order:{key}", {})
         capture = facts.get(f"capture:{key}", {})
         if order:

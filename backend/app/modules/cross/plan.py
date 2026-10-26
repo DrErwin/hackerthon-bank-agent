@@ -12,8 +12,13 @@ from __future__ import annotations
 
 
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 BEIJING = timezone(timedelta(hours=8))
+
+# The one checkpoint channel the cross state lives in (ticket v05-cross-business/
+# 08): the ordinary saver and the platform edit handoff build the same envelope.
+CHANNEL = "cross_state"
 
 
 def money(fen: int) -> str:
@@ -32,6 +37,7 @@ def month_range(now: datetime, months_ago: int) -> tuple[datetime, datetime]:
 
 from app.contracts.common import TaskStatus
 from app.contracts.cross import BudgetView, CrossStep, CrossTaskView
+from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
 
 # Statuses that hold the parent's single user-response or side-effect slot.
 HOLDING = frozenset({
@@ -40,6 +46,56 @@ HOLDING = frozenset({
 })
 TERMINAL = frozenset({TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED,
                       TaskStatus.PARTIALLY_SUCCEEDED})
+
+
+def item_key(item: dict) -> str:
+    """A plan row's stable execution identity, separate from the product id.
+
+    The legacy shape (an old checkpoint whose rows carry no ``item_id``) keeps
+    the product key; a new row is always addressed by its own item id, so a
+    same-product replacement is a different execution item.
+    """
+    return item.get("item_id") or item["product_id"]
+
+
+def checkpoint_envelope(checkpoint_id: str, ts: str, state: dict,
+                        version: int) -> dict:
+    """One Cross checkpoint envelope for the saver and the edit handoff."""
+    return {
+        "v": 1, "id": checkpoint_id, "ts": ts,
+        "channel_values": {CHANNEL: state},
+        "channel_versions": {CHANNEL: version},
+        "versions_seen": {}, "pending_sends": [],
+    }
+
+
+def ask_result(context, state: dict, prompt: str, choices,
+               *, view: bool | None = None) -> ModuleResult:
+    """One server-built input menu, shared by the entry and the edit handoff.
+
+    ``view`` defaults to the entry's historical rule (a CrossTaskView only once
+    there is something to show); the edit handoff always asks for it.
+    """
+    if view is None:
+        view = bool((state.get("birthday") or {}).get("write_facts")
+                    or (state.get("personal_budget") or {}).get("view"))
+    interaction_id = str(uuid4())
+    state["choices"] = {str(uuid4()): value for _label, value in choices}
+    state["waiting"] = "ask"
+    state["interaction_id"] = interaction_id
+    options = [InteractionOption(id=option_id, label=label)
+               for option_id, (label, _value) in zip(state["choices"], choices)]
+    return ModuleResult(
+        task_id=context.task_id, run_id=context.run_id,
+        status=TaskStatus.WAITING_INPUT,
+        data=build_view(state, prompt) if ("steps" in state and view) else None,
+        message=prompt,
+        interaction=InteractionRequest(
+            interaction_id=interaction_id, kind="input", prompt=prompt,
+            required_fields=["cross_selection"], options=options,
+            record_ref=None),
+        error=None, allowed_actions=["provide_input", "cancel"],
+        recovery_required=False, recovery_reason=None)
 
 
 def new_state(trusted, request_id: str, scenario: str, goal_digest: str,

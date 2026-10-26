@@ -20,7 +20,8 @@ not a scripted-port illusion:
    directory.
 """
 
-from uuid import uuid4
+from copy import deepcopy
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -30,9 +31,8 @@ from app.agent_platform.test_birthday_runtime_wiring import (
     trusted,
 )
 from app.contracts.common import TaskStatus
+from app.contracts.platform import StartTransferInput
 from app.storage.database import connect
-
-from .birthday_handoff import BirthdayHandoffAdapter
 
 INTENT = "给妈妈过生日，安排花和蛋糕"
 ORDER_PREFIX = "order:item/"
@@ -86,8 +86,6 @@ def env(tmp_path):
             "selected_capability": None,
         },
     )
-    runtime.birthday.handoff.cross = BirthdayHandoffAdapter(
-        runtime.gateway._bank.clock)
     environment = HarnessEnvironment(runtime, request_id)
     try:
         yield environment
@@ -171,9 +169,13 @@ def paid_amounts(env) -> list[int]:
     return [row["amount_fen"] for row in rows]
 
 
-def orders(env) -> list[dict]:
-    with connect(env.runtime.gateway._bank.store.path) as connection:
+def bank_orders(runtime) -> list[dict]:
+    with connect(runtime.gateway._bank.store.path) as connection:
         return [dict(row) for row in connection.execute("SELECT * FROM orders")]
+
+
+def orders(env) -> list[dict]:
+    return bank_orders(env.runtime)
 
 
 def freezes(env) -> list[dict]:
@@ -181,10 +183,35 @@ def freezes(env) -> list[dict]:
         return [dict(row) for row in connection.execute("SELECT * FROM freezes")]
 
 
-def confirmation_fields(env, record_ref):
-    record = env.runtime.confirmations.get(
-        env.runtime._context(env.who, None, None), record_ref)
+def confirmation_fields_for(runtime, who, record_ref):
+    record = runtime.confirmations.get(
+        runtime._context(who, None, None), record_ref)
     return {field.name: field.value_text for field in record.display_fields}
+
+
+def confirmation_fields(env, record_ref):
+    return confirmation_fields_for(env.runtime, env.who, record_ref)
+
+
+# ------------------------------------------------- composition-level mounting
+
+
+def test_real_composition_mounts_the_cross_handoff(env):
+    """Ticket 08's implementation is mounted by ``register_cross`` itself.
+
+    No test here assigns ``birthday.handoff.cross``: the real composition must
+    find the Cross candidate preparation, so the platform edit entry never
+    refuses with ``CROSS_HANDOFF_UNAVAILABLE``.
+    """
+    handoff = env.runtime.birthday.handoff
+    assert handoff.cross is not None
+    assert callable(handoff.cross.prepare)
+    # Behavioural proof through the real entry: the edit option published on the
+    # real card reaches Cross and a new input card is published.
+    card = start_to_freeze(env, budget="800元")
+    outcome = begin_edit(env, card)
+    assert outcome.result.status is TaskStatus.WAITING_INPUT
+    assert env.snapshot()["birthday_g3"]["published_ref"]["kind"] == "edit"
 
 
 # ------------------------------------------------ edit input from a freeze
@@ -330,25 +357,207 @@ def test_same_product_replacement_is_a_new_item_and_a_new_payment(env):
     assert all(order["product_id"] == "p_flower" for order in bank_orders)
 
 
-# -------------------------------------------------- reported platform gap
+# ------------------------------------ same-parameter continuation after edit
+#
+# Ticket 03 retires the unsubmitted attempt. Before platform 09's continuation
+# seam Cross must fail closed (keep the task/facts, release nothing); after 09
+# the same parameters build a *new* attempt/operation and reach a fresh
+# confirmation. These tests run against whichever platform is present in the
+# tree, so they stay green before and after 09; the new-attempt branch is
+# verified against 09's birthday_runtime change in the hand-in.
 
 
-def test_identical_refreeze_after_retirement_stops_without_a_second_freeze(env):
-    """Known platform gap, reported in the hand-in (not patched from Cross).
+def freeze_released_fen(env) -> int:
+    rows = freezes(env)
+    return int(rows[0]["released_total_fen"] or 0) if rows else 0
 
-    Ticket 03 retires the unsubmitted freeze attempt. The action binding reuses
-    an attempt whose parameters are identical, so the security gate refuses it
-    as retired; Cross must stop honestly instead of double freezing or
-    pretending the edit succeeded. A new-attempt seam after a proven retirement
-    belongs to the platform directory.
-    """
-    freeze_card = start_to_freeze(env, budget="500元")
-    new_card = begin_edit(env, freeze_card).result
+
+def platform_retries_same_parameter_attempt(runtime) -> bool:
+    """True when platform ticket 09's sealed-retirement new-attempt seam exists."""
+    return hasattr(runtime.birthday.ports_factory(None), "_sealed_retirement")
+
+
+def sealed_retirement(env, action: dict) -> bool:
+    """The old attempt's security retirement is permanently sealed (02)."""
+    operation_id = UUID(str(action["operation_id"]))
+    revision = int(action["action_revision"])
+    context = env.runtime._context(env.who, operation_id, revision)
+    record = env.runtime.confirmations.state.get_retirement(
+        context, env.who.task_id, operation_id, revision)
+    return record is not None and record.state == "sealed"
+
+
+def assert_new_attempt(env, before: dict, key: str) -> dict:
+    """Ticket 09: same facts, new operation, previous attempt preserved/sealed."""
+    live = actions(env)[key]
+    assert live["operation_id"] != before["operation_id"]
+    assert live["parameters"] == before["parameters"]
+    assert int(live["action_revision"]) > int(before["action_revision"])
+    assert sealed_retirement(env, before)
+    assert any(attempt["operation_id"] == before["operation_id"]
+               for attempt in attempts(env))
+    return live
+
+
+def test_freeze_wait_edit_continue_keeps_the_task_open_without_release(env):
+    card = start_to_freeze(env, budget="800元")
+    old_action = deepcopy(actions(env)["freeze"])
+    new_card = begin_edit(env, card).result
     current = env.resume({"selected_option_id": option_id(new_card, "就选这些")})
     current = env.resume(
         {"selected_option_id": option_id(current, "采用并开始办理")})
-    assert current.status is TaskStatus.CANCELLED, current.message
-    assert "没有冻结资金" in current.message
+    if platform_retries_same_parameter_attempt(env.runtime):
+        # Platform 09: identical freeze parameters become a new attempt and a
+        # fresh confirmation; no freeze exists yet and nothing was released.
+        assert current.status is TaskStatus.WAITING_APPROVAL, current.message
+        assert current.interaction.kind == "confirmation"
+        assert_new_attempt(env, old_action, "freeze")
+        assert env.task().status is TaskStatus.WAITING_APPROVAL
+    else:
+        assert current.status is TaskStatus.WAITING_INPUT, current.message
+        assert "已由平台安全撤离" in current.message
+        assert "未释放" in current.message
+        assert env.task().status is TaskStatus.WAITING_INPUT
     assert freezes(env) == []
-    assert orders(env) == []
-    assert paid_amounts(env) == []
+    assert orders(env) == [] and paid_amounts(env) == []
+
+
+def test_order_wait_edit_continue_keeps_the_task_open_and_the_freeze(env):
+    freeze_card = start_to_freeze(env, budget="800元")
+    flower_card = settle_confirmation(env, freeze_card)
+    original_key = next(key for key in actions(env)
+                        if key.startswith(ORDER_PREFIX))
+    old_action = deepcopy(actions(env)[original_key])
+    new_card = begin_edit(env, flower_card).result
+    current = env.resume({"selected_option_id": option_id(
+        new_card, "按新方案继续")})
+    if platform_retries_same_parameter_attempt(env.runtime):
+        assert current.status is TaskStatus.WAITING_APPROVAL, current.message
+        assert current.interaction.kind == "confirmation"
+        assert_new_attempt(env, old_action, original_key)
+    else:
+        assert current.status is TaskStatus.WAITING_INPUT, current.message
+        assert "已由平台安全撤离" in current.message
+        assert actions(env)[original_key]["operation_id"] == (
+            old_action["operation_id"])
+        # A retry while the seam is missing stays recoverable and never turns
+        # into a stop/release.
+        current = env.resume({"selected_option_id": option_id(
+            current, "稍后再试")})
+        assert current.status is TaskStatus.WAITING_INPUT, current.message
+    assert env.task().status is not TaskStatus.CANCELLED
+    assert freeze_released_fen(env) == 0
+    assert orders(env) == [] and paid_amounts(env) == []
+
+
+def test_capture_wait_edit_continue_keeps_paid_facts_and_the_freeze(env):
+    freeze_card = start_to_freeze(env, budget="800元")
+    flower_card = settle_confirmation(env, freeze_card)
+    capture_card = settle_confirmation(env, flower_card)
+    cake_order_card = settle_confirmation(env, capture_card)  # flower paid
+    cake_capture_card = settle_confirmation(env, cake_order_card)
+    assert cake_capture_card.interaction.kind == "confirmation"
+    before_orders = orders(env)
+    before_paid = paid_amounts(env)
+    cake_item = cross_state(env)["birthday"]["orders"][1]["item_id"]
+    capture_key = f"capture:item/{cake_item}"
+    old_action = deepcopy(actions(env)[capture_key])
+    new_card = begin_edit(env, cake_capture_card).result
+    current = env.resume({"selected_option_id": option_id(
+        new_card, "按新方案继续")})
+    if platform_retries_same_parameter_attempt(env.runtime):
+        assert current.status is TaskStatus.WAITING_APPROVAL, current.message
+        assert current.interaction.kind == "confirmation"
+        assert_new_attempt(env, old_action, capture_key)
+    else:
+        assert current.status is TaskStatus.WAITING_INPUT, current.message
+        assert "已由平台安全撤离" in current.message
+    assert env.task().status is not TaskStatus.CANCELLED
+    assert paid_amounts(env) == before_paid == [19900]
+    assert orders(env) == before_orders
+    assert freeze_released_fen(env) == 0
+
+
+# --------------------------- price change re-adoption (spec §7, real chain)
+
+
+def drive_entry_to_freeze(entry, who):
+    """Direct entry drive on the real composition (no G3 harness publication)."""
+    started = entry.start(who, StartTransferInput(
+        request_id=uuid4(), intent_text=INTENT))
+    assert started.status is TaskStatus.WAITING_INPUT, started.message
+    current = entry.resume(who, {"text": "500元"})
+    current = entry.resume(who, {"text": "2026-10-30"})
+    current = entry.resume(who, {"text": DELIVERY_REF})
+    current = entry.resume(who, {"selected_option_id": option_id(current, "鲜花")})
+    current = entry.resume(who, {"selected_option_id": option_id(current, "蛋糕")})
+    current = entry.resume(who, {"selected_option_id": option_id(current, "就选这些")})
+    return entry.resume(
+        who, {"selected_option_id": option_id(current, "采用并开始办理")})
+
+
+def test_changed_quote_re_adopts_and_reconfirms_on_the_real_platform(tmp_path):
+    """A changed price is a new plan version and a new attempt (spec §7).
+
+    The real gate, bank and platform ports are used. The task's adopted quote is
+    made stale (189.00) before the freeze executes; when the order step re-reads
+    the real 199.00 price, the row must be recomputed and a *new* order check /
+    confirmation must be produced. Nothing is written straight to the bank and
+    no approval on the price card can execute the new amount.
+    """
+    runtime, entry = composition(tmp_path)
+    who = trusted(runtime)
+    try:
+        freeze_card = drive_entry_to_freeze(entry, who)
+        assert freeze_card.interaction.kind == "confirmation"
+        _saved, state = entry._load(who, None)
+        stale = state["birthday"]["orders"][0]
+        stale["unit_price_fen"] = 18900
+        stale["amount_fen"] = 18900
+        entry._save(who, None, state)
+
+        approve_confirmation(runtime, who, freeze_card.interaction.record_ref)
+        waiting = entry.resume(who, {"choice": "approve"})
+        assert waiting.interaction.kind == "verification"
+        answer_verification(runtime, who, "R1", waiting.interaction.record_ref)
+        price_card = entry.resume(who, {"choice": "resume"})
+        # The real freeze completed; the changed price is surfaced before any
+        # order is checked or written.
+        assert price_card.status is TaskStatus.WAITING_INPUT, price_card.message
+        assert "价格已从 189.00 元变为 199.00 元" in price_card.message
+        assert "重新采用方案并确认" in price_card.message
+        assert bank_orders(runtime) == []
+        revision_before = entry._load(who, None)[1]["plan_revision"]
+
+        # An approval on the price card never executes the new amount.
+        with pytest.raises(ValueError, match="INVALID_OPTION"):
+            entry.resume(who, {"choice": "approve"})
+        assert bank_orders(runtime) == []
+
+        confirmation = entry.resume(
+            who, {"selected_option_id": option_id(price_card, "按新价")})
+        # New plan revision + new order_check attempt, then the user confirms.
+        assert confirmation.interaction.kind == "confirmation"
+        assert entry._load(who, None)[1]["plan_revision"] > revision_before
+        fields = confirmation_fields_for(
+            runtime, who, confirmation.interaction.record_ref)
+        assert fields["amount"] == "199.00 元"
+        assert fields["unit_price"] == "199.00 元"
+        assert bank_orders(runtime) == []  # only after the new approval
+        item_id = entry._load(who, None)[1]["birthday"]["orders"][0]["item_id"]
+        live = (runtime.application.get_task("U1", "D1", "BIRTHDAY")
+                .snapshot.get("birthday_actions") or {})[ORDER_PREFIX + item_id]
+        assert live["parameters"]["amount_fen"] == 19900
+        assert live["parameters"]["request"]["expected_total_fen"] == 19900
+
+        approve_confirmation(runtime, who, confirmation.interaction.record_ref)
+        waiting = entry.resume(who, {"choice": "approve"})
+        assert waiting.interaction.kind == "verification"
+        answer_verification(runtime, who, "R1", waiting.interaction.record_ref)
+        entry.resume(who, {"choice": "resume"})
+        created = bank_orders(runtime)
+        assert len(created) == 1
+        assert created[0]["quantity"] == 1
+        assert created[0]["total_fen"] == 19900
+    finally:
+        runtime.gateway.close()

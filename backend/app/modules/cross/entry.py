@@ -21,9 +21,7 @@ from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossScenario, CrossStartInput
 from app.contracts.platform import StartTransferInput, TrustedContext
 from app.contracts.subscription import SubscriptionCancelInput, SubscriptionListInput
-from app.contracts.tasks import (
-    InteractionOption, InteractionRequest, ModuleError, ModuleResult,
-)
+from app.contracts.tasks import ModuleError, ModuleResult
 
 from . import plan
 from .plan import money, month_range
@@ -31,7 +29,7 @@ from .birthday import BirthdayFlow
 from .pension import PensionFlow
 from .personal_budget import PersonalBudget, BudgetPending, serialized, digest
 
-_CHANNEL = "cross_state"
+_CHANNEL = plan.CHANNEL
 _TERMINAL = {"succeeded", "failed", "cancelled", "partially_succeeded"}
 
 _EXPENSE_WORDS = ("减支", "减少", "省钱", "省一点", "不用的", "不用了", "不必要的", "开销",
@@ -101,10 +99,8 @@ class CrossEntry:
     def _save(self, context, thread_id, state):
         saved, _ = self._load(context, thread_id)
         version = int(saved.checkpoint["channel_versions"].get(_CHANNEL, 0)) + 1 if saved else 1
-        checkpoint = {"v": 1, "id": str(uuid4()), "ts": self.clock().isoformat(),
-                      "channel_values": {_CHANNEL: deepcopy(state)},
-                      "channel_versions": {_CHANNEL: version}, "versions_seen": {},
-                      "pending_sends": []}
+        checkpoint = plan.checkpoint_envelope(
+            str(uuid4()), self.clock().isoformat(), deepcopy(state), version)
         config = saved.config if saved else self._config(context, thread_id)
         self.saver.put(config, checkpoint, {"source": "update", "step": version, "parents": {}},
                        {_CHANNEL: version})
@@ -118,23 +114,7 @@ class CrossEntry:
     def _ask(self, context, state, prompt: str, choices: list[tuple[str, dict]]) -> ModuleResult:
         """One parent-owned menu; only these server-built option ids answer it."""
 
-        interaction_id = str(uuid4())
-        state["choices"] = {str(uuid4()): value for _, value in choices}
-        state["waiting"] = "ask"
-        state["interaction_id"] = interaction_id
-        options = [InteractionOption(id=key, label=label)
-                   for key, (label, _) in zip(state["choices"], choices)]
-        return ModuleResult(task_id=context.task_id, run_id=context.run_id,
-            status=TaskStatus.WAITING_INPUT,
-            data=self._view_data(state, prompt)
-            if ((state.get("birthday") or {}).get("write_facts")
-                or (state.get("personal_budget") or {}).get("view")) else None,
-            message=prompt,
-            interaction=InteractionRequest(interaction_id=interaction_id, kind="input",
-                prompt=prompt, required_fields=["cross_selection"], options=options,
-                record_ref=None),
-            error=None, allowed_actions=["provide_input", "cancel"],
-            recovery_required=False, recovery_reason=None)
+        return plan.ask_result(context, state, prompt, choices)
 
     def _done(self, context, state, status: TaskStatus, message: str) -> ModuleResult:
         state["waiting"] = None
@@ -925,7 +905,16 @@ class CrossEntry:
 def register_cross(harness, clock, birthday_ports_factory=None):
     """Platform assembly (v05-cross-platform/05/09) calls this to mount the module."""
 
+    from .birthday_handoff import install_cross_handoff
     from .manifest import CROSS_MANIFEST
+
+    # Ticket 08: the platform's controlled edit handoff needs this module's
+    # candidate preparation. The composition builds the birthday runtime (and
+    # its ``harness.birthday_handoff``) before registering Cross, so mount the
+    # one implementation here instead of asking every composition to repeat it.
+    handoff = getattr(harness, "birthday_handoff", None)
+    if handoff is not None:
+        install_cross_handoff(handoff, clock=clock)
 
     def factory(trusted, saver, trace):
         return CrossEntry(harness, saver, trace, clock, birthday_ports_factory)

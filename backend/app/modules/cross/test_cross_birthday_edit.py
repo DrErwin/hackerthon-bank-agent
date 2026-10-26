@@ -23,7 +23,7 @@ Failure modes this file pins down first (the code is written to these):
 """
 
 from copy import deepcopy
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -34,6 +34,7 @@ from app.contracts.bank import Product
 from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossStartInput
 from app.contracts.platform import TrustedContext
+from app.modules.cross.birthday import BirthdayFlow
 from app.modules.cross.birthday_handoff import BirthdayHandoffAdapter
 from app.storage.checkpoints import CheckpointRef
 
@@ -57,6 +58,7 @@ class EditPorts(ScriptedBirthdayPorts):
         super().__init__(**kwargs)
         self.order_items: list[dict] = []
         self.capture_items: list[dict] = []
+        self.order_checks: list[dict] = []
         self.failed_orders: list[str] = []
         self.failed_requeries: dict[str, object] = {}
         self.verify_failures = verify_failures
@@ -65,6 +67,7 @@ class EditPorts(ScriptedBirthdayPorts):
         from app.contracts.common import SecurityDecisionCode
         from app.modules.cross.birthday_ports import GateAnswer
         from .test_cross_birthday import gate_confirmation
+        self.order_checks.append(deepcopy(item))
         return GateAnswer(
             decision=SecurityDecisionCode.REQUIRE_CONFIRMATION,
             operation_id=str(uuid4()),
@@ -84,25 +87,41 @@ class EditPorts(ScriptedBirthdayPorts):
                            f"金额 {item['amount_fen'] / 100:.2f} 元"))
 
     def order_execute(self, context, plan, item):
+        from app.modules.cross.birthday_ports import WriteOutcome
         self.order_items.append(deepcopy(item))
         state = self.orders_script.pop(0) if self.orders_script else "completed"
         if state == "failed":
             operation_id = str(uuid4())
             self.failed_orders.append(operation_id)
-            if self.verify_failures:
-                from app.modules.cross.birthday_ports import WriteOutcome
+            if self.verify_failures is True:
+                self.failed_requeries[operation_id] = WriteOutcome(
+                    executed=True, state="failed",
+                    result=self._failed_operation_result(operation_id),
+                    operation_id=operation_id)
+            elif self.verify_failures == "weak":
+                # The port says failed but the original OperationResult is not
+                # readable: that is not enough to prove "no order".
                 self.failed_requeries[operation_id] = WriteOutcome(
                     executed=True, state="failed", result=None,
                     operation_id=operation_id)
             return type(self)._write_failure(operation_id)
         if state == "unknown":
-            from app.modules.cross.birthday_ports import WriteOutcome
             unknown = WriteOutcome(executed=True, state="unknown", result=None,
                                    operation_id=str(uuid4()))
             self.last_order_op = unknown.operation_id
             return unknown
         from .test_cross_birthday import completed_order
         return completed_order(item["product_id"])
+
+    @staticmethod
+    def _failed_operation_result(operation_id):
+        from app.contracts.bank import BankError, OperationResult
+        from app.contracts.common import OperationStatus
+        return OperationResult(
+            operation_id=UUID(operation_id), operation_type="bank.create_order",
+            operation_status=OperationStatus.FAILED,
+            recorded_at=NOW, updated_at=NOW, receipt=None,
+            failure=BankError(code="PRODUCT_UNAVAILABLE", details={}))
 
     @staticmethod
     def _write_failure(operation_id):
@@ -449,6 +468,40 @@ def test_edit_from_capture_wait_keeps_the_created_order(tmp_path):
     assert fact(after, "capture", cake_row)["status"] == "completed"
 
 
+def test_capture_wait_edit_without_changes_reconfirms_the_same_order(tmp_path):
+    ports = EditPorts(products=(FLOWER, CAKE, GIFT), released_amount_fen=13500)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+
+    current = start_to_pick(entry, budget="800元")
+    for needle in ("康乃馨", "蛋糕", "保温杯"):
+        current = pick(entry, current, needle)
+    current = select(entry, current, "就选这些")
+    current = select(entry, current, "采用并开始办理")
+    current = entry.resume(parent_trusted(), {"choice": "approve"})  # freeze
+    current = entry.resume(parent_trusted(), {"choice": "approve"})  # flower order
+    current = entry.resume(parent_trusted(), {"choice": "approve"})  # flower capture
+    current = entry.resume(parent_trusted(), {"choice": "approve"})  # cake order
+    assert current.interaction.kind == "confirmation"  # cake capture card
+    cake_row = birthday_state(entry)["orders"][1]
+
+    edit = start_edit(entry, current, action_name="bank.capture_frozen",
+                      item=f"capture:item/{cake_row['item_id']}")
+    labels = " ".join(item.label for item in edit.interaction.options)
+    assert "改数量：六寸蛋糕" not in labels
+    current = select(entry, edit, "按新方案继续")
+    # The same created order is re-confirmed with its original order number.
+    assert current.interaction.kind == "confirmation"
+    capture_card = current
+    entry.resume(parent_trusted(), {"choice": "approve"})
+    executed = [item for item in ports.capture_items
+                if item["item_id"] == cake_row["item_id"]]
+    assert len(executed) == 1
+    assert executed[0]["order_id"] == cake_row["order_id"]
+    assert executed[0]["amount_fen"] == cake_row["amount_fen"]
+    assert capture_card.interaction.record_ref  # a real confirmation record
+
+
 # --------------------------------------------------------------------- Q05
 
 
@@ -484,6 +537,7 @@ def test_paid_and_created_unpaid_items_are_preserved_by_an_edit(tmp_path):
     assert "改数量：保温杯" in labels
     assert "改数量：六寸" not in labels
     assert "改数量：康乃馨花束" not in labels
+    assert "再加一件商品" not in labels  # ticket scope: change/remove/replace only
     assert "付款没有办成，订单未付款" in page(edit)
     assert "已付款" in page(edit)
 
@@ -518,14 +572,29 @@ def test_edited_quantity_uses_the_fresh_unit_price_not_the_old_line_total(tmp_pa
     edit = start_edit(entry, card, action_name="bank.create_order",
                       item=f"order:item/{item_id}")
     current = edit_quantity(entry, edit, "康乃馨", 2)
+    revision_before = revision(entry)
     current = select(entry, current, "按新方案继续")
     # A changed service price is re-quoted BEFORE the order; the line subtotal is
     # rebuilt as the new unit price x the edited quantity (2), not the old total.
     assert "价格已从 199.00 元变为 250.00 元" in page(current)
+    assert "重新采用方案并确认" in page(current)
     assert "按新价 500.00 元继续" in " ".join(
         item.label for item in current.interaction.options)
+    # An approval on the price card itself must not execute the new amount.
+    with pytest.raises(ValueError, match="INVALID_OPTION"):
+        entry.resume(parent_trusted(), {"choice": "approve"})
+    assert ports.order_items == []
+    assert ports.order_checks == []  # only the price card exists so far
+
     current = select(entry, current, "按新价")
+    # The new price is a new plan version and a new order attempt: the user
+    # receives a fresh confirmation instead of a direct write of the row.
     assert current.interaction.kind == "confirmation"
+    assert revision(entry) > revision_before
+    assert ports.order_checks[-1]["quantity"] == 2
+    assert ports.order_checks[-1]["unit_price_fen"] == 25000
+    assert ports.order_checks[-1]["amount_fen"] == 50000
+    assert ports.order_items == []  # nothing submitted before the new approval
     entry.resume(parent_trusted(), {"choice": "approve"})
     assert ports.order_items[-1]["quantity"] == 2
     assert ports.order_items[-1]["unit_price_fen"] == 25000
@@ -551,6 +620,47 @@ def test_edited_plan_over_the_original_cap_writes_nothing(tmp_path):
     current = select(entry, current, "按新方案继续")
     assert current.interaction.kind == "confirmation"
     assert "199.00" in page(current)
+
+
+def test_old_price_change_option_without_item_key_still_works(tmp_path):
+    """An old checkpoint's price-change choice carries only product_id/total."""
+    ports = EditPorts()
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+    to_order_card(entry)  # reach the ordered phase through the real flow
+    who = parent_trusted()
+    _saved, state = entry._load(who, None)
+    b = state["birthday"]
+    # Rewrite the plan to the pre-08 legacy shape: no item ids, rows keyed by
+    # product and the old price-choice option value.
+    b["chosen"] = ["P_FLOWER", "P_CAKE"]
+    b["orders"] = [
+        {"product_id": product_id, "name": name, "amount_fen": amount,
+         "quantity": 1, "order": None, "capture": None,
+         "order_id": None, "transaction_id": None}
+        for product_id, name, amount in (
+            ("P_FLOWER", "康乃馨花束", 18900), ("P_CAKE", "六寸蛋糕", 26800))]
+    b["phase"] = "orders"
+    b["pending"] = None
+    b["holding"] = None
+    flow = BirthdayFlow(entry, state, ports)
+    ask = flow._ask(who, "价格变化，请重新选择。",
+                    [("按新价 199.00 元继续", {"kind": "b_price_ok",
+                                              "product_id": "P_FLOWER",
+                                              "amount_fen": 19900}),
+                     ("停止剩余办理", {"kind": "b_stop"})])
+    entry._save(who, None, state)
+
+    # Restoring that old card never raises: the option still resolves the
+    # product-keyed row, then re-quotes and asks for a new confirmation at the
+    # legacy price (the row is not submitted directly).
+    result = entry.resume(who, {"selected_option_id": option_id(ask, "按新价")})
+    assert result.status is TaskStatus.WAITING_APPROVAL
+    assert ports.order_checks[-1]["amount_fen"] == 19900
+    assert ports.order_items == []
+    entry.resume(who, {"choice": "approve"})
+    assert ports.order_items[-1]["amount_fen"] == 19900
+    assert "item_id" not in ports.order_items[-1]
 
 
 # --------------------------------------------------------------------- Q09
@@ -638,9 +748,35 @@ def test_verified_order_failure_offers_an_ordinary_replacement(tmp_path):
 
     after = birthday_state(entry)
     assert fact(after, "order", failed_row) == failed_fact  # failure never rewritten
-    assert after["verified_failures"][ports.failed_orders[0]]["no_order"] is True
+    evidence = after["verified_failures"][ports.failed_orders[0]]
+    # The second basis cites the original OperationResult, not just a status.
+    assert evidence["operation_status"] == "failed"
+    assert evidence["bank_error_code"] == "PRODUCT_UNAVAILABLE"
+    assert evidence["receipt"] is None and evidence["order_id"] is None
+    assert evidence["in_flight"] is False
     new_items = {row["item_id"] for row in after["orders"]}
     assert old_item_id in new_items and len(new_items) == 3
+
+
+def test_second_basis_requires_the_original_operation_result(tmp_path):
+    """A failed port status without the original OperationResult proves nothing."""
+    ports = EditPorts(verify_failures="weak", orders=("completed", "failed"),
+                      released_amount_fen=30100)
+    _, entry, application = birthday_composition(tmp_path, ports)
+    store_delivery(application)
+
+    to_order_card(entry, budget="500元")
+    current = entry.resume(parent_trusted(), {"choice": "approve"})  # flower order
+    current = entry.resume(parent_trusted(), {"choice": "approve"})  # flower capture
+    current = entry.resume(parent_trusted(), {"choice": "approve"})  # cake fails
+    # No replacement is offered and no second-basis fact is recorded: the flow
+    # keeps the original "failed row stays unsubmitted, continue" behaviour.
+    assert current.status is TaskStatus.SUCCEEDED, current.message
+    assert "下单未办成" in current.message
+    assert "已核实" not in current.message
+    assert birthday_state(entry)["verified_failures"] == {}
+    assert len(ports.order_items) == 2  # no replacement attempt
+    assert ports.requery_ids[-1] == ports.failed_orders[0]
 
 
 def test_unverified_failure_never_builds_a_replacement(tmp_path):

@@ -19,13 +19,13 @@ from dataclasses import asdict
 from datetime import datetime
 from uuid import uuid4
 
-from app.contracts.bank import ListProductsInput
-from app.contracts.common import SecurityDecisionCode, TaskStatus
-from app.contracts.tasks import InteractionOption, InteractionRequest, ModuleResult
+from app.contracts.bank import ListProductsInput, OperationResult
+from app.contracts.common import OperationStatus, SecurityDecisionCode, TaskStatus
+from app.contracts.tasks import InteractionRequest, ModuleResult
 
 from . import plan
 from .birthday_ports import BirthdayPlan, WriteOutcome
-from .plan import money
+from .plan import item_key, money
 from .personal_budget import PersonalBudget, BudgetPending
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -34,7 +34,7 @@ _REF = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 # name an item id, quantity or amount from chat (server options only).
 _EDIT_KINDS = frozenset({
     "b_edit_qty", "b_edit_remove", "b_edit_replace",
-    "b_edit_add", "b_edit_choose", "b_edit_cancel", "b_edit_done",
+    "b_edit_choose", "b_edit_cancel", "b_edit_done",
 })
 
 _PRODUCT_FACTS = ("merchant_id", "merchant_name", "category", "unit_price_fen")
@@ -42,16 +42,6 @@ _PRODUCT_FACTS = ("merchant_id", "merchant_name", "category", "unit_price_fen")
 
 def yuan(fen) -> str:
     return money(int(fen or 0))
-
-
-def item_key(item: dict) -> str:
-    """A plan row's stable execution identity, separate from the product id.
-
-    The legacy shape (an old checkpoint whose rows carry no ``item_id``) keeps
-    the product key; a new row is always addressed by its own item id, so a
-    same-product replacement is a different execution item.
-    """
-    return item.get("item_id") or item["product_id"]
 
 
 def positive_quantity(text) -> int | None:
@@ -74,9 +64,8 @@ class BirthdayFlow:
         "stop_reason": None, "released": None,
         # v05-cross-business/08: one controlled edit in flight, its facts and the
         # verified "failed, no order" evidence that may justify a replacement.
-        "edit": None, "edit_text_target": None, "edit_replace_target": None,
-        "edit_add": False, "edit_history": [], "verified_failures": {},
-        "write_facts": {},
+        "edit": None, "edit_text_target": None,
+        "verified_failures": {}, "write_facts": {},
     }
 
     def __init__(self, entry, state: dict, ports):
@@ -95,7 +84,7 @@ class BirthdayFlow:
     # ------------------------------------------------------------------ helpers
 
     @staticmethod
-    def _fact(item: dict, *, field: str | None = None) -> dict:
+    def _fact(item: dict) -> dict:
         """The service facts one plan row froze; amounts are always rebuilt."""
         facts = {name: item[name] for name in _PRODUCT_FACTS if item.get(name) is not None}
         facts["product_id"] = item["product_id"]
@@ -103,8 +92,6 @@ class BirthdayFlow:
             facts["item_id"] = item["item_id"]
         facts["name"] = item.get("name")
         facts["quantity"] = int(item.get("quantity") or 1)
-        if field is not None:
-            facts[field] = item.get(field)
         return facts
 
     def _plan_items(self) -> list[dict]:
@@ -172,6 +159,16 @@ class BirthdayFlow:
                    if row.get("order") not in ("failed", "skipped"))
 
     @staticmethod
+    def _over_cap_message(total: int, cap: int) -> str:
+        return (f"新方案合计 {yuan(total)} 元，超过原上限 {yuan(cap)} 元；"
+                "不能自动追加预算或重置上限。")
+
+    @staticmethod
+    def _no_room_message(product_name: str) -> str:
+        return (f"剩余冻结不足以加入「{product_name}」；"
+                "不能自动追加冻结、换账户或提高上限。")
+
+    @staticmethod
     def _new_item(product: dict, *, quantity: int = 1) -> dict:
         """One new execution item: the product id can repeat, the item id cannot."""
         unit_price_fen = int(product["unit_price_fen"])
@@ -194,14 +191,14 @@ class BirthdayFlow:
         self.state["plan_revision"] = int(self.state.get("plan_revision") or 0) + 1
 
     def _row(self, key: str) -> dict | None:
-        """The mutable plan row behind one stable item key, if it is in the plan."""
+        """The mutable plan row behind one stable item key, if it is in the plan.
+
+        A legacy checkpoint's bare product-string entry is not an execution
+        item; it is never returned here (quantity changes convert it first).
+        """
         rows = self.b["orders"] if self._post_freeze() else self.b["chosen"]
         for row in rows:
-            if isinstance(row, str):
-                if row == key:
-                    return None  # a legacy product id is not an execution item
-                continue
-            if item_key(row) == key:
+            if not isinstance(row, str) and item_key(row) == key:
                 return row
         return None
 
@@ -490,7 +487,6 @@ class BirthdayFlow:
                             {"kind": "b_edit_remove", "key": key}))
             choices.append((f"替换：{item['name']}",
                             {"kind": "b_edit_replace", "key": key}))
-        choices.append(("再加一件商品", {"kind": "b_edit_add"}))
         choices.append(("按新方案继续", {"kind": "b_edit_done"}))
         choices.append(("停止办理", {"kind": "b_stop"}))
         return "\n".join(lines), choices
@@ -512,8 +508,6 @@ class BirthdayFlow:
         self.b["holding"] = None
         self.b["edit"] = {"after": after, "origin": origin}
         self.b["edit_text_target"] = None
-        self.b["edit_replace_target"] = None
-        self.b["edit_add"] = False
         self._bump_revision()
 
     def _normalize_chosen(self) -> None:
@@ -572,11 +566,8 @@ class BirthdayFlow:
             row = self._row(key)
             if row is None or row not in self._editable_rows():
                 raise ValueError("ITEM_NOT_EDITABLE")
-            self.b["edit_history"].append({
-                "removed_item": {name: row.get(name) for name in (
-                    "item_id", "product_id", "name", "quantity",
-                    "unit_price_fen", "amount_fen")},
-                "at_revision": self.state["plan_revision"]})
+            # The removed row was never submitted; its facts (if any) live in
+            # write_facts and are never rewritten by an edit.
             self.b["orders"].remove(row)
         else:
             chosen = self.b["chosen"]
@@ -585,34 +576,32 @@ class BirthdayFlow:
                               else item_key(entry) == key)), None)
             if index is None:
                 raise ValueError("ITEM_NOT_EDITABLE")
-            entry = chosen.pop(index)
-            self.b["edit_history"].append({
-                "removed_item": dict(entry) if isinstance(entry, dict)
-                else {"product_id": entry},
-                "at_revision": self.state["plan_revision"]})
+            chosen.pop(index)
         self._bump_revision()
         return self._menu_after_change(trusted)
 
     def _ask_products(self, trusted, replace_key=None, *,
                       choice_kind="b_edit_choose", failed_key=None):
-        target = self._row(replace_key or failed_key)
+        """Only a replacement target can be chosen (no general cart scope)."""
+        target_key = replace_key or failed_key
+        target = self._row(target_key) if target_key else None
+        if target is None:
+            raise ValueError("ITEM_NOT_EDITABLE")
         choices = []
         for product in self.b["products"]:
             label = (f"{product['merchant_name']}·{product['product_name']} "
                      f"{yuan(product['unit_price_fen'])} 元")
             choices.append((label, {"kind": choice_kind,
                                     "product_id": product["product_id"],
-                                    "key": replace_key or failed_key}))
-        choices.append(("取消", {"kind": "b_edit_cancel"}))
+                                    "key": target_key}))
         if failed_key is not None:
-            choices[-1] = ("取消", {"kind": "b_failed_cancel", "key": failed_key})
+            choices.append(("取消", {"kind": "b_failed_cancel", "key": failed_key}))
             prompt = (f"请选择用来替代「{target['name']}」的商品"
                       "（新执行项、新确认；不会复用原失败尝试）：")
-        elif target is not None:
+        else:
+            choices.append(("取消", {"kind": "b_edit_cancel"}))
             prompt = (f"请选择用来替换「{target['name']}」的商品"
                       "（新商品会生成新的执行项，不复用旧订单或付款）：")
-        else:
-            prompt = "请选择要加入方案的商品（会生成新的执行项）："
         return self._ask(trusted, prompt, choices)
 
     def _failed_choose(self, trusted, picked):
@@ -628,8 +617,7 @@ class BirthdayFlow:
         if cap and committed + product["unit_price_fen"] > cap:
             return self._ask(
                 trusted,
-                f"剩余冻结不足以加入「{product['product_name']}」；"
-                "不能自动追加冻结、换账户或提高上限。",
+                self._no_room_message(product["product_name"]),
                 [("跳过这件", {"kind": "b_skip_item", "key": picked["key"]}),
                  ("停止剩余办理", {"kind": "b_stop"})])
         self.b["orders"].append(self._new_plan_row(product))
@@ -641,50 +629,27 @@ class BirthdayFlow:
                 "order_id": None, "transaction_id": None}
 
     def _edit_choose(self, trusted, picked):
+        replace_key = picked.get("key")
+        if not replace_key:
+            raise ValueError("INVALID_OPTION")
         product = next((row for row in self.b["products"]
                         if row["product_id"] == picked["product_id"]), None)
         if product is None:
             raise ValueError("INVALID_OPTION")
-        replace_key = picked.get("key")
-        new_item = self._new_item(product)
-        if replace_key:
-            if self._post_freeze():
-                old = self._row(replace_key)
-                if old is None or old not in self._editable_rows():
-                    raise ValueError("ITEM_NOT_EDITABLE")
-                index = self.b["orders"].index(old)
-                self.b["edit_history"].append({
-                    "replaced_item": {name: old.get(name) for name in (
-                        "item_id", "product_id", "name", "quantity",
-                        "unit_price_fen", "amount_fen")},
-                    "by_item_id": new_item["item_id"],
-                    "at_revision": self.state["plan_revision"]})
-                self.b["orders"][index] = self._new_plan_row(product)
-            else:
-                chosen = self.b["chosen"]
-                index = next((index for index, entry in enumerate(chosen)
-                              if not isinstance(entry, str)
-                              and item_key(entry) == replace_key), None)
-                if index is None:
-                    raise ValueError("ITEM_NOT_EDITABLE")
-                self.b["edit_history"].append({
-                    "replaced_item": dict(chosen[index]),
-                    "by_item_id": new_item["item_id"],
-                    "at_revision": self.state["plan_revision"]})
-                chosen[index] = new_item
-        elif self._post_freeze():
-            committed = self._plan_total(self.b["orders"])
-            cap = int((self.b.get("freeze") or {}).get("amount_fen") or 0)
-            if cap and committed + new_item["amount_fen"] > cap:
-                return self._ask_edit(
-                    trusted,
-                    f"剩余冻结不足以加入「{product['product_name']}」；"
-                    "不能自动追加冻结、换账户或提高上限。请调整方案。")
-            self.b["orders"].append(self._new_plan_row(product))
+        if self._post_freeze():
+            old = self._row(replace_key)
+            if old is None or old not in self._editable_rows():
+                raise ValueError("ITEM_NOT_EDITABLE")
+            index = self.b["orders"].index(old)
+            self.b["orders"][index] = self._new_plan_row(product)
         else:
-            self.b["chosen"].append(new_item)
-        self.b["edit_replace_target"] = None
-        self.b["edit_add"] = False
+            chosen = self.b["chosen"]
+            index = next((index for index, entry in enumerate(chosen)
+                          if not isinstance(entry, str)
+                          and item_key(entry) == replace_key), None)
+            if index is None:
+                raise ValueError("ITEM_NOT_EDITABLE")
+            chosen[index] = self._new_item(product)
         self._bump_revision()
         return self._menu_after_change(trusted)
 
@@ -693,8 +658,6 @@ class BirthdayFlow:
         if kind == "b_edit_cancel":
             # Cancel a quantity/product sub-question without changing anything.
             self.b["edit_text_target"] = None
-            self.b["edit_replace_target"] = None
-            self.b["edit_add"] = False
             if self.b.get("edit") and self.b["phase"] == "edit":
                 return self._ask_edit(trusted)
             return self._ask_pick(trusted)
@@ -706,12 +669,7 @@ class BirthdayFlow:
         if kind == "b_edit_remove":
             return self._remove_row(trusted, picked["key"])
         if kind == "b_edit_replace":
-            self.b["edit_replace_target"] = picked["key"]
             return self._ask_products(trusted, replace_key=picked["key"])
-        if kind == "b_edit_add":
-            self.b["edit_replace_target"] = None
-            self.b["edit_add"] = True
-            return self._ask_products(trusted, replace_key=None)
         if kind == "b_edit_choose":
             return self._edit_choose(trusted, picked)
         if kind == "b_edit_done":
@@ -721,24 +679,21 @@ class BirthdayFlow:
     def _finish_edit(self, trusted):
         edit = self.b.get("edit") or {}
         rows = self._display_rows()
-        facts = [self._facts(row) for row in rows if self._facts(row)]
+        facts = [line for line in (self._facts(row) for row in rows) if line]
         if not rows and not facts:
             return self._ask_edit(
                 trusted, "方案中没有可办理的商品；不能冻结或下单。"
-                         "请加回商品或停止办理。")
+                         "请停止办理，或稍后重新发起。")
         total = self._plan_total(rows)
         cap = ((self.b.get("freeze") or {}).get("amount_fen")
                or self.b["budget_limit_fen"])
         if cap is not None and total > cap:
             return self._ask_edit(
                 trusted,
-                f"新方案合计 {yuan(total)} 元，超过原上限 {yuan(cap)} 元；"
-                "不能自动追加预算或重置上限。请调整后再继续。")
+                self._over_cap_message(total, cap) + "请调整后再继续。")
         after = edit.get("after") or "orders"
         self.b["edit"] = None
         self.b["edit_text_target"] = None
-        self.b["edit_replace_target"] = None
-        self.b["edit_add"] = False
         self._bump_revision()
         if after == "freeze":
             self.b["phase"] = "adopt"
@@ -772,7 +727,7 @@ class BirthdayFlow:
 
     def _held_or_allowed(self, kind: str) -> bool:
         return self.b.get("holding") in (None, False) or kind in {
-            "b_retry_query", "b_stop"}
+            "b_retry_query", "b_retry_retired", "b_stop"}
 
     def _replay_holding(self, trusted):
         saved = self.state.get("result") or {}
@@ -781,99 +736,144 @@ class BirthdayFlow:
                 update={"run_id": trusted.run_id})
         return self._holding_view(trusted)
 
+    # One dispatch table instead of a growing ``if kind ==`` chain; the edit
+    # kinds all share one handler that validates the controlled edit input.
+    _APPLIERS = {
+        "b_stop": "_apply_stop",
+        "b_retry_products": "_apply_retry_products",
+        "b_pick": "_apply_pick",
+        "b_qty": "_apply_qty",
+        "b_remove": "_apply_remove",
+        "b_pick_done": "_apply_pick_done",
+        "b_edit_basket": "_apply_edit_basket",
+        "b_repick": "_apply_repick",
+        "b_adopt": "_apply_adopt",
+        "b_price_ok": "_apply_price_ok",
+        "b_skip_item": "_apply_skip_item",
+        "b_retry_query": "_apply_retry_query",
+        "b_retry_retired": "_apply_retry_retired",
+        "b_failed_replace": "_apply_failed_replace",
+        "b_failed_choose": "_apply_failed_choose",
+        "b_failed_cancel": "_apply_failed_cancel",
+        **{kind: "_apply_edit" for kind in _EDIT_KINDS},
+    }
+
     def apply(self, trusted, picked: dict):
         kind = picked["kind"]
-        entry, state = self.entry, self.state
         if not self._held_or_allowed(kind):
             # An unknown write holds the flow; only verify-the-original or a
             # full stop may move it (B1).
             return self._replay_holding(trusted)
-        if kind == "b_stop":
-            return self.stop(trusted, "user_cancelled")
-        if kind in _EDIT_KINDS:
-            return self._apply_edit(trusted, picked)
-        if kind == "b_failed_replace":
-            return self._ask_products(trusted, failed_key=picked["key"],
-                                      choice_kind="b_failed_choose")
-        if kind == "b_failed_choose":
-            return self._failed_choose(trusted, picked)
-        if kind == "b_failed_cancel":
-            item = self._order(picked["key"])
-            return self._order_failed(trusted, item,
-                                      item.get("order_operation_id") or "")
-        if kind == "b_retry_products":
-            self.b["products"] = []
-            return self.advance(trusted)
-        if kind == "b_pick":
-            product = next((row for row in self.b["products"]
-                            if row["product_id"] == picked["product_id"]), None)
-            if product is None:
-                raise ValueError("INVALID_OPTION")
-            self.b["chosen"].append(self._new_item(product))
-            self._bump_revision()
+        handler = self._APPLIERS.get(kind)
+        if handler is None:
+            raise ValueError("INVALID_OPTION")
+        return getattr(self, handler)(trusted, picked)
+
+    def _apply_stop(self, trusted, picked):
+        return self.stop(trusted, "user_cancelled")
+
+    def _apply_retry_products(self, trusted, picked):
+        self.b["products"] = []
+        return self.advance(trusted)
+
+    def _apply_pick(self, trusted, picked):
+        product = next((row for row in self.b["products"]
+                        if row["product_id"] == picked["product_id"]), None)
+        if product is None:
+            raise ValueError("INVALID_OPTION")
+        self.b["chosen"].append(self._new_item(product))
+        self._bump_revision()
+        return self._ask_pick(trusted)
+
+    def _apply_qty(self, trusted, picked):
+        return self._ask_quantity(trusted, picked["key"])
+
+    def _apply_remove(self, trusted, picked):
+        return self._remove_row(trusted, picked["key"])
+
+    def _apply_pick_done(self, trusted, picked):
+        if not self.b["chosen"]:
             return self._ask_pick(trusted)
-        if kind == "b_qty":
-            return self._ask_quantity(trusted, picked["key"])
-        if kind == "b_remove":
-            return self._remove_row(trusted, picked["key"])
-        if kind == "b_pick_done":
-            if not self.b["chosen"]:
-                return self._ask_pick(trusted)
-            total = self._total(self._chosen_items())
-            if total > self.b["budget_limit_fen"]:
-                # Over budget stops before any bank write (XL-B03 / M2).
-                return self._ask(trusted,
-                                 f"所选商品合计 {yuan(total)} 元，超过预算上限 "
-                                 f"{yuan(self.b['budget_limit_fen'])} 元。"
-                                 "请去掉部分商品或停止。",
-                                 [("去掉些商品重新选", {"kind": "b_repick"}),
-                                  ("停止本次安排", {"kind": "b_stop"})])
-            self.b["phase"] = "adopt"
-            return self._ask_adopt(trusted)
-        if kind == "b_edit_basket":
-            if self._post_freeze():
-                raise ValueError("INVALID_OPTION")
-            self.b["phase"] = "pick"
-            return self._ask_pick(trusted)
-        if kind == "b_repick":
-            self.b["chosen"] = []
-            self.b["phase"] = "pick"
-            return self._ask_pick(trusted)
-        if kind == "b_adopt":
-            # Adopting the edited plan ends the edit input; the new plan is the
-            # ordinary flow again (nothing was frozen by editing itself).
-            self.b["edit"] = None
-            self.b["edit_text_target"] = None
-            self.b["edit_replace_target"] = None
-            self.b["edit_add"] = False
-            self.b["orders"] = self._plan_rows_from_chosen()
-            return self._d1_check_then_freeze(trusted)
-        if kind == "b_price_ok":
-            item = self._order(picked["key"])
-            unit_price_fen = int(picked["unit_price_fen"])
-            fresh_total = unit_price_fen * int(item["quantity"])
-            frozen = self.b["freeze"]
-            spent = sum(o.get("amount_fen", 0) for o in self.b["orders"]
-                        if o.get("capture") == "completed")
-            if spent + fresh_total > frozen["amount_fen"]:
-                return self._ask(trusted,
-                                 f"新价 {yuan(fresh_total)} 元会超过已冻结的 "
-                                 f"{yuan(frozen['amount_fen'])} 元"
-                                 "（已付款部分保持不变），不能继续办理这件。",
-                                 [("跳过这件，继续其他", {"kind": "b_skip_item",
-                                                        "key": item_key(item)}),
-                                  ("停止剩余办理", {"kind": "b_stop"})])
-            item["unit_price_fen"] = unit_price_fen
-            item["amount_fen"] = fresh_total
-            return self._submit(trusted, ("order", item_key(item)))
-        if kind == "b_skip_item":
-            key = picked.get("key") or picked.get("product_id")
-            item = self._order(key)
-            item["order"] = "skipped"
-            return self._run_next_order(trusted, skip=key)
-        if kind == "b_retry_query":
-            return self._requery(trusted)
-        raise ValueError("INVALID_OPTION")
+        total = self._total(self._chosen_items())
+        if total > self.b["budget_limit_fen"]:
+            # Over budget stops before any bank write (XL-B03 / M2).
+            return self._ask(trusted,
+                             f"所选商品合计 {yuan(total)} 元，超过预算上限 "
+                             f"{yuan(self.b['budget_limit_fen'])} 元。"
+                             "请去掉部分商品或停止。",
+                             [("去掉些商品重新选", {"kind": "b_repick"}),
+                              ("停止本次安排", {"kind": "b_stop"})])
+        self.b["phase"] = "adopt"
+        return self._ask_adopt(trusted)
+
+    def _apply_edit_basket(self, trusted, picked):
+        if self._post_freeze():
+            raise ValueError("INVALID_OPTION")
+        self.b["phase"] = "pick"
+        return self._ask_pick(trusted)
+
+    def _apply_repick(self, trusted, picked):
+        self.b["chosen"] = []
+        self.b["phase"] = "pick"
+        return self._ask_pick(trusted)
+
+    def _apply_adopt(self, trusted, picked):
+        # Adopting the edited plan ends the edit input; the new plan is the
+        # ordinary flow again (nothing was frozen by editing itself).
+        self.b["edit"] = None
+        self.b["edit_text_target"] = None
+        self.b["orders"] = self._plan_rows_from_chosen()
+        return self._d1_check_then_freeze(trusted)
+
+    def _apply_price_ok(self, trusted, picked):
+        # A changed quote is a new plan version and a new attempt (spec §7): the
+        # row is recomputed, the plan revision moves on, and the order goes back
+        # through order_check so the user reviews a new confirmation. The price
+        # is never written into the row and submitted on the old attempt.
+        key = picked.get("key") or picked.get("product_id")
+        item = self._order(key)
+        unit_price_fen = int(picked.get("unit_price_fen") or picked["amount_fen"])
+        fresh_total = unit_price_fen * int(item["quantity"])
+        frozen = self.b["freeze"]
+        spent = sum(o.get("amount_fen", 0) for o in self.b["orders"]
+                    if o.get("capture") == "completed")
+        if spent + fresh_total > frozen["amount_fen"]:
+            return self._ask(trusted,
+                             f"新价 {yuan(fresh_total)} 元会超过已冻结的 "
+                             f"{yuan(frozen['amount_fen'])} 元"
+                             "（已付款部分保持不变），不能继续办理这件。",
+                             [("跳过这件，继续其他", {"kind": "b_skip_item",
+                                                    "key": item_key(item)}),
+                              ("停止剩余办理", {"kind": "b_stop"})])
+        item["unit_price_fen"] = unit_price_fen
+        item["amount_fen"] = fresh_total
+        self.b["pending"] = None
+        self._bump_revision()
+        return self._run_next_order(trusted)
+
+    def _apply_skip_item(self, trusted, picked):
+        key = picked.get("key") or picked.get("product_id")
+        item = self._order(key)
+        item["order"] = "skipped"
+        return self._run_next_order(trusted, skip=key)
+
+    def _apply_retry_query(self, trusted, picked):
+        return self._requery(trusted)
+
+    def _apply_retry_retired(self, trusted, picked):
+        return self._retry_retired(trusted)
+
+    def _apply_failed_replace(self, trusted, picked):
+        return self._ask_products(trusted, failed_key=picked["key"],
+                                  choice_kind="b_failed_choose")
+
+    def _apply_failed_choose(self, trusted, picked):
+        return self._failed_choose(trusted, picked)
+
+    def _apply_failed_cancel(self, trusted, picked):
+        item = self._order(picked["key"])
+        return self._order_failed(trusted, item,
+                                  item.get("order_operation_id") or "")
 
     def apply_text(self, trusted, text: str):
         from .pension import parse_amount_fen
@@ -985,7 +985,54 @@ class BirthdayFlow:
                 # the frozen funds (m3), so it is refused fail-closed.
                 return self._blocked_stop(trusted, "FREEZE_WITHOUT_CLAUSE")
             return self._submit(trusted, target)
+        if answer.reason_code == "ACTION_RETIRED":
+            # After a controlled edit the platform may still refuse the same
+            # parameters until its "new attempt after a proven retirement" seam
+            # exists. That refusal is recoverable: keep the task and every
+            # occurred fact, release nothing and never pose a normal stop.
+            return self._hold_retired(trusted, target, answer.reason_code)
         return self._blocked_stop(trusted, answer.reason_code)
+
+    # ------------------------------------------- recoverable retired attempt
+
+    def _hold_retired(self, trusted, target, reason_code):
+        """Fail closed on a retired-parameter refusal without closing the task."""
+        self.b["pending"] = None
+        self.b["holding"] = "action_retired"
+        self.b["retired_action"] = {
+            "target": [target[0], target[1]], "reason_code": reason_code,
+        }
+        return self._retired_view(trusted)
+
+    def _retired_view(self, trusted):
+        prompt = (
+            "原动作已由平台安全撤离（该笔未提交），需等待平台"
+            "“已撤离后同参新尝试”接缝就绪后才能继续。"
+            "本任务与已发生的订单/付款事实保留，未收尾、未释放冻结；"
+            "可稍后再试，或直接在任务卡片上取消本次安排。")
+        return self._ask(trusted, prompt,
+                         [("稍后再试（保留现状）", {"kind": "b_retry_retired"})])
+
+    def _retry_retired(self, trusted):
+        ref = self.b.get("retired_action") or {}
+        target = ref.get("target") or []
+        self.b["holding"] = None
+        self.b["retired_action"] = None
+        kind = target[0] if target else None
+        if kind == "freeze":
+            self.b["phase"] = "freeze"
+            return self._run_freeze(trusted)
+        if kind == "order":
+            self.b["phase"] = "orders"
+            return self._run_next_order(trusted)
+        if kind == "capture" and len(target) > 1:
+            item = self._order(target[1])
+            if item is not None:
+                self.b["phase"] = "orders"
+                return self._run_capture(trusted, item)
+        # Nothing trustworthy to re-attempt: keep the recoverable pause.
+        self.b["holding"] = "action_retired"
+        return self._retired_view(trusted)
 
     def answer_gate(self, trusted, response: dict):
         if response.get("choice") == "cancel" or response.get("cancel") is True:
@@ -1173,7 +1220,8 @@ class BirthdayFlow:
                     return self._ask(
                         trusted,
                         f"{item['name']} 的价格已从 {yuan(unit_price_fen)} 元变为 "
-                        f"{yuan(fresh)} 元。旧确认不批准新金额；请重新选择。",
+                        f"{yuan(fresh)} 元。旧确认不批准新金额；"
+                        "请按新价重新采用方案并确认。",
                         [(f"按新价 {yuan(fresh_total)} 元继续", {"kind": "b_price_ok",
                                                                "key": item_key(item),
                                                                "unit_price_fen": fresh}),
@@ -1184,38 +1232,66 @@ class BirthdayFlow:
                                                 "key": item_key(item)}),
                           ("停止剩余办理", {"kind": "b_stop"})])
 
-    def _verified_no_order(self, trusted, operation_id) -> bool:
-        """Re-read the original operation: only an explicit failure with no
-        order receipt is a defensible basis for a replacement (Q10)."""
+    def _failed_no_order_evidence(self, trusted, operation_id) -> dict | None:
+        """Read the original create-order result, not just a port status.
+
+        The second basis requires the *bank's own* terminal failure with an
+        explicit error code and no order receipt: only that proves "no order,
+        nothing in flight". A missing claim, an unreadable result, a receipt or
+        any non-failed state leaves the fact unproven (Q10).
+        """
         if not operation_id:
-            return False
+            return None
         try:
             outcome = self.ports.requery(trusted, self._plan(), "order",
                                          operation_id)
         except Exception:  # noqa: BLE001 - an unprovable failure is not editable
-            return False
-        return outcome is not None and outcome.state == "failed"
+            return None
+        if outcome is None or outcome.state != "failed":
+            return None
+        result = outcome.result
+        if not isinstance(result, OperationResult):
+            return None
+        if result.operation_type != "bank.create_order":
+            return None
+        if result.operation_status is not OperationStatus.FAILED:
+            return None
+        if str(result.operation_id) != str(operation_id):
+            return None
+        if result.receipt is not None:
+            # A receipt is an order/effect fact: never "no order".
+            return None
+        failure = result.failure
+        code = getattr(failure, "code", None)
+        if failure is None or not code:
+            return None
+        return {
+            "action": "bank.create_order", "operation_id": str(operation_id),
+            "operation_status": "failed", "bank_error_code": code,
+            "receipt": None, "order_id": None, "in_flight": False,
+        }
 
     def _order_failed(self, trusted, item, operation_id):
         """One explicit create-order failure: keep the fact, offer the second basis.
 
-        Only an operation query that re-verifies "failed with no order" supports
-        a replacement; without that proof the flow keeps its old behaviour (the
-        failed row stays unsubmitted and the remaining items continue), never
-        inventing a replacement from an unverified outcome.
+        Only the operation result itself (terminal failed, explicit bank error,
+        no order receipt) supports a replacement; without that proof the flow
+        keeps its old behaviour (the failed row stays unsubmitted and the
+        remaining items continue), never inventing a replacement from an
+        unverified outcome.
         """
         key = item_key(item)
-        if not self._verified_no_order(trusted, operation_id):
+        evidence = self._failed_no_order_evidence(trusted, operation_id)
+        if evidence is None:
             return self._run_next_order(trusted, skip=key)
-        self.b["verified_failures"][operation_id] = {
-            "action": "bank.create_order", "operation_id": operation_id,
-            "item_id": key, "state": "failed", "no_order": True,
-        }
+        evidence["item_id"] = key
+        self.b["verified_failures"][operation_id] = evidence
         return self._ask(
             trusted,
-            f"{item['name']} 下单没有办成：银行已明确失败，且已核实没有生成订单、"
-            "也没有在途提交。原失败记录保留；可以换一件（新的执行项、新的确认），"
-            "或跳过/停止。",
+            f"{item['name']} 下单没有办成：银行已明确失败"
+            f"（{evidence['bank_error_code']}），原操作结果为终态且没有订单回执，"
+            "已核实没有生成订单、也没有在途提交。原失败记录保留；"
+            "可以换一件（新的执行项、新的确认），或跳过/停止。",
             [("换一件继续", {"kind": "b_failed_replace", "key": key}),
              ("跳过这件", {"kind": "b_skip_item", "key": key}),
              ("停止剩余办理", {"kind": "b_stop"})])
@@ -1233,6 +1309,9 @@ class BirthdayFlow:
             "unknown_capture": ("付款结果还待核实（原编号保留，不重复扣款）；"
                                 "核实前不继续、也不抢先释放。"),
         }
+        if kind == "action_retired":
+            # A recovering pause, not a closing state: no release, no stop.
+            return self._retired_view(trusted)
         if kind == "gate":
             pending = self.b.get("pending") or {}
             interaction = pending.get("interaction") or {}

@@ -25,20 +25,15 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
-from uuid import uuid4
 
 from app.agent_platform.birthday_edit import (
     BirthdayEditError, CandidateRequest, CrossCandidate,
 )
-from app.contracts.tasks import (
-    InteractionOption, InteractionRequest, ModuleResult,
-)
-from app.contracts.common import TaskStatus
+from app.contracts.tasks import ModuleResult
 
 from . import plan
 from .birthday import BirthdayFlow
 
-_CHANNEL = "cross_state"
 _EDITABLE_ACTIONS = ("bank.create_order", "bank.capture_frozen")
 _FREEZE_ACTION = "bank.freeze_funds"
 
@@ -86,7 +81,7 @@ class BirthdayHandoffAdapter:
             raise BirthdayEditError("CANDIDATE_INVALID",
                                     "the edit request or the sealed source is missing")
         values = (request.source_checkpoint.get("channel_values") or {})
-        state = deepcopy(values.get(_CHANNEL))
+        state = deepcopy(values.get(plan.CHANNEL))
         if not isinstance(state, dict):
             raise BirthdayEditError("CANDIDATE_INVALID",
                                     "the source carries no birthday state")
@@ -115,23 +110,7 @@ class BirthdayHandoffAdapter:
 
     def _waiting_input(self, trusted, state: dict, prompt: str,
                        choices) -> ModuleResult:
-        interaction_id = str(uuid4())
-        state["choices"] = {str(uuid4()): value for _label, value in choices}
-        state["waiting"] = "ask"
-        state["interaction_id"] = interaction_id
-        options = [InteractionOption(id=option_id, label=label)
-                   for option_id, (label, _value) in zip(state["choices"], choices)]
-        result = ModuleResult(
-            task_id=trusted.task_id, run_id=trusted.run_id,
-            status=TaskStatus.WAITING_INPUT,
-            data=plan.build_view(state, prompt) if "steps" in state else None,
-            message=prompt,
-            interaction=InteractionRequest(
-                interaction_id=interaction_id, kind="input", prompt=prompt,
-                required_fields=["cross_selection"], options=options,
-                record_ref=None),
-            error=None, allowed_actions=["provide_input", "cancel"],
-            recovery_required=False, recovery_reason=None)
+        result = plan.ask_result(trusted, state, prompt, choices, view=True)
         # Keep the module result inside the sealed state: a later ordinary resume
         # reads it as the current card exactly like any other waiting state.
         state["result"] = result.model_dump(mode="json")
@@ -140,18 +119,13 @@ class BirthdayHandoffAdapter:
     def _candidate(self, request: CandidateRequest, state: dict,
                    result: ModuleResult) -> CrossCandidate:
         version = int((request.source_checkpoint.get("channel_versions")
-                       or {}).get(_CHANNEL, 0)) + 1
-        checkpoint = {
-            "v": 1, "id": request.candidate.checkpoint_id,
-            "ts": self._now(),
-            "channel_values": {_CHANNEL: state},
-            "channel_versions": {_CHANNEL: version},
-            "versions_seen": {}, "pending_sends": [],
-        }
+                       or {}).get(plan.CHANNEL, 0)) + 1
+        checkpoint = plan.checkpoint_envelope(
+            request.candidate.checkpoint_id, self._now(), state, version)
         return CrossCandidate(
             checkpoint=checkpoint,
             metadata={"source": "update", "step": version, "parents": {}},
-            new_versions={_CHANNEL: version},
+            new_versions={plan.CHANNEL: version},
             result=result,
         )
 
@@ -164,10 +138,10 @@ class BirthdayHandoffAdapter:
 def install_cross_handoff(handoff, *, clock):
     """Attach this module's implementation to the platform ``BirthdayHandoff``.
 
-    Called by the composition (``local_demo.build_runtime``) after the birthday
-    runtime is built; it is the one Cross-side line platform ticket 03 names
-    (``birthday.handoff.cross``). The platform test doubles construct their own
-    ``BirthdayHandoff`` with an explicit stand-in, so this never rewires them.
+    Mounted by ``register_cross`` after the platform built the birthday runtime,
+    so every real composition (including the demo and the test compositions)
+    carries the Cross candidate preparation instead of refusing the edit entry.
+    An already attached implementation (an explicit stand-in) is never replaced.
     """
     if getattr(handoff, "cross", None) is None:
         handoff.cross = BirthdayHandoffAdapter(clock)
