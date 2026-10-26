@@ -267,61 +267,105 @@ def test_operation_scope_isolation(birthday_runtime, user_context, action, chang
     assert state(bank) == before
 
 
-class OldRoundObjectAllowed(AssertionError):
-    """Only the observed old-object access gap may become an expected failure."""
-
-
-@pytest.mark.xfail(strict=True, raises=OldRoundObjectAllowed, reason=(
-    "Open round-boundary gap: old objects remain usable with a new UUID and an explicit test grant; "
-    "see birthday-evidence.md and .scratch/v05-cross-bank-eval/round-boundary-gap.md"
-))
 @pytest.mark.parametrize("probe", ("get_freeze", "get_order", "capture_frozen", "release_frozen"))
 def test_old_round_objects_with_new_operation_are_denied(
     birthday_runtime, user_context, record_property, probe,
 ):
-    """Unmet package requirement, never counted as a passing isolation check.
+    """A new round cannot read or consume another round's bank objects.
 
-    The grant bypasses the real security executor, so this cannot establish a
-    product exploit. Keep strict xfail until the owning directories resolve it.
+    The grant bypasses the real security executor, so this remains a bank-object
+    boundary check, not a product exploit. The four probes were strict xfail
+    while the owning directories were open; they are now required regressions.
     """
     bank, gateway, _, _ = birthday_runtime
     gate = gateway(bank)
     request = prepared_action("capture_frozen", gate, user_context)
     before = state(bank)
     next_round = user_context.model_copy(update={"demo_round_id": "D2"})
+    operation_id = uuid4()
     if probe == "get_freeze":
         result = gate.get_freeze(next_round, request.freeze_id)
     elif probe == "get_order":
         result = gate.get_order(next_round, request.order_id)
     elif probe == "capture_frozen":
-        result = gate.capture_frozen(next_round, uuid4(), request)
+        result = gate.capture_frozen(next_round, operation_id, request)
     else:
-        result = gate.release_frozen(next_round, uuid4(), ReleaseFrozenInput(
+        result = gate.release_frozen(next_round, operation_id, ReleaseFrozenInput(
             freeze_id=request.freeze_id, amount_fen=50000,
         ))
+    observed_code = getattr(getattr(result, "error", None), "code", None) or getattr(
+        getattr(result, "failure", None), "code", None)
     record_property("round_boundary_probe", json.dumps({
         "from_round": "D1", "to_round": "D2", "probe": probe,
         "observed_kind": getattr(result, "kind", None),
         "observed_operation_status": getattr(result, "operation_status", None),
+        "observed_code": observed_code,
         "book_fen": bank.store.get_account("U1", "EVAL_A").book_balance_fen,
         "frozen_fen": bank.store.get_account("U1", "EVAL_A").frozen_balance_fen,
     }))
-    if getattr(result, "kind", None) == "ok" or (
-        getattr(result, "operation_status", None) is OperationStatus.SUCCEEDED
-    ):
-        raise OldRoundObjectAllowed(f"{probe}: D2 was allowed to use D1 bank objects under the test grant")
-    if isinstance(result, QueryFailure):
-        code = result.error.code
-    else:
-        assert result.operation_status is OperationStatus.FAILED
-        code = result.failure.code
-    assert code in {"ACCESS_DENIED", "RECORD_NOT_FOUND", "OPERATION_CONFLICT"}, result
     after = state(bank)
-    for table in TABLES:
-        # A real bank refusal may persist a FAILED operation receipt. Read-only
-        # queries must not write anything; denied writes must not move any funds.
-        if probe in ("get_freeze", "get_order") or table != "bank_operations":
-            assert after[table] == before[table]
+    if probe in ("get_freeze", "get_order"):
+        # Read-only probes must fail as QueryFailure without touching any table.
+        assert isinstance(result, QueryFailure), result
+        assert result.error.code == "ACCESS_DENIED", result
+        assert after == before
+        return
+    # A write must be a failed receipt, not a QueryFailure, and ownership refusal
+    # must never be disguised as an operation-number conflict.
+    assert not isinstance(result, QueryFailure), result
+    assert result.operation_status is OperationStatus.FAILED, result
+    assert result.failure.code == "ACCESS_DENIED", result
+    for table in ("accounts", "freezes", "orders", "order_payments", "ledger_entries"):
+        assert after[table] == before[table]
+    # Only the denied operation's own failed receipt may be added.
+    known = {row["operation_id"] for row in before["bank_operations"]}
+    added = [row for row in after["bank_operations"]
+             if row["operation_id"] not in known]
+    assert [row["operation_id"] for row in added] == [str(result.operation_id)]
+    assert [row["status"] for row in added] == ["failed"]
+
+
+def test_current_round_freeze_cannot_pay_another_round_order(
+    birthday_runtime, user_context, record_property,
+):
+    """The capture probes above deny the old freeze first; this covers the separate
+    order-round check, where the freeze belongs to the current round."""
+    bank, gateway, _, _ = birthday_runtime
+    gate = gateway(bank)
+    old_order = succeeded(gate.create_order(
+        user_context, uuid4(), order_request())).receipt.order
+    current = user_context.model_copy(update={"demo_round_id": "D2"})
+    frozen = succeeded(gate.freeze_funds(current, uuid4(), FreezeFundsInput(
+        account_id="EVAL_A", amount_fen=50000, reason="他轮订单",
+    )))
+    before = state(bank)
+    denied = gate.capture_frozen(current, uuid4(), CaptureFrozenInput(
+        freeze_id=frozen.receipt.freeze_id, amount_fen=old_order.total_fen,
+        merchant_id=old_order.merchant_id, merchant_name=old_order.merchant_name,
+        purpose="生日鲜花", category=Category.SHOPPING, order_id=old_order.order_id,
+    ))
+    assert denied.operation_status is OperationStatus.FAILED, denied
+    assert denied.failure.code == "ACCESS_DENIED", denied
+    after = state(bank)
+    assert after["orders"] == before["orders"]
+    for table in ("accounts", "freezes", "order_payments", "ledger_entries"):
+        assert after[table] == before[table]
+    record_property("mixed_round_probe", json.dumps({
+        "freeze_round": "D2", "order_round": "D1",
+        "result": denied.failure.code,
+        "book_fen": bank.store.get_account("U1", "EVAL_A").book_balance_fen,
+        "frozen_fen": bank.store.get_account("U1", "EVAL_A").frozen_balance_fen,
+    }))
+
+    # Same-round control: a D2 order and the D2 freeze still pay once.
+    new_order = succeeded(gate.create_order(
+        current, uuid4(), order_request())).receipt.order
+    paid = succeeded(gate.capture_frozen(current, uuid4(), CaptureFrozenInput(
+        freeze_id=frozen.receipt.freeze_id, amount_fen=new_order.total_fen,
+        merchant_id=new_order.merchant_id, merchant_name=new_order.merchant_name,
+        purpose="生日鲜花", category=Category.SHOPPING, order_id=new_order.order_id,
+    )))
+    assert paid.receipt.captured_amount_fen == new_order.total_fen
 
 
 @pytest.mark.parametrize("action", ACTIONS, ids=lambda a: "MB-B07-" + a)

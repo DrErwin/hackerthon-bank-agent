@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `evals/mockbank/`
 
-Status: blocked — 评测实现及已通过银行事实可交付；跨轮次旧对象隔离未满足，2026-10-26 已拆出 [v05-bank-round-objects/01（storage）](../../v05-bank-round-objects/issues/01-object-round-storage.md)、[02（services）](../../v05-bank-round-objects/issues/02-object-round-services.md) 与本组 [02 评测收口](02-round-object-regression.md)，待提供方修复后由 02 收口。
+Status: delivered — 2026-10-26 银行事实与跨轮次旧对象证据齐备：提供方 01/02 已合入，四项 strict xfail 由本组 [02](02-round-object-regression.md) 转为正式回归并通过。待包 06 收口、PM/安全接受与真实 E2E 另行进行，不由本票代签。
 
 Accepted by: Erwin（授权执行对话，银行专项）
 
@@ -39,7 +39,7 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 ## Acceptance criteria
 
 - [x] 银行事实证明冻结500、消费467、释放33；消费199后全部已发起付款核实为终态，可释放301。
-- [ ] 各写动作的重复、异参、未知回查、订单防重扣、跨用户/轮次和存储故障均有可重复记录。
+- [x] 各写动作的重复、异参、未知回查、订单防重扣、跨用户/轮次和存储故障均有可重复记录（跨轮次四项已于 2026-10-26 由本组 02 转正）。
 - [x] 固定种子独立建库重置后结论可复现，实际银行结果及账本计数一致；报告标为银行专项，非B26管理重置、非页面 E2E。
 
 ## Verification
@@ -72,4 +72,6 @@ Core scenarios: XL-B01、B03—B07；定义见[共享规格 §5](../../v05-cross
 
 2026-10-24：按 PM 已批准拆分发布，来源为[拆票方案候选 18](../../v05-cross-linkage/ticket-proposal.md)。票面 Owner 为目录归属，不表示其本人已领取。
 
-2026-10-26：跨轮次旧对象边界完成只读核查与责任判断（见[核查报告](../../v05-bank-round-objects/verification.md)），核查时点 main `38b3b81`（01:38 起 origin/main=`5b652e1` 仅前端走查文档，01:50 起含本组提交）；组合基线命令见 [round-boundary-gap.md](../round-boundary-gap.md)，3+41+8+5=57 节点实跑 53 passed / 4 xfailed；`--runxfail` 仍 4 failed。结论分层：释放收尾链路有明文（M14/安全§3.1），B13/B22 读取与 B11 核销补轮次属防御纵深决策（待 Owner 确认）；产品入口上游门已覆盖（旧会话/任务 401/404、真实 claim/释放授权拒绝、PR #296 订单来源门），不能写成页面/HTTP 可越权；但包06验收第4条在银行对象层仍未满足。后续候选依赖 [v05-bank-round-objects/01（storage）](../../v05-bank-round-objects/issues/01-object-round-storage.md) → [02（services）](../../v05-bank-round-objects/issues/02-object-round-services.md) → [v05-cross-bank-eval/02 评测收口](02-round-object-regression.md)；本票保持 blocked，未改评测期望。
+2026-10-26（历史快照，状态已被下一条收口记录取代）：跨轮次旧对象边界完成只读核查与责任判断（见[核查报告](../../v05-bank-round-objects/verification.md)），核查时点 main `38b3b81`（01:38 起 origin/main=`5b652e1` 仅前端走查文档，01:50 起含本组提交）；组合基线命令见 [round-boundary-gap.md](../round-boundary-gap.md)，3+41+8+5=57 节点实跑 53 passed / 4 xfailed；`--runxfail` 仍 4 failed。结论分层：释放收尾链路有明文（M14/安全§3.1），B13/B22 读取与 B11 核销补轮次属防御纵深决策（待 Owner 确认）；产品入口上游门已覆盖（旧会话/任务 401/404、真实 claim/释放授权拒绝、PR #296 订单来源门），不能写成页面/HTTP 可越权；但包06验收第4条在银行对象层仍未满足。后续候选依赖 [v05-bank-round-objects/01（storage）](../../v05-bank-round-objects/issues/01-object-round-storage.md) → [02（services）](../../v05-bank-round-objects/issues/02-object-round-services.md) → [v05-cross-bank-eval/02 评测收口](02-round-object-regression.md)；当时保持 blocked，未改评测期望。
+
+2026-10-26（收口记录）：[v05-bank-round-objects/01（storage）](../../v05-bank-round-objects/issues/01-object-round-storage.md) 已合入 main `819bbfb`、[02（services）](../../v05-bank-round-objects/issues/02-object-round-services.md) 已合入 main `b63ec1b`；四项 strict xfail 由 [v05-cross-bank-eval/02](02-round-object-regression.md) 转为正式回归并通过：单文件 **42 passed**（37 原有 + 4 转正 + 1 混合轮次订单）、归因 **3 passed**、记录合跑 **217 passed / 0 xfailed**（JUnit `evals/mockbank/evidence/2026-10-26/bank-round-objects.xml`）、旧 CI 评测 **14 passed**、平台/安全定向 **46 passed**。本票状态改为 delivered；包 06 收口、PM/安全接受与真实页面/模型/HTTP E2E 仍另记，不由本票代签。
