@@ -4,6 +4,7 @@ import type {
   DetailsResponse,
   CardActionRequest,
   ConfirmationView,
+  DeliveryDetailsFields,
   DemoCodeView,
   DisplayField,
   InteractionRequest,
@@ -38,11 +39,7 @@ export type ShellVerificationResponse = Omit<VerificationResponse, "task"> & { t
 export type DraftChanges = Partial<Pick<TransferTaskView, "amount_fen" | "payer_account_id">> & { payee_hint?: string; payee_id?: string };
 
 /** Raw fields of the F36 delivery form. They live only in the form and its request. */
-export interface DeliveryFields {
-  recipient_name: string;
-  phone: string;
-  address: string;
-}
+export type DeliveryFields = DeliveryDetailsFields;
 
 export type SubmitDetailsBody =
   | { request_id: string; interaction_id: string; kind: "payee"; fields: { account_name: string; account_number: string } }

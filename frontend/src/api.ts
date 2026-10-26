@@ -4,6 +4,7 @@ import type {
   ConfirmationView,
   MessageAccepted,
   MessageView,
+  ModuleError,
   Page,
   PayeeCandidate,
   SessionView,
@@ -23,10 +24,7 @@ const DEMO_STORAGE_KEY = "v03-local-demo-contract-state";
 const USER_ENTERED_KEY = "v03-local-demo-user-entered";
 
 /** The API failure body (§6.7): a code plus the backend's user-facing reason. */
-export interface ApiProblem {
-  code: string;
-  reason?: string | null;
-}
+export type ApiProblem = Pick<ModuleError, "code"> & { reason?: ModuleError["reason"] | null };
 
 export class ApiError extends Error {
   status: number;

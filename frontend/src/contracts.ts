@@ -1,4 +1,8 @@
-import type { CrossStep as ContractCrossStep, PublicContract } from "./api.generated";
+import type {
+  CrossStep as ContractCrossStep,
+  DeliveryDetailsFields as ContractDeliveryDetailsFields,
+  PublicContract,
+} from "./api.generated";
 export type CardActionRequest = PublicContract["CardActionRequest"];
 export type AccountList = PublicContract["AccountList"];
 export type PayeeList = PublicContract["PayeeList"];
@@ -7,6 +11,9 @@ export type CrossTaskView = PublicContract["CrossTaskView"];
 // CrossStep is a nested contract model (reached through CrossTaskView), not a
 // top-level public model, so it is imported from the generated definitions.
 export type CrossStep = ContractCrossStep;
+// DeliveryDetailsFields is likewise nested (reached through SubmitDetailsRequest.fields),
+// so it too comes from the generated definitions rather than PublicContract.
+export type DeliveryDetailsFields = ContractDeliveryDetailsFields;
 
 // Contract types are generated from backend/app/contracts with npm run generate:contracts.
 export type SessionView = PublicContract["SessionView"];
