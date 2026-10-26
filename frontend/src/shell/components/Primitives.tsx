@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
+import { CircleAlert, CircleCheck, CircleMinus, CircleX, Clock3, Info, LoaderCircle } from "lucide-react";
 import { originLabel } from "../format";
 import type { DataOrigin, DisplayField, Tone } from "../types";
 
 export function StatusBadge({ tone, icon, text }: { tone: Tone; icon: string; text: string }) {
+  const Icon = { success: CircleCheck, danger: CircleX, warning: CircleAlert, pending: Clock3, neutral: CircleMinus }[tone];
   return (
     <span className={"sh-badge sh-tone-" + tone}>
-      <span className="sh-badge-icon" aria-hidden="true">{icon}</span>
+      <Icon className="sh-badge-icon" aria-hidden="true" data-status-icon={icon} />
       {text}
     </span>
   );
@@ -32,10 +34,10 @@ export function OriginTag({ origin }: { origin: DataOrigin }) {
 }
 
 export function Notice({ tone, title, children, action }: { tone: "danger" | "warning" | "info"; title: string; children?: ReactNode; action?: ReactNode }) {
-  const icon = tone === "danger" ? "✕" : tone === "warning" ? "!" : "i";
+  const Icon = tone === "danger" ? CircleX : tone === "warning" ? CircleAlert : Info;
   return (
     <div className={"sh-notice sh-notice-" + tone} role={tone === "info" ? "status" : "alert"}>
-      <span className="sh-notice-icon" aria-hidden="true">{icon}</span>
+      <Icon className="sh-notice-icon" aria-hidden="true" />
       <div className="sh-notice-body">
         <strong>{title}</strong>
         {children && <div className="sh-notice-text">{children}</div>}
@@ -72,5 +74,5 @@ export function ReadOnlyStamp({ text }: { text: string }) {
 }
 
 export function Spinner() {
-  return <span className="sh-spinner" aria-hidden="true" />;
+  return <LoaderCircle className="sh-spinner" aria-hidden="true" />;
 }

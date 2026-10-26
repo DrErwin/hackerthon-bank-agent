@@ -11,6 +11,9 @@ import { useConversation } from "./useConversation";
 import { buildTimeline, needsAttentionInTree, taskTitle } from "./presentation";
 import { TaskRecord } from "./components/TaskRecord";
 import { isTerminal } from "./format";
+import { ServiceNav } from "./components/ServiceNav";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 export function cardMessageSummary(message: MessageView, tasks: Map<string, TaskEnvelope>): string | undefined {
   if (message.role !== "assistant" || message.task_ids.length !== 1) return undefined;
@@ -26,6 +29,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const { messages, tasks, session, expired, connected, booting, pageError, awaitingReply, pendingMessage, sending, actions } = conversation;
   const bodyRef = useRef<HTMLDivElement>(null);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
+  const [largeText, setLargeText] = useState(false);
   const pinned = useRef(true);
   // Cross-linkage children belong inside their parent card, so they never get a
   // record, a "continue" entry or a counter of their own.
@@ -71,9 +75,11 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   }
 
   return (
-    <div className="sh-root">
+    <div className="sh-root" data-text-size={largeText ? "large" : "standard"}>
       <a className="sh-skip" href="#sh-main">跳到对话内容</a>
-      <TopBar title="AI 银行助手" connected={connected} expired={expired} origin={source.origin} userDisplay={session?.user_display ?? null} />
+      <TopBar title="AI 银行助手" connected={connected} expired={expired} origin={source.origin} userDisplay={session?.user_display ?? null}
+        largeText={largeText} onTextSizeChange={() => { setLargeText(!largeText); toast(largeText ? "已恢复标准字号" : "文字已放大"); }} />
+      <ServiceNav disabled={expired || booting || sending || awaitingReply || Boolean(pendingMessage)} onChoose={(text) => void send(text)} />
       {expired && <ExpiredBanner onReenter={() => void actions.reenter()} />}
       {!connected && !booting && !expired && <Notice tone="warning" title="实时更新暂时中断"
         action={<button className="sh-link-btn" onClick={() => void actions.refreshConversation()}>重新读取办理记录</button>}>已有资料仍保留。办理结果请以重新读取的状态为准。</Notice>}
@@ -90,14 +96,9 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         <main className="sh-main" id="sh-main" tabIndex={-1}>
           <div className="sh-timeline" >
             <article className="sh-msg sh-msg-assistant">
-              <p className="sh-bubble">您好，我是您的银行小助手。您想办点什么？</p>
-              <div className="sh-quick-actions" aria-label="常用服务">{[
-                ["我要转账", "我要转账"], ["我的账户", "我有哪些账户和余额"], ["我的收款人", "我有哪些收款人"],
-                ["查看账单", "查看本月账单"], ["自动扣费", "查看我的订阅和自动扣费"],
-              ].map(([label, text]) => <button className="sh-btn sh-btn-secondary" type="button" key={label}
-                disabled={expired || booting || sending || awaitingReply || Boolean(pendingMessage)} onClick={() => void send(text)}>{label}</button>)}</div>
+              <p className="sh-bubble">您好，今天想办什么？</p>
               {exampleHints.length > 0 && (
-                <p className="sh-examples">可以这样说：{exampleHints.map((hint) => "「" + hint + "」").join("、")}</p>
+                <details className="sh-examples"><summary>试试这些说法</summary><ul>{exampleHints.map((hint) => <li key={hint}>{hint}</li>)}</ul></details>
               )}
             </article>
             {booting && <p className="sh-hint" role="status">正在读取对话记录…</p>}
@@ -138,6 +139,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         pendingText={pendingMessage?.text ?? null}
         onSend={send}
       />
+      <Toaster />
     </div>
   );
 }

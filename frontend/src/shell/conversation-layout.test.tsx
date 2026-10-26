@@ -74,9 +74,7 @@ it("opens a restored subscription confirmation in the selected row without a new
   expect(onAction).not.toHaveBeenCalled();
 });
 
-it("opens long details in a dialog and returns focus to the same trigger after closing", () => {
-  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
-  HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new Event("close")); };
+it("opens long details in a dialog and returns focus to the same trigger after closing", async () => {
   render(<DetailsDrawer title="查看全部明细"><p>第十笔账单</p></DetailsDrawer>);
   expect(screen.queryByText("第十笔账单")).toBeNull();
   const trigger = screen.getByRole("button", { name: "查看全部明细" });
@@ -84,7 +82,7 @@ it("opens long details in a dialog and returns focus to the same trigger after c
   expect(screen.getByRole("dialog", { name: "查看全部明细" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "关闭详情" }));
   expect(screen.queryByRole("dialog")).toBeNull();
-  expect(document.activeElement).toBe(trigger);
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
 });
 
 it("keeps category, direction and bank amount available in an unfiltered transaction list", () => {

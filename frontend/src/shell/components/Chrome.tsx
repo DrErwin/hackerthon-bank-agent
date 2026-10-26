@@ -3,13 +3,17 @@ import type { FormEvent, KeyboardEvent } from "react";
 import type { MessageView } from "../../contracts";
 import type { DataOrigin } from "../types";
 import { clockTime, originLabel } from "../format";
+import { Type } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export function TopBar({ title, connected, expired, origin, userDisplay }: {
+export function TopBar({ title, connected, expired, origin, userDisplay, largeText, onTextSizeChange }: {
   title: string;
   connected: boolean;
   expired: boolean;
   origin: DataOrigin;
   userDisplay: string | null;
+  largeText?: boolean;
+  onTextSizeChange?: () => void;
 }) {
   const state = expired ? { cls: "sh-conn-off", text: "登录已过期" } : connected ? { cls: "sh-conn-on", text: "已连接" } : { cls: "sh-conn-wait", text: "正在连接" };
   const demo = originLabel(origin);
@@ -23,15 +27,18 @@ export function TopBar({ title, connected, expired, origin, userDisplay }: {
             {userDisplay && <p>{userDisplay}</p>}
           </div>
         </div>
+        <div className="sh-topbar-tools">
+        {onTextSizeChange && <Button type="button" variant="ghost" size="sm" aria-pressed={largeText} onClick={onTextSizeChange}><Type aria-hidden="true" />{largeText ? "标准字" : "大字"}</Button>}
         <span className={"sh-conn " + state.cls} role="status">
           <span className="sh-conn-dot" aria-hidden="true" />
           {state.text}
         </span>
+        </div>
       </header>
       {demo && (
         <div className="sh-ribbon" role="note">
           <strong>{demo}</strong>
-          <span>页面里的回复、验证和结果都是演示数据，不会调用真实银行。</span>
+          <span>示例体验，资料和办理结果使用模拟数据。</span>
         </div>
       )}
     </>
@@ -161,7 +168,7 @@ export function ExpiredBanner({ onReenter }: { onReenter: () => void }) {
     <div className="sh-expired" role="alert">
       <div>
         <strong>演示登录已过期</strong>
-        <p>旧的按钮已经不能再点。重新进入后会先查看原任务，不会重复提交。</p>
+        <p>重新进入后，可以继续查看上次的办理记录。</p>
       </div>
       <button type="button" className="sh-btn sh-btn-primary" onClick={onReenter}>点这里重新进入</button>
     </div>

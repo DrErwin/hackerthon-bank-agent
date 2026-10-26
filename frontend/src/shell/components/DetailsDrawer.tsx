@@ -1,22 +1,35 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 
 export function DetailsDrawer({ title, children, onOpenChange }: { title: string; children: ReactNode; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const [desktop, setDesktop] = useState(window.innerWidth >= 960);
   useEffect(() => {
-    if (open) dialog.current?.showModal();
-  }, [open]);
-  return <>
-    <button type="button" className="sh-link-btn" ref={trigger} onClick={() => { setOpen(true); onOpenChange?.(true); }}>{title}</button>
-    {open && createPortal(<dialog ref={dialog} className="sh-root sh-detail-drawer" aria-label={title}
-      onClose={() => { setOpen(false); onOpenChange?.(false); trigger.current?.focus(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close(); }}>
-      <div className="sh-drawer-panel">
-        <header><h2>{title}</h2><button type="button" className="sh-btn sh-btn-secondary" autoFocus onClick={() => dialog.current?.close()}>关闭详情</button></header>
+    const resize = () => setDesktop(window.innerWidth >= 960);
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  function change(next: boolean) { setOpen(next); onOpenChange?.(next); }
+  const trigger = <Button type="button" variant="link" className="sh-detail-trigger">{title}</Button>;
+  const close = <Button type="button" variant="outline" size="sm"><X aria-hidden="true" />关闭详情</Button>;
+  return desktop ? (
+    <Sheet open={open} onOpenChange={change}>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent className="sh-detail-surface" showCloseButton={false} aria-describedby={undefined}>
+        <header className="sh-detail-head"><SheetTitle>{title}</SheetTitle><SheetClose asChild>{close}</SheetClose></header>
         <div className="sh-drawer-body">{children}</div>
-      </div>
-    </dialog>, document.body)}
-  </>;
+      </SheetContent>
+    </Sheet>
+  ) : (
+    <Drawer open={open} onOpenChange={change} autoFocus repositionInputs={false}>
+      <DrawerTrigger asChild>{trigger}</DrawerTrigger>
+      <DrawerContent className="sh-detail-surface" aria-describedby={undefined}>
+        <header className="sh-detail-head"><DrawerTitle>{title}</DrawerTitle><DrawerClose asChild>{close}</DrawerClose></header>
+        <div className="sh-drawer-body">{children}</div>
+      </DrawerContent>
+    </Drawer>
+  );
 }
