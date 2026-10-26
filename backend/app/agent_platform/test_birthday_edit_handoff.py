@@ -516,6 +516,21 @@ def test_the_handoff_is_not_a_registered_model_tool(build):
     # (now outdated) "production keeps the cross side absent" seam.
 
 
+def test_an_unmounted_cross_handoff_refuses_instead_of_improvising(build):
+    """The documented fallback: without a Cross implementation, no new input."""
+    env = build()
+    card = advance_to(env, "freeze_confirmation")
+    env.handoff.cross = None
+    with pytest.raises(BirthdayEditError) as unavailable:
+        begin_edit(env, card)
+    assert unavailable.value.code == "CROSS_HANDOFF_UNAVAILABLE"
+    # Nothing is fabricated: the accepted edit stays unpublished, the G3 source
+    # is unchanged and the sealed retirement still blocks the old operation.
+    assert env.snapshot()["birthday_edit"]["published"] is None
+    assert env.snapshot()["birthday_g3"]["published_ref"]["kind"] == "root"
+    assert claim_code(env, env.option_record()) == "ACTION_RETIRED"
+
+
 def _confirmation_card(record_ref: str | None = None) -> InteractionRequest:
     return InteractionRequest(
         interaction_id=str(uuid4()), kind="confirmation",

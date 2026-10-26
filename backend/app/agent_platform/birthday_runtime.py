@@ -32,7 +32,7 @@ _TERMINAL = {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED,
 from app.contracts.platform import TrustedContext
 from app.contracts.audit import AuthorizationSnapshot
 from app.contracts.security import (
-    ActionDescriptor, ExecutionSecurityContext, SecurityDecision, VerificationSummary,
+    ActionDescriptor, SecurityDecision, VerificationSummary,
 )
 from app.modules.cross.birthday_ports import (
     GateAnswer, ReleaseOutcome as PortsRelease, WriteOutcome as PortsWrite,
@@ -218,20 +218,19 @@ class BirthdayTaskPorts:
         flag, so the attempt stops being reusable the moment the seal succeeds —
         including the window before the edit's new input is published.
         """
-        operation_id = UUID(str(action["operation_id"]))
+        operation_id = str(action["operation_id"])
         revision = int(action["action_revision"])
-        context = ExecutionSecurityContext(
-            user_id=trusted.user_id, session_id=trusted.session_id,
-            demo_round_id=trusted.demo_round_id, task_id=trusted.task_id,
-            run_id=trusted.run_id, source_task_id=trusted.parent_task_id,
-            operation_id=operation_id, action_revision=revision,
-            confirmation_id=None, confirmation_version=None,
-            verification_ids=[], release_authorization_id=None,
-        )
+        context = self._security_context(trusted, operation_id)
         try:
             record = self.wiring.state.get_retirement(
-                context, trusted.task_id, operation_id, revision)
-        except SecurityStateError:
+                context, trusted.task_id, UUID(operation_id), revision)
+        except SecurityStateError as exc:
+            if exc.code != "ACCESS_DENIED":
+                # Only "the record belongs to someone else" is expected here (it
+                # is no proof about this attempt). Any other security-state error
+                # means the retirement could not be checked; surface it instead
+                # of silently degrading to "this attempt is reusable".
+                raise
             return False
         return record is not None and record.state == "sealed"
 
