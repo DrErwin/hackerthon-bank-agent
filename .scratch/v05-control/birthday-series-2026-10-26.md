@@ -25,7 +25,7 @@ Execution: Erwin 授权的执行对话（本对话，AI 代理），2026-10-26�
 | [v05-birthday-platform-dependencies/02 安全原子撤离](../../v05-birthday-platform-dependencies/issues/02-security-retire-unsubmitted.md) | `backend/app/security/` | 2026-10-26 | **done — PR #309 合入 `78163a1`** | 两轴复验闭合；M1 改代码对齐权威 §2 |
 | [v05-birthday-platform-dependencies/06 银行验证侧挑战退役](../../v05-birthday-platform-dependencies/issues/06-verification-retirement-authority.md) | `backend/app/services/` | 2026-10-26 | **done — PR #308 合入 `d62d01d`** | 两轴独立审查闭合（均经一轮回修） |
 | [v05-birthday-platform-dependencies/03 平台编辑交接](../../v05-birthday-platform-dependencies/issues/03-platform-edit-handoff.md) | `backend/app/agent_platform/` | 2026-10-26 | **done — PR #310 合入 `d5c069c`** | 三轮两轴复验闭合（M1—M5+规范 N1/N2+规格 R1）；含初始/普通状态不可变发布与 Harness 修订号修复 |
-| [v05-birthday-platform-dependencies/04 F10 受控入口](../../v05-birthday-platform-dependencies/issues/04-api-edit-entry.md) | `backend/app/api/` | 2026-10-26 | **implemented — 两轴审查中** | 提交 `d2d098f`（rebase 到 main）；G1 已裁定并随本票补契约修订记录 |
+| [v05-birthday-platform-dependencies/04 F10 受控入口](../../v05-birthday-platform-dependencies/issues/04-api-edit-entry.md) | `backend/app/api/` | 2026-10-26 | **done — PR #311 合入 `d0e3b1e`** | 两轴复验闭合；含契约 §6.5 适用范围与 §8 协同修改记录 |
 | [v05-cross-business/08 数量与未执行调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md) | `backend/app/modules/cross/` | 2026-10-26 | claimed / blocked | 依赖 01 接口 + 02/03；个人预算路径另循 06 |
 | [v05-cross-frontend/02 生日页面](../../v05-cross-frontend/issues/02-birthday-ui.md) | `frontend/` | 2026-10-26 | claimed / blocked | 页面走查材料更新中；**本人批准页面前不编码** |
 

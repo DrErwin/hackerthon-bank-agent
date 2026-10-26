@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/api/`
-Status: implemented — 2026-10-26 实施完成、提交 `4d71f00`（基于 03 分支），等 03 定稿后 rebase 并两轴审查；未合入、未跑真实 E2E。
+Status: done — 2026-10-26 实施与两轴复验闭合（规范轴回修后 PASS / 规格轴 PASS），PR #311 squash 合入 `d0e3b1e`；真实 Cross 消费（08）、真实 E2E 与页面验收未由本票完成。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: [本组03：原任务编辑交接](03-platform-edit-handoff.md)。G1 已由本人授权的执行对话按契约 §8 代行确认并记录（[G1 裁定](../g1-decision.md)：复用 F10 请求体 + 后端发布受控编辑选项，不新增端点；契约正文修订在本科 PR 一并补登）。与[v05-budget-adoption-origin/02：原F10输入身份接入平台来源](../../v05-budget-adoption-origin/issues/02-api-f10-origin.md)的同文件修改交中控顺序安排，不代做其能力，亦不冒称它是商品编辑的业务前置。
@@ -55,4 +55,8 @@ Core scenarios: P03/P04/P05/P06/P08/P09/P10/P11；[P01—P11验证框架](../spe
 - 如实边界（作者列出）：未补新 waiting_input 卡的 SSE 事件（以返回体冻结 TaskView 为准，避免回执恢复路径重复写事件）；
   恢复判定读取同一应用库任务快照中的平台受理事实（03 未提供按 request 的只读入口，若改由平台提供需另开平台票）；
   Cross 08 未接线期间点该选项按 03 既定语义返回 503；测试用明示 stand-in 补位根状态与候选准备（08 接线前）。
-- 两轴独立审查：**待 03 定稿 rebase 后进行**。
+- 两轴独立审查（AI，非本人/Ringo 签核）：规范轴首轮 FAIL（编辑成功未走 `publish_task` 致历史/SSE 缺失、契约 §6.5 未同步）→ 回修后 PASS；规格轴首轮 PASS + 3 条处理项（偶发 503、恢复窗口、编辑分支 run_id）→ 复验 PASS。
+- 回修要点：编辑成功与普通 F10 同样发布历史/SSE（事件 id 由 `edit_ref` 稳定派生、重放零重复）；恢复改以「已受理记录 + 原 request 绑定」为准；编辑分支 `new_run=True`；空串按未提供；依赖故障原样 503 不误报失效；§6.5 F10 行补受控编辑范围、§8.1 记协同修改。
+- 复验：`app/api` **225 passed 连续 3 次**、定向断点恢复用例连跑 **50 次 0 失败**、平台 03 两文件 **63 passed**；审查复跑 225 passed。
+- 交付：[PR #311](https://github.com/DrErwin/hackerthon-bank-agent/pull/311) squash 合入 `d0e3b1e`。
+- 未做：Cross 08 真实候选准备（测试用明示 stand-in，真实组合返回 503）、G3 跨会话恢复接线、普通输入发布断点的 API 自动恢复、旧任务/legacy 编辑（`SOURCE_UNAVAILABLE`）、真实 E2E/页面/本人接受。
