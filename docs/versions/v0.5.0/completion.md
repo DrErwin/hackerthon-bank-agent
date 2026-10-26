@@ -98,6 +98,6 @@
 ## 六、生日功能（v0.5）后端交付（2026-10-26）
 
 - 八票全部合入：01 [#306](https://github.com/DrErwin/hackerthon-bank-agent/pull/306) `e14f30d`、05 [#307](https://github.com/DrErwin/hackerthon-bank-agent/pull/307) `5863340`、06 [#308](https://github.com/DrErwin/hackerthon-bank-agent/pull/308) `d62d01d`、02 [#309](https://github.com/DrErwin/hackerthon-bank-agent/pull/309) `78163a1`、03 [#310](https://github.com/DrErwin/hackerthon-bank-agent/pull/310) `d5c069c`、04 [#311](https://github.com/DrErwin/hackerthon-bank-agent/pull/311) `d0e3b1e`、08 [#312](https://github.com/DrErwin/hackerthon-bank-agent/pull/312) `2d9cfe2`、09 [#313](https://github.com/DrErwin/hackerthon-bank-agent/pull/313) `6a6526e`。每票单目录、单 PR，两位独立子代理规范轴+规格轴审查、必须项闭合；AI 审查不等于本人或 Ringo 签核。
-- 合入后本地实测（main `6a6526e`）：`agent_platform` **376 passed / 13 skipped**、`modules/cross` **120 passed**、`api/test_app.py` **85 passed**。CI 因账户计费未启动，**不记 CI 绿**。
+- 合入后本地实测（main `6a6526e`）：`agent_platform` **376 passed / 13 skipped**、`modules/cross` **120 passed**、`api/test_app.py` **85 passed**。2026-10-26 在 main `dedaf9b` 上做合并态复跑：`app/agent_platform` + `app/modules/cross` + `app/api` **721 passed / 13 skipped / 0 failed**（13:56）。CI 因账户计费未启动，**不记 CI 绿**；这不是全后端、不是页面/模型/银行 E2E。
 - 能力与缺口见 [生日可交付事实与交接缺口](../.scratch/v05-birthday-platform-dependencies/delivery-handoff.md)。
 - **仍未完成**：生日页面走查（D01—D11）与前端 02 实现、真实 E2E、200%/读屏/真机、最终安全与体验接受。已知缺口：G3 跨会话恢复接线、普通输入发布断点的 API 自动恢复、旧任务/legacy 编辑 `SOURCE_UNAVAILABLE`、安全语义扩展（`get_retirement` 复用闸门）待本人确认。
