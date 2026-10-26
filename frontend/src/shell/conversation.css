@@ -34,10 +34,11 @@
 .sh-conversation .sh-draft-summary:empty { display: none; }
 .sh-conversation .sh-draft-summary > div { display: grid; grid-template-columns: 4.5rem 1fr auto; gap: 8px; padding: 6px 0; border: 0; align-items: center; }
 .sh-conversation .sh-draft-summary dt { color: var(--ink2); font-size: 1rem; }
-.sh-conversation .sh-draft-summary dd { margin: 0; font-size: 1rem; font-weight: 600; }
+.sh-conversation .sh-draft-summary dd { margin: 0; font-size: 1.125rem; font-weight: 600; }
 .sh-conversation .sh-draft-summary .sh-link-btn { font-size: 1rem; padding: 8px 0 8px 8px; min-height: 48px; }
 .sh-person-choice { display: flex; align-items: center; gap: 12px; min-height: 84px; text-align: left; }
 .sh-person-choice > span:nth-child(2) { flex: 1; min-width: 0; }
+.sh-person-choice strong { font-size: 1.125rem; }
 .sh-person-choice > span:nth-child(2) > span { display: block; font-size: 1rem; color: var(--ink2); }
 .sh-person-choice > svg { width: 20px; flex-shrink: 0; }
 .sh-person-initial { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; color: #405137; background: #edf0e6; font-size: 1.25rem; }

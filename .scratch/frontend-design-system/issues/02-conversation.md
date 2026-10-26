@@ -6,7 +6,7 @@ Spec: [设计系统规格](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `frontend/`
-Status: in_progress
+Status: ready_for_review — 实现、局部测试、浏览器走查与 AI 审查已完成，等待体验接受与合入。
 Accepted by: 本对话 AI，依据用户“同意，改造吧”
 Accepted at: 2026-10-26
 Blocked by: [frontend-design-system/01：统一设计系统并接入常用组件](01-foundation.md)（实现已可复用，合入依赖 PR #318）
@@ -26,9 +26,11 @@ Blocked by: [frontend-design-system/01：统一设计系统并接入常用组件
 
 ## 验收与证据
 
-- [ ] 以上场景的前端测试、构建通过。
-- [ ] 浏览器走查手机/电脑的转账选择、修改、查询穿插、确认及回执。
-- [ ] 新原型直接复用本次实现，原 5187 手机入口指向新对话体验，保留旧方案作为参考。
-- [ ] 记录 AI 审查、CI、真实 API/模型验证分别达到的范围。
+- [x] 前端测试 113 项及构建通过，包含按服务端要求填写、同名歧义、旧确认只读、刷新后历史子记录缓存复用。
+- [x] 手机/电脑走查转账选择、修改、查询穿插、确认及回执；实际范围见验证记录。
+- [x] 新原型复用当前前台，原 5187 手机入口指向 5189 的稳定预览；旧方案保存为 phone-v1.html。
+- [x] AI 审查、CI、真实 API/模型验证分别记录。
+
+验证：[02 对话改造证据](../verification-02.md)。确认与结果使用既有安全边界；真实自由语言/真人适老化验收仍需后续联调。
 
 基线：`a69ebc9`。分支：`codex/frontend-agent-conversation-02`。后继 Draft PR 以前序设计系统分支为目标，保持单票可审查。

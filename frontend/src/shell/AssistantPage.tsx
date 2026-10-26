@@ -41,6 +41,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const childIds = conversation.serverChildIds;
   const topTasks = [...tasks.values()].filter(({ task }) => !childIds.has(task.task_id));
   const timeline = useMemo(() => buildTimeline(messages, tasks, conversation.cardLinks, childIds), [messages, tasks, conversation.cardLinks, childIds]);
+  const records = timeline.flatMap((item) => item.type === "task" ? [item.envelope] : []);
   const latestTaskId = timeline.filter((item) => item.type === "task").at(-1)?.envelope.task.task_id;
   const currentTask = topTasks.filter(({ task }) => !isTerminal(task)).at(-1)?.task;
   const canStart = !(expired || booting || sending || awaitingReply || pendingMessage);
@@ -111,8 +112,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
           onCloseAutoFocus={(event) => {
             if (historyTarget.current) { event.preventDefault(); continueTask(historyTarget.current); historyTarget.current = null; }
           }}>
-          {topTasks.length === 0 ? <p>办过的事情会留在这里，方便您回看。</p> : <ol className="sh-history-list">
-            {[...topTasks].reverse().map(({ task, module }) => <li key={task.task_id}>
+          {records.length === 0 ? <p>办过的事情会留在这里，方便您回看。</p> : <ol className="sh-history-list">
+            {[...records].reverse().map(({ task, module }) => <li key={task.task_id}>
               <h3>{taskTitle(task)}</h3><p>{taskStatusLabel(task).text}</p>
               <dl>{(slots.resolve(module).summarize?.(task) ?? []).map((field, i) => <div key={i}><dt>{field.label}</dt><dd>{field.value_text}</dd></div>)}</dl>
               <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : "继续这项办理"}</button>

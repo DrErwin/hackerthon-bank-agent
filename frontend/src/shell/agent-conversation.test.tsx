@@ -78,7 +78,7 @@ it("opens folded groups when continuing a nested task, and opens finished record
     listTaskRecords: vi.fn().mockImplementation(async (task_id: string) => ({ task_id, confirmations: [], verifications: [] })),
     cardAction: vi.fn() };
   localStorage.setItem("fe-card-links:" + thread.thread_id, JSON.stringify([{ parentId: "list", childId: "stop", revision: 1, selection: { action: "subscription_cancel", subscription_id: "music" } }]));
-  render(<AssistantPage source={source} slots={createSlotRegistry([transferSlot])} />);
+  const page = render(<AssistantPage source={source} slots={createSlotRegistry([transferSlot])} />);
   const group = (await screen.findByText("正在扣费（1）")).closest("details")!;
   fireEvent.click(group.querySelector("summary")!);
   expect(group.open).toBe(false);
@@ -94,4 +94,19 @@ it("opens folded groups when continuing a nested task, and opens finished record
   await waitFor(() => expect(document.getElementById("record-old")?.hidden).toBe(false));
   await waitFor(() => expect(document.activeElement?.id).toBe("task-old"));
   expect(screen.getByText("¥800.00")).toBeTruthy();
+  page.unmount();
+  // A reload after the nested action finishes keeps one root history entry.
+  // Opening the cached child from that entry must not make a new business call.
+  source.listTasks.mockResolvedValue([finished, parent, { ...child, status: "cancelled", interaction: null, allowed_actions: [] }].map((task) => ({ task, module: task.module })));
+  render(<AssistantPage source={source} slots={createSlotRegistry([transferSlot])} />);
+  await screen.findByText("正在扣费（1）");
+  fireEvent.click(screen.getByRole("button", { name: "记录" }));
+  const refreshedHistory = await screen.findByRole("dialog", { name: "办理记录" });
+  expect(within(refreshedHistory).queryByRole("heading", { name: "退订办理" })).toBeNull();
+  const parentItem = within(refreshedHistory).getByRole("heading", { name: "订阅和自动扣费" }).closest("li")!;
+  fireEvent.click(within(parentItem).getByRole("button", { name: "查看这项记录" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "取消「音乐会员」" }));
+  await waitFor(() => expect(document.getElementById("task-stop")).toBeTruthy());
+  expect(source.cardAction).not.toHaveBeenCalled();
 });

@@ -156,7 +156,7 @@ export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText
       labelledBy={id}
       readOnly={resolved}
       highlight={!resolved}
-      badge={resolved ? <ReadOnlyStamp text="已处理" /> : <StatusBadge tone="warning" icon="↺" text="待您查看" />}
+      badge={resolved ? undefined : <StatusBadge tone="warning" icon="↺" text="待您查看" />}
     >
       {resolved ? (
         <p className="sh-readonly-line">{resolvedText ?? "已找回上次的内容，可以接着办。"}</p>
