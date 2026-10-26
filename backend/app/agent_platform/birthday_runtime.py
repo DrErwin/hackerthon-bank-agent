@@ -6,6 +6,12 @@ clause-bearing freeze confirmation, then the MEDIUM step-up verification the
 platform resumes after), the deterministic executor claims it once, and the
 gateway submits only under the #272 live-claim authorizer. The limited ending
 releases the bank-verified remainder through the original freeze operation.
+
+v05-birthday-platform-dependencies/09 adds the continuation seam: once security
+seals an attempt's retirement (ticket 02), the same item/parameters never reuse
+that operation; ``_action`` builds a new attempt/operation instead so the gate
+asks for a fresh confirmation/verification rather than blocking the whole
+continuation as ACTION_RETIRED.
 """
 
 from __future__ import annotations
@@ -204,6 +210,30 @@ class BirthdayTaskPorts:
         )
         return list((task.snapshot or {}).get("birthday_attempts") or [])
 
+    def _sealed_retirement(self, trusted, action: dict) -> bool:
+        """True once security sealed this exact attempt's retirement (ticket 09).
+
+        Ticket 02's sealed record is the durable proof that the attempt was never
+        submitted; the ports read it instead of keeping a second platform-side
+        flag, so the attempt stops being reusable the moment the seal succeeds —
+        including the window before the edit's new input is published.
+        """
+        operation_id = str(action["operation_id"])
+        revision = int(action["action_revision"])
+        context = self._security_context(trusted, operation_id)
+        try:
+            record = self.wiring.state.get_retirement(
+                context, trusted.task_id, UUID(operation_id), revision)
+        except SecurityStateError as exc:
+            if exc.code != "ACCESS_DENIED":
+                # Only "the record belongs to someone else" is expected here (it
+                # is no proof about this attempt). Any other security-state error
+                # means the retirement could not be checked; surface it instead
+                # of silently degrading to "this attempt is reusable".
+                raise
+            return False
+        return record is not None and record.state == "sealed"
+
     def _remember(self, trusted, key: str, action: dict,
                   replaced: dict | None = None) -> None:
         task = self.runtime.application.get_task(
@@ -225,8 +255,18 @@ class BirthdayTaskPorts:
 
     def _action(self, trusted, key: str, parameters: dict,
                 facts: dict | None = None) -> dict:
+        """The live attempt for one execution binding.
+
+        Ticket 09: an attempt whose retirement security sealed is never reused.
+        Identical parameters (the same freeze account/cap, an unchanged
+        order/capture item) build a new attempt with a strictly rising revision,
+        so the gate evaluates a fresh operation (its own confirmation and
+        verification) instead of returning the sealed retirement as
+        ACTION_RETIRED and closing the running task.
+        """
         action = self._actions(trusted).get(key)
-        if action is not None and action["parameters"] == parameters:
+        if (action is not None and action["parameters"] == parameters
+                and not self._sealed_retirement(trusted, action)):
             return action
         replaced = action
         # Sequential writes of one action need a strictly rising revision
