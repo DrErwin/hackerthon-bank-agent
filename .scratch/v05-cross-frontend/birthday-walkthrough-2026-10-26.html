@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生日页面走查：从开始到结束的每条分叉</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fffdf9;--ink:#2b2b2b;--muted:#6b6459;--line:#e2dccf;--a:#4a7c59;--b:#2f6f8f;--c:#8a6a2f;--d:#7a3f8a;--e:#a3492f;--f:#3b6b3b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:9;background:#fffdf9;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+header h1{font-size:17px;margin:0}
+header a{color:var(--b);text-decoration:none;font-size:13.5px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:#fff}
+header a:hover{background:#eef4f8}
+.btnbox{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btnbox button{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+.notice{border:1px solid #e6c86b;background:#fff7df;border-radius:12px;padding:12px 16px;margin:0 0 18px}
+.notice b{color:#8a6a12}
+.tree{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow:auto;font:13.5px/1.8 Consolas,"Microsoft YaHei",monospace;white-space:pre}
+h2.sec,h2{font-size:20px;margin:30px 0 6px;padding-left:10px;border-left:6px solid var(--a)}
+.sa h2{border-left-color:var(--a)} .sb h2{border-left-color:var(--b)} .sc h2{border-left-color:var(--c)}
+.sd h2{border-left-color:var(--d)} .se h2{border-left-color:var(--e)} .sf h2{border-left-color:var(--f)}
+.intro{margin:0 0 6px;color:var(--muted)}
+.checks{margin:0 0 14px;padding-left:22px;color:#5b5348;font-size:14.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-items:start}
+.card{margin:0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.shot{width:100%;height:auto;display:block;border-radius:10px;border:1px solid var(--line);background:#fff}
+figcaption{padding-top:8px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+figcaption b{font-size:15px}
+.hint{color:var(--muted);font-size:13px}
+.desk summary{cursor:pointer;color:var(--b);font-size:13px}
+.desk img{width:100%;margin-top:6px;border:1px solid var(--line);border-radius:8px}
+ol.dec{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+ol.dec li{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+ol.dec li span{display:block;color:var(--muted);font-size:14px}
+footer{margin-top:34px;color:var(--muted);font-size:13.5px;border-top:1px dashed var(--line);padding-top:14px}
+.big{zoom:1.35}
+@media print{header{position:static}.grid{grid-template-columns:repeat(2,1fr)}.card{break-inside:avoid}}
+</style></head>
+<body>
+<header>
+  <h1>生日页面走查 · 从开始到结束</h1>
+  <a href="#tree">分叉总图</a><a href="#a">起点</a><a href="#b">动钱三步</a><a href="#c">价格/数量</a>
+  <a href="#d">等待态修改</a><a href="#e">停止/未知</a><a href="#f">结果页</a><a href="#dec">待您决定</a>
+  <div class="btnbox"><button onclick="document.body.classList.toggle('big')">放大图文</button><button onclick="window.print()">打印/存 PDF</button></div>
+</header>
+<div class="wrap">
+  <div class="notice"><b>先说明：</b>下面全部是<b>静态示意画面</b>（同一份原型的逐屏截图），数据是虚构的，按钮只在原型里演示；
+  视觉、键盘、200% 缩放、读屏和真实 E2E 都<b>没有验收</b>。这一页只帮您看清“每一屏长什么样、每条分叉什么时候出现”，
+  不构成页面批准。您看完最后一节的 11 条决定再回我即可。</div>
+  <section id="tree"><h2>分叉总图（先看这个）</h2>
+  <p class="intro">颜色对应下面各节：绿=正常流程，蓝=动钱三步，黄=价格/数量变化，紫=等确认/验证码时修改，红=停止/未知/断线，深绿=结果页。</p>
+  <pre class="tree">说一句话开始（例：给妈妈过生日，预算 500 元，10 月 30 日前送到）
+ └─ 补资料：预算金额 → 日期 → 配送资料（受控表单，不往聊天里贴原文）
+     └─ 选商品（可多件，每件数量）
+         └─ 采用方案（只是定计划，不动钱）
+             ├─ 冻结 500 →【确认 + 验证码】→ 资金被冻结（花一笔前先锁住总额）
+             │    ├─ 花 199 下单 →【确认 + 验证码】→ 从冻结里付款
+             │    ├─ 蛋糕 268 下单 →【确认 + 验证码】→ 从冻结里付款
+             │    └─ 全部办完 → 结果页：合计 467，未花掉的 33 释放回账户
+             ├─ 分叉 A｜价格变了 → 说明“新价会变”，重新采用 + 重新确认（旧确认作废）
+             ├─ 分叉 B｜数量/商品想改（等确认或等验证码时）
+             │    ├─ 系统先证明旧动作没被后台领走、并安全封住旧尝试
+             │    ├─ 然后回同一任务给新方案 → 重新核算 → 重新确认（必要再验证）
+             │    ├─ 旧动作已被后台领走 → 不能改，只能按原单号核实
+             │    ├─ 已建未付订单 → 订单不能改，可继续付款或停止
+             │    └─ 明确失败且证实无订单 → 可“换一件 / 跳过 / 停止”
+             └─ 停止（不再新办）
+                 ├─ 只释放没花掉的部分（不退款、不撤单、不追加冻结）
+                 ├─ 结果未知 → “待核实 + 原单号查询”，不显示完成/失败
+                 ├─ 断线/刷新 → 恢复任务与已发生事实，不重复提交
+                 └─ 系统失败 → 待核实，不伪造结果</pre></section>
+  <section id="sa" class="sec sa">
+  <h2>① 起点与资料</h2>
+  <p class="intro">一句自然语言开始：目标、预算、日期、配送。缺什么就补什么，配送原文只进受控表单。</p>
+  <ul class="checks"><li>D01：版式与字号是否认可</li><li>D04：个人预算是否只在服务端说“已采用”时显示</li><li>D05：配送是否只让填表单、之后只显示掩码</li></ul>
+  <div class="grid"><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/budget-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/budget-mobile.png" alt="预算与日期">
+  </a>
+  <figcaption><b>预算与日期</b><span class="hint">只收集本次上限和日期；个人预算是否已采用只看服务端结果，候选不冒充已采用。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/delivery-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/delivery-mobile.png" alt="配送专用表单">
+  </a>
+  <figcaption><b>配送专用表单</b><span class="hint">配送原文仅在此表单内；模拟 F36 后自动衔接 F10。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/delivery-link-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/delivery-link-mobile.png" alt="资料已保存，衔接中断">
+  </a>
+  <figcaption><b>资料已保存，衔接中断</b><span class="hint">F36 成功、F10 尚未成功；只续传内存中的引用。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/products-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/products-mobile.png" alt="选择商品">
+  </a>
+  <figcaption><b>选择商品</b><span class="hint">候选以服务端 options 为准；每件目前固定 1 件。</span><details class="desk"><summary>看桌面版式</summary><img loading="lazy" src="./walkthrough-shots-2026-10-26/products-desktop.png" alt="选择商品 桌面版"></details></figcaption>
+</figure></div>
+</section><section id="sb" class="sec sb">
+  <h2>② 采用方案 → 动钱三步</h2>
+  <p class="intro">“采用”只是定计划；冻结、下单、付款各问一次、各显示各自结果，没有一键全部确认。</p>
+  <ul class="checks"><li>D02：是否认可“采用只是定计划、三步各确认一次”</li><li>D06：最晚送达时刻本轮只收日期、页面相关处禁用</li></ul>
+  <div class="grid"><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/adopt-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/adopt-mobile.png" alt="采用整体安排">
+  </a>
+  <figcaption><b>采用整体安排</b><span class="hint">这里没有资金确认；个人预算仅在服务端 adopted=true 时显示为已采用。</span><details class="desk"><summary>看桌面版式</summary><img loading="lazy" src="./walkthrough-shots-2026-10-26/adopt-desktop.png" alt="采用整体安排 桌面版"></details></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/freeze-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/freeze-mobile.png" alt="确认冻结">
+  </a>
+  <figcaption><b>确认冻结</b><span class="hint">冻结确认必须包含限定收尾条款；显示当前服务端确认内容。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/order-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/order-mobile.png" alt="确认创建订单">
+  </a>
+  <figcaption><b>确认创建订单</b><span class="hint">冻结与下单分开；尚未付款。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/payment-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/payment-mobile.png" alt="确认支付订单">
+  </a>
+  <figcaption><b>确认支付订单</b><span class="hint">订单已创建，付款另行确认。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/verify-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/verify-mobile.png" alt="验证码与人脸验证">
+  </a>
+  <figcaption><b>验证码与人脸验证</b><span class="hint">沿用既有双因子卡；原型没有让用户自行通过人脸的按钮。</span></figcaption>
+</figure></div>
+</section><section id="sc" class="sec sc">
+  <h2>③ 分叉：价格变了 / 数量想改</h2>
+  <p class="intro">价格变化必须重新采用并重新确认——旧确认不能批准新金额；数量改动会重算行小计与合计。</p>
+  <ul class="checks"><li>D02：改价后看到的新确认卡</li><li>D03：数量修改入口（已批语义、实现按后端能力）</li></ul>
+  <div class="grid"><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/quote-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/quote-mobile.png" alt="报价改变">
+  </a>
+  <figcaption><b>报价改变</b><span class="hint">展示后端新价和选项；旧确认只读。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/quantity-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/quantity-mobile.png" alt="数量与未执行修改：现状边界">
+  </a>
+  <figcaption><b>数量与未执行修改：现状边界</b><span class="hint">完整需求保留；当前后台固定 1 件，修改依赖尚未实施。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/delivery-time-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/delivery-time-mobile.png" alt="最晚送达时刻与送不到（拟议）">
+  </a>
+  <figcaption><b>最晚送达时刻与送不到（拟议）</b><span class="hint">完整时刻要求保留；当前生日流程仅收日期，不能承诺18:00前送到。</span></figcaption>
+</figure></div>
+</section><section id="sd" class="sec sd">
+  <h2>④ 分叉：等确认 / 等验证码时申请修改</h2>
+  <p class="intro">先证明旧动作没被后台领走并安全封住，才回到同一任务给新方案；领走了就只能核实原单号。</p>
+  <ul class="checks"><li>D03：入口与禁用态是否认可（完整实现按后端）</li><li>D07：未知/核实入口</li><li>D10：停止不等于退款</li></ul>
+  <div class="grid"><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/edit-plan-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/edit-plan-mobile.png" alt="数量组合与新方案（拟议）">
+  </a>
+  <figcaption><b>数量组合与新方案（拟议）</b><span class="hint">拟议两束花398元；不代表实际可编辑或预算已通过。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/edit-confirm-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/edit-confirm-mobile.png" alt="确认等待时申请修改（拟议）">
+  </a>
+  <figcaption><b>确认等待时申请修改（拟议）</b><span class="hint">仅后台证实旧动作未提交且已安全封住后，才能显示新方案。</span><details class="desk"><summary>看桌面版式</summary><img loading="lazy" src="./walkthrough-shots-2026-10-26/edit-confirm-desktop.png" alt="确认等待时申请修改（拟议） 桌面版"></details></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/edit-verify-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/edit-verify-mobile.png" alt="验证等待时申请修改（拟议）">
+  </a>
+  <figcaption><b>验证等待时申请修改（拟议）</b><span class="hint">本人已裁定完整支持（含 G2-B 旧验证码例外）；实现尚未开始，页面仍禁用。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/edit-inflight-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/edit-inflight-mobile.png" alt="修改遇到在途操作（拟议）">
+  </a>
+  <figcaption><b>修改遇到在途操作（拟议）</b><span class="hint">无法证明未提交时不承诺改好，不用新操作替代未知旧操作。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/edit-unpaid-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/edit-unpaid-mobile.png" alt="已建订单未付款">
+  </a>
+  <figcaption><b>已建订单未付款</b><span class="hint">已建未付款订单不能改成未办理；只能保留原事实，停止不撤单。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/edit-failed-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/edit-failed-mobile.png" alt="明确失败后提出替代（拟议）">
+  </a>
+  <figcaption><b>明确失败后提出替代（拟议）</b><span class="hint">须银行已证实无订单、无在途，保留失败记录后重新采用和确认。</span></figcaption>
+</figure></div>
+</section><section id="se" class="sec se">
+  <h2>⑤ 分叉：停止 / 未知 / 收尾 / 断线</h2>
+  <p class="intro">停止=不再新办，不等于退款或取消；未知不补 0、不写未付款；断线刷新保留已发生事实。</p>
+  <ul class="checks"><li>D10：停止与未知的说法是否认可</li><li>D07：释放未知时只给“待核实+原操作记录”</li></ul>
+  <div class="grid"><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/stopped-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/stopped-mobile.png" alt="部分购买后停止">
+  </a>
+  <figcaption><b>部分购买后停止</b><span class="hint">199 已消费、301 已释放；未办理与未付款分别展示。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/stopped-empty-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/stopped-empty-mobile.png" alt="未冻结时停止">
+  </a>
+  <figcaption><b>未冻结时停止</b><span class="hint">示意未执行资金操作；没有冻结、下单或付款。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/stopped-before-order-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/stopped-before-order-mobile.png" alt="已冻结，未下单时停止">
+  </a>
+  <figcaption><b>已冻结，未下单时停止</b><span class="hint">示意银行核实释放500元，没有订单和付款。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/stopped-unpaid-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/stopped-unpaid-mobile.png" alt="已建未付时停止">
+  </a>
+  <figcaption><b>已建未付时停止</b><span class="hint">示意订单已创建未付款；释放冻结500元不代表取消订单。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/stopping-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/stopping-mobile.png" alt="停止后等待原结果">
+  </a>
+  <figcaption><b>停止后等待原结果</b><span class="hint">停止新增购买后，核实原付款，只做限定收尾。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/stopping-freeze-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/stopping-freeze-mobile.png" alt="冻结未知后停止">
+  </a>
+  <figcaption><b>冻结未知后停止</b><span class="hint">冻结仍未知，不改写成已冻结500元，不说付款未知。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/stopping-order-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/stopping-order-mobile.png" alt="下单未知后停止">
+  </a>
+  <figcaption><b>下单未知后停止</b><span class="hint">冻结已核实，下单仍未知；不标成付款待核实。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/release-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/release-mobile.png" alt="释放未核实或受阻">
+  </a>
+  <figcaption><b>释放未核实或受阻</b><span class="hint">没有已释放金额，不新增授权或释放确认。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/unknown-freeze-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/unknown-freeze-mobile.png" alt="冻结结果未知">
+  </a>
+  <figcaption><b>冻结结果未知</b><span class="hint">核实原冻结，不新建冻结，不开始下单。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/unknown-order-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/unknown-order-mobile.png" alt="下单结果未知">
+  </a>
+  <figcaption><b>下单结果未知</b><span class="hint">核实原订单操作，不重复下单、不付款。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/unknown-payment-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/unknown-payment-mobile.png" alt="付款结果未知">
+  </a>
+  <figcaption><b>付款结果未知</b><span class="hint">订单已知，付款未知；不填未付款、不推算余款。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/offline-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/offline-mobile.png" alt="断线与刷新">
+  </a>
+  <figcaption><b>断线与刷新</b><span class="hint">只读保留上次事实，所有办理按钮暂停。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/recovery-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/recovery-mobile.png" alt="重新登录后的恢复门">
+  </a>
+  <figcaption><b>重新登录后的恢复门</b><span class="hint">恢复原任务与批准付款分开；仅服务端要求恢复时出现。</span></figcaption>
+</figure><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/failure-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/failure-mobile.png" alt="失败、无候选与安全暂停">
+  </a>
+  <figcaption><b>失败、无候选与安全暂停</b><span class="hint">每个失败说明原因、是否动钱及下一步；没有绕过安全的继续按钮。</span></figcaption>
+</figure></div>
+</section><section id="sf" class="sec sf">
+  <h2>⑥ 终点：结果页</h2>
+  <p class="intro">每笔订单、付款、冻结、释放都能逐项核对；冻结余款会释放，不等于个人预算剩余。</p>
+  <ul class="checks"><li>D04：完成页的金额口径</li><li>D10：不承诺现实送达/退款</li></ul>
+  <div class="grid"><figure class="card">
+  <a href="./walkthrough-shots-2026-10-26/complete-mobile.png" target="_blank">
+    <img loading="lazy" class="shot" src="./walkthrough-shots-2026-10-26/complete-mobile.png" alt="全部完成回执">
+  </a>
+  <figcaption><b>全部完成回执</b><span class="hint">500 冻结、467 消费、33 释放；不宣称现实送达。</span><details class="desk"><summary>看桌面版式</summary><img loading="lazy" src="./walkthrough-shots-2026-10-26/complete-desktop.png" alt="全部完成回执 桌面版"></details></figcaption>
+</figure></div>
+</section>
+  <section id="dec"><h2>最后：这一页要请您点头的 11 件事</h2>
+  <ol class="dec"><li><b>D01 版式与文案</b><span>聊天里原地展开 + 当前卡展开、历史折叠；长明细进抽屉；单列/两列随屏宽。</span></li><li><b>D02 动钱分三步</b><span>采用只是定计划；冻结、下单、付款各问一次、各显示结果；没有“一键全部确认”。</span></li><li><b>D03 数量与等待态修改</b><span>语义已批、实现按后端能力；原型保留入口但部分按钮禁用，先走查设计。</span></li><li><b>D04 个人预算口径</b><span>只有服务端 adopted=true 才显示“已采用”；冻结余款不是个人预算剩余。</span></li><li><b>D05 配送与隐私</b><span>原文只进专用表单，之后只显示掩码，不让老人抄编号。</span></li><li><b>D06 最晚送达</b><span>18:00 时刻本轮只收日期、相关页禁用、不自动延期。</span></li><li><b>D07 释放未知</b><span>没有“只查原释放”入口前，只给“待核实 + 原操作记录 + 求助/明细”。</span></li><li><b>D08 配送资料刷新</b><span>配送已成功但未继续时刷新，本轮提示重填（不做受控引用恢复）。</span></li><li><b>D09 结构化选品</b><span>本轮沿用服务端候选按钮 + 原文，不做拆文案拼的卡片。</span></li><li><b>D10 停止与未知说法</b><span>停止=不再新办，不等于退款/取消；未知不补 0、不写未付款/未释放。</span></li><li><b>D11 本轮验收边界</b><span>只走查版式+文案+状态逻辑；视觉/键盘/200%/读屏/E2E 留后续。</span></li></ol></section>
+  <footer>生成时间：2026-10-26（本机 Edge headless 从 <code>birthday-prototype-02.html</code> 逐屏抓取）。
+  截图目录：<code>.scratch/v05-cross-frontend/walkthrough-shots-2026-10-26/</code>；走查脚本：<code>walkthrough-02-2026-10-26.md</code>。
+  后端八票已合入，页面实现等您批准后开始。</footer>
+</div></body></html>
