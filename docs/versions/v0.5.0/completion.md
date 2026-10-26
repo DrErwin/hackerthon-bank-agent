@@ -101,3 +101,5 @@
 - 合入后本地实测（main `6a6526e`）：`agent_platform` **376 passed / 13 skipped**、`modules/cross` **120 passed**、`api/test_app.py` **85 passed**。2026-10-26 在 main `dedaf9b` 上做合并态复跑：`app/agent_platform` + `app/modules/cross` + `app/api` **721 passed / 13 skipped / 0 failed**（13:56）。CI 因账户计费未启动，**不记 CI 绿**；这不是全后端、不是页面/模型/银行 E2E。
 - 能力与缺口见 [生日可交付事实与交接缺口](../.scratch/v05-birthday-platform-dependencies/delivery-handoff.md)。
 - **仍未完成**：生日页面走查（D01—D11）与前端 02 实现、真实 E2E、200%/读屏/真机、最终安全与体验接受。已知缺口：G3 跨会话恢复接线、普通输入发布断点的 API 自动恢复、旧任务/legacy 编辑 `SOURCE_UNAVAILABLE`、安全语义扩展（`get_retirement` 复用闸门）待本人确认。
+
+- **2026-10-26 补记（前端票 02 合入）**：本人当日页面走查通过（D01—D11）并批准 6 条补充文案后，前端 02 [PR #314](https://github.com/DrErwin/hackerthon-bank-agent/pull/314) squash `4d2201a` 合入：确认/验证卡渲染后端发布选项并走 F10、错误 reason 分档、生日结构化收尾、受控配送专用表单（原文只进请求体、引用只留内存、刷新回表单）、已批准文案逐字落地。前端 `npm test` **103 passed / 11 files**、`npm run build` 通过。生日九票（后端八票 + 前端 02）至此全部合入。**仍未做**：真实页面/模型/银行 E2E、视觉、键盘、200% 缩放、读屏、最终安全与体验接受。
