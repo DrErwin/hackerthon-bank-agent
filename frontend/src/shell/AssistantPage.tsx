@@ -51,6 +51,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
     || needsAttentionInTree(task.task_id, tasks, conversation.cardLinks));
   const latestTaskId = timeline.filter((item) => item.type === "task").at(-1)?.envelope.task.task_id;
   const currentTask = topTasks.filter(({ task }) => !isTerminal(task)).at(-1)?.task;
+  const currentNeedsReview = currentTask && (currentTask.recovery_required || conversation.bootRecovery.has(currentTask.task_id) || currentTask.status === "needs_attention");
   const canStart = !(expired || booting || sending || awaitingReply || pendingMessage);
   const inputTasks = [...tasks.values()].filter(({ task }) =>
     task.status === "waiting_input" && task.interaction?.kind === "input"
@@ -131,15 +132,15 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
             {[...visibleRecords].reverse().map(({ task, module }) => <li key={task.task_id}>
               <h3>{taskTitle(task)}</h3><p>{taskStatusLabel(task).text}</p>
               <dl>{(slots.resolve(module).summarize?.(task) ?? []).map((field, i) => <div key={i}><dt>{field.label}</dt><dd>{field.value_text}</dd></div>)}</dl>
-              <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : "继续这项办理"}</button>
+              <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : task.recovery_required || conversation.bootRecovery.has(task.task_id) || task.status === "needs_attention" ? "查看办理进度" : "继续这项办理"}</button>
             </li>)}
           </ol>}
         </DetailsDrawer>
       </TopBar>
       {currentTask && <nav className="sh-current-task" aria-label="当前办理">
         <button type="button" onClick={() => continueTask(currentTask.task_id)}>
-          <span><span className="sh-current-label">正在办</span><strong>{taskTitle(currentTask)}</strong></span>
-          <span>接着办<ArrowUpRight aria-hidden="true" /></span>
+          <span><span className="sh-current-label">{currentNeedsReview ? "待查看" : "正在办"}</span><strong>{taskTitle(currentTask)}</strong></span>
+          <span>{currentNeedsReview ? "查看进度" : "接着办"}<ArrowUpRight aria-hidden="true" /></span>
         </button>
       </nav>}
       {expired && <ExpiredBanner onReenter={() => void actions.reenter()} />}

@@ -104,6 +104,19 @@ it("keeps an already stopped plan's own stop note when the server also sends a r
   expect(screen.getByText(PLAN_STOPPED)).toBeTruthy();
 });
 
+it("removes cancellation from a stopped plan even when its last action list still includes cancel", async () => {
+  const stopped = { ...parentEnvelope, task: { ...parentEnvelope.task, status: "cancelled" as const,
+    message: "本次安排已停止。", data: { ...plan, active_step_id: null, interaction_task_id: null, stop_reason: "user_cancelled" } } };
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.listTasks = async () => [stopped];
+  backend.user.listChildren = async () => [];
+  const { result } = renderHook(() => useConversation(backend.user));
+  await waitFor(() => expect(result.current.booting).toBe(false));
+  render(<TaskBlock envelope={stopped} slot={crossSlot} origin="real-api" conversation={result.current} />);
+  expect(screen.getByText("本次安排已停止。")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "取消这次办理" })).toBeNull();
+});
+
 it("shows the arrangement facts only when the server sends them", () => {
   const empty = render(<CrossPlanCard view={plan} task={parent} childTask={() => undefined} />);
   expect(screen.queryByText("生活费留存（不转出）")).toBeNull();

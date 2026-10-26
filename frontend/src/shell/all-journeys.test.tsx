@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { BusinessCards, BillCardActions } from "./components/BusinessCards";
 import { Composer } from "./components/Chrome";
@@ -25,9 +25,9 @@ it("renders one confirmation action per decision and routes extra options separa
   render(<ConfirmationCard id="confirm" title="请核对" active canConfirm canCancel busy={false}
     extraActions={[]} onAnswer={onAnswer} onSelectOption={onSelectOption}
     options={[{ id: "approve", label: "确认办理" }, { id: "cancel", label: "取消" }, { id: "edit-opaque", label: "修改商品" }]}
-    view={{ confirmation_id: "c", task_id: "t", confirmation_version: 1, display_fields: [], created_at: task.snapshot_at, expires_at: task.snapshot_at, decision: "pending" }} />);
+    view={{ confirmation_id: "c", task_id: "t", confirmation_version: 1, display_fields: [{ name: "service", label: "服务", value_text: "示例会员" }], created_at: task.snapshot_at, expires_at: task.snapshot_at, decision: "pending" }} />);
   expect(screen.getAllByRole("button", { name: "确认办理" })).toHaveLength(1);
-  expect(screen.getAllByRole("button", { name: "取消", exact: true })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: /^取消$/ })).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "确认办理" }));
   expect(onAnswer).toHaveBeenCalledExactlyOnceWith("approve");
   fireEvent.click(screen.getByRole("button", { name: "修改商品" }));
@@ -101,4 +101,16 @@ it("keeps the user's large text choice on the next page visit", async () => {
   view.unmount();
   render(<AssistantPage source={backend.user} slots={slots} />);
   expect(screen.getByRole("button", { name: "标准字" }).getAttribute("aria-pressed")).toBe("true");
+});
+
+it("offers a progress view for a paused task instead of promising it can continue", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.listTasks = async () => [{ task: { ...task, status: "needs_attention", recovery_required: true,
+    message: "安全核对暂停。", allowed_actions: [] }, module: "transfer", timelineAt: task.snapshot_at }];
+  render(<AssistantPage source={backend.user} slots={createSlotRegistry([transferSlot])} />);
+  const current = await screen.findByRole("navigation", { name: "当前办理" });
+  expect(within(current).getByRole("button", { name: /待查看.*查看进度/ })).toBeTruthy();
+  expect(within(current).queryByText("接着办")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "记录" }));
+  expect(await screen.findByRole("button", { name: "查看办理进度" })).toBeTruthy();
 });

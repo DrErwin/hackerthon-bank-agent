@@ -2,14 +2,18 @@
 
 ## 当前设计入口（2026-10-26）
 
-- [设计系统 v0.3](DESIGN.md)：对话驱动、手机优先，shadcn/ui + Radix / Vaul、Tailwind 4、Lucide、Sonner。
+- [设计系统](DESIGN.md)：对话驱动、手机优先，shadcn/ui + Radix / Vaul、Tailwind 4、Lucide、Sonner。
 - [全业务交互改造方案](交互改造方案-v0.2.md)：现状、目标与逐项替换顺序。
 - `npm run dev` 后打开 `/v04/design-system`：实际安装组件的可点击体验页，使用虚构示例资料；`/design-system-preview.html` 显示手机预览。
 - `/conversation-preview.html`：当前前台的手机预览，复用实际 React 界面。以 `VITE_API_MODE=contract-demo` 启动可体验转账、查询穿插与修改；固定回复仅用于交互演示。真实 Agent 仍经既有 API 接入。
-- 当前前台首批接入：常驻服务入口、手机抽屉/桌面侧栏、加载/等待、图标和字号反馈。后续任务重排按方案分票推进。
+- 当前用户前台已统一接入：对话与办理记录、账户/收款人搜索、账单月份与分类、订阅退订、生活安排、确认验证、结果回执与恢复。资料、点选和文字办理共用原任务；大字偏好保留到下次打开。
 - shadcn 源码位于 `src/components/ui/`，由官方 CLI 的 `new-york` 注册表加入，已调整默认字号/高度、中文关闭、进度语义和浅色提示。后续 `add` 先看差异，保留这些适老化调整。Tailwind 不导入 preflight；变量限定用户前台、组件体验页和 portal，历史页面沿用原样式。
 
-2026-10-22 Demo 修复（[bank-e2e-remediation/02](../.scratch/bank-e2e-remediation/issues/02-interactive-cards.md)，Issue #227）：当前补充卡支持填写金额、收款人线索、付款账户及商户。聊天输入明确显示“这条消息用于”哪项待办，多项待办要求选择，也可选“发起新问题”。确认阶段修改直接调用同一任务的草稿入口，旧确认只读、新确认须重新批准；依赖 API 票 01。仍未接自由语言任意修改/跨任务推断，后续见票 04/05。订阅验证码动作声明由票 03 修正，前端不能自行扩大后台允许动作。
+2026-10-26 全流程交付与 GPT-6.1-sol 独立检查见 [frontend-design-system/03 验证记录](../.scratch/frontend-design-system/verification-03.md)及[浏览器报告](../.scratch/frontend-design-system/e2e-03.md)。自由对话原样交给现有 Agent；真实转账在本次环境中遇到安全事实覆盖暂停，证据关联 #160。契约演示、真实 API/模型和最终用户接受分别记录。
+
+真实接口体验可使用 `scripts/run-ux-backend.py`：先设置 `BANK_LOCAL_CONFIG` 指向本机已有私密演示配置，`PYTHONPATH` 指向本仓库 `backend/`，用后端虚拟环境运行脚本。它在临时目录创建独立数据库，监听 `5191`。前端设置 `VITE_API_MODE=real-api`、`VITE_API_PROXY_TARGET=http://127.0.0.1:5191`，运行 `npm run dev -- --host 127.0.0.1 --port 5190`。凭证留在本机后端配置中。
+
+2026-10-22 Demo 修复历史（[bank-e2e-remediation/02](../.scratch/bank-e2e-remediation/issues/02-interactive-cards.md)，Issue #227）：补充卡接入金额、收款人线索、付款账户及商户。确认阶段修改调用同一任务的草稿入口，旧确认只读、新确认须重新批准。该时点自由语言修改/跨任务推断尚未接入；后续实现与当前证据以 10-26 验证记录为准。订阅验证码动作声明由票 03 修正，前端不能自行扩大后台允许动作。
 
 等待状态保持到回复/错误，真实处理错误如实展示；可重试请求保留原请求编号。语音按钮明确为固定文字示例，不采集声音；真实识别和播报本轮未接入。组件测试与真实 React/模型联调分开记录，不据此声称全部 E2E 修复或安全验收。
 

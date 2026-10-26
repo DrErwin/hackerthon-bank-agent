@@ -1,0 +1,24 @@
+{
+  "observed_at": "2026-10-26T13:38:34.528744Z",
+  "environment": "isolated real-api local demo, FastAPI/LangGraph/GLM-5.3",
+  "task_id": "a4f3c42b-e8bf-48e7-91d7-255f7681edca",
+  "user_request": "转账500元给妈妈",
+  "task_status": "needs_attention",
+  "recovery_required": true,
+  "allowed_actions": [],
+  "error_code": "DEPENDENCY_UNAVAILABLE",
+  "error_source": "security",
+  "audit": {
+    "event_type": "security.decided",
+    "action_name": "bank.submit_transfer",
+    "phase": "admission",
+    "decision": "pause",
+    "reason_codes": ["DEPENDENCY_UNAVAILABLE"],
+    "rule_ids": ["risk-signal-coverage-required"],
+    "risk_level": null,
+    "evidence_refs": [],
+    "message": "暂时无法完成风险核对。"
+  },
+  "related_issue": "https://github.com/DrErwin/hackerthon-bank-agent/issues/160",
+  "scope": "Read-only audit evidence. Frontend fixes do not change risk policy or turn unknown facts into low risk."
+}

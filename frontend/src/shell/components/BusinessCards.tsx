@@ -94,7 +94,7 @@ export function BusinessCards({ task, busy, enabled, onAction, links, renderChil
   const id = "task-" + task.task_id + "-business";
   if (!data) return null;
   if ("accounts" in data) return <Card title="我的账户" labelledBy={id}>
-    <p className="sh-hint">可用余额 · {data.accounts.length} 张银行卡</p>
+    <p className="sh-hint">查询时可用余额 · {data.accounts.length} 张银行卡</p>
     {data.accounts.length > 1 && <SearchField id={id + "-search"} label="找银行卡" value={search} onChange={setSearch} />}
     {data.accounts.length === 0 && <p className="sh-empty">还没有可展示的账户。可以重新查询。</p>}
     {search && !data.accounts.some((item) => matches(item.display_name, item.bank_name, item.account_masked)) && <p role="status" className="sh-empty">没有找到这张卡，试试银行名称或尾号。</p>}

@@ -82,7 +82,7 @@ it("opens folded groups when continuing a nested task, and opens finished record
   const group = (await screen.findByText("正在扣费（1）")).closest("details")!;
   fireEvent.click(group.querySelector("summary")!);
   expect(group.open).toBe(false);
-  fireEvent.click(screen.getByRole("button", { name: /正在办.*接着办/ }));
+  fireEvent.click(screen.getByRole("button", { name: /待查看.*查看进度/ }));
   await waitFor(() => expect(group.open).toBe(true));
   expect(document.activeElement?.id).toBe("task-stop");
 

@@ -101,7 +101,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   const deliveryActive = !expired && task.status === "waiting_input"
     && task.allowed_actions.includes("provide_input")
     && task.interaction?.kind === "input" && task.interaction.required_fields.includes("delivery");
-  const showTaskCancel = !expired && task.allowed_actions.includes("cancel") && task.interaction?.kind !== "confirmation";
+  const showTaskCancel = !expired && !isTerminal(task) && task.allowed_actions.includes("cancel") && task.interaction?.kind !== "confirmation";
 
   return (
     <div className="sh-task" id={base} data-task-id={task.task_id} tabIndex={-1}>
