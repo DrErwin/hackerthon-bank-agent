@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `frontend/`
 
-Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置 `v05-cross-business/05` 已合入（#288/#289），页面走查材料按最新事实更新中；**本人批准页面前不编码**。
+Status: in_progress — 2026-10-26 本人页面走查通过（D01—D11 按方案），按批准材料实现中；未合入、未做真实 E2E/视觉验收。
 
 Package accepted by: Erwin
 

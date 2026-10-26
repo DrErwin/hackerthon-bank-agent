@@ -28,7 +28,7 @@ Execution: Erwin 授权的执行对话（本对话，AI 代理），2026-10-26�
 | [v05-birthday-platform-dependencies/04 F10 受控入口](../../v05-birthday-platform-dependencies/issues/04-api-edit-entry.md) | `backend/app/api/` | 2026-10-26 | **done — PR #311 合入 `d0e3b1e`** | 两轴复验闭合；含契约 §6.5 适用范围与 §8 协同修改记录 |
 | [v05-cross-business/08 数量与未执行调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md) | `backend/app/modules/cross/` | 2026-10-26 | **done — PR #312 合入 `2d9cfe2`** | 两轴复验 + Lead 定向复核；同参延续 fail-closed、改价重采用 |
 | [v05-birthday-platform-dependencies/09 撤离后同参新尝试](../../v05-birthday-platform-dependencies/issues/09-cross-handoff-wiring.md) | `backend/app/agent_platform/` | 2026-10-26 | **done — PR #313 合入 `6a6526e`** | 08 报出的平台缺口新增；两轴 + rebase 后核验挂载 |
-| [v05-cross-frontend/02 生日页面](../../v05-cross-frontend/issues/02-birthday-ui.md) | `frontend/` | 2026-10-26 | claimed / blocked | 页面走查材料更新中；**本人批准页面前不编码** |
+| [v05-cross-frontend/02 生日页面](../../v05-cross-frontend/issues/02-birthday-ui.md) | `frontend/` | 2026-10-26 | **in_progress — 页面走查通过** | 本人 2026-10-26「走查通过」；按批准材料实现中 |
 
 「claimed」= 已登记领取但前置未满足，未开始写代码；不是 ready-for-agent 的对外标签。
 
