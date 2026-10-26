@@ -1,6 +1,6 @@
 # 银行对象轮次归属与跨轮次拒绝工作规格
 
-Status: in_progress — 2026-10-26 16:00 PM 确认按推荐方案继续；01（存储）实现与局部验证完成、双轴必须项已修，待 PR 回交；02 与评测收口待 01 合入。
+Status: in_progress — 2026-10-26 01（storage）已 squash 合入 main `819bbfb`；02（services）实施中，评测收口待 02。PM 已确认防御纵深决策并授权继续。
 
 Owner: Erwin（v0.5 本阶段统一负责）
 

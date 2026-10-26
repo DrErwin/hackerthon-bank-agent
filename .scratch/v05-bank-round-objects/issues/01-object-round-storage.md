@@ -14,7 +14,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/storage/`
 
-Status: in_progress — 2026-10-26 16:00 PM 在会话中明确确认按推荐方案继续（补对象轮次归属、继续 02/评测并开 PR）；实现与局部验证完成，待双轴审查已闭合/PR 回交，未合入。
+Status: done — 2026-10-26 已 squash 合入 main `819bbfb`（PR #315）；双轴必须项已闭合；CI 计费未启动记 Blocked。专项四项 strict xfail 仍待 02/评测收口。
 
 Blocked by: None（本票无实施前置票；Owner 决策与生日 storage 目录窗口是启动条件，见下，不是前置票）。
 Source evidence: [PR #290：银行专项四项 strict xfail](https://github.com/DrErwin/hackerthon-bank-agent/pull/290)。
@@ -69,6 +69,6 @@ python -m pytest -q app/storage/ --basetemp=<本票独立临时目录>
   - 全后端：实现版（测试加齐前同一产品代码）**2113 passed, 13 skipped in 1148.17s**；测试加齐后的复跑在 30 分钟未出结果后主动终止（低 CPU、无进度），未作为证据，本票以 storage 目录测试与受影响回归为验收。
 - 本机运维核对（只读）：`D:\hackerthon-bank-agent\.mnemon\v03-local-demo\mock_bank.sqlite3` 为 `user_version=3`、13 ops / 13 scopes / 0 unscoped、无 `freezes`/`orders` 表；`...v03-local-demo-browser-regression\mock_bank.sqlite3` 为 v2、2/2/0、无对象表。两库按 v2/v3 路径升到 v5 空对象表，不触发「v4 有对象行拒绝」；未发现 v4 且含对象行的本机库。本票未加载原库。
 - 代码审查：规范轴与规格轴两位独立子代理已完成，代码语义无必须修复；测试/记录必须项已按意见修复（付款关联与回执快照、v4 保留账号、finalize 轮次、v4 单表拒绝参数化、本机库事实、Owner 确认记录）。
-- 安全审阅：本票新增银行对象访问拒绝判定，按 AGENTS.md 属资金执行链路的安全相关改动；v0.5 阶段由 Erwin 代行审阅并如实记录为代行（不写 Ringo 签核）。**代行审阅记录待本人在合入前确认/留痕**。
-- PR：[#315](https://github.com/DrErwin/hackerthon-bank-agent/pull/315)，head `1e3c0ad`（base main）；MERGEABLE，未合并。本票单独合入不会关闭 services 的 fail-open，4 个 strict xfail 仍保留，按 spec 的 01→02→评测相邻合入顺序推进。
-- CI：[Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40289698983/job/121461597432) 结论 failure，annotation 明确“job was not started because recent account payments have failed or your spending limit needs to be increased”；job 未运行、无测试执行证据，不记 CI 绿、非测试失败。另有仓库既有文档链接失败（`docs/versions/v0.5.0/completion.md` 指向 `.scratch` 的相对路径少一级）请协调者另行处理，不属本 PR。
+- 安全审阅：本票新增银行对象访问拒绝判定，按 AGENTS.md 属资金执行链路的安全相关改动；v0.5 阶段由 Erwin 代行审阅并如实记录为代行（不写 Ringo 签核）。PM 2026-10-26 16:10 指令「把这些都做了吧」批准继续推进合入；本条记录为本人代行推进，不补写 Ringo 签名。
+- PR：[#315](https://github.com/DrErwin/hackerthon-bank-agent/pull/315)，最终提交 `1e3c0ad`（head `ddb21bb` 仅回填票面），**已 squash 合入 main `819bbfb`**（2026-10-26 16:11）。本票单独合入不关闭 services 的 fail-open，4 个 strict xfail 仍保留，按 spec 的 01→02→评测相邻合入顺序推进。
+- CI：[Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40289698983/job/121461597432) 结论 failure，annotation 明确“job was not started because recent account payments have failed or your spending limit needs to be increased”；job 未运行、无测试执行证据，不记 CI 绿、非测试失败。仓库既有文档链接失败（`docs/versions/v0.5.0/completion.md` 相对路径少一级）已另行修复。
