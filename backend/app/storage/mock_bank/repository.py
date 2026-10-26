@@ -9,7 +9,7 @@ from pathlib import Path
 from app.storage.database import connect, parameter_digest, transaction
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 LEDGER_FACT_COLUMNS = (
     "counterparty_id", "counterparty_name", "counterparty_account_masked",
     "channel", "summary", "original_transaction_id", "original_occurred_at",
@@ -34,6 +34,54 @@ LEDGER_SCHEMA = """
         original_occurred_at TEXT
     )
 """
+
+# Birthday freeze/order objects carry the demo round of the bank operation that
+# created them, so a later round cannot read or consume another round's objects.
+# Order payments are reachable only through their order row.
+OBJECT_TABLES_SCHEMA = (
+    """CREATE TABLE IF NOT EXISTS freezes (
+        freeze_id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(account_id),
+        user_id TEXT NOT NULL,
+        operation_id TEXT NOT NULL,
+        original_amount_fen INTEGER NOT NULL,
+        captured_total_fen INTEGER NOT NULL DEFAULT 0,
+        released_total_fen INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        demo_round_id TEXT
+    )""",
+    """CREATE TABLE IF NOT EXISTS orders (
+        order_id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        merchant_id TEXT NOT NULL,
+        merchant_name TEXT NOT NULL,
+        total_fen INTEGER NOT NULL,
+        expected_total_fen INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        deliver_by TEXT NOT NULL,
+        recipient_name_masked TEXT NOT NULL,
+        phone_masked TEXT NOT NULL,
+        address_masked TEXT NOT NULL,
+        payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK(payment_status IN ('unpaid', 'paid')),
+        payment_transaction_id TEXT,
+        payment_operation_id TEXT,
+        demo_round_id TEXT
+    )""",
+    """CREATE TABLE IF NOT EXISTS order_payments (
+        order_id TEXT PRIMARY KEY REFERENCES orders(order_id),
+        capture_operation_id TEXT NOT NULL,
+        transaction_id TEXT NOT NULL,
+        paid_at TEXT NOT NULL
+    )""",
+)
+
+LEGACY_OBJECTS_WITHOUT_ROUND = (
+    "legacy birthday bank objects have no demo round; retain the old database "
+    "for reference and start a fresh demo bank database explicitly"
+)
 
 
 @dataclass(frozen=True)
@@ -172,41 +220,29 @@ class MockBankStore:
             if version < 4:
                 # v05-cross-platform/06: birthday freezes, orders and their single
                 # payment link, committed atomically with their bank operations.
-                connection.execute("""CREATE TABLE IF NOT EXISTS freezes (
-                    freeze_id TEXT PRIMARY KEY,
-                    account_id TEXT NOT NULL REFERENCES accounts(account_id),
-                    user_id TEXT NOT NULL,
-                    operation_id TEXT NOT NULL,
-                    original_amount_fen INTEGER NOT NULL,
-                    captured_total_fen INTEGER NOT NULL DEFAULT 0,
-                    released_total_fen INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )""")
-                connection.execute("""CREATE TABLE IF NOT EXISTS orders (
-                    order_id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    product_id TEXT NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    merchant_id TEXT NOT NULL,
-                    merchant_name TEXT NOT NULL,
-                    total_fen INTEGER NOT NULL,
-                    expected_total_fen INTEGER NOT NULL,
-                    created_at TEXT NOT NULL,
-                    deliver_by TEXT NOT NULL,
-                    recipient_name_masked TEXT NOT NULL,
-                    phone_masked TEXT NOT NULL,
-                    address_masked TEXT NOT NULL,
-                    payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK(payment_status IN ('unpaid', 'paid')),
-                    payment_transaction_id TEXT,
-                    payment_operation_id TEXT
-                )""")
-                connection.execute("""CREATE TABLE IF NOT EXISTS order_payments (
-                    order_id TEXT PRIMARY KEY REFERENCES orders(order_id),
-                    capture_operation_id TEXT NOT NULL,
-                    transaction_id TEXT NOT NULL,
-                    paid_at TEXT NOT NULL
-                )""")
+                # v05-bank-round-objects/01 adds the owning demo round.
+                for statement in OBJECT_TABLES_SCHEMA:
+                    connection.execute(statement)
+            elif version == 4:
+                # The v4 object rows predate round ownership and cannot be
+                # attributed safely. Refuse to load instead of migrating or
+                # silently inventing a round; keep the old database untouched.
+                tables = {
+                    row["name"] for row in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'table'")
+                }
+                object_rows = sum(
+                    connection.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]
+                    for name in ("freezes", "orders") if name in tables
+                )
+                if object_rows:
+                    raise RuntimeError(LEGACY_OBJECTS_WITHOUT_ROUND)
+                for name in ("freezes", "orders"):
+                    if name in tables:
+                        connection.execute(
+                            f"ALTER TABLE {name} ADD COLUMN demo_round_id TEXT")
+                for statement in OBJECT_TABLES_SCHEMA:
+                    connection.execute(statement)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     def seed_account(self, account: BankAccount) -> None:
@@ -254,6 +290,7 @@ class MockBankStore:
         account_updates: list[tuple[str, int, int, int]],
         ledger_entries: list[tuple[str, str, int, str, str, str, str]],
         effects: tuple = (),
+        demo_round_id: str | None = None,
     ) -> BankOperation:
         """Atomically save a bank decision and its already-decided balance changes.
 
@@ -262,6 +299,10 @@ class MockBankStore:
         nature, category, occurred_at). effects: freeze/order object changes
         (v05-cross-platform/06) that must land in this same commit. Bank rules
         remain in the bank service.
+
+        demo_round_id is the trusted round of the operation. When provided,
+        created objects carry it and capture/release effects must match it;
+        omitted only for the staged/test seam, never for production writes.
         """
         if status not in {"processing", "succeeded", "failed"}:
             raise ValueError("invalid bank operation status")
@@ -279,7 +320,8 @@ class MockBankStore:
                     raise ValueError("operation_id conflicts with an existing bank action")
                 return self._operation(existing)
             self._apply_effects(connection, user_id, operation_id,
-                                account_updates, ledger_entries, effects, recorded_at)
+                                account_updates, ledger_entries, effects, recorded_at,
+                                demo_round_id)
             connection.execute(
                 "INSERT INTO bank_operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (operation_id, user_id, action_name, digest, status,
@@ -293,8 +335,13 @@ class MockBankStore:
         account_updates: list[tuple[str, int, int, int]],
         ledger_entries: list[tuple[str, str, int, str, str, str, str]],
         effects: tuple = (),
+        demo_round_id: str | None = None,
     ) -> BankOperation:
-        """Settle a recorded processing operation and its ledger effects atomically."""
+        """Settle a recorded processing operation and its ledger effects atomically.
+
+        demo_round_id follows the same rule as commit_operation: when provided,
+        created objects carry it and capture/release effects must match it.
+        """
         if status not in {"succeeded", "failed"}:
             raise ValueError("final outcome must be succeeded or failed")
         digest = parameter_digest(parameters)
@@ -311,7 +358,8 @@ class MockBankStore:
                     raise ValueError("terminal bank outcome cannot be changed")
                 return self._operation(existing)
             self._apply_effects(connection, user_id, operation_id,
-                                account_updates, ledger_entries, effects, updated_at)
+                                account_updates, ledger_entries, effects, updated_at,
+                                demo_round_id)
             connection.execute(
                 """UPDATE bank_operations SET status = ?, result_json = ?, updated_at = ?
                    WHERE operation_id = ?""",
@@ -321,7 +369,7 @@ class MockBankStore:
 
     @staticmethod
     def _apply_effects(connection, user_id, operation_id, account_updates, ledger_entries,
-                       effects, at) -> None:
+                       effects, at, demo_round_id: str | None = None) -> None:
         for account_id, expected_version, book_fen, frozen_fen in account_updates:
             changed = connection.execute(
                 """UPDATE accounts SET book_balance_fen = ?, frozen_balance_fen = ?,
@@ -342,30 +390,38 @@ class MockBankStore:
                  direction, nature, category, occurred_at),
             )
         for effect in effects:
-            MockBankStore._apply_object_effect(connection, user_id, operation_id, effect, at)
+            MockBankStore._apply_object_effect(
+                connection, user_id, operation_id, effect, at, demo_round_id)
 
     @staticmethod
-    def _apply_object_effect(connection, user_id: str, operation_id: str, effect, at: str) -> None:
+    def _apply_object_effect(connection, user_id: str, operation_id: str, effect, at: str,
+                             demo_round_id: str | None = None) -> None:
         if isinstance(effect, FreezeOpening):
             _require_owned_account(connection, user_id, effect.account_id)
             connection.execute(
-                "INSERT INTO freezes VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)",
+                """INSERT INTO freezes (freeze_id, account_id, user_id, operation_id,
+                   original_amount_fen, captured_total_fen, released_total_fen,
+                   created_at, updated_at, demo_round_id)
+                   VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?)""",
                 (effect.freeze_id, effect.account_id, user_id, operation_id,
-                 effect.original_amount_fen, at, at),
+                 effect.original_amount_fen, at, at, demo_round_id),
             )
         elif isinstance(effect, OrderCreation):
             connection.execute(
                 """INSERT INTO orders (order_id, user_id, product_id, quantity, merchant_id,
                    merchant_name, total_fen, expected_total_fen, created_at, deliver_by,
-                   recipient_name_masked, phone_masked, address_masked, payment_status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid')""",
+                   recipient_name_masked, phone_masked, address_masked, payment_status,
+                   demo_round_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?)""",
                 (effect.order_id, user_id, effect.product_id, effect.quantity,
                  effect.merchant_id, effect.merchant_name, effect.total_fen,
                  effect.expected_total_fen, effect.created_at, effect.deliver_by,
-                 effect.recipient_name_masked, effect.phone_masked, effect.address_masked),
+                 effect.recipient_name_masked, effect.phone_masked, effect.address_masked,
+                 demo_round_id),
             )
         elif isinstance(effect, FreezeCapture):
-            MockBankStore._require_freeze(connection, user_id, effect.freeze_id)
+            MockBankStore._require_freeze(
+                connection, user_id, effect.freeze_id, demo_round_id)
             connection.execute(
                 """UPDATE freezes SET captured_total_fen = captured_total_fen + ?,
                    updated_at = ? WHERE freeze_id = ?""",
@@ -382,10 +438,12 @@ class MockBankStore:
                     raise ValueError("capture has no matching ledger row")
             if effect.order_id is not None:
                 order = connection.execute(
-                    "SELECT user_id, payment_status FROM orders WHERE order_id = ?",
+                    "SELECT user_id, payment_status, demo_round_id FROM orders WHERE order_id = ?",
                     (effect.order_id,),
                 ).fetchone()
                 if order is None or order["user_id"] != user_id:
+                    raise ValueError("order is not in scope")
+                if demo_round_id is not None and order["demo_round_id"] != demo_round_id:
                     raise ValueError("order is not in scope")
                 if order["payment_status"] != "unpaid":
                     # A different operation number cannot pay one order twice.
@@ -401,7 +459,8 @@ class MockBankStore:
                      effect.paid_at or at),
                 )
         elif isinstance(effect, FreezeRelease):
-            MockBankStore._require_freeze(connection, user_id, effect.freeze_id)
+            MockBankStore._require_freeze(
+                connection, user_id, effect.freeze_id, demo_round_id)
             connection.execute(
                 """UPDATE freezes SET released_total_fen = released_total_fen + ?,
                    updated_at = ? WHERE freeze_id = ?""",
@@ -411,11 +470,14 @@ class MockBankStore:
             raise ValueError("unknown bank object effect")
 
     @staticmethod
-    def _require_freeze(connection, user_id: str, freeze_id: str) -> None:
+    def _require_freeze(connection, user_id: str, freeze_id: str,
+                        demo_round_id: str | None = None) -> None:
         row = connection.execute(
-            "SELECT user_id FROM freezes WHERE freeze_id = ?", (freeze_id,),
+            "SELECT user_id, demo_round_id FROM freezes WHERE freeze_id = ?", (freeze_id,),
         ).fetchone()
         if row is None or row["user_id"] != user_id:
+            raise ValueError("freeze is not in scope")
+        if demo_round_id is not None and row["demo_round_id"] != demo_round_id:
             raise ValueError("freeze is not in scope")
 
     def get_freeze(self, user_id: str, freeze_id: str) -> dict | None:
