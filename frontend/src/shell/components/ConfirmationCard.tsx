@@ -1,4 +1,5 @@
 import type { ConfirmationView, InteractionOption } from "../../contracts";
+import { EDIT_OPTION_NOTE } from "../copy";
 import { clockTime } from "../format";
 import type { SlotAction } from "../slots";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
@@ -57,6 +58,9 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
               <button type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={() => onAnswer("cancel")}>取消</button>
             )}
           </div>
+          {/* The page never matches an option by its label, so "the server published
+              options" is the only condition it can test for the edit explanation. */}
+          {(options ?? []).length > 0 && <p className="sh-hint">{EDIT_OPTION_NOTE}</p>}
         </>
       ) : (
         <p className="sh-readonly-line">这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。</p>

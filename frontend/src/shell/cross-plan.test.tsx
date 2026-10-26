@@ -211,6 +211,8 @@ it("takes a typed answer on a cross menu and sends it as the module's text answe
   expect(await screen.findByText(PLAN_PROMISE)).toBeTruthy();
   const label = await screen.findByText(CROSS_ANSWER_LABEL);
   expect(screen.getByText("停止本次安排")).toBeTruthy();
+  // This menu asks for an amount, so the count hint stays on the quantity screen.
+  expect(screen.queryByText("请填正整数，例如 2")).toBeNull();
   const input = screen.getByLabelText(CROSS_ANSWER_LABEL);
   fireEvent.change(input, { target: { value: "1500" } });
   fireEvent.click(screen.getByRole("button", { name: "填好了，继续" }));

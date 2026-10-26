@@ -11,8 +11,8 @@ import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, Wa
 import { VerificationCard } from "./VerificationCard";
 import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
 import { CrossPlanCard } from "./CrossPlanCard";
-import { asksForQuantity, CROSS_ANSWER_LABEL, crossPlan } from "../cross";
-import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
+import { QUANTITY_HINT } from "../copy";
+import { asksForQuantity, CROSS_ANSWER_LABEL, crossPlan } from "../cross";import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
 import { inputPrompt, needsAttentionInTree, taskTitle } from "../presentation";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
@@ -150,6 +150,9 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
               />
             );
           }
+          // A quantity screen asks for a count, so the amount example ("例如 1500 或
+          // 1500元") does not belong there; every other menu keeps its own hint.
+          const asksQuantity = asksForQuantity(entry.interaction);
           return (
             <InputCard
               key={entry.id}
@@ -160,9 +163,9 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
               selectedLabel={entry.selectedLabel}
               onSelect={(optionId, label) => void actions.selectOption(task, optionId, label)}
               onSubmitText={(text) => actions.provideText(task, text)}
-              textLabel={task.module === "cross" && entry.interaction.kind === "input"
+              textLabel={asksQuantity ? QUANTITY_HINT : task.module === "cross" && entry.interaction.kind === "input"
                 && entry.interaction.options.length < 3 ? CROSS_ANSWER_LABEL : undefined}
-              numeric={asksForQuantity(entry.interaction)}
+              numeric={asksQuantity}
             />
           );
         }

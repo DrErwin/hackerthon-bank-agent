@@ -26,7 +26,7 @@ const STEP_TITLE: Record<string, string> = {
   "bank.create_order": "创建订单",
   "bank.capture_frozen": "付款",
   "bank.release_frozen": "释放冻结资金",
-  "bank.get_freeze": "核对冻结资金",
+  "bank.get_freeze": "冻结资金",
 };
 
 // The two safe reads carry the same action; their step ids say which projected

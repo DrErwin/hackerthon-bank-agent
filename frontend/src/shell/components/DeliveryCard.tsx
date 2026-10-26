@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { InteractionRequest } from "../../contracts";
+import { DELIVERY_FIELD_REQUIRED, DELIVERY_REFILL_NOTE } from "../copy";
 import type { DeliveryFields, DeliveryHandoff } from "../types";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
 
 const EMPTY: DeliveryFields = { recipient_name: "", phone: "", address: "" };
-// The labels are the approved field names; a blank field is reported through its
-// own invalid/required state, not with a sentence this page would invent.
+// The labels are the approved field names and `missing` is the approved sentence
+// for that field: a blank field says which one to fill rather than making wording
+// up, and the input keeps its own required/invalid state next to it.
 const FIELDS = [
-  { name: "recipient_name", label: "收件人", inputMode: undefined },
-  { name: "phone", label: "联系电话", inputMode: "tel" as const },
-  { name: "address", label: "详细地址", inputMode: undefined },
+  { name: "recipient_name", label: "收件人", missing: DELIVERY_FIELD_REQUIRED.recipient_name, inputMode: undefined },
+  { name: "phone", label: "联系电话", missing: DELIVERY_FIELD_REQUIRED.phone, inputMode: "tel" as const },
+  { name: "address", label: "详细地址", missing: DELIVERY_FIELD_REQUIRED.address, inputMode: undefined },
 ] as const;
 
 /**
@@ -84,6 +86,8 @@ export function DeliveryCard({ interaction, active, busy, handoff, error, onSele
               address: fields.address.trim(),
             });
           }}>
+            {/* Above the boxes, so it is read before anything is re-typed. */}
+            <p className="sh-hint">{DELIVERY_REFILL_NOTE}</p>
             {FIELDS.map((field) => (
               <div key={field.name}>
                 <label htmlFor={id + "-" + field.name}>{field.label}</label>
@@ -91,7 +95,11 @@ export function DeliveryCard({ interaction, active, busy, handoff, error, onSele
                   ref={(element) => { inputs.current[field.name] = element; }}
                   onChange={(event) => change(field.name, event.target.value)}
                   inputMode={field.inputMode} aria-required="true" aria-invalid={Boolean(blank[field.name])}
+                  aria-describedby={blank[field.name] ? id + "-" + field.name + "-error" : undefined}
                   autoComplete="off" disabled={busy} />
+                {blank[field.name] && (
+                  <p role="alert" id={id + "-" + field.name + "-error"} className="sh-inline-error">{field.missing}</p>
+                )}
               </div>
             ))}
             {error && <p role="alert" className="sh-inline-error">{error}</p>}

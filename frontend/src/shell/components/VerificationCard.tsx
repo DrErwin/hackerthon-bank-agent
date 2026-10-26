@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { DemoCodeView, InteractionOption, VerificationView } from "../../contracts";
+import { EDIT_OPTION_NOTE } from "../copy";
 import { clockTime } from "../format";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
 
@@ -173,12 +174,15 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
         )}
       </ol>
       {live && (options ?? []).length > 0 && (
-        <div className="sh-actions">
-          {(options ?? []).map((option) => (
-            <button key={option.id} type="button" className="sh-btn sh-btn-secondary" disabled={busy}
-              onClick={() => onSelectOption?.(option.id, option.label)}>{option.label}</button>
-          ))}
-        </div>
+        <>
+          <div className="sh-actions">
+            {(options ?? []).map((option) => (
+              <button key={option.id} type="button" className="sh-btn sh-btn-secondary" disabled={busy}
+                onClick={() => onSelectOption?.(option.id, option.label)}>{option.label}</button>
+            ))}
+          </div>
+          <p className="sh-hint">{EDIT_OPTION_NOTE}</p>
+        </>
       )}
       {!live && <p className="sh-readonly-line">这项验证已转为只读，不会再次提交。</p>}
     </Card>

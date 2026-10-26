@@ -263,6 +263,31 @@ it("answers the same published option on a verification card without asking for 
   expect(await screen.findByRole("button", { name: "按新方案继续" })).toBeTruthy();
 });
 
+it("explains next to the published options what the edit option can and cannot do", async () => {
+  const note = "只有确认旧动作还没有真正提交，才会回到同一任务的方案；已提交或结果未知时，只能按原单号核实。";
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+
+  // The edit option is published on both gate types, so the explanation follows it
+  // there and nowhere else.
+  await mountCard(backend.user, frozenCard);
+  expect(await screen.findByText(note)).toBeTruthy();
+  cleanup();
+  await mountCard(backend.user, treatedCard);
+  expect(await screen.findByText(note)).toBeTruthy();
+  cleanup();
+
+  // No published option, no explanation: the sentence would describe a door that
+  // is not on the card.
+  await mountCard(backend.user, task({
+    interaction: {
+      interaction_id: "i-plain", kind: "confirmation", prompt: "请确认：冻结生日安排资金",
+      required_fields: [], options: [], record_ref: "conf-1",
+    },
+    allowed_actions: ["confirm", "cancel"],
+  }));
+  expect(screen.queryByText(note)).toBeNull();
+});
+
 it("replays one F10 request after a dependency failure and never turns it into a message", async () => {
   const backend = createDemoBackend({ replyDelayMs: 0 });
   const edited = task({ status: "waiting_input", task_revision: 6, interaction: {
@@ -318,6 +343,8 @@ it("reads orders, payment state and bank amounts from the birthday steps only", 
   expect(screen.getByText("¥33.00")).toBeTruthy();
   expect(screen.getByText("冻结余款")).toBeTruthy();
   expect(screen.getByText("¥0.00")).toBeTruthy();
+  // The read-only freeze query keeps its approved name; the old wording is gone.
+  expect(screen.queryByText("核对冻结资金")).toBeNull();
   // The page never says the arrangement is finished just because rows exist.
   expect(screen.queryByText("已完成")).toBeNull();
 });
@@ -408,8 +435,11 @@ it("takes a typed quantity as a positive integer and leaves the refusal to the s
     allowed_actions: ["provide_input", "cancel"],
   });
   await mountCard(backend.user, asking);
-  const input = screen.getByLabelText(CROSS_ANSWER_LABEL) as HTMLInputElement;
+  // The quantity screen carries the approved count hint instead of the amount
+  // example, which does not belong on a "how many" screen.
+  const input = screen.getByLabelText("请填正整数，例如 2") as HTMLInputElement;
   expect(input.getAttribute("inputmode")).toBe("numeric");
+  expect(document.body.textContent).not.toContain("例如 1500");
 
   fireEvent.change(input, { target: { value: "0" } });
   expect(screen.getByRole("button", { name: "填好了，继续" }).hasAttribute("disabled")).toBe(true);
@@ -484,7 +514,35 @@ it("continues only the interaction that issued the reference", () => {
   expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
 });
 
-it("stops at the blank field, marks it and writes no sentence of its own", async () => {
+it("shows the approved refill note and one required sentence per blank delivery field", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  const submitDetails = vi.fn();
+  backend.user.submitDetails = submitDetails;
+  await mountCard(backend.user, deliveryAsk);
+
+  // Said above the boxes, so it is read before anything is re-typed.
+  expect(screen.getByText("重新填写不会下单，也不会扣款。")).toBeTruthy();
+  // Nothing is blank yet, so no field is told off.
+  expect(screen.queryByText("请填写收件人姓名。")).toBeNull();
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+  expect(screen.getByText("请填写收件人姓名。")).toBeTruthy();
+  expect(screen.getByText("请填写联系电话。")).toBeTruthy();
+  expect(screen.getByText("请填写详细地址。")).toBeTruthy();
+  // Each sentence is tied to its own field for a screen reader.
+  const required: Record<string, string> = {
+    收件人: "请填写收件人姓名。", 联系电话: "请填写联系电话。", 详细地址: "请填写详细地址。",
+  };
+  for (const [label, sentence] of Object.entries(required)) {
+    const field = screen.getByLabelText(label);
+    expect(document.getElementById(field.getAttribute("aria-describedby") ?? "")?.textContent).toBe(sentence);
+  }
+  expect(submitDetails).not.toHaveBeenCalled();
+});
+
+it("stops at the first blank field, names it and keeps the rest untouched", async () => {
   const backend = createDemoBackend({ replyDelayMs: 0 });
   const submitDetails = vi.fn();
   backend.user.submitDetails = submitDetails;
@@ -496,13 +554,14 @@ it("stops at the blank field, marks it and writes no sentence of its own", async
   });
   const phone = screen.getByLabelText("联系电话");
   const address = screen.getByLabelText("详细地址");
-  // The blank fields are reported through their own invalid state; the approved
-  // labels and the server's own message carry the rest.
+  // The blank fields are named one by one; the filled recipient is not.
   expect(phone.getAttribute("aria-invalid")).toBe("true");
   expect(address.getAttribute("aria-invalid")).toBe("true");
   expect(phone.getAttribute("aria-required")).toBe("true");
   expect(screen.getByLabelText("收件人").getAttribute("aria-invalid")).toBe("false");
-  expect(document.body.textContent).not.toMatch(/请填写/);
+  expect(screen.getByText("请填写联系电话。")).toBeTruthy();
+  expect(screen.getByText("请填写详细地址。")).toBeTruthy();
+  expect(screen.queryByText("请填写收件人姓名。")).toBeNull();
   expect(document.activeElement).toBe(phone);
   expect(submitDetails).not.toHaveBeenCalled();
 });
