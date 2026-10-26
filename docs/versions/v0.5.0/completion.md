@@ -94,3 +94,10 @@
 - 2026-10-24（联动平台底座七票）：分票验证——contracts 81、storage 38（应用库 31+银行库 38 分列计 37+新增）、agent_platform 238、api 175、services 59 passed；#258 合入前后端全量 `1460 passed`、#260/#262 期间全量 `1469 passed`；PR #256—#263 CI 全绿。
 - 2026-10-23（#254 rebase 后、推送前）：后端 `1431 passed / 0 failed`、mockbank `14 passed`、前端 `70 passed`、`npm run build` 通过、链接与空白检查通过；#253/#254 的 PR CI 与 main 推送 CI 均绿。
 - 本轮验证为 AI 代行执行与整理，**不是真人审查、不是 Ringo 专业安全签核**；用户最终体验验收与 200% 缩放/读屏未做。
+
+## 六、生日功能（v0.5）后端交付（2026-10-26）
+
+- 八票全部合入：01 [#306](https://github.com/DrErwin/hackerthon-bank-agent/pull/306) `e14f30d`、05 [#307](https://github.com/DrErwin/hackerthon-bank-agent/pull/307) `5863340`、06 [#308](https://github.com/DrErwin/hackerthon-bank-agent/pull/308) `d62d01d`、02 [#309](https://github.com/DrErwin/hackerthon-bank-agent/pull/309) `78163a1`、03 [#310](https://github.com/DrErwin/hackerthon-bank-agent/pull/310) `d5c069c`、04 [#311](https://github.com/DrErwin/hackerthon-bank-agent/pull/311) `d0e3b1e`、08 [#312](https://github.com/DrErwin/hackerthon-bank-agent/pull/312) `2d9cfe2`、09 [#313](https://github.com/DrErwin/hackerthon-bank-agent/pull/313) `6a6526e`。每票单目录、单 PR，两位独立子代理规范轴+规格轴审查、必须项闭合；AI 审查不等于本人或 Ringo 签核。
+- 合入后本地实测（main `6a6526e`）：`agent_platform` **376 passed / 13 skipped**、`modules/cross` **120 passed**、`api/test_app.py` **85 passed**。CI 因账户计费未启动，**不记 CI 绿**。
+- 能力与缺口见 [生日可交付事实与交接缺口](../.scratch/v05-birthday-platform-dependencies/delivery-handoff.md)。
+- **仍未完成**：生日页面走查（D01—D11）与前端 02 实现、真实 E2E、200%/读屏/真机、最终安全与体验接受。已知缺口：G3 跨会话恢复接线、普通输入发布断点的 API 自动恢复、旧任务/legacy 编辑 `SOURCE_UNAVAILABLE`、安全语义扩展（`get_retirement` 复用闸门）待本人确认。
