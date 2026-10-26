@@ -510,8 +510,10 @@ def test_the_handoff_is_not_a_registered_model_tool(build):
     names = {item["name"] for item in catalog}
     assert all(not name.startswith("birthday") for name in names)
     assert "birthday-edit" not in json.dumps(catalog)
-    # Production wiring keeps the cross side absent: the seam refuses honestly.
-    assert env.runtime.birthday.handoff.cross is None
+    # Ticket 08 mounts Cross's real implementation in its own assembly
+    # (`register_cross` -> `install_cross_handoff`); that assembly-level wiring
+    # is pinned by the Cross suite, so the platform test no longer asserts the
+    # (now outdated) "production keeps the cross side absent" seam.
 
 
 def _confirmation_card(record_ref: str | None = None) -> InteractionRequest:
