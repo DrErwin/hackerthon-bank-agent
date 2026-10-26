@@ -22,9 +22,9 @@ Failure modes pinned here first:
    because the retired attempt was detected.
 
 The composition is the real one (harness, security gate, mock bank, stores, G3
-publication, real Cross flow); ticket 08's real adapter is attached through its
-own ``install_cross_handoff`` seam because this platform branch predates the
-composition-side mount.
+publication, real Cross flow); ticket 08's assembly (``register_cross`` ->
+``install_cross_handoff``) mounts its real adapter there, and this test never
+assigns or stands in for it.
 """
 
 from datetime import datetime, timezone
@@ -34,7 +34,6 @@ import pytest
 
 from app.contracts.common import Phase, TaskStatus
 from app.contracts.security import ActionDescriptor
-from app.modules.cross.birthday_handoff import install_cross_handoff
 from app.security.state import SecurityStateError
 from app.storage.database import connect
 
@@ -50,9 +49,14 @@ from .test_birthday_runtime_wiring import (
 
 @pytest.fixture()
 def continuation_env(harness_env):
-    """The real composition plus ticket 08's real Cross handoff implementation."""
-    install_cross_handoff(harness_env.runtime.birthday.handoff,
-                          clock=harness_env.runtime.gateway._bank.clock)
+    """The real composition, with ticket 08's assembly mounting the real handoff.
+
+    The mount itself is asserted here so a composition that forgets it can never
+    silently fall back to the documented ``CROSS_HANDOFF_UNAVAILABLE`` refusal.
+    """
+    handoff = harness_env.runtime.birthday.handoff
+    assert handoff.cross is not None
+    assert callable(handoff.cross.prepare)
     return harness_env
 
 
