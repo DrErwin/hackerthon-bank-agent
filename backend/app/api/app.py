@@ -105,7 +105,9 @@ class MemoriesDeleteRequest(RequestIdOnly):
 def problem(exc):
     if isinstance(exc, ApiProblem):
         status, code = exc.status, exc.code
+        reason = exc.reason
     else:
+        reason = None
         code = str(exc) if isinstance(exc, (ValueError, PermissionError, TimeoutError)) else "DEPENDENCY_UNAVAILABLE"
         # The bank keeps its own conflict detail; the public contract exposes the
         # frozen 409 code for an operation-record conflict.
@@ -125,7 +127,7 @@ def problem(exc):
         "TASK_BUSY": "这项办理正在处理，请稍候查看更新后的状态。",
     }
     return status, {"error": ModuleError(code=code, source="platform", field=None,
-                                        reason=specific.get(code, reasons[status]), upstream_code=None).model_dump(mode="json")}
+                                        reason=reason or specific.get(code, reasons[status]), upstream_code=None).model_dump(mode="json")}
 
 
 def success(value, status=200):
@@ -340,12 +342,18 @@ def create_app(runtime=None, config=None):
         with service.mutation_lock:
             service.identity(service.cookie(who.session_id))
             service.link(who, task_id, mutate=True)
-            # Only an exact durable budget origin makes an interrupted F10
-            # retryable. In particular, do not retry an ordinary input receipt.
-            recorded = service.budget_input_record(who, task_id, body.request_id)
+            # One read routes this request: the platform-published edit option or
+            # its durable accepted record. Only an exact durable budget origin or
+            # a birthday edit record bound to this original request makes an
+            # interrupted F10 retryable; ordinary input receipts stay non-retryable.
+            prepared = service.birthday_edit_request(who, task_id, body)
+            recorded = (None if prepared is not None
+                        else service.budget_input_record(who, task_id, body.request_id))
+            recoverable = (recorded is not None
+                           or service.birthday_edit_recovery(prepared, body) is not None)
             return mutation(service, who, request, body,
-                lambda: service.provide_task_input(who, task_id, body),
-                retry_interrupted=recorded is not None)
+                lambda: service.provide_task_input(who, task_id, body, prepared=prepared),
+                retry_interrupted=recoverable)
 
     @application.post("/api/v1/tasks/{task_id}/draft")
     def revise_draft(request: Request, task_id: str, body: ReviseDraftRequest,
