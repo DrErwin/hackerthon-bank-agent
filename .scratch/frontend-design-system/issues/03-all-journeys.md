@@ -33,6 +33,8 @@ Core scenarios: F01—F08，见下方验收
 
 证据：[验证记录](../verification-03.md)、[独立 E2E](../e2e-03.md)、[AI 审查](../review-03.md)。视觉复核原结论 `disposition: ship`。设计系统已按实际组件整理为 v0.4。
 
+交付：[Draft PR #320](https://github.com/DrErwin/hackerthon-bank-agent/pull/320)，以前序 PR #319 分支为目标。代码提交 `718c620` 的 CI 因 GitHub 账号支付/额度问题未启动，详见验证记录。
+
 ## 边界
 
 一票一个 frontend 目录；`.scratch` 保存规格与证据。前端自由文字原样传给 Agent，卡片调用现有接口；不改后端理解、确认门、银行规则、模型配置。真实接口缺陷按目录记录与交接。此授权覆盖实现和检查，不作自动合并或真人签核。

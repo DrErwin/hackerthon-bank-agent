@@ -59,4 +59,6 @@
 - TypeScript / Vite：真实 API 和契约演示两种构建均通过；最终预览恢复为契约演示构建。
 - `npm test -- --reporter=dot`：14 文件、121 项通过（22:02 开始的完整运行）。
 - 最新 desktop / mobile 截图已补拍；GPT-6.1-sol 独立视觉复核返回 `disposition: ship`，两位代码审查者共同发现的余额时效问题均已限定复核 resolved。见 [AI 审查记录](review-03.md)。
-- PR / CI 状态在交付后补充于此。
+- 设计系统文档由独立 documenter 按实际组件整理；本地链接与差异空白检查通过。
+- 交付：[Draft PR #320](https://github.com/DrErwin/hackerthon-bank-agent/pull/320)，依赖 PR #319 / #318，等待用户体验接受与按序合入。
+- 代码与证据提交 `718c620a2d889f05aef52425815826e57da6793c` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40338241746) 未启动。GitHub 注释为近期账号支付失败或需要提高支出额度，属于平台阻塞；本次没有绿色 CI 结论。
