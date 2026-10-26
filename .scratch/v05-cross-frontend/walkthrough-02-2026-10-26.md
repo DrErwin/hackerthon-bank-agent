@@ -40,6 +40,25 @@
 
 ---
 
+## 1.5 静态截图（2026-10-26 抓取，仅供快速预览）
+
+用本机 Edge headless 从 `birthday-prototype-02.html?scene=<key>` 直接抓的**静态渲染快照**（390×844 手机宽 + 两张 1280×900），
+放在 `walkthrough-shots-2026-10-26/`。它只证明「画面能渲染出来」，**不代替视觉/键盘/200%/读屏验收**，也不改变 D01—D11 的待决定状态。
+
+| 画面 | 文件 |
+|---|---|
+| 选商品（D01 版式/D02 起点） | `products-mobile.png`、`products-desktop.png` |
+| 采用方案（D02 第一步） | `adopt-mobile.png` |
+| 冻结确认（D02 第二步） | `freeze-mobile.png` |
+| 验证码等待（D03 等待态入口所在卡） | `verify-mobile.png` |
+| 确认等待时申请修改（D03） | `edit-confirm-mobile.png`、`edit-confirm-desktop.png` |
+| 验证等待时申请修改（D03） | `edit-verify-mobile.png` |
+| 个人预算口径（D04） | `budget-mobile.png` |
+| 配送资料（D05） | `delivery-mobile.png` |
+| 停止/收尾（D10） | `stopped-mobile.png`、`release-mobile.png` |
+| 完成回执 | `complete-mobile.png` |
+| 未知冻结（D07/D10） | `unknown-freeze-mobile.png` |
+
 ## 2. 按画面走查（按页面顺序分成 9 组）
 
 每组先写“什么时候出现”，再写“应看到什么”。画面名后面括号里是原型下拉框里的名字，方便对照。
