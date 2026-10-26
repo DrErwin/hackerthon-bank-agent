@@ -54,14 +54,25 @@ function needsRecovery(task: ShellTask): boolean {
   return task.recovery_required || !isTerminal(task);
 }
 
+const REFRESH_BEFORE_RETRY = new Set([
+  "INTERACTION_STALE", "TASK_CHANGED", "PUBLISH_CONFLICT", "TRANSITION_PENDING",
+]);
+
 function errorText(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 0 || error.status >= 500 || error.status === 429) {
-      return error.message + " 可以再点一次，会沿用同一个请求编号，不会重复办理。";
-    }
-    return error.message;
+  if (!(error instanceof ApiError)) return "操作没有完成，请刷新状态后再试。";
+  // The backend's own Chinese reason already states what happened and the next
+  // step; the page shows it verbatim and writes no refusal of its own.
+  if (error.reason) return error.reason;
+  // A body without a reason (offline proxy or a mock source) keeps the server
+  // message and appends the next step that matches the public code.
+  if (REFRESH_BEFORE_RETRY.has(error.code)) return error.message + "请刷新这项任务后重试。";
+  if (error.code.startsWith("CROSS_") || error.code === "AUDIT_UNAVAILABLE" || error.code === "DEPENDENCY_UNAVAILABLE") {
+    return error.message + "原任务结果待核实，请查询原任务。";
   }
-  return "操作没有完成，请刷新状态后再试。";
+  if (error.status === 0 || error.status === 429 || error.status >= 500) {
+    return error.message + " 可以再点一次，会沿用同一个请求编号，不会重复办理。";
+  }
+  return error.message;
 }
 
 const replyReadError = "暂时没有读到最新结果，请查询办理进度。已有请求不会重复提交。";
@@ -476,11 +487,16 @@ export function useConversation(source: ShellDataSource) {
 
   async function selectOption(task: ShellTask, optionId: string, label: string) {
     const interaction = task.interaction;
-    if (!interaction || !task.allowed_actions.includes("provide_input")) return;
+    if (!interaction) return;
+    // A confirmation/verification card can carry backend-published options (the
+    // birthday controlled edit). They are answered by the same F10 call with an
+    // option id and no text; the server routes them, not `provide_input`.
+    const isInput = interaction.kind === "input";
+    if (isInput && !task.allowed_actions.includes("provide_input")) return;
     const result = await act(task.task_id, "input:" + interaction.interaction_id + ":" + optionId, (request_id) =>
       source.provideInput(task.task_id, { request_id, interaction_id: interaction.interaction_id, selected_option_id: optionId }));
     if (!result) return;
-    setHistory((current) => ({
+    if (isInput) setHistory((current) => ({
       ...current,
       [task.task_id]: (current[task.task_id] ?? []).map((entry) =>
         entry.kind === "input" && entry.id === interaction.interaction_id ? { ...entry, selectedLabel: label } : entry),

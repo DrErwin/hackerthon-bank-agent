@@ -10,7 +10,7 @@ import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, Wa
 import { VerificationCard } from "./VerificationCard";
 import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
 import { CrossPlanCard } from "./CrossPlanCard";
-import { CROSS_ANSWER_LABEL, crossPlan } from "../cross";
+import { asksForQuantity, CROSS_ANSWER_LABEL, crossPlan } from "../cross";
 import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
 import { inputPrompt, needsAttentionInTree, taskTitle } from "../presentation";
 
@@ -140,6 +140,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
               onSubmitText={(text) => actions.provideText(task, text)}
               textLabel={task.module === "cross" && entry.interaction.kind === "input"
                 && entry.interaction.options.length < 3 ? CROSS_ANSWER_LABEL : undefined}
+              numeric={asksForQuantity(entry.interaction)}
             />
           );
         }
@@ -161,6 +162,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
                 extraActions={isCurrent ? [
                   ...(slot.confirmationActions?.(task) ?? []),
                 ] : []}
+                options={isCurrent ? task.interaction?.options ?? [] : []}
+                onSelectOption={(optionId, label) => void actions.selectOption(task, optionId, label)}
                 onAnswer={(choice) => void actions.answerConfirmation(task, view, choice)}
               />
 
@@ -179,6 +182,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
             busy={busy}
             adminHref={verificationAdminHref(task.task_id, view.challenge_id, task.demo_round_id, origin)}
             adminLabel={verificationAdminLabel(origin)}
+            options={isCurrent ? task.interaction?.options ?? [] : []}
+            onSelectOption={(optionId, label) => void actions.selectOption(task, optionId, label)}
             onSubmitCode={(code) => actions.submitCode(task, view, code)}
             onResend={() => void actions.resendCode(task, view)}
             onStartFace={() => void actions.startFace(task, view)}

@@ -22,15 +22,24 @@ const API_ROOT = "/api/v1";
 const DEMO_STORAGE_KEY = "v03-local-demo-contract-state";
 const USER_ENTERED_KEY = "v03-local-demo-user-entered";
 
+/** The API failure body (§6.7): a code plus the backend's user-facing reason. */
+export interface ApiProblem {
+  code: string;
+  reason?: string | null;
+}
+
 export class ApiError extends Error {
   status: number;
   code: string;
+  /** The server's own Chinese reason, shown verbatim; null when the body had none. */
+  reason: string | null;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, reason: string | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.reason = reason;
   }
 }
 
@@ -793,11 +802,12 @@ async function readResponse<T>(response: Response): Promise<T> {
     throw new ApiError(response.status, "INVALID_RESPONSE", "服务返回了无法读取的响应。请刷新任务状态。");
   }
   if (!response.ok) {
-    const error = (payload as { error?: { code?: string; reason?: string } }).error;
+    const error = (payload as { error?: ApiProblem }).error;
     throw new ApiError(
       response.status,
       error?.code ?? "REQUEST_FAILED",
       error?.reason ?? "请求未完成。请刷新任务状态后再继续。",
+      error?.reason ?? null,
     );
   }
   return unwrap<T>(payload);

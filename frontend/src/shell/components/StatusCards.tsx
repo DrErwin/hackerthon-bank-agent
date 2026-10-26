@@ -18,7 +18,7 @@ export function WaitingCard({ message, facts, id }: { message: string; facts: Di
   );
 }
 
-export function InputCard({ interaction, active, busy, selectedLabel, onSelect, onSubmitText, textLabel, id }: {
+export function InputCard({ interaction, active, busy, selectedLabel, onSelect, onSubmitText, textLabel, numeric = false, id }: {
   interaction: InteractionRequest;
   active: boolean;
   busy: boolean;
@@ -28,6 +28,9 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
   // Cross-linkage menus ask for values (an amount, a date, a controlled
   // reference) with the same selection interaction; the answer is typed.
   textLabel?: string;
+  // A typed quantity is a positive integer; the hint is the server's own prompt
+  // and the server still refuses every value it does not accept.
+  numeric?: boolean;
   id: string;
 }) {
   const [text, setText] = useState("");
@@ -38,6 +41,8 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
   };
   const inputLabel = labels[field];
   const typingLabel = inputLabel ?? textLabel;
+  const typed = text.trim();
+  const ready = Boolean(typed) && (!numeric || /^[1-9]\d*$/.test(typed));
   return (
     <Card
       title={interaction.prompt}
@@ -57,13 +62,13 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
           {typingLabel && onSubmitText && (
             <form className="sh-modify" onSubmit={async (event) => {
               event.preventDefault();
-              if (!text.trim() || busy) return;
+              if (!ready || busy) return;
               if (await onSubmitText(text)) setText("");
             }}>
               <label htmlFor={id + "-input"}>{typingLabel}</label>
               <input id={id + "-input"} value={text} onChange={(event) => setText(event.target.value)}
-                inputMode={field === "amount_fen" ? "decimal" : "text"} autoComplete="off" disabled={busy} required />
-              <button className="sh-btn sh-btn-primary" disabled={busy || !text.trim()}>{textLabel ? "填好了，继续" : "补充并继续"}</button>
+                inputMode={numeric ? "numeric" : field === "amount_fen" ? "decimal" : "text"} autoComplete="off" disabled={busy} required />
+              <button className="sh-btn sh-btn-primary" disabled={busy || !ready}>{textLabel ? "填好了，继续" : "补充并继续"}</button>
             </form>
           )}
           <p className="sh-hint">{textLabel ? "可以点上面的选项，也可以直接打字。" : inputLabel ? "填写后继续这项办理，不会另起一笔。" : "请自己点选，系统不会替您默认选择。"}</p>
