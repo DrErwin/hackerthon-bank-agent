@@ -4,6 +4,11 @@ from app.contracts.common import TaskStatus
 from app.contracts.cross import CrossStep
 
 
+def _item_key(item: dict) -> str:
+    """A plan row's execution identity (ticket 08), independent of the product."""
+    return item.get("item_id") or item["product_id"]
+
+
 def build_birthday_steps(birthday: dict) -> list[CrossStep]:
     rows = []
     facts = birthday.get("write_facts", {})
@@ -22,9 +27,9 @@ def build_birthday_steps(birthday: dict) -> list[CrossStep]:
         append("birthday-freeze", "bank.freeze_funds", freeze)
     remaining = freeze.get("remaining_fen")
     for index, item in enumerate(birthday.get("orders", [])):
-        product_id = item["product_id"]
-        order = facts.get(f"order:{product_id}", {})
-        capture = facts.get(f"capture:{product_id}", {})
+        key = _item_key(item)
+        order = facts.get(f"order:{key}", {})
+        capture = facts.get(f"capture:{key}", {})
         if order:
             # A verified capture is a bank payment fact for this bound order.
             payment = "paid" if capture.get("status") == "completed" else (

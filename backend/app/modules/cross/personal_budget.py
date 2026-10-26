@@ -553,7 +553,8 @@ class PersonalBudget:
         hold = self.own()
         if hold is None:
             return
-        fact = self.b.get("write_facts", {}).get(f"capture:{item['product_id']}", {})
+        fact = self.b.get("write_facts", {}).get(
+            f"capture:{item.get('item_id') or item['product_id']}", {})
         tid, amount, op = fact.get("result_ref"), fact.get("amount_fen"), fact.get("operation_id")
         if tid in hold.settled_transaction_ids:
             return
