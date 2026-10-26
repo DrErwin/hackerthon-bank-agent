@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import type { DemoCodeView, VerificationView } from "../../contracts";
+import type { DemoCodeView, InteractionOption, VerificationView } from "../../contracts";
+import { EDIT_OPTION_NOTE } from "../copy";
 import { clockTime } from "../format";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
 
@@ -50,13 +51,17 @@ function CodeBoxes({ value, onChange, disabled, inputId }: { value: string; onCh
   );
 }
 
-export function VerificationCard({ view, active, canVerify, busy, adminHref, adminLabel = "演示用：在新窗口打开管理员演示入口", onSubmitCode, onResend, onStartFace, onShowDemoCode, id }: {
+export function VerificationCard({ view, active, canVerify, busy, adminHref, adminLabel = "演示用：在新窗口打开管理员演示入口", options, onSelectOption, onSubmitCode, onResend, onStartFace, onShowDemoCode, id }: {
   view: VerificationView;
   active: boolean;
   canVerify: boolean;
   busy: boolean;
   adminHref: string | null;
   adminLabel?: string;
+  // Options published by the backend on this card (the birthday controlled edit).
+  // They are answered by option id through F10, never by matching their label.
+  options?: InteractionOption[];
+  onSelectOption?: (optionId: string, label: string) => void;
   onSubmitCode: (code: string) => Promise<string | null>;
   onResend: () => void;
   onStartFace: () => void;
@@ -168,6 +173,17 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
           </li>
         )}
       </ol>
+      {live && (options ?? []).length > 0 && (
+        <>
+          <div className="sh-actions">
+            {(options ?? []).map((option) => (
+              <button key={option.id} type="button" className="sh-btn sh-btn-secondary" disabled={busy}
+                onClick={() => onSelectOption?.(option.id, option.label)}>{option.label}</button>
+            ))}
+          </div>
+          <p className="sh-hint">{EDIT_OPTION_NOTE}</p>
+        </>
+      )}
       {!live && <p className="sh-readonly-line">这项验证已转为只读，不会再次提交。</p>}
     </Card>
   );

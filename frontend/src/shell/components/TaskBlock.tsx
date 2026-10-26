@@ -5,12 +5,14 @@ import type { BusinessSlot } from "../slots";
 import type { DataOrigin, ResultView, TaskEnvelope } from "../types";
 import type { Conversation } from "../useConversation";
 import { ConfirmationCard } from "./ConfirmationCard";
+import { DeliveryCard } from "./DeliveryCard";
 import { Notice } from "./Primitives";
 import { InputCard, NeedsAttentionCard, RecoveryCard, ReportCard, ResultCard, WaitingCard } from "./StatusCards";
 import { VerificationCard } from "./VerificationCard";
 import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
 import { CrossPlanCard } from "./CrossPlanCard";
-import { CROSS_ANSWER_LABEL, crossPlan } from "../cross";
+import { QUANTITY_HINT } from "../copy";
+import { asksForQuantity, CROSS_ANSWER_LABEL, crossPlan } from "../cross";
 import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
 import { inputPrompt, needsAttentionInTree, taskTitle } from "../presentation";
 
@@ -93,6 +95,11 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   const result: ResultView | null = mapped
     ?? (isTerminal(task) && !report && !plan ? { tone: status.tone, title: status.text, fields: facts, note: task.message } : null);
   const interactionActive = !expired && task.status === "waiting_approval" && !task.recovery_required;
+  // The delivery step collects controlled facts, so it must not fall through to
+  // the generic text box; its own card shows field errors where they belong.
+  const deliveryActive = !expired && task.status === "waiting_input"
+    && task.allowed_actions.includes("provide_input")
+    && task.interaction?.kind === "input" && task.interaction.required_fields.includes("delivery");
   const showTaskCancel = !expired && task.allowed_actions.includes("cancel") && task.interaction?.kind !== "confirmation";
 
   return (
@@ -128,18 +135,38 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         const content = (() => {
         const id = base + "-" + entry.id;
         if (entry.kind === "input") {
+          if (entry.interaction.required_fields.includes("delivery")) {
+            return (
+              <DeliveryCard
+                key={entry.id}
+                id={id}
+                interaction={isActive ? { ...entry.interaction, prompt: inputPrompt(task) } : entry.interaction}
+                active={isActive}
+                busy={busy}
+                handoff={isActive ? conversation.deliveries[task.task_id] ?? null : null}
+                error={isActive ? conversation.taskErrors[task.task_id] ?? "" : ""}
+                onSelect={(optionId, label) => void actions.selectOption(task, optionId, label)}
+                onSubmit={(fields) => actions.submitDelivery(task, fields)}
+                onContinue={() => actions.continueDelivery(task)}
+              />
+            );
+          }
+          // A quantity screen asks for a count, so the amount example ("例如 1500 或
+          // 1500元") does not belong there; every other menu keeps its own hint.
+          const asksQuantity = asksForQuantity(entry.interaction);
           return (
             <InputCard
               key={entry.id}
               id={id}
               interaction={isActive ? { ...entry.interaction, prompt: inputPrompt(task) } : entry.interaction}
-              active={!expired && task.status === "waiting_input" && task.allowed_actions.includes("provide_input") && task.interaction?.interaction_id === entry.id}
+              active={isActive}
               busy={busy}
               selectedLabel={entry.selectedLabel}
               onSelect={(optionId, label) => void actions.selectOption(task, optionId, label)}
               onSubmitText={(text) => actions.provideText(task, text)}
-              textLabel={task.module === "cross" && entry.interaction.kind === "input"
+              textLabel={asksQuantity ? QUANTITY_HINT : task.module === "cross" && entry.interaction.kind === "input"
                 && entry.interaction.options.length < 3 ? CROSS_ANSWER_LABEL : undefined}
+              numeric={asksQuantity}
             />
           );
         }
@@ -161,6 +188,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
                 extraActions={isCurrent ? [
                   ...(slot.confirmationActions?.(task) ?? []),
                 ] : []}
+                options={isCurrent ? task.interaction?.options ?? [] : []}
+                onSelectOption={(optionId, label) => void actions.selectOption(task, optionId, label)}
                 onAnswer={(choice) => void actions.answerConfirmation(task, view, choice)}
               />
 
@@ -179,6 +208,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
             busy={busy}
             adminHref={verificationAdminHref(task.task_id, view.challenge_id, task.demo_round_id, origin)}
             adminLabel={verificationAdminLabel(origin)}
+            options={isCurrent ? task.interaction?.options ?? [] : []}
+            onSelectOption={(optionId, label) => void actions.selectOption(task, optionId, label)}
             onSubmitCode={(code) => actions.submitCode(task, view, code)}
             onResend={() => void actions.resendCode(task, view)}
             onStartFace={() => void actions.startFace(task, view)}
@@ -243,7 +274,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         </Notice>
       )}
       {task.cancel_requested && !isTerminal(task) && <Notice tone="warning" title="已收到停止请求">已经提交的操作仍以银行结果为准，我会继续显示原操作的状态。</Notice>}
-      {conversation.taskErrors[task.task_id] && (
+      {conversation.taskErrors[task.task_id] && !deliveryActive && (
         <Notice
           tone="warning"
           title="刚才的操作没有完成"

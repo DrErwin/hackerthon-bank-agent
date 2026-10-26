@@ -3,7 +3,9 @@ import { ApiError } from "../api";
 import type { ConfirmationView, DemoCodeView, MessageView, SessionView, TaskRecordsView, ThreadView, VerificationView } from "../contracts";
 import { isTerminal, newRequestId } from "./format";
 import { readCardLinks, selectionKey, type CardLink } from "./presentation";
-import type { CardSelection, DraftChanges, HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope } from "./types";
+import type {
+  CardSelection, DeliveryFields, DeliveryHandoff, DraftChanges, HistoryEntry, PayeeFields, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope,
+} from "./types";
 
 const ENTERED_KEY = "fe-shell-entered";
 const historyKey = (threadId: string) => "fe-shell-history:" + threadId;
@@ -25,6 +27,18 @@ function writeHistory(threadId: string, history: Record<string, HistoryEntry[]>)
   } catch {
     // History only keeps record ids and option labels; losing it hides old read-only cards.
   }
+}
+
+// Only a digest of the typed values keys a request, so re-editing a failed form
+// submits the new values while an unchanged retry keeps its request number.
+function contentDigest(value: unknown): string {
+  const text = JSON.stringify(value);
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
 }
 
 export function restoreServerRecordHistory(existing: HistoryEntry[], records: TaskRecordsView): HistoryEntry[] {
@@ -54,14 +68,25 @@ function needsRecovery(task: ShellTask): boolean {
   return task.recovery_required || !isTerminal(task);
 }
 
+const REFRESH_BEFORE_RETRY = new Set([
+  "INTERACTION_STALE", "TASK_CHANGED", "PUBLISH_CONFLICT", "TRANSITION_PENDING",
+]);
+
 function errorText(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 0 || error.status >= 500 || error.status === 429) {
-      return error.message + " 可以再点一次，会沿用同一个请求编号，不会重复办理。";
-    }
-    return error.message;
+  if (!(error instanceof ApiError)) return "操作没有完成，请刷新状态后再试。";
+  // The backend's own Chinese reason already states what happened and the next
+  // step; the page shows it verbatim and writes no refusal of its own.
+  if (error.reason) return error.reason;
+  // A body without a reason (offline proxy or a mock source) keeps the server
+  // message and appends the next step that matches the public code.
+  if (REFRESH_BEFORE_RETRY.has(error.code)) return error.message + "请刷新这项任务后重试。";
+  if (error.code.startsWith("CROSS_") || error.code === "AUDIT_UNAVAILABLE" || error.code === "DEPENDENCY_UNAVAILABLE") {
+    return error.message + "原任务结果待核实，请查询原任务。";
   }
-  return "操作没有完成，请刷新状态后再试。";
+  if (error.status === 0 || error.status === 429 || error.status >= 500) {
+    return error.message + " 可以再点一次，会沿用同一个请求编号，不会重复办理。";
+  }
+  return error.message;
 }
 
 const replyReadError = "暂时没有读到最新结果，请查询办理进度。已有请求不会重复提交。";
@@ -84,6 +109,7 @@ export function useConversation(source: ShellDataSource) {
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [taskErrors, setTaskErrors] = useState<Record<string, string>>({});
   const [taskNotices, setTaskNotices] = useState<Record<string, string>>({});
+  const [deliveries, setDeliveries] = useState<Record<string, DeliveryHandoff>>({});
   const [pageError, setPageError] = useState("");
   const [pageNotice, setPageNotice] = useState("");
   const [pendingMessage, setPendingMessage] = useState<{ id: string; text: string } | null>(null);
@@ -108,6 +134,9 @@ export function useConversation(source: ShellDataSource) {
     setConnected(false);
     setAwaitingReply(false);
     awaitingMessageId.current = null;
+    // A reference belongs to the session and interaction that issued it; a new
+    // session never continues it.
+    setDeliveries({});
   }, []);
 
   const upsertTask = useCallback((task: ShellTask, module?: string | null) => {
@@ -263,6 +292,9 @@ export function useConversation(source: ShellDataSource) {
     localStorage.setItem(ENTERED_KEY, "yes");
     setSession(entered);
     setExpired(false);
+    // Entering another session starts a new page-level handoff: a reference from
+    // the previous session is dropped rather than offered for continuation.
+    setDeliveries({});
     await loadThread(true);
   }, [loadThread, source]);
 
@@ -305,6 +337,23 @@ export function useConversation(source: ShellDataSource) {
       // Display grouping is optional; server permissions and task state remain authoritative.
     }
   }, [threadId, cardLinks]);
+
+  // A handoff is only usable while its task still asks for delivery, and it is
+  // never written to web storage: a reload asks for the delivery facts again.
+  useEffect(() => {
+    setDeliveries((current) => {
+      const stale = Object.keys(current).filter((taskId) => {
+        const task = tasks.get(taskId)?.task;
+        if (!task) return false;
+        return isTerminal(task) || task.interaction?.kind !== "input"
+          || !task.interaction.required_fields.includes("delivery");
+      });
+      if (stale.length === 0) return current;
+      const next = { ...current };
+      for (const taskId of stale) delete next[taskId];
+      return next;
+    });
+  }, [tasks]);
 
   useEffect(() => {
     if (!threadId || expired) return;
@@ -441,7 +490,7 @@ export function useConversation(source: ShellDataSource) {
     }
   }, [expire, source, upsertTask]);
 
-  async function act<T>(taskId: string, key: string, call: (requestId: string) => Promise<T>): Promise<T | null> {
+  async function act<T>(taskId: string, key: string, call: (requestId: string) => Promise<T>, onFailure?: (error: unknown) => void): Promise<T | null> {
     if (expired || inflight.current.has(taskId)) return null;
     inflight.current.add(taskId);
     setBusy((current) => ({ ...current, [taskId]: key }));
@@ -454,6 +503,7 @@ export function useConversation(source: ShellDataSource) {
       pendingIds.current.delete(key);
       return result;
     } catch (error) {
+      onFailure?.(error);
       if (error instanceof ApiError && error.status === 401) {
         pendingIds.current.delete(key);
         expire();
@@ -476,11 +526,16 @@ export function useConversation(source: ShellDataSource) {
 
   async function selectOption(task: ShellTask, optionId: string, label: string) {
     const interaction = task.interaction;
-    if (!interaction || !task.allowed_actions.includes("provide_input")) return;
+    if (!interaction) return;
+    // A confirmation/verification card can carry backend-published options (the
+    // birthday controlled edit). They are answered by the same F10 call with an
+    // option id and no text; the server routes them, not `provide_input`.
+    const isInput = interaction.kind === "input";
+    if (isInput && !task.allowed_actions.includes("provide_input")) return;
     const result = await act(task.task_id, "input:" + interaction.interaction_id + ":" + optionId, (request_id) =>
       source.provideInput(task.task_id, { request_id, interaction_id: interaction.interaction_id, selected_option_id: optionId }));
     if (!result) return;
-    setHistory((current) => ({
+    if (isInput) setHistory((current) => ({
       ...current,
       [task.task_id]: (current[task.task_id] ?? []).map((entry) =>
         entry.kind === "input" && entry.id === interaction.interaction_id ? { ...entry, selectedLabel: label } : entry),
@@ -543,13 +598,13 @@ export function useConversation(source: ShellDataSource) {
     return true;
   }
 
-  async function submitPayeeDetails(task: ShellTask, fields: { account_name: string; account_number: string }): Promise<boolean> {
-    if (!source.submitPayeeDetails || !task.interaction) return false;
+  async function submitPayeeDetails(task: ShellTask, fields: PayeeFields): Promise<boolean> {
+    if (!source.submitDetails || !task.interaction) return false;
     // Raw bank details are sent only to the dedicated endpoint, never chat or local history.
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(fields)));
     const fingerprint = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
     const result = await act(task.task_id, "payee-details:" + task.task_id + ":" + task.task_revision + ":" + fingerprint, (request_id) =>
-      source.submitPayeeDetails!(task.task_id, { request_id, interaction_id: task.interaction!.interaction_id, kind: "payee", fields }));
+      source.submitDetails!(task.task_id, { request_id, interaction_id: task.interaction!.interaction_id, kind: "payee", fields }));
     if (!result) return false;
     upsertTask(result.task);
     if (result.task.error || result.task.status === "failed" || result.task.status === "needs_attention") {
@@ -557,6 +612,76 @@ export function useConversation(source: ShellDataSource) {
       return false;
     }
     setTaskNotices((current) => ({ ...current, [task.task_id]: "已核对收款资料，请查看脱敏后的收款人信息。" }));
+    return true;
+  }
+
+  function dropDelivery(taskId: string) {
+    setDeliveries((current) => {
+      if (!current[taskId]) return current;
+      const next = { ...current };
+      delete next[taskId];
+      return next;
+    });
+  }
+
+  /**
+   * F36 takes the raw delivery facts once and answers one reference plus masked
+   * fields. The form keeps the original; only this page session's memory keeps
+   * the reference and the mask, then immediately continues F10 with it. A
+   * reload loses it and the server asks for delivery again on the form.
+   */
+  async function submitDelivery(task: ShellTask, fields: DeliveryFields): Promise<boolean> {
+    const interaction = task.interaction;
+    if (!source.submitDetails || !interaction || interaction.kind !== "input"
+        || !interaction.required_fields.includes("delivery")
+        || !task.allowed_actions.includes("provide_input")
+        || task.recovery_required || bootRecovery.has(task.task_id)) return false;
+    const result = await act(task.task_id,
+      "delivery:" + task.task_id + ":" + task.task_revision + ":" + interaction.interaction_id + ":" + contentDigest(fields),
+      (request_id) => source.submitDetails!(task.task_id, {
+        request_id, interaction_id: interaction.interaction_id, kind: "delivery", fields,
+      }));
+    if (!result) return false;
+    const handoff: DeliveryHandoff = {
+      detail_ref: result.detail_ref,
+      interaction_id: interaction.interaction_id,
+      fields: result.display_fields,
+    };
+    setDeliveries((current) => ({ ...current, [task.task_id]: handoff }));
+    return continueDelivery(task, handoff);
+  }
+
+  /**
+   * F10 carries only the stored reference, and only for the interaction that
+   * issued it. A stale interaction, a replaced session or a server that cannot
+   * resolve it drops the reference and returns to the form; the reference is
+   * never offered again, in this page or a later one.
+   */
+  async function continueDelivery(task: ShellTask, handoff?: DeliveryHandoff): Promise<boolean> {
+    const pending = handoff ?? deliveries[task.task_id];
+    const interaction = task.interaction;
+    if (!pending || !interaction || interaction.kind !== "input"
+        || pending.interaction_id !== interaction.interaction_id
+        || !task.allowed_actions.includes("provide_input") || task.recovery_required) return false;
+    const result = await act(task.task_id,
+      "delivery-continue:" + task.task_id + ":" + interaction.interaction_id + ":" + pending.detail_ref,
+      (request_id) => source.provideInput(task.task_id, {
+        request_id, interaction_id: interaction.interaction_id, text: pending.detail_ref,
+      }),
+      // The server refused this reference for this interaction: drop it here so
+      // the old one can never be continued against the refreshed snapshot. A 401
+      // ends the session, and `expire` already drops every in-memory reference.
+      (error) => {
+        if (error instanceof ApiError && error.status === 409) dropDelivery(task.task_id);
+      });
+    if (!result) return false;
+    upsertTask(result);
+    if (result.interaction?.kind === "input" && result.interaction.required_fields.includes("delivery")) {
+      dropDelivery(task.task_id);
+      setTaskErrors((current) => ({ ...current, [task.task_id]: result.message }));
+      return false;
+    }
+    dropDelivery(task.task_id);
     return true;
   }
 
@@ -763,6 +888,7 @@ export function useConversation(source: ShellDataSource) {
     busy,
     taskErrors,
     taskNotices,
+    deliveries,
     pageError,
     pageNotice,
     pendingMessage,
@@ -770,7 +896,7 @@ export function useConversation(source: ShellDataSource) {
     awaitingReply,
     supportsCardActions: Boolean(source.cardAction),
     readTransferChoices: source.readTransferChoices,
-    actions: { cardAction, send, provideText, reviseDraft, submitPayeeDetails, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask, refreshConversation },
+    actions: { cardAction, send, provideText, reviseDraft, submitPayeeDetails, submitDelivery, continueDelivery, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask, refreshConversation },
   };
 }
 

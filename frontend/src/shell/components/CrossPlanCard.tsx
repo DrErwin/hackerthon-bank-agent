@@ -6,6 +6,7 @@ import {
   PLAN_STOPPED,
   planCounts,
   scenarioTitle,
+  stepFacts,
   stepTitle,
 } from "../cross";
 import { isTerminal, statusLabel } from "../format";
@@ -57,6 +58,7 @@ export function CrossPlanCard({ view, task, childTask, renderChild, onQueryChild
             const currentChild = step.child_task_id && step.child_task_id === currentId ? step.child_task_id : null;
             const earlierChild = step.child_task_id && !currentChild && child && isTerminal(child)
               ? step.child_task_id : null;
+            const bank = stepFacts(step);
             return (
               <li key={step.step_id} className={"sh-step sh-cross-step" + tone + (active ? " sh-step-active" : "")}
                 aria-current={active ? "step" : undefined}
@@ -66,6 +68,12 @@ export function CrossPlanCard({ view, task, childTask, renderChild, onQueryChild
                   <strong>{stepTitle(step)}</strong>
                   <span className="sh-step-state">{label ? label.icon + " " + label.text : "待开始"}</span>
                 </div>
+                {(bank.amount || bank.details.length > 0) && (
+                  <p className="sh-cross-facts">
+                    {bank.amount && <strong>{bank.amount}</strong>}
+                    {bank.details.map((detail) => <span key={detail}>{detail}</span>)}
+                  </p>
+                )}
                 {step.error?.reason && step.error.source !== "security" && <p className="sh-inline-error">{step.error.reason}</p>}
                 {step.status === "needs_attention" && step.child_task_id && onQueryChild && (
                   <button type="button" className="sh-link-btn" onClick={() => onQueryChild(step.child_task_id!)}>

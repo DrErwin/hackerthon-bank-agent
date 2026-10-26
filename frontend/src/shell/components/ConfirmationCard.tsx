@@ -1,4 +1,5 @@
-import type { ConfirmationView } from "../../contracts";
+import type { ConfirmationView, InteractionOption } from "../../contracts";
+import { EDIT_OPTION_NOTE } from "../copy";
 import { clockTime } from "../format";
 import type { SlotAction } from "../slots";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
@@ -11,7 +12,7 @@ const DECISION_TEXT: Record<ConfirmationView["decision"], string> = {
   superseded: "已被新确认单替代",
 };
 
-export function ConfirmationCard({ view, title, emphasize, active, canConfirm, canCancel, busy, extraActions, onAnswer, id }: {
+export function ConfirmationCard({ view, title, emphasize, active, canConfirm, canCancel, busy, extraActions, options, onSelectOption, onAnswer, id }: {
   view: ConfirmationView;
   title: string;
   emphasize?: string;
@@ -20,6 +21,10 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
   canCancel: boolean;
   busy: boolean;
   extraActions: SlotAction[];
+  // Options published by the backend on this card (the birthday controlled edit).
+  // They are answered by option id through F10, never by matching their label.
+  options?: InteractionOption[];
+  onSelectOption?: (optionId: string, label: string) => void;
   onAnswer: (choice: "approve" | "cancel") => void;
   id: string;
 }) {
@@ -45,10 +50,17 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
             {extraActions.map((action) => (
               <button key={action.label} type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={action.onClick}>{action.label}</button>
             ))}
+            {(options ?? []).map((option) => (
+              <button key={option.id} type="button" className="sh-btn sh-btn-secondary" disabled={busy}
+                onClick={() => onSelectOption?.(option.id, option.label)}>{option.label}</button>
+            ))}
             {canCancel && (
               <button type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={() => onAnswer("cancel")}>取消</button>
             )}
           </div>
+          {/* The page never matches an option by its label, so "the server published
+              options" is the only condition it can test for the edit explanation. */}
+          {(options ?? []).length > 0 && <p className="sh-hint">{EDIT_OPTION_NOTE}</p>}
         </>
       ) : (
         <p className="sh-readonly-line">这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。</p>
