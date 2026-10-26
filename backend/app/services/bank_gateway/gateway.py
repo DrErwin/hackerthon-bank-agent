@@ -131,10 +131,12 @@ class BankGateway:
         ))
 
     def get_freeze(self, context: TrustedContext, freeze_id: str):
-        return self._bank.birthday.get_freeze(context.user_id, freeze_id)
+        return self._bank.birthday.get_freeze(
+            context.user_id, freeze_id, context.demo_round_id)
 
     def get_order(self, context: TrustedContext, order_id: str):
-        return self._bank.birthday.get_order(context.user_id, order_id)
+        return self._bank.birthday.get_order(
+            context.user_id, order_id, context.demo_round_id)
 
     def list_products(self, context: TrustedContext, merchant_id: str | None = None,
                       purpose: str | None = None, deliver_by=None):

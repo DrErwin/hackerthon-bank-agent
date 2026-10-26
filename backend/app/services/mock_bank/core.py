@@ -92,6 +92,7 @@ class MockBankService:
         self.slow_seconds = slow_seconds
         self._slow_once: set[str] = set()
         self._slow_lock = threading.Lock()
+        self._refuse_roundless_objects()
         self.seed_demo()
         self.seed_subscriptions()
         with transaction(self.store.path) as connection:
@@ -126,6 +127,31 @@ class MockBankService:
                 ))
         self.verification = MockBankVerification(store.path, demo_secret)
         self.birthday = MockBirthdayBank(store, clock=self.clock, slow_seconds=slow_seconds)
+
+    def _refuse_roundless_objects(self) -> None:
+        """Refuse objects written without a demo round.
+
+        v05-bank-round-objects/01 stores the owning round on every freeze/order.
+        Rows without one cannot be safely attributed or released, so a database
+        that still holds them is refused before any seed write, mirroring the
+        legacy operation-scope check below.
+        """
+        with closing(connect(self.store.path)) as connection:
+            tables = {
+                row["name"] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'")
+            }
+            roundless = sum(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM {name} WHERE demo_round_id IS NULL"
+                ).fetchone()[0]
+                for name in ("freezes", "orders") if name in tables
+            )
+        if roundless:
+            raise RuntimeError(
+                "bank objects without a demo round exist; retain the old database "
+                "for reference and start a fresh demo bank database explicitly"
+            )
 
     def seed_demo(self, *, include_evaluation: bool = False) -> None:
         """Add missing JSON accounts without resetting balances or existing state."""
