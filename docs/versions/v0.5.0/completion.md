@@ -90,6 +90,7 @@
 
 ## 五、验证状态
 
+- 2026-10-26（银行跨轮次对象边界收口，main `5b4b99d`）：[v05-bank-round-objects/01](../../../.scratch/v05-bank-round-objects/issues/01-object-round-storage.md) `819bbfb`（银行库 v5：冻结/订单对象轮次归属；v4 有对象行明确拒绝加载）、02 `b63ec1b`（服务层按可信轮次校验，跨轮 `ACCESS_DENIED`、启动拒绝无轮次对象行）、[评测 02](../../../.scratch/v05-cross-bank-eval/issues/02-round-object-regression.md) `5b4b99d`（四项 strict xfail 转正 + 混合订单轮次用例）合入。隔离实跑：生日单文件 **42 passed**、归因 **3 passed**、记录合跑 **217 passed / 0 xfailed**、旧 CI 评测 **14 passed**、平台/安全定向 **46 passed**；全后端实现版 **2120 passed / 13 skipped**（02+评测测试加齐前同一产品代码）。CI 仍因账号计费未启动记 Blocked；页面/模型/HTTP E2E、B26 重置、PM 体验与专业安全签核未做，不代签。
 - 2026-10-26（第四至第七批合入后，main `5347dd7`）：后端受影响定向并集 **315 节点 / 302 passed / 13 skipped / 0 failed**；evals 证据侧 **61 节点 / 57 passed / 4 strict xfail / 0 failed**；`evals/security` **155 passed / 0 failed**。批次 5 与批次 7 另在各自实际落点树上复跑（57 节点与 cross 93 passed）。本轮不是全后端、不是页面/模型/银行 E2E。
 - 2026-10-24（联动平台底座七票）：分票验证——contracts 81、storage 38（应用库 31+银行库 38 分列计 37+新增）、agent_platform 238、api 175、services 59 passed；#258 合入前后端全量 `1460 passed`、#260/#262 期间全量 `1469 passed`；PR #256—#263 CI 全绿。
 - 2026-10-23（#254 rebase 后、推送前）：后端 `1431 passed / 0 failed`、mockbank `14 passed`、前端 `70 passed`、`npm run build` 通过、链接与空白检查通过；#253/#254 的 PR CI 与 main 推送 CI 均绿。

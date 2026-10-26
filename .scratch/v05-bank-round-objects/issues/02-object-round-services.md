@@ -14,7 +14,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/services/`
 
-Status: in_progress — 2026-10-26 实现与双轴修复完成，PR #316 待合入；未合并。
+Status: done — 2026-10-26 已 squash 合入 main `b63ec1b`（PR #316）；双轴必须项已闭合；CI 计费未启动记 Blocked。评测 02 已随后合入 `5b4b99d`，跨轮红灯窗口归零。
 
 Blocked by: [v05-bank-round-objects/01：存储层对象轮次归属](01-object-round-storage.md)（实施依赖）。
 
@@ -67,4 +67,4 @@ python -m pytest -q app/services/ app/security/test_birthday_release.py --basete
   - `../evals/mockbank/test_birthday_bank_eval.py` → **4 failed, 37 passed**（四项 strict xfail 按设计 XPASS）；`../evals/mockbank` 全目录为 **5 failed, 53 passed**：第 5 项是 `test_birthday_round_attribution.py::test_current_task_rejects_old_order_and_pays_its_own_order`（D2 用网关读 D1 旧对象，现被 `ACCESS_DENIED`）。两项均由 [v05-cross-bank-eval/02：跨轮次旧对象边界回归收口](../../v05-cross-bank-eval/issues/02-round-object-regression.md) 转正；02 合入到评测票合入之间 `evals/mockbank` 为 5 项红灯窗口，中控须按该口径记录，不能只写“四项立即转正”。本票不改评测期望。
 - 代码审查：规范轴/规格轴两位独立子代理已完成；发现并已修复：启动 NULL 测试假阳性（补 scope 行与行/user_version/accounts 断言、参数化 freezes/orders）、跨轮断言补 order_payments/ledger/released_total、补 get_order 缺失对象、README 补 operation scope 关系、get_freeze/get_order docstring。修后复跑上述 13/126 通过。
 - 安全审阅：本票新增银行对象访问拒绝判定，按 AGENTS.md 属资金执行链路的安全相关改动；v0.5 阶段由 Erwin 代行审阅并如实记录为代行（不写 Ringo 签核）；PM 2026-10-26 16:10「把这些都做了吧」授权继续推进。
-- PR：[#316](https://github.com/DrErwin/hackerthon-bank-agent/pull/316)，head 以最终推送为准，base main；未合并。CI [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40291651775/job/121467880318) 结论 failure，annotation 明确“job was not started because recent account payments have failed…”，job 未运行、无测试证据，不记 CI 绿、非测试失败。
+- PR：[#316](https://github.com/DrErwin/hackerthon-bank-agent/pull/316)，head `bf8f592`，**已 squash 合入 main `b63ec1b`**（2026-10-26 16:56）；评测 02 随后合入 `5b4b99d`，本票造成的 5 项红灯窗口归零。CI [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40291651775/job/121467880318) 结论 failure，annotation 明确“job was not started because recent account payments have failed…”，job 未运行、无测试证据，不记 CI 绿、非测试失败。

@@ -12,7 +12,7 @@ Owner: Erwin
 
 Directory: `evals/mockbank/`
 
-Status: delivered — 2026-10-26 银行事实与跨轮次旧对象证据齐备：提供方 01/02 已合入，四项 strict xfail 由本组 [02](02-round-object-regression.md) 转为正式回归并通过。待包 06 收口、PM/安全接受与真实 E2E 另行进行，不由本票代签。
+Status: delivered — 2026-10-26 银行事实与跨轮次旧对象证据齐备：提供方 01（`819bbfb`）/02（`b63ec1b`）已合入，四项 strict xfail 由本组 [02](02-round-object-regression.md)（`5b4b99d`）转为正式回归并通过。待包 06 收口、PM/安全接受与真实 E2E 另行进行，不由本票代签。
 
 Accepted by: Erwin（授权执行对话，银行专项）
 

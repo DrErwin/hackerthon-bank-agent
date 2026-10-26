@@ -1,6 +1,6 @@
 # 银行对象轮次归属与跨轮次拒绝工作规格
 
-Status: in_progress — 2026-10-26 01（storage）已合入 main `819bbfb`；02（services）已合入 main `b63ec1b`；评测收口 02 已完成验证并待 PR 合入。PM 已确认防御纵深决策并授权继续。
+Status: done — 2026-10-26 01（storage `819bbfb`）、02（services `b63ec1b`）与评测收口 02（`5b4b99d`）均已合入 main；四项 strict xfail 转正，跨轮红灯窗口归零。PM/安全接受与真实 E2E 仍另记，不由本组代签。
 
 Owner: Erwin（v0.5 本阶段统一负责）
 

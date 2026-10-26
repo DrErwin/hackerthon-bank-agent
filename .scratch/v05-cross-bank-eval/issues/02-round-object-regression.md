@@ -14,7 +14,7 @@ Owner: Erwin
 
 Directory: `evals/mockbank/`
 
-Status: in_progress — 2026-10-26 实现、双轴必须项修复与 rebase 完成（main `b63ec1b`），PR 待建/待合入。
+Status: done — 2026-10-26 已 squash 合入 main `5b4b99d`（PR #317）；四项 strict xfail 转正、混合订单轮次用例与证据已交付；CI 计费未启动记 Blocked。
 
 Blocked by: [v05-bank-round-objects/02：银行服务与网关按可信轮次校验冻结/订单对象](../../v05-bank-round-objects/issues/02-object-round-services.md)（01 是 02 的传递前置，见 [01](../../v05-bank-round-objects/issues/01-object-round-storage.md)；另需 Owner 确认补对象归属，见 [spec 背景](../../v05-bank-round-objects/spec.md)）。
 
@@ -62,7 +62,7 @@ Source: [PR #290](https://github.com/DrErwin/hackerthon-bank-agent/pull/290) 四
   - `app/agent_platform/test_birthday_order_scope.py app/agent_platform/test_birthday_runtime_wiring.py app/security/test_birthday_release.py` → **46 passed**。
 - 代码审查：规范轴/规格轴两位独立子代理已完成；必须项已修（提前“已合入”口径、归因/责任历史段标记、mixed 订单用例、变更文件清单、状态与证据回填）。
 - 安全审阅：本票为评测/证据更新，不新增产品安全规则；AI 审查不替代 PM/Ringo。
-- PR：[#317](https://github.com/DrErwin/hackerthon-bank-agent/pull/317)，head `8f1d0ae`，base main（01/02 已合入），未合并。本票合入后 `evals/mockbank` 的 5 项红灯窗口归零。本票不预改产品代码，真实页面/模型/HTTP E2E 与 PM/安全接受不在本票。
+- PR：[#317](https://github.com/DrErwin/hackerthon-bank-agent/pull/317)，head `3710b62`，**已 squash 合入 main `5b4b99d`**（2026-10-26 17:07）；02 合入到本票合入之间的 `evals/mockbank` 5 项红灯窗口已归零。本票不预改产品代码，真实页面/模型/HTTP E2E 与 PM/安全接受不在本票。
 - CI：[Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40297023956/job/121485452656) 结论 failure，annotation 明确“job was not started because recent account payments have failed…”，job 未运行、无测试执行证据，不记 CI 绿、非测试失败。
 
 ## Verification
