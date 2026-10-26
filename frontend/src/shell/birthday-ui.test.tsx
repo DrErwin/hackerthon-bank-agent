@@ -558,23 +558,54 @@ it("asks for the form again only when the server cannot resolve the reference", 
   await waitFor(() => expect(storedText()).not.toContain(REF));
 });
 
-it("continues from the stored mask and reference after a reload instead of asking again", async () => {
+it("keeps the F36 reference and mask in memory only, never in web storage", async () => {
   const backend = createDemoBackend({ replyDelayMs: 0 });
-  await backend.user.enterSession({ request_id: crypto.randomUUID() });
-  const thread = await backend.user.ensureThread();
-  localStorage.setItem("fe-delivery:" + thread.thread_id,
-    JSON.stringify({ birthday: { detail_ref: "deliver-ref-reload", fields: MASKED } }));
-  const provideInput = vi.fn().mockResolvedValue(pickAsk);
+  backend.user.submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  backend.user.provideInput = vi.fn()
+    .mockRejectedValue(new ApiError(503, "DEPENDENCY_UNAVAILABLE", "暂时没有收到选品结果。"));
+  await mountCard(backend.user, deliveryAsk);
+
+  fillDelivery();
+  const localKeys = Object.keys(localStorage).sort();
+  const sessionKeys = Object.keys(sessionStorage).sort();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+
+  // The handoff stays for the next click in this page session only.
+  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(screen.getByText("李*")).toBeTruthy();
+  expect(Object.keys(localStorage).sort()).toEqual(localKeys);
+  expect(Object.keys(sessionStorage).sort()).toEqual(sessionKeys);
+  expect(Object.keys(localStorage).some((key) => key.startsWith("fe-delivery:"))).toBe(false);
+  expect(Object.keys(sessionStorage).some((key) => key.startsWith("fe-delivery:"))).toBe(false);
+  expect(storedText()).not.toContain(REF);
+  expect(storedText()).not.toContain("李*");
+  expect(storedText()).not.toContain("****5678");
+});
+
+it("asks for the delivery facts again after a reload instead of reusing the reference", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  const provideInput = vi.fn()
+    .mockRejectedValue(new ApiError(503, "DEPENDENCY_UNAVAILABLE", "暂时没有收到选品结果。"));
   backend.user.provideInput = provideInput;
   await mountCard(backend.user, deliveryAsk);
 
-  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
-  expect(screen.getByText("李*")).toBeTruthy();
-  expect(screen.queryByLabelText("收件人")).toBeNull();
-
+  fillDelivery();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "资料不用再填，点下面继续" }));
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
   });
-  await waitFor(() => expect(provideInput).toHaveBeenCalledTimes(1));
-  expect(provideInput.mock.calls[0][1]).toMatchObject({ interaction_id: "i-delivery", text: "deliver-ref-reload" });
+  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+
+  // A reload is a fresh page session: the in-memory handoff is gone, so the
+  // server's own delivery step is shown again with nothing continued on its own.
+  cleanup();
+  await mountCard(backend.user, deliveryAsk);
+
+  expect(await screen.findByLabelText("收件人")).toBeTruthy();
+  expect(screen.getByText(/请在配送信息专用表单填写收件人/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByText("李*")).toBeNull();
+  expect(provideInput).toHaveBeenCalledTimes(1);
 });

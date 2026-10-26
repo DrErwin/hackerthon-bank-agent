@@ -9,7 +9,6 @@ import type {
 
 const ENTERED_KEY = "fe-shell-entered";
 const historyKey = (threadId: string) => "fe-shell-history:" + threadId;
-const deliveryKey = (threadId: string) => "fe-delivery:" + threadId;
 
 export type RecoveryOutcome = "resumed" | "discarded";
 
@@ -27,26 +26,6 @@ function writeHistory(threadId: string, history: Record<string, HistoryEntry[]>)
     localStorage.setItem(historyKey(threadId), JSON.stringify(history));
   } catch {
     // History only keeps record ids and option labels; losing it hides old read-only cards.
-  }
-}
-
-// The delivery handoff is the opaque F36 reference plus the server's own masked
-// fields. The typed original never lands here; this is only what lets a reload
-// answer F10 instead of asking the senior to type the address again.
-function readDeliveries(threadId: string): Record<string, DeliveryHandoff> {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(deliveryKey(threadId)) ?? "{}");
-    if (!raw || typeof raw !== "object") return {};
-    const stored: Record<string, DeliveryHandoff> = {};
-    for (const [taskId, value] of Object.entries(raw as Record<string, unknown>)) {
-      const item = value as { detail_ref?: unknown; fields?: unknown };
-      if (typeof item?.detail_ref === "string" && Array.isArray(item.fields)) {
-        stored[taskId] = { detail_ref: item.detail_ref, fields: item.fields as DeliveryHandoff["fields"] };
-      }
-    }
-    return stored;
-  } catch {
-    return {};
   }
 }
 
@@ -149,7 +128,6 @@ export function useConversation(source: ShellDataSource) {
   const refreshedCancellations = useRef(new Set<string>());
   const refreshErrors = useRef(new Map<string, string>());
   const childParents = useRef(new Map<string, string>());
-  const handoffLoaded = useRef(false);
 
   const expire = useCallback(() => {
     setExpired(true);
@@ -354,29 +332,8 @@ export function useConversation(source: ShellDataSource) {
     }
   }, [threadId, cardLinks]);
 
-  // Read this thread's delivery handoffs once it is known. The guard keeps the
-  // writer below from replacing them with an empty record before the read lands.
-  useEffect(() => {
-    if (!threadId) return;
-    handoffLoaded.current = false;
-    setDeliveries(readDeliveries(threadId));
-  }, [threadId]);
-
-  useEffect(() => {
-    if (!threadId) return;
-    if (!handoffLoaded.current) {
-      handoffLoaded.current = true;
-      return;
-    }
-    try {
-      localStorage.setItem(deliveryKey(threadId), JSON.stringify(deliveries));
-    } catch {
-      // The handoff is optional; losing it only means filling the form again.
-    }
-  }, [deliveries, threadId]);
-
-  // A handoff is only usable while its task still asks for delivery; a finished
-  // task must not leave a reference behind on this device.
+  // A handoff is only usable while its task still asks for delivery, and it is
+  // never written to web storage: a reload asks for the delivery facts again.
   useEffect(() => {
     setDeliveries((current) => {
       const stale = Object.keys(current).filter((taskId) => {
@@ -662,8 +619,9 @@ export function useConversation(source: ShellDataSource) {
 
   /**
    * F36 takes the raw delivery facts once and answers one reference plus masked
-   * fields. The form keeps the original; this page only keeps the reference and
-   * the mask, then immediately continues F10 with it.
+   * fields. The form keeps the original; only this page session's memory keeps
+   * the reference and the mask, then immediately continues F10 with it. A
+   * reload loses it and the server asks for delivery again on the form.
    */
   async function submitDelivery(task: ShellTask, fields: DeliveryFields): Promise<boolean> {
     const interaction = task.interaction;
