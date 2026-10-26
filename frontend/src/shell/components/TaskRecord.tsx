@@ -4,7 +4,7 @@ import { isTerminal, taskStatusLabel } from "../format";
 import { taskTitle } from "../presentation";
 import type { ShellTask } from "../types";
 
-export function TaskRecord({ task, messages, latest, children, hasActiveChild = false }: {
+export function TaskRecord({ task, latest, children, hasActiveChild = false }: {
   task: ShellTask; messages: MessageView[]; latest: boolean; children: ReactNode;
   hasActiveChild?: boolean;
 }) {
@@ -22,10 +22,6 @@ export function TaskRecord({ task, messages, latest, children, hasActiveChild = 
     </button>
     <div id={panelId} hidden={!open} className="sh-record-content">
       {children}
-      {messages.length > 0 && <details className="sh-disclosure sh-original-messages">
-        <summary>查看办理说明{messages.length > 1 ? "（" + messages.length + "条）" : ""}</summary>
-        {messages.map((message) => <p key={message.message_id}>{message.text}</p>)}
-      </details>}
     </div>
   </article>;
 }

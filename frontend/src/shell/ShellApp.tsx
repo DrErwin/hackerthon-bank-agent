@@ -10,6 +10,7 @@ import { crossSlot } from "./slots/crossSlot";
 import { transferSlot } from "./slots/transferDemoSlot";
 import { createDemoBackend } from "./stub/demoBackend";
 import "./shell.css";
+import "./conversation.css";
 const DesignSystemPage = lazy(() => import("./DesignSystemPage"));
 
 export function shellUsesContractDemo(mode: ApiMode = API_MODE): boolean {

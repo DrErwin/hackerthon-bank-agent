@@ -22,15 +22,15 @@ const msg = (id: string, time: string, ids: string[] = [], role: MessageView["ro
 beforeEach(() => localStorage.clear());
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-it("keeps a task at its first reply and nests only explicitly linked card results", () => {
+it("shows every reply, keeps one task card after the latest related reply, and nests explicit children", () => {
   const child = { ...task, task_id: "child", snapshot_at: "2026-10-22T04:00:00Z" };
   const legacy = { ...task, task_id: "legacy", snapshot_at: "2026-10-22T02:30:00Z" };
   const tasks = new Map([task, child, legacy].map((value) => [value.task_id, envelope(value)]));
   const messages = [msg("first", "01:00:00", ["parent"]), msg("unrelated", "03:00:00", [], "user"), msg("later", "05:00:00", ["parent"])];
   const links: CardLink[] = [{ parentId: "parent", childId: "child", revision: 3, selection: { action: "bill_check" } }];
   const timeline = buildTimeline(messages, tasks, links);
-  expect(timeline.map((item) => item.type === "task" ? item.envelope.task.task_id : item.message.message_id)).toEqual(["parent", "legacy", "unrelated"]);
-  expect(timeline[0].type === "task" && timeline[0].messages.map((item) => item.text)).toEqual(["first", "later"]);
+  expect(timeline.map((item) => item.type === "task" ? item.envelope.task.task_id : item.message.message_id)).toEqual(["first", "legacy", "unrelated", "later", "parent"]);
+  expect(timeline[4].type === "task" && timeline[4].messages.map((item) => item.text)).toEqual(["first", "later"]);
   expect(buildTimeline(messages, tasks).some((item) => item.type === "task" && item.envelope.task.task_id === "child")).toBe(true);
 });
 

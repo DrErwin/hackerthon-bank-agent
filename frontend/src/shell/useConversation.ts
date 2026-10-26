@@ -594,7 +594,7 @@ export function useConversation(source: ShellDataSource) {
       setTaskErrors((current) => ({ ...current, [task.task_id]: result.task.error?.reason || result.task.message }));
       return false;
     }
-    setTaskNotices((current) => ({ ...current, [task.task_id]: "资料已更新。请核对当前内容，确认前不会转账。" }));
+    setTaskNotices((current) => ({ ...current, [task.task_id]: "资料已更新，请核对一下。" }));
     return true;
   }
 
@@ -895,6 +895,7 @@ export function useConversation(source: ShellDataSource) {
     sending,
     awaitingReply,
     supportsCardActions: Boolean(source.cardAction),
+    supportsDetails: Boolean(source.submitDetails),
     readTransferChoices: source.readTransferChoices,
     actions: { cardAction, send, provideText, reviseDraft, submitPayeeDetails, submitDelivery, continueDelivery, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask, refreshConversation },
   };
