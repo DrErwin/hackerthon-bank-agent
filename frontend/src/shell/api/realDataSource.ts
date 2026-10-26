@@ -64,7 +64,7 @@ export function createRealDataSource(): ShellDataSource {
     readTransferChoices: (taskId, kind) =>
       get("/tasks/" + encodeURIComponent(taskId) + "/transfer-choices?kind=" + kind),
 
-    submitPayeeDetails: (taskId, body) =>
+    submitDetails: (taskId, body) =>
       post("/tasks/" + encodeURIComponent(taskId) + "/details", body),
 
     resumeTask: (taskId, body) =>

@@ -37,6 +37,27 @@ export type ShellVerificationResponse = Omit<VerificationResponse, "task"> & { t
 
 export type DraftChanges = Partial<Pick<TransferTaskView, "amount_fen" | "payer_account_id">> & { payee_hint?: string; payee_id?: string };
 
+/** Raw fields of the F36 delivery form. They live only in the form and its request. */
+export interface DeliveryFields {
+  recipient_name: string;
+  phone: string;
+  address: string;
+}
+
+export type SubmitDetailsBody =
+  | { request_id: string; interaction_id: string; kind: "payee"; fields: { account_name: string; account_number: string } }
+  | { request_id: string; interaction_id: string; kind: "delivery"; fields: DeliveryFields };
+
+/**
+ * What survives an F36 success without F10: the opaque reference and the
+ * server's own masked fields. The typed original is never kept, logged or
+ * shown outside the form.
+ */
+export interface DeliveryHandoff {
+  detail_ref: string;
+  fields: DisplayField[];
+}
+
 export type DataOrigin = "stub" | "contract-demo" | "real-api";
 
 export type ShellEvent = Omit<StreamEvent, "payload"> & { payload: unknown };
@@ -65,7 +86,8 @@ export interface ShellDataSource {
   ): Promise<ShellTask>;
   reviseDraft(taskId: string, body: DraftChanges & { request_id: string; task_revision: number }): Promise<ShellTask>;
   readTransferChoices?(taskId: string, kind: "accounts" | "payees"): Promise<AccountList | PayeeList>;
-  submitPayeeDetails?(taskId: string, body: { request_id: string; interaction_id: string; kind: "payee"; fields: { account_name: string; account_number: string } }): Promise<DetailsResponse>;
+  // F36 answers the payee and delivery forms; the raw fields go to this endpoint only.
+  submitDetails?(taskId: string, body: SubmitDetailsBody): Promise<DetailsResponse>;
   resumeTask(taskId: string, body: { request_id: string }): Promise<ShellTask>;
   cancelTask(taskId: string, body: { request_id: string }): Promise<ShellTask>;
   queryResult(taskId: string, body: { request_id: string }): Promise<ShellTask>;

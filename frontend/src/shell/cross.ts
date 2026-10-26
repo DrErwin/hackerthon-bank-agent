@@ -20,10 +20,11 @@ const STEP_TITLE: Record<string, string> = {
   "transfer.list_payees": "确认收款人",
   "subscription.cancel_subscription": "取消不需要的签约",
   "transfer.start_transfer": "转出一笔",
-  // Birthday bank writes and the read-only freeze query (business/05).
-  "bank.freeze_funds": "冻结生日安排资金",
+  // Birthday bank writes and the read-only freeze query (business/05). The names
+  // stay neutral: they say what the bank does, not what the page promises.
+  "bank.freeze_funds": "冻结资金",
   "bank.create_order": "创建订单",
-  "bank.capture_frozen": "支付订单",
+  "bank.capture_frozen": "付款",
   "bank.release_frozen": "释放冻结资金",
   "bank.get_freeze": "核对冻结资金",
 };
@@ -32,7 +33,7 @@ const STEP_TITLE: Record<string, string> = {
 // bank fact each row is (consumed total, current frozen remainder).
 const BIRTHDAY_ROW_TITLE: Record<string, string> = {
   "birthday-consumed": "已消费",
-  "birthday-remaining": "当前冻结余款",
+  "birthday-remaining": "冻结余款",
 };
 
 const BIRTHDAY_ACTIONS = new Set([

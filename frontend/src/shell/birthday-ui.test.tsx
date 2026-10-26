@@ -108,6 +108,64 @@ const treatedCard = task({
   allowed_actions: ["verify", "cancel"],
 });
 
+// The birthday delivery step as the server publishes it (birthday._ask_delivery):
+// a controlled form, not a text answer in chat.
+const DELIVERY_PROMPT = "请在配送信息专用表单填写收件人、电话和地址，提交后继续选择商品。配送原文不要发到聊天里。";
+const RAW = { recipient_name: "李演示", phone: "13800005678", address: "演示市演示区示例路1号" };
+const MASKED = [
+  { name: "recipient", label: "收件人", value_text: "李*" },
+  { name: "phone", label: "联系电话", value_text: "****5678" },
+  { name: "address", label: "地址", value_text: "演示****" },
+];
+const deliveryAsk = task({
+  status: "waiting_input",
+  data: null,
+  message: DELIVERY_PROMPT,
+  interaction: {
+    interaction_id: "i-delivery", kind: "input", prompt: DELIVERY_PROMPT,
+    required_fields: ["delivery"],
+    options: [{ id: "o-stop", label: "停止本次安排" }],
+    record_ref: null,
+  },
+  allowed_actions: ["provide_input", "cancel"],
+});
+const pickAsk = task({
+  status: "waiting_input",
+  task_revision: 6,
+  data: null,
+  message: "请选择要买的商品。",
+  interaction: {
+    interaction_id: "i-pick", kind: "input", prompt: "请选择要买的商品。",
+    required_fields: ["cross_selection"],
+    options: [{ id: "o-flower", label: "康乃馨花束 · 199.00 元" }],
+    record_ref: null,
+  },
+  allowed_actions: ["provide_input", "cancel"],
+});
+const REF = "deliver-ref-9f2c1d7a";
+
+function deliveryResponse(card: ShellTask) {
+  return { detail_ref: REF, display_fields: MASKED, candidates: null, task: card };
+}
+
+function fillDelivery() {
+  fireEvent.change(screen.getByLabelText("收件人"), { target: { value: RAW.recipient_name } });
+  fireEvent.change(screen.getByLabelText("联系电话"), { target: { value: RAW.phone } });
+  fireEvent.change(screen.getByLabelText("详细地址"), { target: { value: RAW.address } });
+}
+
+// Everything a reload could read back: both web storages and the address bar.
+function storedText(): string {
+  const values = [window.location.href];
+  for (const area of [localStorage, sessionStorage]) {
+    for (let index = 0; index < area.length; index += 1) {
+      const key = area.key(index)!;
+      values.push(key, area.getItem(key) ?? "");
+    }
+  }
+  return values.join("\n");
+}
+
 function envelope(value: ShellTask): TaskEnvelope {
   return { task: value, module: "cross", timelineAt: value.snapshot_at };
 }
@@ -231,10 +289,10 @@ it("shows the server's own reason verbatim and adds a refresh step only when it 
 
 it("reads orders, payment state and bank amounts from the birthday steps only", () => {
   render(<CrossPlanCard view={birthday} task={task({ data: birthday })} childTask={() => undefined} />);
-  expect(screen.getByText("冻结生日安排资金")).toBeTruthy();
+  expect(screen.getByText("冻结资金")).toBeTruthy();
   expect(screen.getByText("¥500.00")).toBeTruthy();
   expect(screen.getAllByText("创建订单")).toHaveLength(2);
-  expect(screen.getByText("支付订单")).toBeTruthy();
+  expect(screen.getByText("付款")).toBeTruthy();
   expect(screen.getAllByText("¥199.00")).toHaveLength(2);
   expect(screen.getByText("订单号 ORDER-02")).toBeTruthy();
   expect(screen.getByText("未付款")).toBeTruthy();
@@ -243,7 +301,7 @@ it("reads orders, payment state and bank amounts from the birthday steps only", 
   expect(screen.getByText("¥467.00")).toBeTruthy();
   expect(screen.getByText("释放冻结资金")).toBeTruthy();
   expect(screen.getByText("¥33.00")).toBeTruthy();
-  expect(screen.getByText("当前冻结余款")).toBeTruthy();
+  expect(screen.getByText("冻结余款")).toBeTruthy();
   expect(screen.getByText("¥0.00")).toBeTruthy();
   // The page never says the arrangement is finished just because rows exist.
   expect(screen.queryByText("已完成")).toBeNull();
@@ -370,4 +428,153 @@ it("renders the parked retired state from the server menu without claiming an ou
   expect(screen.getByText("¥500.00")).toBeTruthy();
   expect(screen.queryByText("已取消")).toBeNull();
   expect(screen.queryByText("没有办成")).toBeNull();
+});
+
+it("collects delivery facts in a dedicated form instead of the generic text box", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  const submitDetails = vi.fn();
+  backend.user.submitDetails = submitDetails;
+  backend.user.provideInput = vi.fn();
+  await mountCard(backend.user, deliveryAsk);
+
+  expect(screen.getByLabelText("收件人")).toBeTruthy();
+  expect(screen.getByLabelText("联系电话")).toBeTruthy();
+  expect(screen.getByLabelText("详细地址")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "配送资料填好了，继续选商品" })).toBeTruthy();
+  // The generic cross text answer and its "补充并继续" form never appear here.
+  expect(screen.queryByLabelText(CROSS_ANSWER_LABEL)).toBeNull();
+  expect(screen.queryByRole("button", { name: "补充并继续" })).toBeNull();
+  // The server's own stop choice stays reachable next to the form.
+  expect(screen.getByRole("button", { name: "停止本次安排" })).toBeTruthy();
+});
+
+it("stops at the missing field, names it and sends nothing to F36", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  const submitDetails = vi.fn();
+  backend.user.submitDetails = submitDetails;
+  await mountCard(backend.user, deliveryAsk);
+
+  fireEvent.change(screen.getByLabelText("收件人"), { target: { value: RAW.recipient_name } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+  expect(await screen.findByText("请填写联系电话。")).toBeTruthy();
+  expect(screen.getByText("请填写详细地址。")).toBeTruthy();
+  expect(screen.queryByText("请填写收件人姓名。")).toBeNull();
+  expect(screen.getByLabelText("联系电话").getAttribute("aria-invalid")).toBe("true");
+  expect(screen.getByLabelText("收件人").getAttribute("aria-invalid")).toBe("false");
+  expect(submitDetails).not.toHaveBeenCalled();
+});
+
+it("sends the delivery facts only to F36, then continues F10 with the reference", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  const submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  const provideInput = vi.fn().mockResolvedValue(pickAsk);
+  backend.user.submitDetails = submitDetails;
+  backend.user.provideInput = provideInput;
+  const send = vi.spyOn(backend.user, "sendMessage");
+  await mountCard(backend.user, deliveryAsk);
+
+  fillDelivery();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+  await waitFor(() => expect(provideInput).toHaveBeenCalledTimes(1));
+
+  const [taskId, body] = submitDetails.mock.calls[0];
+  expect(taskId).toBe("birthday");
+  expect(body).toMatchObject({ interaction_id: "i-delivery", kind: "delivery", fields: RAW });
+  expect(typeof body.request_id).toBe("string");
+  expect(body).not.toHaveProperty("text");
+
+  // F10 carries only the reference, never the typed facts and no chat message.
+  expect(provideInput).toHaveBeenCalledWith("birthday", expect.objectContaining({
+    interaction_id: "i-delivery", text: REF,
+  }));
+  expect(provideInput.mock.calls[0][1]).not.toHaveProperty("selected_option_id");
+  expect(send).not.toHaveBeenCalled();
+
+  expect(await screen.findByRole("button", { name: "康乃馨花束 · 199.00 元" })).toBeTruthy();
+  expect(document.body.textContent).not.toContain(RAW.recipient_name);
+  expect(storedText()).not.toContain(RAW.recipient_name);
+  expect(storedText()).not.toContain(RAW.phone);
+  expect(storedText()).not.toContain(RAW.address);
+  // Once the next step owns the flow, the reference is no longer kept here either.
+  await waitFor(() => expect(storedText()).not.toContain(REF));
+});
+
+it("shows the server mask and continues the same F10 reference when the first handoff fails", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  const provideInput = vi.fn()
+    .mockRejectedValueOnce(new ApiError(503, "DEPENDENCY_UNAVAILABLE", "暂时没有收到选品结果。"))
+    .mockResolvedValueOnce(pickAsk);
+  backend.user.provideInput = provideInput;
+  await mountCard(backend.user, deliveryAsk);
+
+  fillDelivery();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+
+  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(screen.getByText("李*")).toBeTruthy();
+  expect(screen.getByText("****5678")).toBeTruthy();
+  // The edited original is gone from the page once F36 took it.
+  expect(document.body.textContent).not.toContain(RAW.recipient_name);
+  // The failure is shown here, not as a separate page error.
+  expect(screen.getByText(/暂时没有收到选品结果/)).toBeTruthy();
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "资料不用再填，点下面继续" }));
+  });
+  await waitFor(() => expect(provideInput).toHaveBeenCalledTimes(2));
+  // A retry keeps the same request number and still sends only the reference.
+  expect(provideInput.mock.calls[1]).toEqual(provideInput.mock.calls[0]);
+  expect(await screen.findByRole("button", { name: "康乃馨花束 · 199.00 元" })).toBeTruthy();
+});
+
+it("asks for the form again only when the server cannot resolve the reference", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  const refused = task({
+    ...deliveryAsk,
+    task_revision: 6,
+    message: "查不到对应的配送信息，请通过专用表单重新提交，或停止本次安排。",
+    interaction: { ...deliveryAsk.interaction!, interaction_id: "i-delivery-2" },
+  });
+  backend.user.provideInput = vi.fn().mockResolvedValue(refused);
+  await mountCard(backend.user, deliveryAsk);
+
+  fillDelivery();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+
+  expect(await screen.findByLabelText("收件人")).toBeTruthy();
+  expect(screen.getByText(/查不到对应的配送信息/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  // The dead reference is not kept on this device.
+  await waitFor(() => expect(storedText()).not.toContain(REF));
+});
+
+it("continues from the stored mask and reference after a reload instead of asking again", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  await backend.user.enterSession({ request_id: crypto.randomUUID() });
+  const thread = await backend.user.ensureThread();
+  localStorage.setItem("fe-delivery:" + thread.thread_id,
+    JSON.stringify({ birthday: { detail_ref: "deliver-ref-reload", fields: MASKED } }));
+  const provideInput = vi.fn().mockResolvedValue(pickAsk);
+  backend.user.provideInput = provideInput;
+  await mountCard(backend.user, deliveryAsk);
+
+  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(screen.getByText("李*")).toBeTruthy();
+  expect(screen.queryByLabelText("收件人")).toBeNull();
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "资料不用再填，点下面继续" }));
+  });
+  await waitFor(() => expect(provideInput).toHaveBeenCalledTimes(1));
+  expect(provideInput.mock.calls[0][1]).toMatchObject({ interaction_id: "i-delivery", text: "deliver-ref-reload" });
 });
