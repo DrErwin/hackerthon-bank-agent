@@ -33,4 +33,7 @@ Blocked by: [frontend-design-system/01：统一设计系统并接入常用组件
 
 验证：[02 对话改造证据](../verification-02.md)。确认与结果使用既有安全边界；真实自由语言/真人适老化验收仍需后续联调。
 
+交付：[Draft PR #319](https://github.com/DrErwin/hackerthon-bank-agent/pull/319)，依赖 PR #318。
+原型快照：[codex/frontend-agent-prototype-20261026](https://github.com/DrErwin/hackerthon-bank-agent/tree/codex/frontend-agent-prototype-20261026/.scratch/frontend-ux-prototype-20261026)（提交 `a820ba7`，不合入主线）。
+
 基线：`a69ebc9`。分支：`codex/frontend-agent-conversation-02`。后继 Draft PR 以前序设计系统分支为目标，保持单票可审查。
