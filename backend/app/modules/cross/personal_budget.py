@@ -17,7 +17,7 @@ from app.contracts.cross import AdoptedBudget, BudgetCommitment, BudgetRef, Budg
 from app.contracts.tasks import ModuleResult
 from app.agent_platform.budget_inputs import BudgetInputRecovery
 from app.storage.application import BudgetOccupationExceededError
-from .plan import money, month_range
+from .plan import item_key, money, month_range
 
 
 _LOCKS = defaultdict(RLock)
@@ -553,7 +553,8 @@ class PersonalBudget:
         hold = self.own()
         if hold is None:
             return
-        fact = self.b.get("write_facts", {}).get(f"capture:{item['product_id']}", {})
+        fact = self.b.get("write_facts", {}).get(
+            f"capture:{item_key(item)}", {})
         tid, amount, op = fact.get("result_ref"), fact.get("amount_fen"), fact.get("operation_id")
         if tid in hold.settled_transaction_ids:
             return

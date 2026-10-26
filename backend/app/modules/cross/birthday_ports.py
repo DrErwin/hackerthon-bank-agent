@@ -116,8 +116,14 @@ class BirthdayPorts(Protocol):
         """Bind (or re-query by the original id) the bank freeze id."""
 
     def requery(self, context: TrustedContext, plan: BirthdayPlan,
-                target: str) -> WriteOutcome | None:
-        """Re-read one submitted write by its original operation id (B05)."""
+                target: str, operation_id: str) -> WriteOutcome | None:
+        """Re-read one submitted write by its original operation id (B05).
+
+        The original id is part of the protocol: recovery observes an already
+        claimed operation by that number and never falls back to the latest
+        attempt. The platform implementation already accepts it; this
+        declaration now matches every call site.
+        """
 
     def finalize(self, context: TrustedContext, plan: BirthdayPlan,
                  reason: str) -> ReleaseOutcome:
