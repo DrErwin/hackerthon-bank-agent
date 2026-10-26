@@ -70,7 +70,7 @@ it("renders the adopted plan from the server payload and nests the current child
   expect(screen.getByText(PLAN_PROMISE)).toBeTruthy();
   expect(screen.getByText("查看您的账户")).toBeTruthy();
   expect(screen.getAllByText("取消不需要的签约")).toHaveLength(2);
-  expect(screen.getAllByText("✓ 已办结")).toHaveLength(2);
+  expect(screen.getAllByText("已办结")).toHaveLength(2);
   // The running step is marked for assistive tech and carries the child card.
   const rows = screen.getAllByText("取消不需要的签约").map((element) => element.closest("li")!);
   expect(rows[0].getAttribute("aria-current")).toBe("step");

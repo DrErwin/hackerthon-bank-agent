@@ -77,7 +77,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
   const [voiceNote, setVoiceNote] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const value = pendingText ?? draft;
   const canSend = !disabled && !sending && value.trim().length > 0;
 
@@ -145,12 +145,19 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
           </svg>
         </button>}
         <label className="sr-only" htmlFor="sh-input">输入您想办的事</label>
-        <input
+        <textarea
           ref={inputRef}
           id="sh-input"
           className="sh-input"
           value={value}
+          rows={1}
           onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              if (canSend) event.currentTarget.form?.requestSubmit();
+            }
+          }}
           placeholder="想办什么，直接告诉我"
           autoComplete="off"
           disabled={disabled || Boolean(pendingText)}

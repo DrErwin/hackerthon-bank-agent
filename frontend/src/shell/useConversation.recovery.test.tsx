@@ -210,7 +210,7 @@ describe("shell recovery from server records", () => {
     render(<AssistantPage source={harness.source} slots={slots} />);
 
     expect(await screen.findByText("给妈妈转五百")).toBeTruthy();
-    expect(await screen.findByText("已确认办理 · 只读")).toBeTruthy();
+    expect(await screen.findByText("已确认办理")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /已办结/ })).toHaveLength(2);
     const input = screen.getByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
     expect(input.disabled).toBe(false);
@@ -228,7 +228,7 @@ describe("shell recovery from server records", () => {
     harness.records.set("task-done", { task_id: "task-done", confirmations: [confirmation("task-done")], verifications: [] });
     harness.reconnect();
 
-    expect(await screen.findByText("已确认办理 · 只读")).toBeTruthy();
+    expect(await screen.findByText("已确认办理")).toBeTruthy();
     expect(screen.getByRole("button", { name: /已办结/ })).toBeTruthy();
   });
 

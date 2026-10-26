@@ -3,6 +3,9 @@ import type { InteractionRequest } from "../../contracts";
 import { DELIVERY_FIELD_REQUIRED, DELIVERY_REFILL_NOTE } from "../copy";
 import type { DeliveryFields, DeliveryHandoff } from "../types";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ChevronRight } from "lucide-react";
 
 const EMPTY: DeliveryFields = { recipient_name: "", phone: "", address: "" };
 // The labels are the approved field names and `missing` is the approved sentence
@@ -60,15 +63,15 @@ export function DeliveryCard({ interaction, active, busy, handoff, error, onSele
           <button key={option.id} type="button" className="sh-choice" disabled={busy}
             onClick={() => onSelect(option.id, option.label)}>
             <span>{option.label}</span>
-            <span aria-hidden="true">›</span>
+            <ChevronRight aria-hidden="true" />
           </button>
         ))}
         {pending ? (
           <div>
             <FieldList fields={pending.fields} />
             {error && <p role="alert" className="sh-inline-error">{error}</p>}
-            <button type="button" className="sh-btn sh-btn-primary" disabled={busy}
-              onClick={() => void onContinue()}>资料不用再填，点下面继续</button>
+            <Button type="button" disabled={busy}
+              onClick={() => void onContinue()}>{busy ? "正在继续…" : "用这些资料继续"}</Button>
           </div>
         ) : (
           <form className="sh-modify" autoComplete="off" onSubmit={(event) => {
@@ -91,7 +94,7 @@ export function DeliveryCard({ interaction, active, busy, handoff, error, onSele
             {FIELDS.map((field) => (
               <div key={field.name}>
                 <label htmlFor={id + "-" + field.name}>{field.label}</label>
-                <input id={id + "-" + field.name} value={fields[field.name]}
+                <Input id={id + "-" + field.name} value={fields[field.name]}
                   ref={(element) => { inputs.current[field.name] = element; }}
                   onChange={(event) => change(field.name, event.target.value)}
                   inputMode={field.inputMode} aria-required="true" aria-invalid={Boolean(blank[field.name])}
@@ -103,7 +106,7 @@ export function DeliveryCard({ interaction, active, busy, handoff, error, onSele
               </div>
             ))}
             {error && <p role="alert" className="sh-inline-error">{error}</p>}
-            <button type="submit" className="sh-btn sh-btn-primary" disabled={busy}>配送资料填好了，继续选商品</button>
+            <Button type="submit" disabled={busy}>{busy ? "正在保存…" : "配送资料填好了，继续选商品"}</Button>
           </form>
         )}
       </div>

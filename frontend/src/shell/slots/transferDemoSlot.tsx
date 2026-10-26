@@ -38,6 +38,8 @@ function result(task: ShellTask<TransferTaskView>): ResultView | null {
         { name: "payee", label: "收款人", value_text: receipt.payee.name_masked + "（" + receipt.payee.account_masked + "）" },
         { name: "bank", label: "收款银行", value_text: receipt.payee.bank_name },
         { name: "fee", label: "手续费", value_text: yuan(receipt.fee_fen) },
+        { name: "completed", label: "完成时间", value_text: new Date(receipt.completed_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }) },
+        { name: "balance", label: "付款账户可用余额", value_text: yuan(receipt.balance.available_balance_fen) },
         { name: "transaction", label: "交易号", value_text: receipt.transaction_id },
       ],
     };

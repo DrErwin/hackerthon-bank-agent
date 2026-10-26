@@ -264,7 +264,7 @@ it("answers the same published option on a verification card without asking for 
 });
 
 it("explains next to the published options what the edit option can and cannot do", async () => {
-  const note = "只有确认旧动作还没有真正提交，才会回到同一任务的方案；已提交或结果未知时，只能按原单号核实。";
+  const note = "修改前会核实办理进度；已提交的事项按原单号查看结果。";
   const backend = createDemoBackend({ replyDelayMs: 0 });
 
   // The edit option is published on both gate types, so the explanation follows it
@@ -361,7 +361,7 @@ it("keeps unknown birthday facts as 待核实 without filling zero or 已办结"
   };
   const waiting = task({ status: "needs_attention", data: unknown, allowed_actions: ["query"] });
   render(<CrossPlanCard view={unknown} task={waiting} childTask={() => undefined} onQueryChild={() => undefined} />);
-  expect(screen.getAllByText("! 结果待核实")).toHaveLength(4);
+  expect(screen.getAllByText("结果待核实")).toHaveLength(4);
   expect(screen.getAllByText("金额待核实")).toHaveLength(4);
   expect(screen.getByText("订单号 ORDER-01")).toBeTruthy();
   // Unknown is never zero-filled and never reported as done.
@@ -506,11 +506,11 @@ it("continues only the interaction that issued the reference", () => {
     onContinue: async () => false,
   };
   const view = render(<DeliveryCard interaction={deliveryAsk.interaction!} {...props} />);
-  expect(screen.getByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "用这些资料继续" })).toBeTruthy();
 
   // A newer interaction on the same task never gets the earlier reference.
   view.rerender(<DeliveryCard interaction={{ ...deliveryAsk.interaction!, interaction_id: "i-delivery-2" }} {...props} />);
-  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "用这些资料继续" })).toBeNull();
   expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
 });
 
@@ -521,7 +521,7 @@ it("shows the approved refill note and one required sentence per blank delivery 
   await mountCard(backend.user, deliveryAsk);
 
   // Said above the boxes, so it is read before anything is re-typed.
-  expect(screen.getByText("重新填写不会下单，也不会扣款。")).toBeTruthy();
+  expect(screen.getByText("请填写本次配送资料，选好商品后再核对订单。")).toBeTruthy();
   // Nothing is blank yet, so no field is told off.
   expect(screen.queryByText("请填写收件人姓名。")).toBeNull();
 
@@ -617,7 +617,7 @@ it("shows the server mask and continues the same F10 reference when the first ha
     fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
   });
 
-  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "用这些资料继续" })).toBeTruthy();
   expect(screen.getByText("李*")).toBeTruthy();
   expect(screen.getByText("****5678")).toBeTruthy();
   // The edited original is gone from the page once F36 took it.
@@ -626,7 +626,7 @@ it("shows the server mask and continues the same F10 reference when the first ha
   expect(screen.getByText(/暂时没有收到选品结果/)).toBeTruthy();
 
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "资料不用再填，点下面继续" }));
+    fireEvent.click(screen.getByRole("button", { name: "用这些资料继续" }));
   });
   await waitFor(() => expect(provideInput).toHaveBeenCalledTimes(2));
   // A retry keeps the same request number and still sends only the reference.
@@ -653,7 +653,7 @@ it("asks for the form again only when the server cannot resolve the reference", 
 
   expect(await screen.findByLabelText("收件人")).toBeTruthy();
   expect(screen.getByText(/查不到对应的配送信息/)).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "用这些资料继续" })).toBeNull();
   // F36 already owned the original, so the form comes back empty instead of
   // showing the typed recipient, phone and address again.
   expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
@@ -678,7 +678,7 @@ it("keeps the F36 reference and mask in memory only, never in web storage", asyn
   });
 
   // The handoff stays for the next click in this page session only.
-  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "用这些资料继续" })).toBeTruthy();
   expect(screen.getByText("李*")).toBeTruthy();
   expect(Object.keys(localStorage).sort()).toEqual(localKeys);
   expect(Object.keys(sessionStorage).sort()).toEqual(sessionKeys);
@@ -701,7 +701,7 @@ it("asks for the delivery facts again after a reload instead of reusing the refe
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
   });
-  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "用这些资料继续" })).toBeTruthy();
 
   // A reload is a fresh page session: the in-memory handoff is gone, so the
   // server's own delivery step is shown again with nothing continued on its own.
@@ -710,7 +710,7 @@ it("asks for the delivery facts again after a reload instead of reusing the refe
 
   expect(await screen.findByLabelText("收件人")).toBeTruthy();
   expect(screen.getByText(/请在配送信息专用表单填写收件人/)).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "用这些资料继续" })).toBeNull();
   expect(screen.queryByText("李*")).toBeNull();
   expect(provideInput).toHaveBeenCalledTimes(1);
 });
@@ -736,7 +736,7 @@ it("clears the form when F36 answers, so a dropped reference returns to empty bo
   });
 
   expect(await screen.findByLabelText("收件人")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "用这些资料继续" })).toBeNull();
   expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
   expect((screen.getByLabelText("联系电话") as HTMLInputElement).value).toBe("");
   expect((screen.getByLabelText("详细地址") as HTMLInputElement).value).toBe("");
@@ -774,7 +774,7 @@ it("drops the reference on a stale interaction and follows the replaced snapshot
   // The refreshed interaction never inherits the old reference, even though the
   // task still asks for delivery: the form is the only way on.
   expect(await screen.findByText("请按当前页面重新填写配送资料。")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "用这些资料继续" })).toBeNull();
   expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
   expect((screen.getByLabelText("联系电话") as HTMLInputElement).value).toBe("");
   expect((screen.getByLabelText("详细地址") as HTMLInputElement).value).toBe("");
@@ -797,7 +797,7 @@ it("does not carry the reference into another session", async () => {
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
   });
-  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "用这些资料继续" })).toBeTruthy();
 
   // A new session re-checks the recovery gate and starts over: the old reference
   // is neither shown nor continued.
@@ -806,7 +806,7 @@ it("does not carry the reference into another session", async () => {
   });
   fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
   expect(await screen.findByLabelText("收件人")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "用这些资料继续" })).toBeNull();
   expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
   expect(screen.queryByText("李*")).toBeNull();
   expect(provideInput).toHaveBeenCalledTimes(1);

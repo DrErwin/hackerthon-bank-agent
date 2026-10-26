@@ -94,7 +94,8 @@ it("keeps category, direction and bank amount available in an unfiltered transac
   ] } }} />);
   expect(screen.getByText("¥32.00")).toBeTruthy();
   expect(screen.getByText("¥113.00")).toBeTruthy();
-  expect(screen.getAllByText("消费 · 支出")).toHaveLength(2);
+  expect(screen.getAllByText("支出")).toHaveLength(2);
+  expect(screen.getAllByText(/ · 消费$/)).toHaveLength(2);
   const dining = screen.getByText("分类：餐饮").closest("details")!;
   const medical = screen.getByText("分类：医疗").closest("details")!;
   expect(dining.open).toBe(false);

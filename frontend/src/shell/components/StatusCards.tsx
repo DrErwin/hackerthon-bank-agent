@@ -4,6 +4,9 @@ import type { DataOrigin, DisplayField, ReportView, ResultView } from "../types"
 import { Card, FieldList, OriginTag, ReadOnlyStamp, Spinner, StatusBadge } from "./Primitives";
 import { DetailsDrawer } from "./DetailsDrawer";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ChevronRight, CircleCheck, CircleAlert, CircleX, Clock3 } from "lucide-react";
 
 const RESULT_ICON: Record<ResultView["tone"], string> = { success: "✓", danger: "✕", warning: "!", pending: "…", neutral: "−" };
 
@@ -58,7 +61,7 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
           {interaction.options.map((option) => (
             <button key={option.id} type="button" className="sh-choice" disabled={busy} onClick={() => onSelect(option.id, option.label)}>
               <span>{option.label}</span>
-              <span aria-hidden="true">›</span>
+              <ChevronRight aria-hidden="true" />
             </button>
           ))}
           {typingLabel && onSubmitText && (
@@ -68,12 +71,12 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
               if (await onSubmitText(text)) setText("");
             }}>
               <label htmlFor={id + "-input"}>{typingLabel}</label>
-              <input id={id + "-input"} value={text} onChange={(event) => setText(event.target.value)}
+              <Input id={id + "-input"} value={text} onChange={(event) => setText(event.target.value)}
                 inputMode={numeric ? "numeric" : field === "amount_fen" ? "decimal" : "text"} autoComplete="off" disabled={busy} required />
-              <button className="sh-btn sh-btn-primary" disabled={busy || !ready}>{textLabel ? "填好了，继续" : "补充并继续"}</button>
+              <Button disabled={busy || !ready}>{busy ? "正在更新…" : textLabel ? "填好了，继续" : "补充并继续"}</Button>
             </form>
           )}
-          <p className="sh-hint">{textLabel ? "可以点上面的选项，也可以直接打字。" : inputLabel ? "填写后继续这项办理，不会另起一笔。" : "请自己点选，系统不会替您默认选择。"}</p>
+          {typingLabel && <p className="sh-hint">也可以在下方对话框里告诉我。</p>}
         </div>
       ) : (
         <p className="sh-readonly-line">{selectedLabel ? "您选择了：" + selectedLabel : "这一步已经结束。"}</p>
@@ -83,16 +86,17 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
 }
 
 export function ResultCard({ view, origin, id }: { view: ResultView; origin: DataOrigin; id: string }) {
-  const important = view.tone === "warning" || view.tone === "danger";
-  const primary = important ? view.fields.filter((field) => !field.name.endsWith("-ids")) : view.fields.slice(0, 3);
+  const primary = view.fields.filter((field) => !field.name.endsWith("-ids") && field.name !== "transaction");
+  const references = view.fields.filter((field) => !primary.includes(field));
+  const Icon = view.tone === "success" ? CircleCheck : view.tone === "danger" ? CircleX : view.tone === "pending" ? Clock3 : CircleAlert;
   return (
-    <Card title="办理结果" labelledBy={id} badge={<StatusBadge tone={view.tone} icon={RESULT_ICON[view.tone]} text={view.title} />}>
+    <Card title="办理结果" labelledBy={id} className={"sh-result sh-result-" + view.tone} badge={<StatusBadge tone={view.tone} icon={RESULT_ICON[view.tone]} text={view.title} />}>
+      <Icon className="sh-result-symbol" aria-hidden="true" />
       {view.headline && <p className="sh-headline">{view.headline}</p>}
       <FieldList fields={primary} />
-      {primary.length < view.fields.length &&
-        <DetailsDrawer title={"查看全部明细（" + view.fields.length + "项）"}><FieldList fields={view.fields} /></DetailsDrawer>}
+      {references.length > 0 && <DetailsDrawer title="办理凭证"><FieldList fields={references} /></DetailsDrawer>}
       {view.note && <p className="sh-hint">{view.note}</p>}
-      {origin !== "real-api" && <p className="sh-demo-note"><OriginTag origin={origin} /> 演示结果，不代表真实银行交易。</p>}
+      {origin !== "real-api" && <p className="sh-demo-note"><OriginTag origin={origin} /> 示例回执</p>}
     </Card>
   );
 }
@@ -128,9 +132,9 @@ export function NeedsAttentionCard({ facts, message, canQuery, busy, onQuery, id
       {message && <p className="sh-hint">{message}</p>}
       <FieldList fields={facts} />
       {canQuery ? (
-        <button type="button" className="sh-btn sh-btn-primary" disabled={busy} onClick={onQuery}>
+        <Button type="button" disabled={busy} onClick={onQuery}>
           {busy ? "正在查询…" : "查询原操作"}
-        </button>
+        </Button>
       ) : (
         <p className="sh-hint">请按上面的提示处理。</p>
       )}
@@ -162,15 +166,15 @@ export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText
         <p className="sh-readonly-line">{resolvedText ?? "已找回上次的内容，可以接着办。"}</p>
       ) : (
         <>
-          <p className="sh-lead">要接着办吗？先查看上次的内容，再由您决定。</p>
+          <p className="sh-lead">办理资料已保留，先查看最新进度。</p>
           <FieldList fields={[...facts, { name: "status", label: "当时状态", value_text: statusText }]} />
           {reason && <p className="sh-hint">{reason}</p>}
           <div className="sh-actions">
-            <button type="button" className="sh-btn sh-btn-primary" disabled={busy} onClick={onResume}>
+            <Button type="button" disabled={busy} onClick={onResume}>
               {busy ? "正在恢复…" : "查看原任务"}
-            </button>
+            </Button>
             {canDiscard && (
-              <button type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={onDiscard}>放弃这次任务</button>
+              <Button type="button" variant="outline" disabled={busy} onClick={onDiscard}>放弃这次任务</Button>
             )}
           </div>
         </>
