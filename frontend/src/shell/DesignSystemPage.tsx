@@ -76,7 +76,7 @@ export default function DesignSystemPage() {
               <Button className="ds-primary" type="submit">核对这笔转账<ArrowRight aria-hidden="true" /></Button>
             </form>
           </>}
-          <DetailsDrawer title="查看费用和到账说明"><div className="ds-selector"><h3>这笔示例转账</h3><FieldList fields={[{ name: "fee", label: "手续费", value_text: "¥0.00" }, { name: "arrival", label: "预计到账", value_text: "以银行返回为准" }]} /><p>手机从下方打开，电脑从右侧展开。关闭后回到原来的位置。</p></div></DetailsDrawer>
+          <DetailsDrawer title="查看费用和到账说明"><div className="ds-selector"><h3>这笔示例转账</h3><FieldList fields={[{ name: "fee", label: "手续费", value_text: "¥0.00" }, { name: "arrival", label: "预计到账", value_text: "以银行返回为准" }, { name: "reference", label: "示例参考号", value_text: "DEMO20261026550e8400e29b41d4a716446655440000" }]} /><p>手机从下方打开，电脑从右侧展开。关闭后回到原来的位置。</p></div></DetailsDrawer>
         </section>
         <div className="ds-examples">
           <section aria-labelledby="ds-feedback-title">

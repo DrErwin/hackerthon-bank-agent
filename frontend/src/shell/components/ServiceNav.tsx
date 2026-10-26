@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeftRight, ChevronDown, ChevronUp, CreditCard, LayoutGrid, ReceiptText, Repeat2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -12,14 +12,19 @@ const SERVICES = [
 
 export function ServiceNav({ disabled, onChoose }: { disabled: boolean; onChoose: (text: string) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const toggle = useRef<HTMLButtonElement>(null);
   return <nav className="sh-service-nav" aria-label="常用服务">
-    <Button type="button" variant="ghost" size="sm" className="sh-service-toggle" aria-expanded={expanded}
+    <Button ref={toggle} type="button" variant="ghost" size="sm" className="sh-service-toggle" aria-expanded={expanded}
       aria-controls="sh-service-list" onClick={() => setExpanded(!expanded)}>
       <LayoutGrid aria-hidden="true" />常用服务{expanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
     </Button>
     <div id="sh-service-list" className={"sh-service-list" + (expanded ? " is-open" : "")}>
       {SERVICES.map(({ label, text, icon: Icon }) => <Button type="button" variant="outline" size="sm" key={label}
-        disabled={disabled} onClick={() => { setExpanded(false); onChoose(text); }}><Icon aria-hidden="true" />{label}</Button>)}
+        disabled={disabled} onClick={() => {
+          setExpanded(false);
+          if (window.innerWidth < 960) toggle.current?.focus();
+          onChoose(text);
+        }}><Icon aria-hidden="true" />{label}</Button>)}
     </div>
   </nav>;
 }

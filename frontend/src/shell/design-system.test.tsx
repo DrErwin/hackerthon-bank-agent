@@ -31,6 +31,7 @@ it("announces only a known percentage and leaves unknown progress indeterminate"
 });
 
 it("keeps services reachable and blocks new requests while a message is pending", () => {
+  vi.stubGlobal("innerWidth", 390);
   const choose = vi.fn();
   const view = render(<ServiceNav disabled onChoose={choose} />);
   const menu = screen.getByRole("button", { name: "常用服务" });
@@ -41,6 +42,7 @@ it("keeps services reachable and blocks new requests while a message is pending"
   fireEvent.click(screen.getByRole("button", { name: "我的收款人" }));
   expect(choose).toHaveBeenCalledExactlyOnceWith("我有哪些收款人");
   expect(menu.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(menu);
 });
 
 it("retains amount when the example payee changes and leaves a readable review", async () => {

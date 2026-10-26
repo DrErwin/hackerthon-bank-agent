@@ -91,6 +91,6 @@
   width: 35%; animation: ds-wait 1.8s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-slot] { animation: none !important; transition: none !important; }
+  [data-slot], .ds-page *, .sh-detail-surface *, [data-sonner-toast] { animation: none !important; transition: none !important; }
   [data-slot="progress"][data-state="indeterminate"] [data-slot="progress-indicator"] { transform: none; }
 }

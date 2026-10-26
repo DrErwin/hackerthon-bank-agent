@@ -271,7 +271,7 @@
 .sh-safety-help ol { padding-left: 24px; margin: 0 0 8px; max-height: 25vh; overflow-y: auto; }
 .sh-safety-help summary { padding: 8px 0; }
 .sh-back-latest { align-self: center; flex: 0 0 auto; min-height: 44px; padding: 8px 20px; margin: 4px 0; border-radius: 24px; border: 1px solid var(--line); background: white; color: #70401c; cursor: pointer; }
-.sh-detail-surface { background: var(--card); gap: 0; }
+.sh-detail-surface { background: var(--card); gap: 0; overflow-wrap: anywhere; }
 .sh-detail-surface[data-slot="sheet-content"] { width: min(38rem, 100%); max-width: 100%; }
 .sh-detail-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .sh-drawer-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 24px max(24px, env(safe-area-inset-bottom)); }
