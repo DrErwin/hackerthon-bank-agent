@@ -6,7 +6,7 @@ Spec: [G3对账与发布条件](../g3-reconciliation.md)
 Type: 开发（本轮只读核查与规划）
 Owner: Erwin（v0.5统一负责）
 Directory: `backend/app/storage/`
-Status: implemented — 2026-10-26 实施、两轴独立审查完成（规范轴 PASS / 规格轴 PASS），PR #307 合入中；真实 E2E 与验收未由本票完成。
+Status: done — 2026-10-26 实施、两轴独立审查闭合（规范轴 PASS / 规格轴 PASS，v7 只加表由中控确认），PR #307 squash 合入 `5863340`；真实 E2E 与验收未由本票完成。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
 Blocked by: 中控明确实施授权；与[本组03：受控编辑交接](03-platform-edit-handoff.md)及[v05-cross-business/08：生日商品数量与未执行部分调整](../../v05-cross-business/issues/08-birthday-quantity-and-unexecuted-revision.md)在设计层确认候选ref/绑定/首次胜者语义；不依赖对方代码先完成，不形成实现循环。

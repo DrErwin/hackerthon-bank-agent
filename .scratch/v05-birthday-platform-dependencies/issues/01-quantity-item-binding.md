@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)
 Type: 开发（本轮只规划，不实施）
 Owner: Erwin（v0.5阶段统一负责）
 Directory: `backend/app/agent_platform/`
-Status: implemented — 2026-10-26 实施、两轴独立审查完成（规范 PASS / 规格回修后 PASS），已合入 `e14f30d`；真实 E2E 与验收未由本票完成。
+Status: done — 2026-10-26 实施、两轴独立审查闭合（规范 PASS / 规格回修后 PASS），PR #306 squash 合入 `e14f30d`；真实 E2E 与验收未由本票完成。
 Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618；2026-10-25。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。
