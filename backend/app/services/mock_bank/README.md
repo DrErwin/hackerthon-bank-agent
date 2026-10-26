@@ -39,6 +39,19 @@
 
 从 `backend/` 验证订阅能力：`python -m pytest -q app/services/test_subscriptions.py app/services/`。
 
+## 银行对象轮次归属（v05-bank-round-objects/02）
+
+生日冻结/订单在银行库 v5 起带创建轮次（`demo_round_id`，见 `storage/README.md`）。服务层按可信上下文校验：
+
+- B10/B21 冻结与下单把 `context.demo_round_id` 写入对象；B11 核销、B12 释放也以同一轮次提交。
+- 核销/释放前先按用户取冻结/订单行，再比较轮次：不存在仍 `RECORD_NOT_FOUND`，同用户他轮对象返回 `ACCESS_DENIED` 失败回执（不落资金、不产生成功回执，也不会被网关映射成 `OPERATION_CONFLICT`）。核销携带的 `order_id` 同样校验轮次。
+- 网关 `get_freeze` / `get_order` 固定传可信轮次；`MockBirthdayBank.get_freeze/get_order` 的可选轮次参数缺省只为既有测试装配保留，不是生产路径。
+- `MockBankService` 启动时检查冻结/订单是否存在无轮次行；有则 `RuntimeError` 拒绝加载并保留原库（沿用无 scope 旧操作库先例），避免冻结余额无法归属/释放。
+- 操作编号 scope 与对象轮次是两层，都留在同一银行库里：`bank_operation_scopes` 仍按 `(user, demo_round_id)` 绑定整个操作编号；**旧 operation 号跨轮重放**先在 scope 层返回 `OPERATION_CONFLICT`（既有语义），只有**新 operation 号**触碰旧对象时才由对象轮次校验返回 `ACCESS_DENIED`。四项验收探针均使用新 UUID，因此期望 `ACCESS_DENIED`。
+- 读取失败是 `QueryFailure`（`RECORD_NOT_FOUND`/`ACCESS_DENIED`）；核销/释放跨轮是失败回执（`OperationResult.FAILED` + `ACCESS_DENIED`），没有成功回执，也不写成功资金动作。
+
+B13/B22 只读视图仍不按轮次过滤存储，由服务层在取整行后判定；错误码由服务层给出，存储只做同轮校验并在不一致时回滚。
+
 ## JSON 种子与转账评测数据（v03-transfer-evals/02）
 
 账户初始余额、状态和展示信息来自 `seeds/accounts.json`，联系人资料来自 `seeds/payees.json`；完整号码是虚构测试资料，银行返回仍仅展示脱敏信息。两份文件按服务代码所在路径读取，不依赖启动目录。缺失文件或非法 JSON 会直接报错，不回退到硬编码数据。本工程当前采用源码 / editable 安装运行；普通 wheel 分发如需使用这些资源，须另行在构建配置中纳入 JSON（构建配置不在本票目录范围）。

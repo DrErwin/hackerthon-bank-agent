@@ -1,17 +1,22 @@
-"""Ticket v05-cross-platform/07: birthday bank service and gateway boundary."""
+"""Ticket v05-cross-platform/07 + v05-bank-round-objects/02: birthday bank service."""
 
 from datetime import timedelta
 from uuid import uuid4
 
+import pytest
+
 from app.contracts.bank import (
-    CaptureFrozenInput, CreateOrderInput, DeliveryInput, FreezeFundsInput, FreezeView,
-    QueryFailure, ReleaseFrozenInput,
+    BankError, CaptureFrozenInput, CreateOrderInput, DeliveryInput, FreezeFundsInput,
+    FreezeView, QueryFailure, ReleaseFrozenInput,
 )
 from app.contracts.common import Category, OperationStatus
 from app.contracts.platform import TrustedContext
 from app.services.bank_gateway.gateway import BankGateway
 from app.services.mock_bank.core import MockBankService, _now
-from app.storage.mock_bank.repository import BankAccount, MockBankStore
+from app.storage.database import connect
+from app.storage.mock_bank.repository import (
+    BankAccount, FreezeOpening, MockBankStore, OrderCreation,
+)
 
 
 def context() -> TrustedContext:
@@ -27,6 +32,11 @@ def bank_with_account(tmp_path):
 
 def gateway(bank, **kwargs):
     return BankGateway(bank, authorize_birthday=lambda *_: True, **kwargs)
+
+
+def table_count(store, table):
+    with connect(store.path) as connection:
+        return connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
 
 
 def delivery(deliver_by) -> DeliveryInput:
@@ -158,6 +168,9 @@ def test_bank_rule_failures_are_recorded_not_guesswork(tmp_path):
     missing = gate.get_freeze(who, "frz_missing")
     assert isinstance(missing, QueryFailure)
     assert missing.error.code == "RECORD_NOT_FOUND"
+    missing_order = gate.get_order(who, "ord_missing")
+    assert isinstance(missing_order, QueryFailure)
+    assert missing_order.error.code == "RECORD_NOT_FOUND"
 
     unknown_product = gate.create_order(who, op(), CreateOrderInput(
         product_id="p_gold", quantity=1, expected_total_fen=19900,
@@ -312,4 +325,175 @@ def test_authorize_birthday_receives_the_typed_request(tmp_path):
             "SELECT action_name FROM bank_operations",
         ).fetchall()
     assert [row["action_name"] for row in writes] == ["bank.freeze_funds"]
+    gate.close()
+
+
+def test_cross_round_reads_and_writes_are_denied(tmp_path):
+    bank = bank_with_account(tmp_path)
+    gate = gateway(bank)
+    who = context()
+    frozen = ok_write(gate.freeze_funds(who, op(), FreezeFundsInput(
+        account_id="BA1", amount_fen=50000, reason="生日")))
+    order = ok_write(gate.create_order(who, op(), CreateOrderInput(
+        product_id="p_flower", quantity=1, expected_total_fen=19900,
+        delivery=delivery(_now() + timedelta(hours=30)))))
+    freeze_id = frozen.receipt.freeze_id
+    order_id = order.receipt.order.order_id
+    other = who.model_copy(update={"demo_round_id": "D2"})
+
+    denied_freeze = gate.get_freeze(other, freeze_id)
+    assert isinstance(denied_freeze, QueryFailure)
+    assert denied_freeze.error.code == "ACCESS_DENIED"
+    denied_order = gate.get_order(other, order_id)
+    assert isinstance(denied_order, QueryFailure)
+    assert denied_order.error.code == "ACCESS_DENIED"
+
+    denied_capture = gate.capture_frozen(other, op(), CaptureFrozenInput(
+        freeze_id=freeze_id, amount_fen=19900, merchant_id="m_flower",
+        merchant_name="邻里花店", purpose="生日鲜花", category=Category.SHOPPING,
+        order_id=order_id))
+    assert denied_capture.operation_status is OperationStatus.FAILED
+    assert denied_capture.failure.code == "ACCESS_DENIED"
+    denied_release = gate.release_frozen(other, op(), ReleaseFrozenInput(
+        freeze_id=freeze_id, amount_fen=30100))
+    assert denied_release.operation_status is OperationStatus.FAILED
+    assert denied_release.failure.code == "ACCESS_DENIED"
+
+    account = bank.store.get_account("U1", "BA1")
+    assert (account.book_balance_fen, account.frozen_balance_fen) == (200000, 50000)
+    assert bank.store.get_freeze("U1", freeze_id)["captured_total_fen"] == 0
+    assert bank.store.get_freeze("U1", freeze_id)["released_total_fen"] == 0
+    assert bank.store.get_order("U1", order_id)["payment_status"] == "unpaid"
+    assert table_count(bank.store, "order_payments") == 0
+    assert bank.store.list_ledger("U1", "BA1") == []
+
+    # Same-round control still works.
+    paid = ok_write(gate.capture_frozen(who, op(), CaptureFrozenInput(
+        freeze_id=freeze_id, amount_fen=19900, merchant_id="m_flower",
+        merchant_name="邻里花店", purpose="生日鲜花", category=Category.SHOPPING,
+        order_id=order_id)))
+    assert paid.receipt.captured_amount_fen == 19900
+    assert table_count(bank.store, "order_payments") == 1
+
+
+def test_cross_round_order_cannot_be_paid_by_a_current_round_freeze(tmp_path):
+    bank = bank_with_account(tmp_path)
+    gate = gateway(bank)
+    who = context()
+    other = who.model_copy(update={"demo_round_id": "D2"})
+    old_order = ok_write(gate.create_order(who, op(), CreateOrderInput(
+        product_id="p_flower", quantity=1, expected_total_fen=19900,
+        delivery=delivery(_now() + timedelta(hours=30)))))
+    current_freeze = ok_write(gate.freeze_funds(other, op(), FreezeFundsInput(
+        account_id="BA1", amount_fen=50000, reason="生日")))
+    denied = gate.capture_frozen(other, op(), CaptureFrozenInput(
+        freeze_id=current_freeze.receipt.freeze_id, amount_fen=19900,
+        merchant_id="m_flower", merchant_name="邻里花店", purpose="生日鲜花",
+        category=Category.SHOPPING, order_id=old_order.receipt.order.order_id))
+    assert denied.operation_status is OperationStatus.FAILED
+    assert denied.failure.code == "ACCESS_DENIED"
+    assert bank.store.get_order(
+        "U1", old_order.receipt.order.order_id)["payment_status"] == "unpaid"
+    assert table_count(bank.store, "order_payments") == 0
+    assert bank.store.list_ledger("U1", "BA1") == []
+
+
+@pytest.mark.parametrize("kind", ["freezes", "orders"])
+def test_service_startup_refuses_objects_written_without_a_round(tmp_path, kind):
+    path = tmp_path / "bank.sqlite3"
+    store = MockBankStore(path)
+    store.seed_account(BankAccount("BA1", "U1", "class_i", "active", 200000, 0, 0))
+    recorded_at = "2026-10-25T04:00:00+08:00"
+    operation_id = str(uuid4())
+    if kind == "freezes":
+        store.commit_operation(
+            "U1", operation_id, "bank.freeze_funds",
+            {"account_id": "BA1", "amount_fen": 50000, "reason": "生日"},
+            "succeeded", {"freeze_id": "f-null"}, recorded_at,
+            [("BA1", 0, 200000, 50000)], [],
+            (FreezeOpening("f-null", "BA1", 50000),),
+        )
+        remaining_amount, remaining_frozen = 200000, 50000
+        row_table, row_id = "freezes", "f-null"
+    else:
+        store.commit_operation(
+            "U1", operation_id, "bank.create_order",
+            {"product_id": "p_flower", "quantity": 1, "expected_total_fen": 19900},
+            "succeeded", {"order_id": "o-null"}, recorded_at, [], [],
+            (OrderCreation(order_id="o-null", product_id="p_flower", quantity=1,
+                           merchant_id="m_flower", merchant_name="花店",
+                           total_fen=19900, expected_total_fen=19900,
+                           created_at=recorded_at, deliver_by="2026-10-27T04:00:00+08:00",
+                           recipient_name_masked="张*", phone_masked="****1234",
+                           address_masked="某市****"),),
+        )
+        remaining_amount, remaining_frozen = 200000, 0
+        row_table, row_id = "orders", "o-null"
+    # A real pre-02 database also has the operation scope row: the object row is
+    # what is missing a round, so the startup guard (not the older operation-scope
+    # check) must be the one that refuses it.
+    with connect(path) as connection:
+        connection.execute("""CREATE TABLE IF NOT EXISTS bank_operation_scopes (
+            operation_id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+            demo_round_id TEXT NOT NULL)""")
+        connection.execute(
+            "INSERT OR IGNORE INTO bank_operation_scopes VALUES (?, 'U1', 'D1')",
+            (operation_id,),
+        )
+        connection.commit()
+        version_before = connection.execute("PRAGMA user_version").fetchone()[0]
+        accounts_before = connection.execute(
+            "SELECT * FROM accounts ORDER BY 1").fetchall()
+        row_before = connection.execute(
+            f"SELECT demo_round_id FROM {row_table} WHERE "
+            f"{'freeze_id' if row_table == 'freezes' else 'order_id'} = ?",
+            (row_id,),
+        ).fetchone()
+
+    with pytest.raises(RuntimeError, match="bank objects without a demo round"):
+        MockBankService(store, demo_secret=b"s" * 32)
+
+    assert store.get_account("U1", "BA1").book_balance_fen == remaining_amount
+    assert store.get_account("U1", "BA1").frozen_balance_fen == remaining_frozen
+    with connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == version_before
+        assert [tuple(row) for row in connection.execute(
+            "SELECT * FROM accounts ORDER BY 1")] == [tuple(row) for row in accounts_before]
+        row_after = connection.execute(
+            f"SELECT demo_round_id FROM {row_table} WHERE "
+            f"{'freeze_id' if row_table == 'freezes' else 'order_id'} = ?",
+            (row_id,),
+        ).fetchone()
+        assert row_after["demo_round_id"] is None
+        assert tuple(row_after) == tuple(row_before)
+
+
+def test_gateway_passes_trusted_round_to_object_reads(tmp_path):
+    class RecordingBirthday:
+        def __init__(self):
+            self.calls = []
+
+        def get_freeze(self, user_id, freeze_id, demo_round_id=None):
+            self.calls.append(("freeze", user_id, freeze_id, demo_round_id))
+            return QueryFailure(kind="error", error=BankError(
+                code="RECORD_NOT_FOUND", details={}))
+
+        def get_order(self, user_id, order_id, demo_round_id=None):
+            self.calls.append(("order", user_id, order_id, demo_round_id))
+            return QueryFailure(kind="error", error=BankError(
+                code="RECORD_NOT_FOUND", details={}))
+
+    class RecordingBank:
+        def __init__(self, birthday):
+            self.birthday = birthday
+
+    birthday = RecordingBirthday()
+    gate = BankGateway(RecordingBank(birthday))
+    who = context()
+    assert isinstance(gate.get_freeze(who, "f1"), QueryFailure)
+    assert isinstance(gate.get_order(who, "o1"), QueryFailure)
+    assert birthday.calls == [
+        ("freeze", "U1", "f1", "D1"),
+        ("order", "U1", "o1", "D1"),
+    ]
     gate.close()

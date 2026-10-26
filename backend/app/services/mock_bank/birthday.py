@@ -182,6 +182,7 @@ class MockBirthdayBank:
             OperationStatus.SUCCEEDED.value, result.model_dump(mode="json"), at.isoformat(),
             [(account_id, account.version, book, frozen)], [],
             (FreezeOpening(freeze_id, account_id, amount_fen),),
+            demo_round_id=context.demo_round_id,
         )
         return self._after_write(context.user_id, result)
 
@@ -198,10 +199,12 @@ class MockBirthdayBank:
 
     # --- B11 capture / B12 release ---
 
-    def _freeze_row(self, user_id: str, freeze_id: str):
-        row = self.store.get_freeze(user_id, freeze_id)
+    def _freeze_row(self, context: TrustedContext, freeze_id: str):
+        row = self.store.get_freeze(context.user_id, freeze_id)
         if row is None:
             return None, _error("RECORD_NOT_FOUND")
+        if row["demo_round_id"] != context.demo_round_id:
+            return None, _error("ACCESS_DENIED")
         remaining = (row["original_amount_fen"] - row["captured_total_fen"]
                      - row["released_total_fen"])
         return (row, remaining), None
@@ -219,7 +222,7 @@ class MockBirthdayBank:
         prior = self._stored(context.user_id, operation_id, action, parameters)
         if prior is not None:
             return prior
-        found, failure = self._freeze_row(context.user_id, freeze_id)
+        found, failure = self._freeze_row(context, freeze_id)
         at = self.clock()
         if failure is not None:
             return self._store_failure(context, operation_id, action, parameters, failure, at)
@@ -234,6 +237,9 @@ class MockBirthdayBank:
             if order is None:
                 return self._store_failure(context, operation_id, action, parameters,
                                            _error("RECORD_NOT_FOUND"), at)
+            if order["demo_round_id"] != context.demo_round_id:
+                return self._store_failure(context, operation_id, action, parameters,
+                                           _error("ACCESS_DENIED"), at)
             product = self._product(order["product_id"])
             # Amount, merchant and category must match the bank's own order facts.
             if (amount_fen != order["total_fen"] or merchant_id != order["merchant_id"]
@@ -265,6 +271,7 @@ class MockBirthdayBank:
                 order_id=order_id, paid_at=at.isoformat(), counterparty_id=merchant_id,
                 counterparty_name=merchant_name, summary=purpose,
             ),),
+            demo_round_id=context.demo_round_id,
         )
         return self._after_write(context.user_id, result)
 
@@ -278,7 +285,7 @@ class MockBirthdayBank:
         prior = self._stored(context.user_id, operation_id, action, parameters)
         if prior is not None:
             return prior
-        found, failure = self._freeze_row(context.user_id, freeze_id)
+        found, failure = self._freeze_row(context, freeze_id)
         at = self.clock()
         if failure is not None:
             return self._store_failure(context, operation_id, action, parameters, failure, at)
@@ -304,15 +311,19 @@ class MockBirthdayBank:
             OperationStatus.SUCCEEDED.value, result.model_dump(mode="json"), at.isoformat(),
             [(row["account_id"], account.version, book, frozen)], [],
             (FreezeRelease(freeze_id, amount_fen),),
+            demo_round_id=context.demo_round_id,
         )
         return self._after_write(context.user_id, result)
 
     # --- B13 / B20 / B21 / B22 ---
 
-    def get_freeze(self, user_id: str, freeze_id: str):
+    def get_freeze(self, user_id: str, freeze_id: str, demo_round_id: str | None = None):
+        """demo_round_id is required by the gateway; None is only the test seam."""
         row = self.store.get_freeze(user_id, freeze_id)
         if row is None:
             return _error("RECORD_NOT_FOUND")
+        if demo_round_id is not None and row["demo_round_id"] != demo_round_id:
+            return _error("ACCESS_DENIED")
         return QueryOk(kind="ok", data=FreezeView(
             freeze_id=row["freeze_id"], account_id=row["account_id"],
             original_amount_fen=row["original_amount_fen"],
@@ -398,13 +409,17 @@ class MockBirthdayBank:
                            phone_masked=order.phone_masked,
                            address_masked=order.address_masked,
                            expected_total_fen=expected_total_fen),),
+            demo_round_id=context.demo_round_id,
         )
         return self._after_write(context.user_id, result)
 
-    def get_order(self, user_id: str, order_id: str):
+    def get_order(self, user_id: str, order_id: str, demo_round_id: str | None = None):
+        """demo_round_id is required by the gateway; None is only the test seam."""
         row = self.store.get_order(user_id, order_id)
         if row is None:
             return _error("RECORD_NOT_FOUND")
+        if demo_round_id is not None and row["demo_round_id"] != demo_round_id:
+            return _error("ACCESS_DENIED")
         return QueryOk(kind="ok", data=OrderResult(order=OrderView(
             order_id=row["order_id"], product_id=row["product_id"], quantity=row["quantity"],
             merchant_id=row["merchant_id"], merchant_name=row["merchant_name"],
