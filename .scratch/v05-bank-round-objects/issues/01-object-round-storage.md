@@ -14,7 +14,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/storage/`
 
-Status: blocked — 待 Owner 确认对象归属防御纵深决策、生日 storage 05 合入并释放目录窗口；未实施。
+Status: in_progress — 2026-10-26 16:00 PM 在会话中明确确认按推荐方案继续（补对象轮次归属、继续 02/评测并开 PR）；实现与局部验证完成，待双轴审查已闭合/PR 回交，未合入。
 
 Blocked by: None（本票无实施前置票；Owner 决策与生日 storage 目录窗口是启动条件，见下，不是前置票）。
 Source evidence: [PR #290：银行专项四项 strict xfail](https://github.com/DrErwin/hackerthon-bank-agent/pull/290)。
@@ -30,7 +30,7 @@ Start when: ①Owner 已确认补对象轮次列（见 [spec 背景](../spec.md)
    - 不提供时保留现有行为（仅分阶段兼容/迁移遗留；**生产写入必须由服务票始终传轮次**，见 02）。
 3. `get_freeze` / `get_order` 返回的行包含 `demo_round_id`（`SELECT *` 自然带出），供服务层“先取行、再比较轮次”；**不改变现有签名、不把轮次下推成存储过滤**（否则无法区分“不存在”与“他轮”）。
 4. 旧库处理（沿用既有旧银行库先例，不做数据迁移）：
-   - v4 且 `freezes`/`orders` 已有行：初始化时以明确 `RuntimeError` 拒绝加载，提示保留旧库、显式启用新银行库；不静默迁移/改写/清除。核查时本机 `.mnemon` 两个演示库为 v2/v3、已被现有无 scope 检查拒绝，未发现 v4 且含对象行的库；实施时按实际数据库检查。
+   - v4 且 `freezes`/`orders` 已有行：初始化时以明确 `RuntimeError` 拒绝加载，提示保留旧库、显式启用新银行库；不静默迁移/改写/清除。核查时只读抽查本机 `.mnemon` 两个演示库：`v03-local-demo` v3（13 ops / 13 scopes / 0 unscoped）、`v03-local-demo-browser-regression` v2（2 / 2 / 0），均无对象表；无 scope 检查不会拒绝，若加载会按 v2/v3 路径升到 v5 空对象表；未发现 v4 且含对象行的库；实施时按实际数据库检查。
    - v4 且对象表为空：`ALTER TABLE` 原地加列后升级，正常加载。
    - v3 及更早：按现有升级路径创建 v5 形状对象表（旧对象本就不存在）。
 5. 更新 `backend/app/storage/README.md`：对象轮次归属、v4/v5 区别、旧库拒绝口径、过渡参数边界；与生日线 README 改动 rebase。
@@ -53,3 +53,21 @@ python -m pytest -q app/storage/ --basetemp=<本票独立临时目录>
 ```
 
 补充针对本票新增/更新用例逐项记录命令、结果、JUnit/输出；不启动模型、HTTP 或页面。代码完成后两位独立子代理分别核对仓库规范与本票/规格，必须项修完再开单目录 PR 回交中控，不自行合并；按 [spec 约束](../spec.md) 记录安全审阅（Erwin 代行或 Owner 判定不构成新安全规则），不写 Ringo 签核。
+
+## Delivery record
+
+### 2026-10-26 实施
+
+- 窗口与授权：PM 2026-10-26 14:39 告知生日线已完成、storage 窗口开放；2026-10-26 16:00 PM 在会话中明确确认「确认按推荐方案继续」（补对象轮次归属、继续 02/评测并开 PR）。main `2f5a58d`（生日九票与页面合入后）。
+- 分支/worktree：`codex/v05-bank-round-objects-01`，独立 worktree `C:/Users/57652/.codex/worktrees/v05-bank-round/hackerthon-bank-agent`。
+- 实施内容：银行库 `SCHEMA_VERSION=5`；`freezes`、`orders` 增 `demo_round_id`；`commit_operation`/`finalize_operation` 增可选 `demo_round_id`，对象创建写入、核销/释放/订单付款关联校验同轮次且随原子提交回滚；`get_freeze`/`get_order` 仍返回整行不按轮次过滤；v4 有对象行库初始化明确拒绝加载、v4 空对象表原地加列、v3 及更早创建 v5 形状表；更新 `backend/app/storage/README.md`。
+- 本票验证（隔离临时目录，cwd=本 worktree `backend/`，`PYTHONPATH` 指向本 worktree）：
+  - `python -m pytest -q app/storage/test_bank_cross_objects.py` → **16 passed**；
+  - `python -m pytest -q app/storage` → **78 passed**；
+  - 既有回归 `app/storage app/services/test_bank.py app/services/test_birthday_bank.py ../evals/mockbank/test_birthday_bank_eval.py` → **132 passed, 4 xfailed**（4 xfail 仍是本系列待修的裸银行跨轮对象探针，未改动）；
+  - CI 既有银行评测 `../evals/mockbank/test_mockbank_eval.py` → **14 passed**；
+  - 全后端实现版（测试加齐前同一产品代码）：**2113 passed, 13 skipped in 1148.17s**；测试加齐后复跑中（结果回填）。
+- 本机运维核对（只读）：`D:\hackerthon-bank-agent\.mnemon\v03-local-demo\mock_bank.sqlite3` 为 `user_version=3`、13 ops / 13 scopes / 0 unscoped、无 `freezes`/`orders` 表；`...v03-local-demo-browser-regression\mock_bank.sqlite3` 为 v2、2/2/0、无对象表。两库按 v2/v3 路径升到 v5 空对象表，不触发「v4 有对象行拒绝」；未发现 v4 且含对象行的本机库。本票未加载原库。
+- 代码审查：规范轴与规格轴两位独立子代理已完成，代码语义无必须修复；测试/记录必须项已按意见修复（付款关联与回执快照、v4 保留账号、finalize 轮次、v4 单表拒绝参数化、本机库事实、Owner 确认记录）。
+- 安全审阅：本票新增银行对象访问拒绝判定，按 AGENTS.md 属资金执行链路的安全相关改动；v0.5 阶段由 Erwin 代行审阅并如实记录为代行（不写 Ringo 签核）。**代行审阅记录待本人在合入前确认/留痕**。
+- PR：创建后回填链接与最终 head；本票单独合入不会关闭 services 的 fail-open，4 个 strict xfail 仍保留，按 spec 的 01→02→评测相邻合入顺序推进。
