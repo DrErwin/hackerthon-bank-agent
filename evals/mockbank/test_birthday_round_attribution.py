@@ -117,6 +117,22 @@ def bank_state(runtime):
                 for table in ("accounts", "freezes", "orders", "order_payments", "ledger_entries", "bank_operations")}
 
 
+def bank_object_facts(runtime, order_id, freeze_id):
+    with closing(connect(runtime.gateway._bank.store.path)) as connection:
+        order = connection.execute(
+            "SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone()
+        freeze = connection.execute(
+            "SELECT * FROM freezes WHERE freeze_id = ?", (freeze_id,)).fetchone()
+    assert order is not None, f"order fact missing: {order_id}"
+    assert freeze is not None, f"freeze fact missing: {freeze_id}"
+    return dict(order), dict(freeze)
+
+
+def freeze_remaining(freeze):
+    return (freeze["original_amount_fen"] - freeze["captured_total_fen"]
+            - freeze["released_total_fen"])
+
+
 def test_asgi_old_session_and_task_are_not_current(composition, record_property):
     _, app, _ = composition("D1")
     with TestClient(app) as client:
@@ -220,14 +236,17 @@ def test_current_task_rejects_old_order_and_pays_its_own_order(composition, reco
     paid = approved_write(current, who,
         lambda: ports.capture_check(who, plan, item, own_order_id),
         lambda: ports.capture_execute(who, plan, item, own_order_id))
-    order = current.gateway.get_order(who, own_order_id).data.order
-    assert order.payment_status == "paid" and order.payment_transaction_id == paid.receipt.transaction_id
-    old_order = current.gateway.get_order(who, old_order_id).data.order
-    assert (old_order.payment_status, old_order.payment_transaction_id) == ("unpaid", None)
-    old_view = current.gateway.get_freeze(who, old_freeze.receipt.freeze_id).data
-    new_view = current.gateway.get_freeze(who, frozen.receipt.freeze_id).data
-    assert old_view.remaining_fen == 50000
-    assert (new_view.captured_total_fen, new_view.remaining_fen) == (19900, 30100)
+    # Read old objects through bank facts, not a D2 gateway read: after
+    # v05-bank-round-objects/02 the gateway denies cross-round object reads.
+    old_order, old_freeze_fact = bank_object_facts(
+        current, old_order_id, old_freeze.receipt.freeze_id)
+    new_order, new_freeze_fact = bank_object_facts(
+        current, own_order_id, frozen.receipt.freeze_id)
+    assert (old_order["payment_status"], old_order["payment_transaction_id"]) == ("unpaid", None)
+    assert freeze_remaining(old_freeze_fact) == 50000
+    assert new_order["payment_status"] == "paid"
+    assert new_order["payment_transaction_id"] == paid.receipt.transaction_id
+    assert (new_freeze_fact["captured_total_fen"], freeze_remaining(new_freeze_fact)) == (19900, 30100)
     settled = bank_state(current)
     repeated = ports.capture_execute(who, plan, item, own_order_id)
     assert repeated.result.operation_id == paid.operation_id
@@ -242,11 +261,11 @@ def test_current_task_rejects_old_order_and_pays_its_own_order(composition, reco
     assert model.calls == 0
     record_property("internal_port_probe", json.dumps({
         "configuration_restart_only": True, "real_confirmation_and_step_up": True,
-        "old_order_payment_status": old_order.payment_status,
+        "old_order_payment_status": old_order["payment_status"],
         "old_order_confirmation_and_execute_denied": True,
-        "own_order_payment_status": order.payment_status,
-        "old_freeze_remaining_fen": old_view.remaining_fen,
-        "new_freeze_captured_fen": new_view.captured_total_fen,
-        "new_freeze_remaining_fen": new_view.remaining_fen,
+        "own_order_payment_status": new_order["payment_status"],
+        "old_freeze_remaining_fen": freeze_remaining(old_freeze_fact),
+        "new_freeze_captured_fen": new_freeze_fact["captured_total_fen"],
+        "new_freeze_remaining_fen": freeze_remaining(new_freeze_fact),
         "model_calls": model.calls, "public_http_exploit_proven": False,
     }))

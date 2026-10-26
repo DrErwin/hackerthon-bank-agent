@@ -41,16 +41,26 @@ $env:PYTHONPATH=(Get-Location).Path
 python -m pytest -q ../evals/mockbank app/services app/storage --junitxml=../evals/mockbank/birthday-results.xml -o junit_family=legacy
 ```
 
-2026-10-25 最终合跑：**149 passed, 4 xfailed in 46.34s**，包括生日专项 37 项通过及4项未满足探针、原银行专项14项通过、服务及存储检查。首次合跑149项通过后，独立审查发现跨轮次缺口，新增四项strict xfail，不计入通过。XML保存最后一次逐例结果。
+2026-10-25 最终合跑：**149 passed, 4 xfailed in 46.34s**，包括生日专项 37 项通过及4项未满足探针、原银行专项14项通过、服务及存储检查。首次合跑149项通过后，独立审查发现跨轮次缺口，新增四项strict xfail，不计入通过。XML保存最后一次逐例结果（同期 XML 为 153 tests / 4 skipped，与文字记录属另一次同计数运行，计数一致、时间略有差异）。
 
 完整后端检查（同日，同基线，`python -m pytest -q`）：**1588 passed in 893.93s**。它不自动发现 `evals/`；新增生日评测由上面的专项命令单独运行。rebase 到 `a1e8889dd05cb11eb6577a0e11e146538aa42287` 仅引入中控文档更新，银行实现未变。
 
 当前 CI 工作流显式只运行旧 `test_mockbank_eval.py`；新增生日文件必须按专项命令运行，不能用 CI 绿推断生日专项已在 CI 执行。
 
+## 2026-10-26 跨轮次对象边界收口
+
+[v05-bank-round-objects/01（storage）](../../.scratch/v05-bank-round-objects/issues/01-object-round-storage.md)（main `819bbfb`）与 02（services，main `b63ec1b`）已合入；四项 strict xfail 已由 [v05-cross-bank-eval/02](../../.scratch/v05-cross-bank-eval/issues/02-round-object-regression.md) 转为正式回归：
+
+- `test_birthday_bank_eval.py` 单文件 → **42 passed**（原 37 + 4 转正 + 1 混合轮次订单用例）；
+- `test_birthday_round_attribution.py` → **3 passed**（旧对象改用银行事实观察，不再依赖 D2 网关读）；
+- 记录命令 `python -m pytest -q ../evals/mockbank app/services app/storage` → **217 passed, 0 xfailed in 39.27s**，JUnit [evidence/2026-10-26/bank-round-objects.xml](evidence/2026-10-26/bank-round-objects.xml)；
+- 旧 CI 评测 `test_mockbank_eval.py` → **14 passed**；平台订单来源/生日装配/安全释放定向 `app/agent_platform/test_birthday_order_scope.py app/agent_platform/test_birthday_runtime_wiring.py app/security/test_birthday_release.py` → **46 passed**。
+- 四项断言：跨轮 B13/B22 读取与 B11 核销/B12 释放均 `ACCESS_DENIED`（写入是失败回执，**不接受 `OPERATION_CONFLICT`**），六类银行表除失败回执外不变、零资金移动；同轮正常路径与合法订单只付一次保留。仍不运行真实页面/模型/HTTP E2E，也不由本报告代签 PM/安全接受；2026-10-25 的 149/4 历史结果保留为当时基线，不重写。
+
 ## 未覆盖与交回中控
 
 - **B28 真实故障装配缺口**：`v05-cross-platform/09` 及 PR #279 明确保留未装配；`arm_response_loss` 目前是银行实例的单次用户故障接缝。本专项直接配置自己的实例并观察真实网关超时，不证明通过产品管理入口配置。提供目录：`backend/app/agent_platform/`（必要服务接缝由 `backend/app/services/` 提供）。建议先补 B28→当前隔离银行实例、目标用户/轮次的装配，再由包05真实入口验证。
-- **跨轮次验收缺口（blocked）**：独立 Spec 子代理及本对话均用临时真银行复现：同库 U1 从 D1 改到 D2、测试授权放行时，旧冻结/订单可读，换新编号可核销旧订单199或释放旧冻结500。四项探针用 `--runxfail` 实跑 **4 failed, 37 deselected in 4.33s**（预期揭示未满足要求）；默认 strict xfail保留缺口，不计通过。详见[最小复现与提供目录](../../.scratch/v05-cross-bank-eval/round-boundary-gap.md)。这不证明真实安全执行器/HTTP存在越权；交平台/安全及必要存储/服务核对原规则责任，不由本票擅定。完整跨轮次验收尚未通过，不能以MB-B06或新库重建替代。
+- **跨轮次验收缺口（2026-10-26 已收口）**：2026-10-25 独立 Spec 子代理及本对话用临时真银行复现：同库 U1 从 D1 改到 D2、测试授权放行时，旧冻结/订单可读，换新编号可核销旧订单199或释放旧冻结500；四项探针当时 `--runxfail` 实跑 **4 failed, 37 deselected**，以 strict xfail 保留。2026-10-26 存储/服务修复后四项已转正并通过（见上节），历史失败与[最小复现](../../.scratch/v05-cross-bank-eval/round-boundary-gap.md)保留。仍不证明真实页面/模型/HTTP E2E，也不代签 PM 或 Ringo 接受。
 - **在途限制**：响应丢失故障发生在真实提交之后，B14立即能查到终态；未制造“尚未提交且一直 processing”的生日付款。应用不抢先释放及取消后不复活购买属于业务/平台验证；本票仅证明核实后的银行金额一致。
 - **证据层级**：单测/银行存储专项已运行；真实模型、HTTP、页面 E2E 未由本票运行；AI审查、CI、Erwin/PM接受、Ringo真人安全签核分别记录，不能互代。
 

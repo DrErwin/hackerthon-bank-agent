@@ -1,6 +1,6 @@
 # 银行对象轮次归属与跨轮次拒绝工作规格
 
-Status: in_progress — 2026-10-26 01（storage）已 squash 合入 main `819bbfb`；02（services）实施中，评测收口待 02。PM 已确认防御纵深决策并授权继续。
+Status: in_progress — 2026-10-26 01（storage）已合入 main `819bbfb`；02（services）已合入 main `b63ec1b`；评测收口 02 已完成验证并待 PR 合入。PM 已确认防御纵深决策并授权继续。
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
@@ -50,7 +50,7 @@ Work spec 依据：[银行接口字段](../../docs/contracts/银行接口字段-
 ## 验证与完成
 
 - 每票只做本目录局部验证（隔离临时库）；代码交付另做两位独立子代理规范/规格审查、必修项修复、独立 PR 回交，不自行合并。
-- 评测收口后分两个口径记录：①`evals/mockbank/test_birthday_bank_eval.py` 单文件 41 项（原 37 通过 + 4 项转正）全部通过、0 xfailed；②`birthday-evidence.md` 记录的合跑命令按实施后实际节点全绿、0 failed/0 xfailed（2026-10-25 为 153 节点、2026-10-26 收集 175 节点，按实际记录不写死数量）。四项都断言具体拒绝码（读取/写入 `ACCESS_DENIED`，不接受 `OPERATION_CONFLICT`），保留合法订单/同轮对照与历史失败 XML。
+- 评测收口后分两个口径记录：①`evals/mockbank/test_birthday_bank_eval.py` 单文件 42 项（原 37 通过 + 4 项转正 + 1 混合轮次订单）全部通过、0 xfailed；②`birthday-evidence.md` 记录的合跑命令按实施后实际节点全绿、0 failed/0 xfailed（2026-10-26 实际 217 passed；不写死历史节点数）。四项都断言具体拒绝码（读取/写入 `ACCESS_DENIED`，不接受 `OPERATION_CONFLICT`），保留合法订单/同轮对照与历史失败 XML。
 - 不自动运行：真实页面/模型/银行全链 E2E、B26 正式重置、整体银行专项接受、安全专项、Ringo 真人签核、PM 最终接受。
 
 ## 协调与停止线

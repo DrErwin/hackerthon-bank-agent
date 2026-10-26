@@ -4,7 +4,7 @@
 
 Source ticket: [v05-cross-bank-eval/01：银行事实和防重专项验收](issues/01-birthday-bank-evidence.md)。
 
-Status: open — 2026-10-26 只读核查与责任判断完成：释放收尾链路有明文（M14/安全§3.1），B13/B22/B11 对象层补轮次属防御纵深决策（待 Owner 确认）；产品路径上游门已覆盖（#294/#296），银行对象层缺口由存储/服务两票候选修复，评测收口另票。未实施，未获目录窗口。
+Status: closed — 2026-10-26 修复与评测收口完成：[v05-bank-round-objects/01（storage）](../v05-bank-round-objects/issues/01-object-round-storage.md) 合入 main `819bbfb`、02（services）合入 main `b63ec1b` 后，四项 strict xfail 由 [v05-cross-bank-eval/02](issues/02-round-object-regression.md) 转为正式回归并通过（专项单文件 42 passed、记录合跑 217 passed/0 xfailed）。产品路径上游门结论不变（旧会话/任务、真实 claim/释放授权、#296 订单来源门），页面/模型/HTTP E2E 与 PM/安全接受仍不由此关闭。
 
 2026-10-26 核查入口：[v05-bank-round-objects 核查与责任判断](../v05-bank-round-objects/verification.md)。
 
@@ -29,7 +29,7 @@ $env:PYTHONPATH=(Get-Location).Path
 python -m pytest -q ../evals/mockbank/test_birthday_bank_eval.py -k old_round_objects --runxfail
 ```
 
-默认以 `xfail(strict=True)` 保留：这四项是**未满足**的要求，不计入通过；未来修复导致 XPASS 会让专项失败，要求人工复核并移除已解决缺口，避免长期吞掉修复。
+默认以 `xfail(strict=True)` 保留：这四项是**未满足**的要求，不计入通过；未来修复导致 XPASS 会让专项失败，要求人工复核并移除已解决缺口，避免长期吞掉修复。（2026-10-25 历史做法；2026-10-26 由 [v05-cross-bank-eval/02](issues/02-round-object-regression.md) 转为正式断言，`--runxfail` 不再是当前用法。）
 
 ## 提供目录及建议依赖
 
@@ -46,5 +46,5 @@ python -m pytest -q ../evals/mockbank/test_birthday_bank_eval.py -k old_round_ob
 - **责任分层**：释放收尾链路有明文——公共契约 §9 M14 把“错误用户／冻结／**轮次**拒绝”列给 cross+security+mockbank，安全附件 §3.1 明确“银行仍校验可信主体对原冻结的释放权限”；B13/B22 读取与 B11 核销只有归属语义（银行附件 §2/§4/§9.3/§11）+ 包06验收第4条，把轮次纳入对象归属是**防御纵深实现决策**，不是契约字面要求。规范的轮次切换是 B26 重置（清冻结/订单），当前 F30/F31 未实现；四项探针的“同库换 round 不重置”不是规范支持方式。选择补对象归属而不是改评测适配平台门，需 Owner 确认并记录。
 - 平台核对普通请求轮次的依据是公共契约 §6.4/§6.5/§6.3；§6.9 只讲 `ResourceRef` 资源读取，不能当银行对象前门。
 - 实现层不一致：`bank_operation_scopes` 自 v0.3 起按 `(user, round)` 绑定操作编号、B14 按轮次拒绝（契约只要求编号绑定身份）；对象没有轮次属同一银行服务内的实现不一致。
-- 复跑确认（隔离临时目录）：`--runxfail` 四项仍 4 failed；组合基线命令 `test_birthday_round_attribution.py + test_birthday_bank_eval.py + app/agent_platform/test_birthday_order_scope.py + app/agent_platform/test_birthday_runtime_wiring.py` = 3+41+8+5 = 57 节点，实跑 **53 passed, 4 xfailed in 83.82s**（2026-10-26；与 `evals/mockbank/round-attribution.md` 记录一致）。
+- 复跑确认（2026-10-26 修复前历史快照）：`--runxfail` 四项仍 4 failed；组合基线命令 `test_birthday_round_attribution.py + test_birthday_bank_eval.py + app/agent_platform/test_birthday_order_scope.py + app/agent_platform/test_birthday_runtime_wiring.py` = 3+41+8+5 = 57 节点，实跑 **53 passed, 4 xfailed in 83.82s**（与 `evals/mockbank/round-attribution.md` 记录一致；修复后四项已转正，`--runxfail` 无效果、直接通过）。
 - 修复票（待 Owner 决策后）：[存储 01](../v05-bank-round-objects/issues/01-object-round-storage.md) → [服务 02](../v05-bank-round-objects/issues/02-object-round-services.md) → [评测收口 02](issues/02-round-object-regression.md)。storage 当前正被生日线（`codex/v05-birthday-immutable-checkpoint`，`3e38506`/`c886660`）使用，须等其合入并 rebase；不做共享库迁移，旧 v4 含对象行库按既有先例明确拒绝加载。

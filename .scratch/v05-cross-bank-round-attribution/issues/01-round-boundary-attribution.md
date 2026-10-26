@@ -12,13 +12,13 @@ Owner: Erwin
 
 Directory: `evals/mockbank/`
 
-Status: delivered — PR296修复后组合复验及两轴审查完成，更新原294依赖Draft交中控；原专项保持blocked，296/294均未获本批合入批准。
+Status: delivered — 2026-10-26 状态更新：本票与 PR #294 已合入 main `ad401ac`，PR #296 已合入 `620746a`；四项 xfail 已由 [v05-cross-bank-eval/02](../../v05-cross-bank-eval/issues/02-round-object-regression.md) 转正，测试文件随之更新；提供方 01（storage `819bbfb`）与 02（services `b63ec1b`）已合入。
 
 Accepted by: Erwin（中控授权执行）
 
 Accepted at: 2026-10-25
 
-Blocked by: [PR #296](https://github.com/DrErwin/hackerthon-bank-agent/pull/296)（`v05-cross-platform/14`订单来源门，仍Draft未合入）；本轮原PR294作为依赖Draft，原专项验收不由本票收口。
+Blocked by: None（PR #296 已合入 `620746a`、PR #294 已合入 `ad401ac`；历史段落保留当时的 Draft 状态）。
 
 Source: [PR #290](https://github.com/DrErwin/hackerthon-bank-agent/pull/290) 及 2026-10-25 中控续派；保留其blocked与四项已知失败。
 
@@ -57,3 +57,9 @@ Core scenarios: RA01—RA05，见本规格；关联原XL-B及轮次隔离要求�
 - 本轮独立Spec/真实性审查0项必须项，验证组合复跑3 passed in 9.82s。Standards审查0项代码必须项、1项历史证据链接必须项及失败XML行尾空白工具检查；已改为固定历史链接，失败XML仅CRLF→LF（解析后的XML内容/元数据严格相同）。Standards最终只读复核通过，0剩余必须项/建议；独立组合复跑3 passed in 10.21s。两轴最终均通过，不代替真人安全/PM接受。
 - 本轮回归代码提交 `61a4365485e2abb7de01765c039100a2680aa037`（test blob见上）；审查后仅历史链接、换行及交付记录更新。原PR294仍复用 `codex/v05-bank-round-attribution-02`，Draft叠在296分支，PR差异只含evals/mockbank和本组材料。CI计费限制未由本票豁免，合入前仍由中控核对。
 - PR294仍未合并，原专项及安全/页面E2E/真人接受不关闭，原五PR合入批准不扩用。
+
+## 2026-10-26 交接与状态更新
+
+- PR #296（平台订单来源门）已合入 main `620746a`；PR #294 已合入 main `ad401ac`。本票历史交付记录中的 Draft/未合入描述保留为当时状态，不重写。
+- [v05-bank-round-objects/01](../../v05-bank-round-objects/issues/01-object-round-storage.md)（storage，main `819bbfb`）与 02（services）补齐银行对象轮次归属后，本票交付的 `test_birthday_round_attribution.py` 由 [v05-cross-bank-eval/02](../../v05-cross-bank-eval/issues/02-round-object-regression.md) 交接更新：旧订单/旧冻结改用银行库事实观察（不再 D2 网关读），产品边界与历史失败证据保持；`round-attribution.md` 顶部已加 2026-10-26 当前状态与 superseded 注记。
+- 更新后实跑：`test_birthday_round_attribution.py` **3 passed**；组合命令 `../evals/mockbank app/services app/storage` **215 passed, 0 xfailed**；JUnit `evals/mockbank/evidence/2026-10-26/bank-round-objects.xml`。真实页面/模型/HTTP E2E 与 PM/安全接受仍未由本票完成。
