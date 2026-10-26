@@ -12,7 +12,7 @@ Owner: Erwin（v0.5阶段统一负责）
 
 Directory: `backend/app/modules/cross/`
 
-Status: claimed / blocked — 2026-10-26 已由授权执行对话领取；前置为平台 01 接口稳定与 02/03 交付，未开始编码；适用个人预算路径仍等待 06。
+Status: done — 2026-10-26 实施与两轴复验闭合（规范轴复验 PASS；规格轴 5 项全闭 + 价格重新采用/裁超范围项为 Lead 定向复核），PR #312 squash 合入 `2d9cfe2`；真实 E2E 与页面验收未由本票完成。
 
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 领取与顺序见[生日系列执行记录](../../v05-control/birthday-series-2026-10-26.md)。

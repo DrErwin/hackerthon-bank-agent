@@ -6,7 +6,7 @@ Spec: [平台提供条件及最小规格](../spec.md)、[G3 对账](../g3-reconc
 Type: 开发（2026-10-26 由票 08 交付时如实报出的两个平台缺口新增）
 Owner: Erwin（v0.5 阶段统一负责）
 Directory: `backend/app/agent_platform/`
-Status: in_progress — 2026-10-26 已派实施（从票 08 分支出发，08 合入后 rebase）；未合入。
+Status: done — 2026-10-26 实施完成，rebase 到含 08 的 main 后平台 376 passed/13 skipped、cross 120 passed、api 85 passed；PR #313 squash 合入 `6a6526e`。
 Implementation assignee: Erwin 授权执行对话（本对话，AI 代理）；accepted at 2026-10-26。
 Blocked by: 票 08 合入（提供 `install_cross_handoff` 与真实 adapter）；03 已合入（`handoff` 接缝）。
 Core scenarios: P02/P03/P07/P12—P17；对应 Cross08 Q03/Q05/Q06。
