@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ApiError } from "../api";
 import type { ConfirmationView, CrossTaskView, VerificationView } from "../contracts";
 import { CrossPlanCard } from "./components/CrossPlanCard";
+import { DeliveryCard } from "./components/DeliveryCard";
 import { TaskBlock } from "./components/TaskBlock";
 import { crossSlot } from "./slots/crossSlot";
 import { createDemoBackend } from "./stub/demoBackend";
@@ -177,7 +178,21 @@ function Harness({ source, taskId }: { source: ShellDataSource; taskId: string }
   return <TaskBlock envelope={current} slot={crossSlot} origin="real-api" conversation={conversation} />;
 }
 
-async function mountCard(source: ShellDataSource, card: ShellTask) {
+// The same page plus the "enter this session again" action, so a test can show
+// what survives a session change without reaching into the hook's state.
+function SessionHarness({ source, taskId }: { source: ShellDataSource; taskId: string }) {
+  const conversation = useConversation(source);
+  const current = conversation.tasks.get(taskId);
+  if (conversation.booting || !current) return null;
+  return (
+    <div>
+      <button type="button" onClick={() => void conversation.actions.reenter()}>重新进入会话</button>
+      <TaskBlock envelope={current} slot={crossSlot} origin="real-api" conversation={conversation} />
+    </div>
+  );
+}
+
+async function mountCard(source: ShellDataSource, card: ShellTask, View = Harness) {
   source.listTasks = async () => [envelope(card)];
   source.getTask = async () => envelope(card);
   source.listTaskRecords = async (taskId: string) => ({
@@ -186,7 +201,7 @@ async function mountCard(source: ShellDataSource, card: ShellTask) {
     verifications: card.interaction?.kind === "verification" ? [verification] : [],
   });
   source.listChildren = async () => [];
-  render(<Harness source={source} taskId={card.task_id} />);
+  render(<View source={source} taskId={card.task_id} />);
   // A reloaded unfinished task asks the user to look before continuing; that
   // lookup is not an approval and does not resubmit anything.
   fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
@@ -448,7 +463,28 @@ it("collects delivery facts in a dedicated form instead of the generic text box"
   expect(screen.getByRole("button", { name: "停止本次安排" })).toBeTruthy();
 });
 
-it("stops at the missing field, names it and sends nothing to F36", async () => {
+it("continues only the interaction that issued the reference", () => {
+  const handoff = { detail_ref: REF, interaction_id: "i-delivery", fields: MASKED };
+  const props = {
+    id: "delivery",
+    active: true,
+    busy: false,
+    handoff,
+    error: "",
+    onSelect: () => undefined,
+    onSubmit: async () => false,
+    onContinue: async () => false,
+  };
+  const view = render(<DeliveryCard interaction={deliveryAsk.interaction!} {...props} />);
+  expect(screen.getByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+
+  // A newer interaction on the same task never gets the earlier reference.
+  view.rerender(<DeliveryCard interaction={{ ...deliveryAsk.interaction!, interaction_id: "i-delivery-2" }} {...props} />);
+  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
+});
+
+it("stops at the blank field, marks it and writes no sentence of its own", async () => {
   const backend = createDemoBackend({ replyDelayMs: 0 });
   const submitDetails = vi.fn();
   backend.user.submitDetails = submitDetails;
@@ -458,11 +494,16 @@ it("stops at the missing field, names it and sends nothing to F36", async () => 
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
   });
-  expect(await screen.findByText("请填写联系电话。")).toBeTruthy();
-  expect(screen.getByText("请填写详细地址。")).toBeTruthy();
-  expect(screen.queryByText("请填写收件人姓名。")).toBeNull();
-  expect(screen.getByLabelText("联系电话").getAttribute("aria-invalid")).toBe("true");
+  const phone = screen.getByLabelText("联系电话");
+  const address = screen.getByLabelText("详细地址");
+  // The blank fields are reported through their own invalid state; the approved
+  // labels and the server's own message carry the rest.
+  expect(phone.getAttribute("aria-invalid")).toBe("true");
+  expect(address.getAttribute("aria-invalid")).toBe("true");
+  expect(phone.getAttribute("aria-required")).toBe("true");
   expect(screen.getByLabelText("收件人").getAttribute("aria-invalid")).toBe("false");
+  expect(document.body.textContent).not.toMatch(/请填写/);
+  expect(document.activeElement).toBe(phone);
   expect(submitDetails).not.toHaveBeenCalled();
 });
 
@@ -554,6 +595,11 @@ it("asks for the form again only when the server cannot resolve the reference", 
   expect(await screen.findByLabelText("收件人")).toBeTruthy();
   expect(screen.getByText(/查不到对应的配送信息/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  // F36 already owned the original, so the form comes back empty instead of
+  // showing the typed recipient, phone and address again.
+  expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("联系电话") as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("详细地址") as HTMLInputElement).value).toBe("");
   // The dead reference is not kept on this device.
   await waitFor(() => expect(storedText()).not.toContain(REF));
 });
@@ -606,6 +652,103 @@ it("asks for the delivery facts again after a reload instead of reusing the refe
   expect(await screen.findByLabelText("收件人")).toBeTruthy();
   expect(screen.getByText(/请在配送信息专用表单填写收件人/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect(screen.queryByText("李*")).toBeNull();
+  expect(provideInput).toHaveBeenCalledTimes(1);
+});
+
+it("clears the form when F36 answers, so a dropped reference returns to empty boxes", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  const provideInput = vi.fn().mockRejectedValue(new ApiError(409, "INTERACTION_STALE", "stale",
+    "这条配送衔接已经失效，请按当前页面重新填写。"));
+  backend.user.provideInput = provideInput;
+  await mountCard(backend.user, deliveryAsk);
+
+  fillDelivery();
+  // The refresh keeps the same interaction, so the same card instance returns the
+  // form: only clearing at F36 success can keep the typed facts out of it.
+  backend.user.getTask = async () => envelope(task({
+    ...deliveryAsk,
+    task_revision: 6,
+    message: "配送资料需要按当前页面重新填写。",
+  }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+
+  expect(await screen.findByLabelText("收件人")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("联系电话") as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("详细地址") as HTMLInputElement).value).toBe("");
+  expect(document.body.textContent).not.toContain(RAW.recipient_name);
+  expect(document.body.textContent).not.toContain(RAW.phone);
+  expect(provideInput).toHaveBeenCalledTimes(1);
+  expect(storedText()).not.toContain(REF);
+});
+
+it("drops the reference on a stale interaction and follows the replaced snapshot", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  const provideInput = vi.fn().mockRejectedValue(new ApiError(409, "INTERACTION_STALE", "stale",
+    "这条配送衔接已经失效，请按当前页面重新填写。"));
+  backend.user.provideInput = provideInput;
+  const replaced = task({
+    ...deliveryAsk,
+    task_revision: 6,
+    message: "配送资料需要按当前页面重新填写。",
+    interaction: {
+      ...deliveryAsk.interaction!,
+      interaction_id: "i-delivery-2",
+      prompt: "请按当前页面重新填写配送资料。",
+    },
+  });
+  await mountCard(backend.user, deliveryAsk);
+  // The refresh reads the replaced snapshot, not the card the page started from.
+  backend.user.getTask = async () => envelope(replaced);
+
+  fillDelivery();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+
+  // The refreshed interaction never inherits the old reference, even though the
+  // task still asks for delivery: the form is the only way on.
+  expect(await screen.findByText("请按当前页面重新填写配送资料。")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("联系电话") as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("详细地址") as HTMLInputElement).value).toBe("");
+  expect(screen.getByText("这条配送衔接已经失效，请按当前页面重新填写。")).toBeTruthy();
+  // The dropped reference is not replayed on its own.
+  expect(provideInput).toHaveBeenCalledTimes(1);
+  expect(document.body.textContent).not.toContain(REF);
+  expect(storedText()).not.toContain(REF);
+});
+
+it("does not carry the reference into another session", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  backend.user.submitDetails = vi.fn().mockResolvedValue(deliveryResponse(deliveryAsk));
+  const provideInput = vi.fn()
+    .mockRejectedValue(new ApiError(503, "DEPENDENCY_UNAVAILABLE", "暂时没有收到选品结果。"));
+  backend.user.provideInput = provideInput;
+  await mountCard(backend.user, deliveryAsk, SessionHarness);
+
+  fillDelivery();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "配送资料填好了，继续选商品" }));
+  });
+  expect(await screen.findByRole("button", { name: "资料不用再填，点下面继续" })).toBeTruthy();
+
+  // A new session re-checks the recovery gate and starts over: the old reference
+  // is neither shown nor continued.
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "重新进入会话" }));
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+  expect(await screen.findByLabelText("收件人")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "资料不用再填，点下面继续" })).toBeNull();
+  expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");
   expect(screen.queryByText("李*")).toBeNull();
   expect(provideInput).toHaveBeenCalledTimes(1);
 });

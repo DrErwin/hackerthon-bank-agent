@@ -11,6 +11,7 @@ import type {
   MessageAccepted,
   MessageView,
   ModuleError,
+  PayeeDetailsFields,
   SessionView,
   StreamEvent,
   TaskView,
@@ -40,18 +41,22 @@ export type DraftChanges = Partial<Pick<TransferTaskView, "amount_fen" | "payer_
 
 /** Raw fields of the F36 delivery form. They live only in the form and its request. */
 export type DeliveryFields = DeliveryDetailsFields;
+/** Raw fields of the F36 payee branch; the same contract model, not a local copy. */
+export type PayeeFields = PayeeDetailsFields;
 
 export type SubmitDetailsBody =
-  | { request_id: string; interaction_id: string; kind: "payee"; fields: { account_name: string; account_number: string } }
+  | { request_id: string; interaction_id: string; kind: "payee"; fields: PayeeFields }
   | { request_id: string; interaction_id: string; kind: "delivery"; fields: DeliveryFields };
 
 /**
  * What survives an F36 success without F10: the opaque reference and the
  * server's own masked fields. The typed original is never kept, logged or
- * shown outside the form.
+ * shown outside the form. The reference belongs to the interaction that issued
+ * it, so a newer interaction can never continue it.
  */
 export interface DeliveryHandoff {
   detail_ref: string;
+  interaction_id: string;
   fields: DisplayField[];
 }
 

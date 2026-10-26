@@ -4,7 +4,7 @@ import type { ConfirmationView, DemoCodeView, MessageView, SessionView, TaskReco
 import { isTerminal, newRequestId } from "./format";
 import { readCardLinks, selectionKey, type CardLink } from "./presentation";
 import type {
-  CardSelection, DeliveryFields, DeliveryHandoff, DraftChanges, HistoryEntry, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope,
+  CardSelection, DeliveryFields, DeliveryHandoff, DraftChanges, HistoryEntry, PayeeFields, ShellDataSource, ShellEvent, ShellTask, TaskEnvelope,
 } from "./types";
 
 const ENTERED_KEY = "fe-shell-entered";
@@ -134,6 +134,9 @@ export function useConversation(source: ShellDataSource) {
     setConnected(false);
     setAwaitingReply(false);
     awaitingMessageId.current = null;
+    // A reference belongs to the session and interaction that issued it; a new
+    // session never continues it.
+    setDeliveries({});
   }, []);
 
   const upsertTask = useCallback((task: ShellTask, module?: string | null) => {
@@ -289,6 +292,9 @@ export function useConversation(source: ShellDataSource) {
     localStorage.setItem(ENTERED_KEY, "yes");
     setSession(entered);
     setExpired(false);
+    // Entering another session starts a new page-level handoff: a reference from
+    // the previous session is dropped rather than offered for continuation.
+    setDeliveries({});
     await loadThread(true);
   }, [loadThread, source]);
 
@@ -484,7 +490,7 @@ export function useConversation(source: ShellDataSource) {
     }
   }, [expire, source, upsertTask]);
 
-  async function act<T>(taskId: string, key: string, call: (requestId: string) => Promise<T>): Promise<T | null> {
+  async function act<T>(taskId: string, key: string, call: (requestId: string) => Promise<T>, onFailure?: (error: unknown) => void): Promise<T | null> {
     if (expired || inflight.current.has(taskId)) return null;
     inflight.current.add(taskId);
     setBusy((current) => ({ ...current, [taskId]: key }));
@@ -497,6 +503,7 @@ export function useConversation(source: ShellDataSource) {
       pendingIds.current.delete(key);
       return result;
     } catch (error) {
+      onFailure?.(error);
       if (error instanceof ApiError && error.status === 401) {
         pendingIds.current.delete(key);
         expire();
@@ -591,7 +598,7 @@ export function useConversation(source: ShellDataSource) {
     return true;
   }
 
-  async function submitPayeeDetails(task: ShellTask, fields: { account_name: string; account_number: string }): Promise<boolean> {
+  async function submitPayeeDetails(task: ShellTask, fields: PayeeFields): Promise<boolean> {
     if (!source.submitDetails || !task.interaction) return false;
     // Raw bank details are sent only to the dedicated endpoint, never chat or local history.
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(fields)));
@@ -635,25 +642,38 @@ export function useConversation(source: ShellDataSource) {
         request_id, interaction_id: interaction.interaction_id, kind: "delivery", fields,
       }));
     if (!result) return false;
-    const handoff: DeliveryHandoff = { detail_ref: result.detail_ref, fields: result.display_fields };
+    const handoff: DeliveryHandoff = {
+      detail_ref: result.detail_ref,
+      interaction_id: interaction.interaction_id,
+      fields: result.display_fields,
+    };
     setDeliveries((current) => ({ ...current, [task.task_id]: handoff }));
     return continueDelivery(task, handoff);
   }
 
   /**
-   * F10 carries only the stored reference. A server that cannot resolve it asks
-   * for delivery again: only then is the reference dropped and the form shown.
+   * F10 carries only the stored reference, and only for the interaction that
+   * issued it. A stale interaction, a replaced session or a server that cannot
+   * resolve it drops the reference and returns to the form; the reference is
+   * never offered again, in this page or a later one.
    */
   async function continueDelivery(task: ShellTask, handoff?: DeliveryHandoff): Promise<boolean> {
     const pending = handoff ?? deliveries[task.task_id];
     const interaction = task.interaction;
     if (!pending || !interaction || interaction.kind !== "input"
+        || pending.interaction_id !== interaction.interaction_id
         || !task.allowed_actions.includes("provide_input") || task.recovery_required) return false;
     const result = await act(task.task_id,
       "delivery-continue:" + task.task_id + ":" + interaction.interaction_id + ":" + pending.detail_ref,
       (request_id) => source.provideInput(task.task_id, {
         request_id, interaction_id: interaction.interaction_id, text: pending.detail_ref,
-      }));
+      }),
+      // The server refused this reference for this interaction: drop it here so
+      // the old one can never be continued against the refreshed snapshot. A 401
+      // ends the session, and `expire` already drops every in-memory reference.
+      (error) => {
+        if (error instanceof ApiError && error.status === 409) dropDelivery(task.task_id);
+      });
     if (!result) return false;
     upsertTask(result);
     if (result.interaction?.kind === "input" && result.interaction.required_fields.includes("delivery")) {

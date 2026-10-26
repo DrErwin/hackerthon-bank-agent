@@ -29,6 +29,7 @@ export type VerificationView = PublicContract["VerificationView"];
 export type VerificationResponse = PublicContract["VerificationResponse"];
 export type DemoCodeView = PublicContract["DemoCodeView"];
 export type PayeeCandidate = PublicContract["PayeeCandidate"];
+export type PayeeDetailsFields = PublicContract["PayeeDetailsFields"];
 export type DetailsResponse = PublicContract["DetailsResponse"];
 export type StreamEvent = PublicContract["StreamEvent"];
 export type AuditEventSummary = PublicContract["AuditEventSummary"];
