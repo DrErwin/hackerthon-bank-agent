@@ -34,6 +34,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const [largeText, setLargeText] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyTarget = useRef<string | null>(null);
+  const [expandedRecords, setExpandedRecords] = useState<Record<string, boolean>>({});
   const pinned = useRef(true);
   // Cross-linkage children belong inside their parent card, so they never get a
   // record, a "continue" entry or a counter of their own.
@@ -82,9 +83,23 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   function continueTask(id: string) {
     pinned.current = false;
     setAwayFromLatest(true);
-    const target = document.getElementById("task-" + id);
-    target?.scrollIntoView({ block: "start", behavior: "instant" });
-    target?.focus({ preventScroll: true });
+    const recordIds = new Set([id]);
+    let parentId = conversation.cardLinks.find((link) => link.childId === id)?.parentId;
+    while (parentId && !recordIds.has(parentId)) {
+      recordIds.add(parentId);
+      parentId = conversation.cardLinks.find((link) => link.childId === parentId)?.parentId;
+    }
+    setExpandedRecords((current) => ({ ...current, ...Object.fromEntries([...recordIds].map((key) => [key, true])) }));
+    requestAnimationFrame(() => {
+      const target = document.getElementById("task-" + id);
+      let ancestor = target?.parentElement;
+      while (ancestor) {
+        if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+        ancestor = ancestor.parentElement;
+      }
+      target?.scrollIntoView({ block: "start", behavior: "instant" });
+      target?.focus({ preventScroll: true });
+    });
   }
 
   return (
@@ -100,7 +115,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
             {[...topTasks].reverse().map(({ task, module }) => <li key={task.task_id}>
               <h3>{taskTitle(task)}</h3><p>{taskStatusLabel(task).text}</p>
               <dl>{(slots.resolve(module).summarize?.(task) ?? []).map((field, i) => <div key={i}><dt>{field.label}</dt><dd>{field.value_text}</dd></div>)}</dl>
-              {!isTerminal(task) && <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>继续这项办理</button>}
+              <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : "继续这项办理"}</button>
             </li>)}
           </ol>}
         </DetailsDrawer>
@@ -137,6 +152,8 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
               ? <MessageBubble key={item.message.message_id} message={item.message} cardSummary={cardMessageSummary(item.message, tasks)} />
               : <TaskRecord key={item.envelope.task.task_id} task={item.envelope.task} messages={item.messages}
                   latest={item.envelope.task.task_id === latestTaskId}
+                  expanded={expandedRecords[item.envelope.task.task_id]}
+                  onExpandedChange={(open) => setExpandedRecords((current) => ({ ...current, [item.envelope.task.task_id]: open }))}
                   hasActiveChild={conversation.cardLinks.some((link) => link.parentId === item.envelope.task.task_id
                     && needsAttentionInTree(link.childId, tasks, conversation.cardLinks))}>
                   <TaskBlock envelope={item.envelope} slot={slots.resolve(item.envelope.module)}

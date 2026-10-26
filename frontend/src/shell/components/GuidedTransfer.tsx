@@ -42,7 +42,10 @@ export function GuidedTransfer({ task, conversation, busy }: { task: ShellTask; 
     return () => { active = false; };
   }, [task.task_id, conversation.readTransferChoices, editable, reload]);
   const chosenAccount = accounts.find((item) => item.account_id === data.payer_account_id);
-  const current = edit ?? (!data.payee ? "payee" : !data.amount_fen ? "amount" : !data.payer_account_id ? "account" : null);
+  // A payee is displayed only after bank verification. Missing display data does
+  // not mean the server is asking for it again; its input request owns the step.
+  const field = task.interaction?.kind === "input" ? task.interaction.required_fields[0] : undefined;
+  const current = edit ?? (field === "amount_fen" ? "amount" : field === "payer_account_id" ? "account" : field === "payee_hint" ? "payee" : null);
   const view = task.interaction?.record_ref ? conversation.confirmations[task.interaction.record_ref] : undefined;
   async function save(changes: Parameters<Conversation["actions"]["reviseDraft"]>[2]) {
     setError("");
@@ -51,7 +54,8 @@ export function GuidedTransfer({ task, conversation, busy }: { task: ShellTask; 
   const listed = payees.filter((item) => [item.remark, item.name_masked, item.bank_name, item.account_masked].join(" ").includes(search.trim()));
   if (!editable) return null;
   const confirming = task.interaction?.kind === "confirmation";
-  const prompt = current === "payee" ? "这笔钱转给谁？" : current === "amount" ? "这次转多少钱？" : current === "account" ? "用哪张银行卡？" : "资料填好了，请核对转账单。";
+  const prompt = current === "payee" ? "这笔钱转给谁？" : current === "amount" ? "这次转多少钱？" : current === "account" ? "用哪张银行卡？" : "已填的转账资料";
+  if (!current && !confirming && !data.amount_fen && !data.payer_account_id && !data.payee) return null;
   return <section className={"sh-guided" + (confirming ? " sh-guided-edit" : "")} aria-labelledby={id} aria-busy={busy || loading}>
     <h3 id={id} className={confirming && !edit ? "sr-only" : undefined}>{confirming && !edit ? "修改转账资料" : prompt}</h3>
     {confirming && <Button variant="outline" onClick={() => setShowSummary(!showSummary)} aria-expanded={showSummary} aria-controls={id + "-summary"}>修改转账资料</Button>}

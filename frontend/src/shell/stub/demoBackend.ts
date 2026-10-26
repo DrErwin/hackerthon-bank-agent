@@ -459,8 +459,8 @@ export function createDemoBackend(options: StubOptions = {}) {
     const data = record.task.data;
     if (data.payee && data.amount_fen && data.payer_account_id) newConfirmation(state, record, (old?.confirmation_version ?? 0) + 1);
     else {
-      const field = !data.payee ? "payee_hint" : !data.amount_fen ? "amount_fen" : "payer_account_id";
-      const prompt = !data.payee ? "这笔钱转给谁？" : !data.amount_fen ? "这次转多少钱？" : "用哪张银行卡？";
+      const field = !data.amount_fen ? "amount_fen" : !data.payer_account_id ? "payer_account_id" : "payee_hint";
+      const prompt = !data.amount_fen ? "这次转多少钱？" : !data.payer_account_id ? "用哪张银行卡？" : "这笔钱转给谁？";
       bump(record, { status: "waiting_input", message: prompt, allowed_actions: ["provide_input", "cancel"],
         interaction: { interaction_id: nextId(state, "demo-interaction"), kind: "input", prompt,
           required_fields: [field], options: [], record_ref: null } });
@@ -578,7 +578,7 @@ export function createDemoBackend(options: StubOptions = {}) {
                 interaction_id: nextId(state, "demo-interaction"),
                 kind: "input",
                 prompt: "请选择收款人：",
-                required_fields: ["payee_hint"],
+                required_fields: [/\d/.test(text) ? "payer_account_id" : "amount_fen"],
                 options: Object.values(PAYEES).map((payee) => ({
                   id: payee.payee_id!,
                   label: payee.name_masked + " · " + payee.account_masked + "（" + payee.remark + "）",

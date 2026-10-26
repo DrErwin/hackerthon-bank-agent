@@ -53,6 +53,37 @@ it("keeps draft facts visible when discovery fails and lets the user retry", asy
   await waitFor(() => expect(backend.user.readTransferChoices).toHaveBeenCalledTimes(4));
 });
 
+it("follows requested fields while a payee is not yet bank-verified", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  const hook = renderHook(() => useConversation(backend.user));
+  await waitFor(() => expect(hook.result.current.booting).toBe(false));
+  const amountTask: ShellTask = { ...task, data: { amount_fen: null, payer_account_id: null, payee: null },
+    interaction: { ...task.interaction!, required_fields: ["amount_fen"] } };
+  const view = render(<GuidedTransfer task={amountTask} conversation={hook.result.current} busy={false} />);
+  expect(screen.getByLabelText("转账金额（元）")).toBeTruthy();
+  expect(screen.queryByLabelText("查找已保存的收款人")).toBeNull();
+  view.rerender(<GuidedTransfer task={{ ...amountTask, data: { amount_fen: 50000, payer_account_id: null, payee: null },
+    interaction: { ...task.interaction!, required_fields: ["payer_account_id"] } }} conversation={hook.result.current} busy={false} />);
+  expect(await screen.findByRole("button", { name: /演示账户.*1234/ })).toBeTruthy();
+  expect(screen.queryByLabelText("转账金额（元）")).toBeNull();
+  expect(screen.getByText("¥500.00")).toBeTruthy();
+});
+
+it("retains draft facts and edit actions beside ambiguous payee choices", async () => {
+  const backend = createDemoBackend({ replyDelayMs: 0 });
+  const hook = renderHook(() => useConversation(backend.user));
+  await waitFor(() => expect(hook.result.current.booting).toBe(false));
+  const ambiguous: ShellTask = { ...task, interaction: { ...task.interaction!, required_fields: [],
+    options: [{ id: "one", label: "张伟 · 尾号1234" }, { id: "two", label: "张伟 · 尾号5678" }] } };
+  render(<TaskBlock envelope={{ task: ambiguous, module: "transfer" }} slot={genericSlot} origin="real-api"
+    conversation={{ ...hook.result.current, history: { draft: [{ kind: "input", id: "input", interaction: ambiguous.interaction!, selectedLabel: null }] } }} />);
+  expect(screen.getByText("¥500.00")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "修改金额" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "修改付款卡" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "张伟 · 尾号1234" })).toBeTruthy();
+  expect(screen.queryByLabelText("查找已保存的收款人")).toBeNull();
+});
+
 it("always sends a question to chat while a transfer is waiting for a recipient", async () => {
   const backend = createDemoBackend({ replyDelayMs: 0 });
   backend.user.listTasks = vi.fn().mockResolvedValue([{ task, module: "transfer" }]);

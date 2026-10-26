@@ -28,8 +28,8 @@ async function sendText(text: string) {
 }
 
 async function choosePayeeAndAccount() {
-  fireEvent.click(await screen.findByRole("button", { name: /妈妈.*6688/ }));
   fireEvent.click(await screen.findByRole("button", { name: /演示账户.*1234/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /妈妈.*6688/ }));
   await screen.findByRole("button", { name: "确认办理" });
 }
 

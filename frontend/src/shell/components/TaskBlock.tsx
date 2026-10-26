@@ -37,10 +37,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   const { actions, history, confirmations, verifications, bootRecovery, recovered, expired } = conversation;
   const busyKey = conversation.busy[task.task_id] ?? "";
   const busy = Boolean(busyKey) || expired;
-  const guidedInput = task.interaction?.kind === "input" && task.interaction.required_fields.length > 0
-    && task.interaction.required_fields.every((field) => ["amount_fen", "payer_account_id", "payee_hint"].includes(field));
   const guided = Boolean(conversation.readTransferChoices && transferDraft(task)
-    && (guidedInput || task.interaction?.kind === "confirmation"));
+    && (task.interaction?.kind === "input" || task.interaction?.kind === "confirmation"));
   const plan = crossPlan(task);
   // Cross menus sometimes arrive without a plan body (the server only attaches the
   // view while a step runs); the promise line must still show before "adopt".
