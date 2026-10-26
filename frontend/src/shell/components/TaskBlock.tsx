@@ -12,7 +12,8 @@ import { VerificationCard } from "./VerificationCard";
 import { BillCardActions, BillDetailsCard, BusinessCards, businessPayload, billSummary, billDetails } from "./BusinessCards";
 import { CrossPlanCard } from "./CrossPlanCard";
 import { QUANTITY_HINT } from "../copy";
-import { asksForQuantity, CROSS_ANSWER_LABEL, crossPlan } from "../cross";import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
+import { asksForQuantity, CROSS_ANSWER_LABEL, crossPlan } from "../cross";
+import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
 import { inputPrompt, needsAttentionInTree, taskTitle } from "../presentation";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
