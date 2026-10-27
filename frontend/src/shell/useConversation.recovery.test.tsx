@@ -1,4 +1,4 @@
-import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api";
 import type { ConfirmationView, MessageView, SessionView, TaskRecordsView, ThreadView } from "../contracts";
@@ -292,6 +292,28 @@ describe("shell recovery from server records", () => {
     expect(screen.getByRole("heading", { name: "这项还没办完" })).toBeTruthy();
     expect(document.body.textContent).not.toContain("DEPENDENCY_UNAVAILABLE");
     expect(document.body.textContent).not.toContain("HIGH_RISK");
+  });
+
+  it("keeps a safety-paused task paused after viewing restored records", async () => {
+    const harness = sourceHarness();
+    harness.messages.push(message("给妈妈转五百", ["task-safety-paused"]));
+    harness.tasks.push({
+      task: {
+        ...task("task-safety-paused", "needs_attention"),
+        message: "暂时无法完成风险核对。",
+      },
+      module: "transfer",
+    });
+    const resume = vi.spyOn(harness.source, "resumeTask");
+
+    render(<AssistantPage source={harness.source} slots={slots} />);
+    fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+
+    expect(await screen.findByRole("heading", { name: "这项办理暂时停下了" })).toBeTruthy();
+    expect(screen.queryByText(/可以接着办/)).toBeNull();
+    expect(resume).not.toHaveBeenCalled();
+    expect(harness.tasks[0].task.status).toBe("needs_attention");
+    expect(harness.tasks[0].task.allowed_actions).toEqual([]);
   });
 
   it("falls back to the error reason when a recovery task has no message copy", async () => {

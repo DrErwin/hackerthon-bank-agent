@@ -163,7 +163,7 @@ export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText
       badge={resolved ? undefined : <StatusBadge tone="warning" icon="↺" text="待您查看" />}
     >
       {resolved ? (
-        <p className="sh-readonly-line">{resolvedText ?? "已找回上次的内容，可以接着办。"}</p>
+        <p className="sh-readonly-line">{resolvedText ?? "已找回上次的办理资料，请查看当前进度。"}</p>
       ) : (
         <>
           <p className="sh-lead">办理资料已保留，先查看最新进度。</p>

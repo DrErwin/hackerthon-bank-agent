@@ -234,7 +234,7 @@ describe("v0.4 shell with stub data", () => {
     expect(screen.queryByLabelText("请输入 6 位验证码")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
-    expect(await screen.findByText("已找回上次的内容，可以接着办。")).toBeTruthy();
+    expect(await screen.findByText("已找回上次的办理资料，请查看当前进度。")).toBeTruthy();
     expect(await screen.findByText("已确认办理")).toBeTruthy();
     expect(await screen.findByLabelText("请输入 6 位验证码")).toBeTruthy();
     expect(send).not.toHaveBeenCalled();

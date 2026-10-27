@@ -62,3 +62,10 @@
 - 设计系统文档由独立 documenter 按实际组件整理；本地链接与差异空白检查通过。
 - 交付：[Draft PR #320](https://github.com/DrErwin/hackerthon-bank-agent/pull/320)，依赖 PR #319 / #318，等待用户体验接受与按序合入。
 - 代码与证据提交 `718c620a2d889f05aef52425815826e57da6793c` 的 [Repository checks](https://github.com/DrErwin/hackerthon-bank-agent/actions/runs/40338241746) 未启动。GitHub 注释为近期账号支付失败或需要提高支出额度，属于平台阻塞；本次没有绿色 CI 结论。
+
+## 2026-10-27 合并前复核
+
+- 用户明确要求先合并最新 PR，再检查未完成事项；据此按 #318 → #319 → #320 收口。合并授权不代替真人体验、安全或业务 E2E 接受。
+- 新一轮独立 Standards 发现：刷新后的安全暂停任务在查看原任务后，也会显示“可以接着办”。新增组件与恢复 hook 回归在原代码上确实失败；默认文案改为“已找回上次的办理资料，请查看当前进度。”，任务状态、动作和服务端恢复行为不变。
+- 修后 `npm test -- --reporter=dot`：14 文件、122 项通过；默认真实 API 与 `VITE_API_MODE=contract-demo` 两种构建通过。文档本地链接、差异空白和新增启动脚本 Python 语法检查通过。
+- Standards 与 Spec 分别限定复审该修正，均为 0 个剩余必须项。未新跑真实模型、页面或银行业务；前述 #160、生日 E2E、真机、200% 与读屏限制保留。
