@@ -6,7 +6,34 @@
 
 - 接口未实现时，同一真实安全/银行Rig中，S1已批准并实际冻结，S2复用确认ID产生新version后，读取授权精确原版本失败：**1 failed / 1.09s**，AttributeError指向缺少get_release_confirmation。见[原红灯XML](evidence/2026-10-27-security17-red.xml)，SHA256 `91f14bc1815192eea19c6b37f167ffe97bc843dc0e2ca96382c33fa424884cee`；原Cross09的4 fail / 2 pass不改。
 - 新增定向：**47 passed / 7.09s**，见[XML](evidence/2026-10-27-security17-local-final.xml)，SHA256 `0b8386401dcf04c62e59160a3de62fbdc9fc02a20e4961c12b3d42e6c6b5c605`。当前/历史位置分别测试错误ID/version、主体/session/op/action/revision、pending/条款、时间不合法；缺历史不能改取S2已批准的新版本。
-- 安全目录：**574 passed / 64.22s**，见[XML](evidence/2026-10-27-security17-full.xml)。这是本目录集合，不沿用其他组合回归的计数。无旧测试/断言删除或改期望。
+- 安全目录：**574 passed / 64.22s**（pytest控制台时间），见[XML](evidence/2026-10-27-security17-full.xml)，SHA256 `172c0abd6acb1b90870828bbe2ada91e67e5508884c1e2326d5620dd6306c235`；XML自身testsuite时间为64.025秒。这是本目录集合，不沿用其他组合回归的计数。无旧测试/断言删除或改期望。
+
+## 重基后复核的实际来源
+
+同步main `278be6588be48a0a1cd61a51674396fdd008b5d2` 后，实际再次定向运行得到 **47 passed / 10.71s**。当时未使用`--junitxml`，所以本次**没有生成XML，没有可报告的XML路径或hash**。上面的47/7.09s原XML仅对应重基前，不作为10.71s的附件；四个原XML均保持字节不变，本次文档补正没有重跑测试。
+
+以下为本会话`exec_command`会话21039实际命令片段及控制台结果的人工转录，不是原始XML或新运行：
+
+```powershell
+$env:PYTHONPATH=(Join-Path (Get-Location) 'backend')
+$env:PYTHONIOENCODING='utf-8'
+& 'D:\hackerthon-bank-agent\backend\.venv\Scripts\python.exe' -m pytest backend/app/security/test_release_confirmation.py -q --tb=short
+```
+
+```text
+47 passed in 10.71s
+656c456a9e584fc8adff3eeaf21fc9473ddb4547
+```
+
+第二行是同一shell随后`git rev-parse HEAD`的实际输出。Git提交与security子树分别为：
+
+| 提交 | `backend/app/security` tree | 角色 |
+|---|---|---|
+| `087ceca1c58a6e217c9c1c224284470b5d3d7756` | `e1eba9df844c879656528dab434ecf38aa847fd4` | 原实现及定向证据归档提交 |
+| `cff9738dc8efd24bb83b4e710e30a95b7955d2a3` | `82a2286e23dd1447bf8757cc9a5da7dc6b21ad60` | 受测代码加说明/574 XML的归档提交；此SHA是commit，不能当tree使用 |
+| `656c456a9e584fc8adff3eeaf21fc9473ddb4547` | `82a2286e23dd1447bf8757cc9a5da7dc6b21ad60` | 重基后47/10.71s实际源码提交 |
+
+087与656c的security子树只差README，不能称两者tree相同；实际state.py blob均为`e3864aafa2b2eedaf306f87fd6d924efc82c4f04`，test_release_confirmation.py blob均为`a5b5990864372b2c8b4208b7ec33569718865879`，逐字相同。cff与656c的security tree相同，两个提交range-diff等价。文档最终提交只追加本节，security tree保持`82a2286e23dd1447bf8757cc9a5da7dc6b21ad60`。
 
 ## 已观察的边界
 
