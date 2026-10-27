@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="5.951" timestamp="2026-10-27T18:44:42.503985+08:00" hostname="ErwinWu"><testcase classname="app.security.test_pension_demo_risk" name="test_approved_own_transfer_keeps_real_new_payee_medium_and_marks_demo_coverage" time="0.001"><failure message="ModuleNotFoundError: No module named 'app.security.pension_demo_risk'">def test_approved_own_transfer_keeps_real_new_payee_medium_and_marks_demo_coverage():
-&gt;       from .pension_demo_risk import pension_demo_risk
-E       ModuleNotFoundError: No module named 'app.security.pension_demo_risk'
-
-backend\app\security\test_pension_demo_risk.py:54: ModuleNotFoundError</failure></testcase></testsuite></testsuites>
