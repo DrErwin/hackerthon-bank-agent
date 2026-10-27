@@ -1,0 +1,1133 @@
+{
+  "batch": "platform21-api22-combined-20261027-01",
+  "source_commit": "a771bd4fb0ed7265e464287615d560e6db5141b8",
+  "api_main": "ef8f92203787e7d5bb6184e3b59230c479614817",
+  "platform_tree": "037585fe0dacf787ed1cb6efd5640b9c71f62a14",
+  "model": "PensionChatModel scripted external-model substitute",
+  "cases": [
+    {
+      "case": "test_default_remains_unknown_a0",
+      "databases": {
+        "application": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_default_remains_unknown_a0\\application.sqlite3",
+          "sha256": "84c960fe8f690adeb39ff6179e566815ec89a26b0579e016580c733b01be97f2"
+        },
+        "bank": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_default_remains_unknown_a0\\mock_bank.sqlite3",
+          "sha256": "7d4a1095119306a14b5031d5fc640dc24995128ca8eaca08b2268b402b9893ff"
+        }
+      },
+      "tasks": [
+        {
+          "task_id": "cdf932a4-9e18-4bfb-9fdd-cc7dade7a49e",
+          "capability": "cross.start_task",
+          "status": "running",
+          "capture_version": null,
+          "operation_id": null,
+          "amount_fen": null,
+          "message": "「转给本人·储蓄账户」的办理结果未知，已保留原操作编号，需要先核实原操作；核实前不会继续办理其他项目。"
+        },
+        {
+          "task_id": "24aabee9-2611-4f8a-b59d-a58097472816",
+          "capability": "transfer.start_transfer",
+          "status": "needs_attention",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": "538b9ac9-7b29-46f6-ad52-f91fb1b62bb1",
+          "amount_fen": 250000,
+          "message": null
+        }
+      ],
+      "bank_operations": [],
+      "accounts": [
+        {
+          "account_id": "A1",
+          "book_balance_fen": 500000,
+          "frozen_balance_fen": 0
+        },
+        {
+          "account_id": "A5",
+          "book_balance_fen": 0,
+          "frozen_balance_fen": 0
+        }
+      ],
+      "verification_challenges": [],
+      "transfer_decisions": [
+        {
+          "decision_id": "51d712f3-5ddd-4195-ad92-ecd5e2903a08",
+          "task_id": "24aabee9-2611-4f8a-b59d-a58097472816",
+          "run_id": "50435a3e-113b-4a96-b31d-26ecd74373f9",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "dcae56c8-767e-4b71-9a64-b4bd5f79d249",
+          "operation_id": "538b9ac9-7b29-46f6-ad52-f91fb1b62bb1",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": null,
+          "decision": "pause",
+          "reason_codes": [
+            "DEPENDENCY_UNAVAILABLE"
+          ],
+          "rule_ids": [
+            "risk-signal-coverage-required"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:04.041715Z",
+          "message": "暂时无法完成风险核对。"
+        }
+      ]
+    },
+    {
+      "case": "test_missing_or_other_parent_o0",
+      "databases": {
+        "application": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o0\\application.sqlite3",
+          "sha256": "3b0fd93626a9c941032902999993bc3127d055f6dc4482c1a913ed832a877732"
+        },
+        "bank": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o0\\mock_bank.sqlite3",
+          "sha256": "c1e1a8d1ad4e559bcee0e9c5e0762f9ad96f54c5f42fcb5d0474a5399786eef8"
+        }
+      },
+      "tasks": [
+        {
+          "task_id": "97caae76-7a08-443c-973b-deaa193d87d9",
+          "capability": "cross.start_task",
+          "status": "running",
+          "capture_version": null,
+          "operation_id": null,
+          "amount_fen": null,
+          "message": "「转给本人·储蓄账户」需要您在确认单上确认或验证（在对应任务卡片上操作）。"
+        },
+        {
+          "task_id": "d80c47d1-1bd0-4fde-bf93-97a79481bc4b",
+          "capability": "transfer.start_transfer",
+          "status": "needs_attention",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": "fab3e996-61ab-414c-b732-75bdf8139e8e",
+          "amount_fen": 250000,
+          "message": null
+        }
+      ],
+      "bank_operations": [],
+      "accounts": [
+        {
+          "account_id": "A1",
+          "book_balance_fen": 500000,
+          "frozen_balance_fen": 0
+        },
+        {
+          "account_id": "A5",
+          "book_balance_fen": 0,
+          "frozen_balance_fen": 0
+        }
+      ],
+      "verification_challenges": [],
+      "transfer_decisions": [
+        {
+          "decision_id": "655ac328-69b2-4a4d-a4aa-58dd89d94b75",
+          "task_id": "d80c47d1-1bd0-4fde-bf93-97a79481bc4b",
+          "run_id": "94283a2e-b263-4216-83ec-f81a0a444090",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "e4886073-d91d-4661-b704-271c7110f23f",
+          "operation_id": "fab3e996-61ab-414c-b732-75bdf8139e8e",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_confirmation",
+          "reason_codes": [
+            "CONFIRMATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "current-button-confirmation-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:3e9835a437ce9b9a3df3ea1b"
+          ],
+          "interaction": {
+            "interaction_id": "3a722d66-ed80-4f01-bd4c-07374d177209",
+            "kind": "confirmation",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [
+              {
+                "id": "approve",
+                "label": "确认办理"
+              },
+              {
+                "id": "cancel",
+                "label": "取消"
+              }
+            ],
+            "record_ref": "99b1329c-bd05-4fb3-a6c3-a418e034fe20"
+          },
+          "checked_at": "2026-10-27T11:38:36.942951Z",
+          "message": "请核对当前操作并在确认按钮中作答。"
+        },
+        {
+          "decision_id": "35ed2105-799b-4617-a6f9-676d90f4af29",
+          "task_id": "d80c47d1-1bd0-4fde-bf93-97a79481bc4b",
+          "run_id": "1498040d-c94b-418e-af9d-7a038644099c",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "e4886073-d91d-4661-b704-271c7110f23f",
+          "operation_id": "fab3e996-61ab-414c-b732-75bdf8139e8e",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": null,
+          "decision": "pause",
+          "reason_codes": [
+            "DEPENDENCY_UNAVAILABLE"
+          ],
+          "rule_ids": [
+            "risk-signal-coverage-required"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:38:37.769658Z",
+          "message": "暂时无法完成风险核对。"
+        }
+      ]
+    },
+    {
+      "case": "test_missing_or_other_parent_o1",
+      "databases": {
+        "application": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o1\\application.sqlite3",
+          "sha256": "cd683ce6f4d18ae8a8b92698694af0b1dcbe57540768c52c8da713170c89d886"
+        },
+        "bank": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o1\\mock_bank.sqlite3",
+          "sha256": "c1e1a8d1ad4e559bcee0e9c5e0762f9ad96f54c5f42fcb5d0474a5399786eef8"
+        }
+      },
+      "tasks": [
+        {
+          "task_id": "f6e2848a-c2b1-4375-a9c8-020d376ec849",
+          "capability": "cross.start_task",
+          "status": "running",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": null,
+          "amount_fen": null,
+          "message": "「转给本人·储蓄账户」需要您在确认单上确认或验证（在对应任务卡片上操作）。"
+        },
+        {
+          "task_id": "d654a2bd-a334-49fd-a086-22561d01c260",
+          "capability": "transfer.start_transfer",
+          "status": "needs_attention",
+          "capture_version": null,
+          "operation_id": "04658d7e-2a18-4d6c-802c-b5402cbdf424",
+          "amount_fen": 250000,
+          "message": null
+        }
+      ],
+      "bank_operations": [],
+      "accounts": [
+        {
+          "account_id": "A1",
+          "book_balance_fen": 500000,
+          "frozen_balance_fen": 0
+        },
+        {
+          "account_id": "A5",
+          "book_balance_fen": 0,
+          "frozen_balance_fen": 0
+        }
+      ],
+      "verification_challenges": [],
+      "transfer_decisions": [
+        {
+          "decision_id": "e66d02e5-e92e-4346-8d95-16f51d757faf",
+          "task_id": "d654a2bd-a334-49fd-a086-22561d01c260",
+          "run_id": "64c63fde-9fd1-47de-b4fa-943b745d6350",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "e6626833-c318-4197-936e-f349a41a89bf",
+          "operation_id": "04658d7e-2a18-4d6c-802c-b5402cbdf424",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_confirmation",
+          "reason_codes": [
+            "CONFIRMATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "current-button-confirmation-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:1b619dfa4270ef8842c3503d"
+          ],
+          "interaction": {
+            "interaction_id": "beeff6b5-7196-42e6-babf-a9373dc187cf",
+            "kind": "confirmation",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [
+              {
+                "id": "approve",
+                "label": "确认办理"
+              },
+              {
+                "id": "cancel",
+                "label": "取消"
+              }
+            ],
+            "record_ref": "be05d96e-4f83-4c5f-9dac-c161d45bca8a"
+          },
+          "checked_at": "2026-10-27T11:38:43.974936Z",
+          "message": "请核对当前操作并在确认按钮中作答。"
+        },
+        {
+          "decision_id": "fa292c8c-21ca-428c-93e2-4a5b118ff4fe",
+          "task_id": "d654a2bd-a334-49fd-a086-22561d01c260",
+          "run_id": "8bdddd17-c56f-4498-b21e-c2249bab1c83",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "e6626833-c318-4197-936e-f349a41a89bf",
+          "operation_id": "04658d7e-2a18-4d6c-802c-b5402cbdf424",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": null,
+          "decision": "pause",
+          "reason_codes": [
+            "DEPENDENCY_UNAVAILABLE"
+          ],
+          "rule_ids": [
+            "risk-signal-coverage-required"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:38:44.683424Z",
+          "message": "暂时无法完成风险核对。"
+        }
+      ]
+    },
+    {
+      "case": "test_missing_or_other_parent_o2",
+      "databases": {
+        "application": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o2\\application.sqlite3",
+          "sha256": "16d65dfdc1cd47baa2e5d30b144ddd479217e1c4b16ca97f9e3cb7ef48a5b999"
+        },
+        "bank": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o2\\mock_bank.sqlite3",
+          "sha256": "c1e1a8d1ad4e559bcee0e9c5e0762f9ad96f54c5f42fcb5d0474a5399786eef8"
+        }
+      },
+      "tasks": [
+        {
+          "task_id": "c38717d4-a555-4e51-849c-086ddc406a18",
+          "capability": "cross.start_task",
+          "status": "running",
+          "capture_version": "future-capture-version",
+          "operation_id": null,
+          "amount_fen": null,
+          "message": "「转给本人·储蓄账户」需要您在确认单上确认或验证（在对应任务卡片上操作）。"
+        },
+        {
+          "task_id": "5f19fc12-1979-4001-b8ed-ab91c7161a41",
+          "capability": "transfer.start_transfer",
+          "status": "needs_attention",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": "2b3b03c1-1cb9-45c1-b1e5-97fe66a0d5aa",
+          "amount_fen": 250000,
+          "message": null
+        }
+      ],
+      "bank_operations": [],
+      "accounts": [
+        {
+          "account_id": "A1",
+          "book_balance_fen": 500000,
+          "frozen_balance_fen": 0
+        },
+        {
+          "account_id": "A5",
+          "book_balance_fen": 0,
+          "frozen_balance_fen": 0
+        }
+      ],
+      "verification_challenges": [],
+      "transfer_decisions": [
+        {
+          "decision_id": "82b52431-83ed-4db6-8db1-5e6d7f3ced73",
+          "task_id": "5f19fc12-1979-4001-b8ed-ab91c7161a41",
+          "run_id": "83fb790d-32c0-40b9-9189-3ccb12d2c0c8",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "2fcea363-6cfb-4e3d-b4d8-4342adfdf1c9",
+          "operation_id": "2b3b03c1-1cb9-45c1-b1e5-97fe66a0d5aa",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_confirmation",
+          "reason_codes": [
+            "CONFIRMATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "current-button-confirmation-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:e43dce2f27e0ce0ab2806cd0"
+          ],
+          "interaction": {
+            "interaction_id": "5f2c2216-d29d-4d1d-b77b-72081ddc305d",
+            "kind": "confirmation",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [
+              {
+                "id": "approve",
+                "label": "确认办理"
+              },
+              {
+                "id": "cancel",
+                "label": "取消"
+              }
+            ],
+            "record_ref": "ae2955ad-1141-4d85-ab73-0a4123164bd0"
+          },
+          "checked_at": "2026-10-27T11:38:50.786260Z",
+          "message": "请核对当前操作并在确认按钮中作答。"
+        },
+        {
+          "decision_id": "5497896a-794b-417f-8581-1ac39ce30fd8",
+          "task_id": "5f19fc12-1979-4001-b8ed-ab91c7161a41",
+          "run_id": "3a534655-1e75-4cff-840f-2253635208e6",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "2fcea363-6cfb-4e3d-b4d8-4342adfdf1c9",
+          "operation_id": "2b3b03c1-1cb9-45c1-b1e5-97fe66a0d5aa",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": null,
+          "decision": "pause",
+          "reason_codes": [
+            "DEPENDENCY_UNAVAILABLE"
+          ],
+          "rule_ids": [
+            "risk-signal-coverage-required"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:38:51.756395Z",
+          "message": "暂时无法完成风险核对。"
+        }
+      ]
+    },
+    {
+      "case": "test_missing_or_other_parent_o3",
+      "databases": {
+        "application": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o3\\application.sqlite3",
+          "sha256": "49db75d519982006682a2167c4895858bfc3ae87fb925b1e991fe81dd872fedc"
+        },
+        "bank": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_missing_or_other_parent_o3\\mock_bank.sqlite3",
+          "sha256": "c1e1a8d1ad4e559bcee0e9c5e0762f9ad96f54c5f42fcb5d0474a5399786eef8"
+        }
+      },
+      "tasks": [
+        {
+          "task_id": "900dd366-3480-4a7c-9f9a-2b3b84896c3d",
+          "capability": "cross.start_task",
+          "status": "running",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": null,
+          "amount_fen": null,
+          "message": "「转给本人·储蓄账户」需要您在确认单上确认或验证（在对应任务卡片上操作）。"
+        },
+        {
+          "task_id": "8b714ca3-b16a-49f5-b483-eab4153f0ee2",
+          "capability": "transfer.start_transfer",
+          "status": "needs_attention",
+          "capture_version": "future-capture-version",
+          "operation_id": "01671149-bdf5-4901-beb7-42abfd338ce9",
+          "amount_fen": 250000,
+          "message": null
+        }
+      ],
+      "bank_operations": [],
+      "accounts": [
+        {
+          "account_id": "A1",
+          "book_balance_fen": 500000,
+          "frozen_balance_fen": 0
+        },
+        {
+          "account_id": "A5",
+          "book_balance_fen": 0,
+          "frozen_balance_fen": 0
+        }
+      ],
+      "verification_challenges": [],
+      "transfer_decisions": [
+        {
+          "decision_id": "ed5208b0-9111-4412-9b39-cddecf789bba",
+          "task_id": "8b714ca3-b16a-49f5-b483-eab4153f0ee2",
+          "run_id": "7edce0ad-6d45-441a-9571-03b867222cf4",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "23c1c12b-afa3-4c93-a255-8951e144835c",
+          "operation_id": "01671149-bdf5-4901-beb7-42abfd338ce9",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_confirmation",
+          "reason_codes": [
+            "CONFIRMATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "current-button-confirmation-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:d7f840c523888dc902546a4c"
+          ],
+          "interaction": {
+            "interaction_id": "d0206ae0-e8ba-4ea4-89e3-04e0772ef233",
+            "kind": "confirmation",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [
+              {
+                "id": "approve",
+                "label": "确认办理"
+              },
+              {
+                "id": "cancel",
+                "label": "取消"
+              }
+            ],
+            "record_ref": "2694a02d-a569-49fd-af18-e0fb8b88c956"
+          },
+          "checked_at": "2026-10-27T11:38:57.146600Z",
+          "message": "请核对当前操作并在确认按钮中作答。"
+        },
+        {
+          "decision_id": "11868dfa-fe16-4b45-8274-07dc3c2f25b4",
+          "task_id": "8b714ca3-b16a-49f5-b483-eab4153f0ee2",
+          "run_id": "f12a634f-26ec-443d-a231-06e65d3e3ec3",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "23c1c12b-afa3-4c93-a255-8951e144835c",
+          "operation_id": "01671149-bdf5-4901-beb7-42abfd338ce9",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": null,
+          "decision": "pause",
+          "reason_codes": [
+            "DEPENDENCY_UNAVAILABLE"
+          ],
+          "rule_ids": [
+            "risk-signal-coverage-required"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:38:58.308384Z",
+          "message": "暂时无法完成风险核对。"
+        }
+      ]
+    },
+    {
+      "case": "test_p01_two_medium_transfers_0",
+      "databases": {
+        "application": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_p01_two_medium_transfers_0\\application.sqlite3",
+          "sha256": "b8dd68e1157f6081a699393d147b9a3d1e8bd4e9fa0840a5e5eec3830837f801"
+        },
+        "bank": {
+          "local_path": "C:\\Users\\57652\\.codex\\worktrees\\v05-demo-reset-contracts\\platform21-original-evidence\\api22-combined-20261027-01\\test_p01_two_medium_transfers_0\\mock_bank.sqlite3",
+          "sha256": "8bec68d8e4140579d59ff46fbb26d726a67f4fbbeb79f1db8ff6bf016ac722bf"
+        }
+      },
+      "tasks": [
+        {
+          "task_id": "b0349fec-1907-476a-b0f5-b3537e9e38c8",
+          "capability": "cross.start_task",
+          "status": "succeeded",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": null,
+          "amount_fen": null,
+          "message": "已转给 本人·储蓄账户 2500.00 元。\n已转给 家***·家庭 1000.00 元。\n资金范围 5000.00 元；留存 1500.00 元；已转出 3500.00 元；未转出留在账户 0.00 元。\n本次安排的转账已全部办完，资金安排已解除。"
+        },
+        {
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "capability": "transfer.start_transfer",
+          "status": "succeeded",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "amount_fen": 250000,
+          "message": null
+        },
+        {
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "capability": "transfer.start_transfer",
+          "status": "succeeded",
+          "capture_version": "risk-conversation-uuid-text-1",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "amount_fen": 100000,
+          "message": null
+        }
+      ],
+      "bank_operations": [
+        {
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_name": "bank.submit_transfer",
+          "status": "succeeded"
+        },
+        {
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_name": "bank.submit_transfer",
+          "status": "succeeded"
+        }
+      ],
+      "accounts": [
+        {
+          "account_id": "A1",
+          "book_balance_fen": 150000,
+          "frozen_balance_fen": 0
+        },
+        {
+          "account_id": "A5",
+          "book_balance_fen": 250000,
+          "frozen_balance_fen": 0
+        }
+      ],
+      "verification_challenges": [
+        {
+          "challenge_id": "03f03e9a-a5c3-42cb-8e6f-2d9dc325f1bb",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "purpose": "action_step_up",
+          "required_methods": [
+            "code",
+            "mock_face"
+          ],
+          "challenge_status": "passed",
+          "code_result": "passed",
+          "face_result": "passed",
+          "summary": {
+            "amount_fen": 250000,
+            "source_confirmation_id": "ed3a2950-79eb-43f2-b7d7-c66b4a36886f",
+            "source_confirmation_version": 1,
+            "action_name": "bank.submit_transfer"
+          }
+        },
+        {
+          "challenge_id": "bcd2ca11-69fb-4320-8415-0faf034bc58e",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "purpose": "action_step_up",
+          "required_methods": [
+            "code",
+            "mock_face"
+          ],
+          "challenge_status": "passed",
+          "code_result": "passed",
+          "face_result": "passed",
+          "summary": {
+            "amount_fen": 100000,
+            "source_confirmation_id": "a07d6916-5439-4d51-bfbb-3d73da738b86",
+            "source_confirmation_version": 1,
+            "action_name": "bank.submit_transfer"
+          }
+        }
+      ],
+      "transfer_decisions": [
+        {
+          "decision_id": "37f46dc7-255a-45e2-aed1-a83e804ae3b2",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "run_id": "f6b3c242-5df2-45b9-b8ed-991fde852aad",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "14109a60-ecd2-4837-a9ef-1ddf48bd0343",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_confirmation",
+          "reason_codes": [
+            "CONFIRMATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "current-button-confirmation-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:8ecbae4bd3fbb97196d1cbb5"
+          ],
+          "interaction": {
+            "interaction_id": "866d2a61-ff7c-43f2-80e0-8e623bfbff90",
+            "kind": "confirmation",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [
+              {
+                "id": "approve",
+                "label": "确认办理"
+              },
+              {
+                "id": "cancel",
+                "label": "取消"
+              }
+            ],
+            "record_ref": "ed3a2950-79eb-43f2-b7d7-c66b4a36886f"
+          },
+          "checked_at": "2026-10-27T11:39:11.544626Z",
+          "message": "请核对当前操作并在确认按钮中作答。"
+        },
+        {
+          "decision_id": "1dbe6226-e8c4-4a57-a3fc-d9c1b4346c28",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "run_id": "9e203064-f40e-458b-b465-74003cd8fe90",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "14109a60-ecd2-4837-a9ef-1ddf48bd0343",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_verification",
+          "reason_codes": [
+            "VERIFICATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "funds-action-verification-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:8ecbae4bd3fbb97196d1cbb5"
+          ],
+          "interaction": {
+            "interaction_id": "029d7a9e-892a-4676-a886-d5d533155a64",
+            "kind": "verification",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [],
+            "record_ref": "03f03e9a-a5c3-42cb-8e6f-2d9dc325f1bb"
+          },
+          "checked_at": "2026-10-27T11:39:12.569589Z",
+          "message": "请完成当前操作所需的身份验证。"
+        },
+        {
+          "decision_id": "56fccfee-607a-42d9-9034-bca5c35fc752",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "run_id": "0764ccbc-1973-4617-912b-564db1e09e9c",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "14109a60-ecd2-4837-a9ef-1ddf48bd0343",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_verification",
+          "reason_codes": [
+            "VERIFICATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "funds-action-verification-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:8ecbae4bd3fbb97196d1cbb5"
+          ],
+          "interaction": {
+            "interaction_id": "b23161f3-bae5-4769-8b93-db474a95a81e",
+            "kind": "verification",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [],
+            "record_ref": "03f03e9a-a5c3-42cb-8e6f-2d9dc325f1bb"
+          },
+          "checked_at": "2026-10-27T11:39:13.749976Z",
+          "message": "请完成当前操作所需的身份验证。"
+        },
+        {
+          "decision_id": "989ccf7f-88a1-4e0d-ac33-9aad3b3b50ed",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "run_id": "8078d60c-1951-42ae-86eb-57310effeeb6",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "14109a60-ecd2-4837-a9ef-1ddf48bd0343",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "c9480996-79e0-47a9-899b-ccc41384c79d",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:8ecbae4bd3fbb97196d1cbb5"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:14.503650Z",
+          "message": "当前操作已通过安全检查。"
+        },
+        {
+          "decision_id": "3ce13393-f892-4673-a48a-0c51337074f3",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "run_id": "8078d60c-1951-42ae-86eb-57310effeeb6",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "14109a60-ecd2-4837-a9ef-1ddf48bd0343",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "phase": "execution",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "76df3152-6cac-4d17-9786-c1022d893948",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:8ecbae4bd3fbb97196d1cbb5"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:14.702501Z",
+          "message": "当前操作已通过安全检查。"
+        },
+        {
+          "decision_id": "84d1fa78-3127-46df-acfc-73b77304a7e7",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "run_id": "8078d60c-1951-42ae-86eb-57310effeeb6",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "14109a60-ecd2-4837-a9ef-1ddf48bd0343",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "phase": "execution",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "6c6477c0-b28a-4489-bb1c-a75ac828c904",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:8ecbae4bd3fbb97196d1cbb5"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:14.835649Z",
+          "message": "当前操作已通过安全检查。"
+        },
+        {
+          "decision_id": "096240b1-3d98-4237-a83c-40c7b4236379",
+          "task_id": "76b5235d-d28c-458d-b1d5-32f183ba1371",
+          "run_id": "8078d60c-1951-42ae-86eb-57310effeeb6",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "14109a60-ecd2-4837-a9ef-1ddf48bd0343",
+          "operation_id": "579105d9-a81a-4853-a6f3-3c6ab1c3b66d",
+          "action_revision": 1,
+          "phase": "execution",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "f8c75ed9-8271-4897-bb6a-c7a4b02a99a8",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:8ecbae4bd3fbb97196d1cbb5"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:14.940133Z",
+          "message": "当前操作已通过安全检查。"
+        },
+        {
+          "decision_id": "23d4d8d8-4dc0-438c-8482-983f28bcd9d7",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "run_id": "54d254a2-d573-4cb5-b2a9-ed8edf2051ea",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "89cf0423-5d60-47b7-ba73-3ecc652d5b65",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_confirmation",
+          "reason_codes": [
+            "CONFIRMATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "current-button-confirmation-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:c02122f8502b6b7bf6609a4c"
+          ],
+          "interaction": {
+            "interaction_id": "66a94d1e-17f9-402a-bdf4-bdd1126a3941",
+            "kind": "confirmation",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [
+              {
+                "id": "approve",
+                "label": "确认办理"
+              },
+              {
+                "id": "cancel",
+                "label": "取消"
+              }
+            ],
+            "record_ref": "a07d6916-5439-4d51-bfbb-3d73da738b86"
+          },
+          "checked_at": "2026-10-27T11:39:16.349095Z",
+          "message": "请核对当前操作并在确认按钮中作答。"
+        },
+        {
+          "decision_id": "19958ab3-0d3f-4b35-ab4e-e439a610762f",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "run_id": "49701ef7-dbfe-4f1c-a9cc-70497c5a0cc9",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "89cf0423-5d60-47b7-ba73-3ecc652d5b65",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_verification",
+          "reason_codes": [
+            "VERIFICATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "funds-action-verification-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:c02122f8502b6b7bf6609a4c"
+          ],
+          "interaction": {
+            "interaction_id": "900ccb94-ec08-43dd-a636-9a1d8b5c7472",
+            "kind": "verification",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [],
+            "record_ref": "bcd2ca11-69fb-4320-8415-0faf034bc58e"
+          },
+          "checked_at": "2026-10-27T11:39:17.268284Z",
+          "message": "请完成当前操作所需的身份验证。"
+        },
+        {
+          "decision_id": "93dc3e52-caf9-4219-887a-344316bed7c3",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "run_id": "48dd104c-5d89-48a5-a171-2f31ab4001ba",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "89cf0423-5d60-47b7-ba73-3ecc652d5b65",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "require_verification",
+          "reason_codes": [
+            "VERIFICATION_REQUIRED"
+          ],
+          "rule_ids": [
+            "funds-action-verification-required",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": null,
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:c02122f8502b6b7bf6609a4c"
+          ],
+          "interaction": {
+            "interaction_id": "8c99644b-0639-4116-b50c-48162d0d649e",
+            "kind": "verification",
+            "prompt": "请完成当前操作所需的安全步骤。",
+            "required_fields": [],
+            "options": [],
+            "record_ref": "bcd2ca11-69fb-4320-8415-0faf034bc58e"
+          },
+          "checked_at": "2026-10-27T11:39:17.992337Z",
+          "message": "请完成当前操作所需的身份验证。"
+        },
+        {
+          "decision_id": "02794a49-dc78-4070-82b3-7a9b701e64d6",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "run_id": "2efa29c0-f7d2-4a41-9311-65169576ff81",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "89cf0423-5d60-47b7-ba73-3ecc652d5b65",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "phase": "admission",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "26202135-0e63-49a0-b687-d6cc3538f650",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:c02122f8502b6b7bf6609a4c"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:18.763436Z",
+          "message": "当前操作已通过安全检查。"
+        },
+        {
+          "decision_id": "db865111-e25e-4d09-bfaa-ce1fe89e1f0a",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "run_id": "2efa29c0-f7d2-4a41-9311-65169576ff81",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "89cf0423-5d60-47b7-ba73-3ecc652d5b65",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "phase": "execution",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "0616774f-af72-44f1-9c2d-f3d368d377ec",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:c02122f8502b6b7bf6609a4c"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:18.948223Z",
+          "message": "当前操作已通过安全检查。"
+        },
+        {
+          "decision_id": "bb8077c5-fa62-4234-bfe1-2ca663b58c8e",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "run_id": "2efa29c0-f7d2-4a41-9311-65169576ff81",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "89cf0423-5d60-47b7-ba73-3ecc652d5b65",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "phase": "execution",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "5547d9b3-93b7-4d60-9839-5707d09863d9",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:c02122f8502b6b7bf6609a4c"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:19.130292Z",
+          "message": "当前操作已通过安全检查。"
+        },
+        {
+          "decision_id": "f99af8c2-a6f2-422f-a4ad-c185934af4f9",
+          "task_id": "a1886861-f3a2-458a-a082-e763c7423932",
+          "run_id": "2efa29c0-f7d2-4a41-9311-65169576ff81",
+          "action_name": "bank.submit_transfer",
+          "parameters_ref": "89cf0423-5d60-47b7-ba73-3ecc652d5b65",
+          "operation_id": "e96eb4ba-7f86-4037-8271-6f912d28e4fe",
+          "action_revision": 1,
+          "phase": "execution",
+          "operation_level": "sensitive",
+          "risk_level": "medium",
+          "decision": "allow",
+          "reason_codes": [
+            "SECURITY_CHECK_PASSED"
+          ],
+          "rule_ids": [
+            "trusted-scope",
+            "current-confirmation",
+            "required-verification",
+            "demo-risk-medium"
+          ],
+          "policy_version": "v0.3-minimum-security-gate-1+v05-local-demo-cross-1",
+          "authorization_snapshot_ref": "e54bd137-052a-4a77-99e1-896a542768f5",
+          "evidence_refs": [
+            "marked-pension-demo:p01-marked-demo-v1:c02122f8502b6b7bf6609a4c"
+          ],
+          "interaction": null,
+          "checked_at": "2026-10-27T11:39:19.351672Z",
+          "message": "当前操作已通过安全检查。"
+        }
+      ]
+    }
+  ]
+}

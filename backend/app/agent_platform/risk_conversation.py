@@ -5,6 +5,9 @@ from app.storage.database import connect, transaction
 
 
 class RiskConversation:
+    # New-task proof of ordinary UUID text capture; never backfill old tasks.
+    CAPTURE_VERSION = "risk-conversation-uuid-text-1"
+
     def __init__(self, path):
         self.path = path
         with transaction(path) as connection:

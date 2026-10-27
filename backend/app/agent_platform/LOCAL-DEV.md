@@ -35,6 +35,14 @@ backend/.venv/Scripts/python -m uvicorn app.agent_platform.local_demo:create_loc
 
 ## 演示事实的范围
 
+### 本轮P01限定profile（默认关闭）
+
+本轮用户已明确批准A1转本人A5的2500元和A1转已存A4的1000元，范围固定为安全20的p01-marked-demo-v1；这不是通用养老金语句识别或真人最终安全验收。要在单次隔离演示进程开启，可给该进程设置BANK_PENSION_DEMO_PROFILE=p01-marked-demo-v1，或在传入LocalDemoConfig时显式选择同名pension_demo_profile。load_config读取进程flag并验证唯一literal，错误值只报LOCAL_DEMO_CONFIG_INVALID；缺flag默认None。不修改已有私密配置、全局环境或共享数据，既有内存load_config的隔离启动器可直接消费该进程flag。
+
+开启后仍只接受[精确原话、四项跟进与两笔参数](../../../.scratch/v05-birthday-platform-dependencies/pension-demo-risk-20.md)，且必须是新Harness已完整捕捉普通UUID文本的父子任务。旧P01任务缺捕捉标记、任一跟进不完整或未知、参数改变、银行收款人事实缺失都继续暂停；不从日志或记忆补旧历史。真实危险优先停止。十二维是标注的模拟事实，两个收款人维度仍来自银行，新收款人继续中风险逐笔确认、验证码和管理员模拟人脸；金额不是风险阈值。原A2规则保持。
+
+新任务标记跨重启保留；普通text没有原request_id会失效该任务的完整标记，业务含义与已存历史保留。重新开启flag也不会给旧任务补标记。完整接线与本票测试边界见[票21](../../../.scratch/v05-birthday-platform-dependencies/pension-profile-wiring-21.md)，真实GLM及页面证据由后续验收另记。
+
 模板中的风险信号是明确标注的虚构演示事实，覆盖每个信号维度，不是模型判断、金额阈值或诈骗检测结果。读取请求使用固定演示环境事实；资金动作还必须与服务端不可变参数快照中的账户、已保存收款人和整数分金额完全匹配。
 
 | 请求 | 服务端场景 | 预期结果 |
