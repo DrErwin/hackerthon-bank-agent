@@ -1,6 +1,6 @@
 # F30—F32 演示整体重置协调
 
-Status: in_progress
+Status: implemented_pending_review
 Owner: Erwin（v0.5）；执行：API 重置子代理
 Accepted by: Erwin，通过 2026-10-27 全部非比赛资料任务授权及主代理明确分派
 Accepted at: 2026-10-27

@@ -1,6 +1,6 @@
 # v05-demo-reset-api/01 验证记录
 
-2026-10-27。本票只修改 `backend/app/api/` 及本组过程材料，尚待最终上游基线与独立两轴审查。
+2026-10-27。本票只修改 `backend/app/api/` 及本组过程材料。最终依赖组合的完整API回归已通过，Standards独立审查0必须项；Spec独立审查与最终合入另记。
 
 ## 实际运行
 
@@ -23,3 +23,25 @@ F31先用API专属事务绑定确认与原管理号并停收，再非阻塞尝�
 ## 依赖与未做
 
 组合依赖为PR322银行管理、PR325排空/逻辑起点getter、PR326公共模型、平台票12公开runtime.bank与共享时钟。组合验证时依赖分别保留独立提交，最终PR只交API差异，不把上游代码算本票交付。F25/F29、前端管理页、浏览器真实操作、真实模型、共享演示库、账户支付和比赛材料不在本票；整体最终接受仍由主代理安排。
+
+## 最终完整组合（2026-10-27）
+
+主代理确认组合树后，只运行一次最终完整批次。基线 `origin/main@0b72b0a1c2ee7a95367a33f25d1a40eeea2cd880` 已含PR323/324/325/326；随后只取PR327自身5提交（原head `695ce6e5c26466bf16f2a4295a917ffac886945b`）、PR328自身6提交（原head `2a042e75a63d4a203c82515a12d15fbe35350fab`）与PR329自身4提交（原head `74815655799c4611999060b7489759cf97629548`）。临时组合 `704ba8967e8e5fa5654456cc0c77b69117ffe314` 的 `merge-base --is-ancestor origin/main HEAD` 退出0，源代码改动仅API与platform两目录。
+
+受测树：backend `6973290d17add533fe81a80dc4f394e227c98d83`；API `e0952bf093706516b7b07d7a6ac22bb5ac080667`；platform `9d4d9670525eb99f2e28bbbf95d76d2729fc3ac4`，其中platform与PR328最终树完全一致。README唯一冲突保留原输入恢复与重置两节。运行期间未改源码，结束后复核以上树不变。
+
+```powershell
+python -m pytest app/api app/agent_platform/test_demo_runtime_clock.py -q --tb=short --junitxml=../.scratch/v05-demo-reset-api/full-api-final-results.xml -o junit_family=legacy
+```
+
+退出码 **0**，**251 passed / 0 failed / 0 error / 0 skipped**，532.49秒。其中API **246项**、平台时钟 **5项**；解析JUnit得到251个用例、251个唯一`classname + name`，无重复计数。[原始JUnit](full-api-final-results.xml) 45048字节，SHA256 `54DE3CDA7F621081D212BE5783F04B7B415C87B413AA92DA9E823B55D7FD1F8E`。最终交付分支机械重建后仍需核对API/platform受测树等价，不能仅凭相似提交名沿用结论。
+
+此前两次未完成批次分别保留：一轮为纳入PR327审查修复主动中止，未得到完整JUnit，不能算通过；另一轮临时分支误用PR327旧父链而缺公共模型，收集阶段21个`collection failure`、未执行测试。[原始收集失败JUnit无损gzip](full-api-pr327-results.xml.gz) 解压后SHA256 `04F39D842E5FA8218F3198944168D4498505A4E4FBD3A9453042367E16514A10`（28593字节）。原始失败报告带CRLF与尾部空白，以gzip归档并逐字节验证解压等价，未为通过差异检查修改原文；压缩文件SHA256 `DB167D562CB1EAA588F0E25B914C681153075699F772CF81123BDFCB11003A5E`。此次从正确main重建后才运行上述最终批次，不将前两轮改写为产品测试通过或失败。
+
+PR329原head `74815655` 的Repository checks因账户计费/额度问题未启动（run `40467827078`），不算CI通过或代码测试失败。上述证据仅为本地隔离库HTTP/平台/模拟银行工程验证，不替代真实模型、浏览器、真人安全签核或最终接受。
+
+## 最终交付分支等价核对
+
+在PR327/328/330合入后的 `main@e4f0fe503f0101920a2b1ae22545f2334ff89fea` 上，只重建本票原4提交与证据文档。API整棵树仍为 `e0952bf093706516b7b07d7a6ac22bb5ac080667`，与受测组合完全一致（含全部Python源与测试）；platform整棵树仍为 `9d4d9670525eb99f2e28bbbf95d76d2729fc3ac4`。两个目录的`git diff --quiet`退出均为0，main祖先核验退出0，README保留双方新增段落。机械重建不额外重跑。
+
+主线PR330引入的security代码与其599项证据属于独立批次，未纳入本票251项旧组合；因此仅沿用上述API/platform受测树，不把新backend整棵树冒称为此次完整受测树。
