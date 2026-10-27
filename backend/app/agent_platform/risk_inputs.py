@@ -36,7 +36,7 @@ if TYPE_CHECKING:  # The detector lives in app.security; importing it here would
 TRANSFER_WRITE = "bank.submit_transfer"
 HISTORY_WINDOW = timedelta(days=180)
 AMOUNT_MULTIPLE = 2
-RISK_INPUTS_VERSION = "v04-risk-inputs-1"
+RISK_INPUTS_VERSION = "v05-risk-inputs-2"
 
 TASK_BINDING_REQUIRED = "risk-input-task-binding-required"
 REQUEST_BINDING_REQUIRED = "risk-input-request-binding-required"
@@ -113,6 +113,7 @@ class RiskInputs:
     action_facts: Mapping[str, object] = field(repr=False)
     facts: tuple[RiskFact, ...]
     evidence_ref: str
+    request_source_task_id: str | None = None
 
     def __post_init__(self) -> None:
         for label in (self.user_id, self.session_id, self.demo_round_id, self.task_id,
@@ -181,10 +182,10 @@ class TrustedRiskInputs:
         ):
             self._unavailable(ACTION_UNSUPPORTED)
         task = self._task(context)
-        request_id, request_text = self._request(task)
+        request_id, request_text, source_task_id = self._request(task, context)
         action_facts, payee = self._action_facts(context, action)
         facts = self._facts(context, action_facts, payee)
-        reference = self._evidence_ref(context, action, request_id, request_text, facts)
+        reference = self._evidence_ref(context, action, request_id, request_text, facts, source_task_id)
         return RiskInputs(
             user_id=context.user_id, session_id=context.session_id,
             demo_round_id=context.demo_round_id, task_id=context.task_id,
@@ -193,6 +194,7 @@ class TrustedRiskInputs:
             operation_id=str(context.operation_id) if context.operation_id else None,
             action_revision=context.action_revision, action_facts=action_facts,
             facts=facts, evidence_ref=reference,
+            request_source_task_id=source_task_id,
         )
 
     def _task(self, context: ExecutionSecurityContext) -> TaskRecord:
@@ -207,15 +209,42 @@ class TrustedRiskInputs:
             self._unavailable(TASK_BINDING_REQUIRED)
         return task
 
-    def _request(self, task: TaskRecord) -> tuple[str, str]:
-        request_id = task.snapshot.get("request_id")
-        request_text = task.snapshot.get("intent_text")
+    def _request(self, task: TaskRecord, context: ExecutionSecurityContext) -> tuple[str, str, str]:
+        try:
+            parent_id = self.application.parent_of_task(task.user_id, task.demo_round_id, task.task_id)
+        except Exception:
+            self._unavailable(REQUEST_BINDING_REQUIRED)
+        if parent_id is None and context.source_task_id is None and "step_id" in task.snapshot:
+            self._unavailable(REQUEST_BINDING_REQUIRED)
+        source = task
+        if parent_id is not None or context.source_task_id is not None:
+            if parent_id is None or parent_id != context.source_task_id:
+                self._unavailable(REQUEST_BINDING_REQUIRED)
+            try:
+                relations = [relation for relation in self.application.list_child_tasks(
+                    task.user_id, task.demo_round_id, parent_id) if relation.child_task_id == task.task_id]
+                source = self.application.get_task(task.user_id, task.demo_round_id, parent_id)
+            except Exception:
+                self._unavailable(REQUEST_BINDING_REQUIRED)
+            if (len(relations) != 1 or source is None
+                    or source.snapshot.get("capability_name") != "cross.start_task"
+                    or relations[0].step_id != task.snapshot.get("step_id")
+                    or relations[0].plan_revision != task.snapshot.get("plan_revision")):
+                self._unavailable(REQUEST_BINDING_REQUIRED)
+        request_id = source.snapshot.get("request_id")
+        request_text = source.snapshot.get("intent_text")
         if (
             not isinstance(request_id, str) or not request_id.strip()
             or not isinstance(request_text, str) or not request_text.strip()
         ):
             self._unavailable(REQUEST_BINDING_REQUIRED)
-        return request_id, "\n".join([request_text, *self.conversation.texts(task)])
+        try:
+            followups = self.conversation.texts(source)
+            if source.task_id != task.task_id:
+                followups += self.conversation.texts(task)
+        except Exception:
+            self._unavailable(REQUEST_BINDING_REQUIRED)
+        return request_id, "\n".join([request_text, *followups]), source.task_id
 
     def _action_facts(
         self, context: ExecutionSecurityContext, action: ActionDescriptor,
@@ -346,7 +375,7 @@ class TrustedRiskInputs:
 
     def _evidence_ref(
         self, context: ExecutionSecurityContext, action: ActionDescriptor,
-        request_id: str, request_text: str, facts: tuple[RiskFact, ...],
+        request_id: str, request_text: str, facts: tuple[RiskFact, ...], source_task_id: str,
     ) -> str:
         canonical = {
             # run_id is deliberately absent: recovery moves the task to a new run
@@ -361,6 +390,7 @@ class TrustedRiskInputs:
             },
             "request": {
                 "request_id": request_id,
+                "source_task_id": source_task_id,
                 "text_sha256": sha256(request_text.encode("utf-8")).hexdigest(),
             },
             "facts": [fact.as_dict() for fact in facts],

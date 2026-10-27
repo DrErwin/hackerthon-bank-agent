@@ -82,3 +82,8 @@ Issue #160 的既定语义就是「取不到的事实保持 unknown，由安全�
 - 受控收款人引用（`kind=reference`）当前不在写动作快照里出现；一旦出现会因参数形状校验失败按 `risk-input-action-binding-required` 整体暂停。
 - 订阅退订的风险事实仍走 `subscription_risk_evidence`，不在本接缝内。
 - 本接缝不产生风险等级；等级仍由 `DemoSecurityPolicy` 按既有信号集合判定。
+# 父任务风险来源（平台19）
+
+跨场景子转账的内部 `capability:step` 标记不作为用户原话。`TrustedRiskInputs` 用可信 `source_task_id`、同用户/轮次的持久父子关系及 step/plan 版本交叉核实，读取真实 cross 父请求。`RiskInputs.request_source_task_id` 表示已核实的来源任务（普通根任务为自身），默认 `None` 的旧构造不代表来源已核实。`request_id` 对应该来源原请求；不以这个字段代替确认或验证。
+
+现有 `RiskConversation` 保留同任务跨会话的父/子文本跟进；普通有 UUID 的受控文本续做按原请求去重。专用明细原文不从表单或聊天复制到此路径。旧批次没有捕捉到的跟进不能补造，不能因重启或迁移宣称历史完整。原话只送进程内检测器，公开 evidence_ref 仍为包含来源任务的摘要。缺失/异主体/异关联/版本不符继续暂停；不新增风险事实、阈值或付款权限。

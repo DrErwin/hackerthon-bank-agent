@@ -1330,6 +1330,8 @@ class AgentHarness:
             if task.snapshot["config_version"] != self.planner.config_version:
                 raise ValueError("MODEL_CONFIG_CHANGED")
             self._authorize(trusted, task.snapshot["capability_name"])
+            if request_id is not None and isinstance(response.get("text"), str) and response["text"].strip():
+                self.risk_conversation.append(trusted, task.task_id, request_id, response["text"])
             trace = self._trace(trusted, task)
             registration = self.registry.get(task.snapshot["capability_name"])
             saver = self.memory.checkpointer(context, trusted.task_id)
