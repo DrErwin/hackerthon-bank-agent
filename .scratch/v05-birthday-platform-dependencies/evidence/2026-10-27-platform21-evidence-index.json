@@ -1,13 +1,14 @@
 {
   "entries": [
     {
-      "file": "2026-10-27-platform21-api22-red-observation.json",
-      "sha256": "1d648a6c799c13106d6841dbeb5d53d7d3b86556ba8c8c748082fbf91d2a9c5c"
+      "file": "2026-10-27-platform21-api22-red-observation.json.gz",
+      "sha256": "a2d8b401d4f4c62d42c5a8293e0a34003e9b1a321f42addb43a292d72fa6dcc2",
+      "original_sha256": "1d648a6c799c13106d6841dbeb5d53d7d3b86556ba8c8c748082fbf91d2a9c5c"
     },
     {
       "file": "2026-10-27-platform21-api22-red-repro.xml.gz",
       "sha256": "4c8197eba5df9194f6854ec02ab3599465986b4d69467e5547f8f6f7386ce420",
-      "original_xml_sha256": "c10e28a5aeb4b3f82acf248882bc8459cdc20d06470f2bc8dd60df0edff211e9",
+      "original_sha256": "c10e28a5aeb4b3f82acf248882bc8459cdc20d06470f2bc8dd60df0edff211e9",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -22,7 +23,6 @@
     {
       "file": "2026-10-27-platform21-config-green.xml",
       "sha256": "5326310cc9dc260c4d9d7da8585f8e08c758404258850dd6a1c8bef24400b0d3",
-      "original_xml_sha256": "5326310cc9dc260c4d9d7da8585f8e08c758404258850dd6a1c8bef24400b0d3",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -37,7 +37,7 @@
     {
       "file": "2026-10-27-platform21-config-red.xml.gz",
       "sha256": "1f64bac6a6ab8e1b391e573fda082e1aad0b8dd5ed984f6b23bd0fa18d14782e",
-      "original_xml_sha256": "db4a9b63afb8713a45a01c7fdd131b28cba4340afd55a99672a3d00513df4daf",
+      "original_sha256": "db4a9b63afb8713a45a01c7fdd131b28cba4340afd55a99672a3d00513df4daf",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -52,7 +52,6 @@
     {
       "file": "2026-10-27-platform21-first-wiring-green.xml",
       "sha256": "ebe699909c98828f512ef53fee503f2b20595c58a6e1cc15a6e23bb3978278c7",
-      "original_xml_sha256": "ebe699909c98828f512ef53fee503f2b20595c58a6e1cc15a6e23bb3978278c7",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -67,7 +66,7 @@
     {
       "file": "2026-10-27-platform21-flow-red.xml.gz",
       "sha256": "4081513a1959d3791156ac0554e86c0d711bf3c57e756b23b2e9d46ad9b1008f",
-      "original_xml_sha256": "9da1679fecc03e1733a550cae66d0fa13c9806d4f462f3e6d1d8fb0297d08a0d",
+      "original_sha256": "9da1679fecc03e1733a550cae66d0fa13c9806d4f462f3e6d1d8fb0297d08a0d",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -82,7 +81,6 @@
     {
       "file": "2026-10-27-platform21-noid-green.xml",
       "sha256": "de83e5ab20a308e90b37323fa0785215e84d881a7b415dc4792ef71b115670eb",
-      "original_xml_sha256": "de83e5ab20a308e90b37323fa0785215e84d881a7b415dc4792ef71b115670eb",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -97,7 +95,7 @@
     {
       "file": "2026-10-27-platform21-noid-red.xml.gz",
       "sha256": "468aae38dd5ce91dfa733de889b584d4700b830201418242dc05ed091aa2a97f",
-      "original_xml_sha256": "afcb04d31ec47d530933646c273ce2a02b87bcc23cd0d40794722945fad52b83",
+      "original_sha256": "afcb04d31ec47d530933646c273ce2a02b87bcc23cd0d40794722945fad52b83",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -112,7 +110,6 @@
     {
       "file": "2026-10-27-platform21-platform-before-api22.xml",
       "sha256": "b75a5cc5a0248f110673d57a9d6135361eb371bff8131e0b9cb0a872053a1ee8",
-      "original_xml_sha256": "b75a5cc5a0248f110673d57a9d6135361eb371bff8131e0b9cb0a872053a1ee8",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -127,7 +124,7 @@
     {
       "file": "2026-10-27-platform21-real-gate-red.xml.gz",
       "sha256": "24ced67365f0182b884173164ade2e883ea4830f1b8a132a282ea99c648d278d",
-      "original_xml_sha256": "51f94b05538084a4ad532a9ec88f3ff6b4839675cf84200b928103db71df9c5c",
+      "original_sha256": "51f94b05538084a4ad532a9ec88f3ff6b4839675cf84200b928103db71df9c5c",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -142,7 +139,6 @@
     {
       "file": "2026-10-27-platform21-security-boundaries.xml",
       "sha256": "3728e5dfd3ddafd60bf3eee62cf8ded05500d3207e7637310d88197ea2ec211f",
-      "original_xml_sha256": "3728e5dfd3ddafd60bf3eee62cf8ded05500d3207e7637310d88197ea2ec211f",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -157,7 +153,7 @@
     {
       "file": "2026-10-27-platform21-targeted-first.xml.gz",
       "sha256": "ce3560293d3f2c799517b86d7ba256ba3097dfc5871461469b8cd998503948bc",
-      "original_xml_sha256": "e12ad3a5226ad0918571d4e10d12fca4cc2f02d201c09a7e7e6923f2b04efd94",
+      "original_sha256": "e12ad3a5226ad0918571d4e10d12fca4cc2f02d201c09a7e7e6923f2b04efd94",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
@@ -172,7 +168,7 @@
     {
       "file": "2026-10-27-platform21-wiring-red.xml.gz",
       "sha256": "90494f60f83e9f929e06a186982aaa8a93f82c895f95327a464d42205aa48c8e",
-      "original_xml_sha256": "ca59f7d5a2d32725a71b94b1cf906b6d9515de87f08cde364aac10e8e2329249",
+      "original_sha256": "ca59f7d5a2d32725a71b94b1cf906b6d9515de87f08cde364aac10e8e2329249",
       "testsuite": {
         "name": "pytest",
         "errors": "0",
