@@ -281,6 +281,14 @@ class CrossEntry:
             raise ValueError("INVALID_ARGUMENT")
         if "interaction_id" in response and response["interaction_id"] != state.get("interaction_id"):
             raise ValueError("INTERACTION_STALE")
+        if (response == {"choice": "resume"}
+                and state.get("scenario") != CrossScenario.BIRTHDAY.value):
+            if "resume" in (state.get("result") or {}).get("allowed_actions", []):
+                if state.get("stop_reason"):
+                    return self._closeout(trusted, state, stop_reason=state["stop_reason"])
+                return self._advance(trusted, state)
+            # A generic refresh does not choose or replace the current menu.
+            return self._result(trusted, state)
         if (state.get("scenario") == CrossScenario.BIRTHDAY.value
                 and (response.get("choice") in {"approve", "cancel", "resume"}
                      or response.get("cancel") is True)):

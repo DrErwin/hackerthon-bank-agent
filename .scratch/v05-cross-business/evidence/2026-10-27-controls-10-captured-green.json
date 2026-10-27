@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "parent_status": "waiting_input",
+  "cancel_operation_count": 1,
+  "same_original_operation": true,
+  "model_calls": 0,
+  "read_only_source_backup": true,
+  "backup_directory": "C:\\Users\\57652\\AppData\\Local\\Temp\\bank-resume-repro-l6iteeyf"
+}
