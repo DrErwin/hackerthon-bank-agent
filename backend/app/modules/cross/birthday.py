@@ -66,6 +66,7 @@ class BirthdayFlow:
         # verified "failed, no order" evidence that may justify a replacement.
         "edit": None, "edit_text_target": None,
         "verified_failures": {}, "write_facts": {}, "session_observation": None,
+        "session_recovery_target": None,
     }
 
     def __init__(self, entry, state: dict, ports):
@@ -317,14 +318,26 @@ class BirthdayFlow:
         if kind == "freeze":
             PersonalBudget(self.entry, self.state).recover_pending_freeze(
                 recovery["original_operation_id"], recovery["replacement_operation_id"])
-            return self._run_freeze(trusted)
-        item = self._order(key)
-        if kind == "order":
-            return self._run_order(trusted, item)
-        return self._run_capture(trusted, item)
+        # Budget reads may pause before the new gate exists. Retain only the
+        # stable execution target, never the retired card or verification.
+        self.b["session_recovery_target"] = [kind, key]
+        return self._resume_session_target(trusted)
+
+    def _resume_session_target(self, trusted):
+        kind, key = self.b["session_recovery_target"]
+        if kind == "freeze":
+            result = self._run_freeze(trusted)
+        elif kind == "order":
+            result = self._run_order(trusted, self._order(key))
+        else:
+            result = self._run_capture(trusted, self._order(key))
+        self.b["session_recovery_target"] = None
+        return result
 
     def advance(self, trusted) -> ModuleResult:
         entry, state = self.entry, self.state
+        if self.b.get("session_recovery_target"):
+            return self._resume_session_target(trusted)
         if self.b.get("pending") and not self.b.get("holding"):
             PersonalBudget(entry, state).refresh(trusted)
             return self._pending_view(trusted)
@@ -1528,6 +1541,7 @@ class BirthdayFlow:
         return self._finalize(trusted)
 
     def stop(self, trusted, reason):
+        self.b["session_recovery_target"] = None
         self.b["stop_reason"] = reason
         return self._finalize(trusted)
 
