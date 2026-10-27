@@ -1,17 +1,20 @@
 """F30—F32 HTTP checks use new isolated stores, never the shared demo bank."""
 
 from datetime import datetime, timedelta, timezone
+from threading import Event, Thread
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 import pytest
 
 from app.agent_platform.transfer_runtime import TransferRuntime
+from app.agent_platform.demo_clock import DemoClock
 from app.audit.journal import AuditJournal
 from app.contracts.bank import SavedPayee
 from app.contracts.common import RiskLevel
 from app.contracts.platform import TrustedContext
 from app.memory.adapter import MemoryAdapter, MemoryContext
+from app.services.bank_gateway.gateway import BankGateway
 from app.services.mock_bank.core import MockBankService
 from app.storage.application import ApplicationStore
 from app.storage.mock_bank.repository import MockBankStore
@@ -21,19 +24,19 @@ from .test_app import Planner, enter, make_app, post, start
 
 
 def reset_app(path):
-    """Real stores/runtime; the public clock seam stands in for platform ticket12."""
+    """Real stores, gateway drain and shared business clock; planner is scripted."""
     application = ApplicationStore(path / "application.sqlite")
-    clock = [datetime(2026, 10, 27, 9, tzinfo=timezone.utc)]
+    clock = DemoClock()
+    clock.set(datetime(2026, 10, 27, 9, tzinfo=timezone.utc))
     bank = MockBankService(MockBankStore(path / "bank.sqlite"), demo_secret=b"s" * 32,
-                           clock=lambda: clock[0])
+                           clock=clock)
     memory = MemoryAdapter(application, active_round=lambda: bank.current_demo_round_id or "D1")
     if bank.current_demo_round_id is None:
         memory.seed_demo("U1", "D1", "2026-10")
     runtime = TransferRuntime(application, memory, AuditJournal(application.path), bank,
         Planner(), authorize_capability=lambda *_: True, authorize_tool=lambda *_: True,
-        assess_risk=lambda *_: RiskLevel.LOW, authorize_face=lambda admin, *_: admin.authorized)
-    runtime.bank = bank
-    runtime.set_demo_clock = lambda at: clock.__setitem__(0, at)
+        assess_risk=lambda *_: RiskLevel.LOW, authorize_face=lambda admin, *_: admin.authorized,
+        demo_clock=clock)
     return create_app(runtime, ApiConfig(secret=b"s" * 32, admin_key="test-admin-key",
                                         origins=("http://testserver",)))
 
@@ -261,6 +264,122 @@ def test_reset_result_round_and_clock_survive_a_restart_with_the_old_config(tmp_
         assert response.json()["data"] == result
         assert second.state.api.demo.current_round_id == result["resulting_round_id"]
         assert second.state.api.demo.state()["initial_logical_at"] == initial
-        assert second.state.api.runtime.bank.clock().isoformat() == initial
+        assert second.state.api.runtime.bank.clock() == datetime.fromisoformat(initial)
         client.cookies.clear()
         assert enter(client)["demo_round_id"] == result["resulting_round_id"]
+
+
+def test_http_reset_waits_for_a_real_timed_out_gateway_future(tmp_path, monkeypatch):
+    app = reset_app(tmp_path)
+    runtime = app.state.api.runtime
+    runtime.gateway.close()
+    # This seam isolates reset coordination from execution authorization. The
+    # future, delayed bank call, account mutation and reset are all real.
+    runtime.gateway = BankGateway(runtime.bank, transfer_timeout_seconds=0.01,
+                                  authorize_transfer=lambda *_: True)
+    started, release = Event(), Event()
+    original = runtime.bank.submit_transfer
+
+    def delayed(*args):
+        started.set()
+        assert release.wait(5)
+        return original(*args)
+
+    monkeypatch.setattr(runtime.bank, "submit_transfer", delayed)
+    try:
+        with TestClient(app) as client:
+            who = TrustedContext(user_id="U1", session_id="test-session", demo_round_id="D1",
+                task_id="test-transfer", run_id="test-run", parent_task_id=None)
+            operation_id = uuid4()
+            pending = runtime.gateway.submit_transfer(who, operation_id, "A1",
+                SavedPayee(kind="saved", payee_id="A2"), 50000)
+            assert pending.error.code == "CALL_TIMEOUT"
+            assert started.wait(2)
+            assert runtime.gateway.get_operation(who, operation_id).lookup == "not_found"
+            body = prepare_reset(client)
+            waiting = submit_reset(client, body)
+            assert waiting["status"] == "running"
+            assert waiting["phase"] == "waiting_inflight"
+            assert runtime.bank.current_demo_round_id is None
+            release.set()
+            assert runtime.gateway.wait_for_inflight(3.0)
+            assert runtime.gateway.get_operation(who, operation_id).operation.operation_status == "succeeded"
+            completed = submit_reset(client, body)
+            assert completed["status"] == "succeeded", completed
+            assert completed["management_operation_id"] == waiting["management_operation_id"]
+            assert runtime.bank.store.get_account("U1", "A1").book_balance_fen == 6000000
+    finally:
+        release.set()
+        runtime.gateway.close()
+
+
+def test_partial_reset_can_restart_then_resume_its_original_management_request(tmp_path, monkeypatch):
+    first = reset_app(tmp_path)
+    memory = first.state.api.runtime.memory
+    monkeypatch.setattr(memory, "reset_user", lambda *_: (_ for _ in ()).throw(OSError("unavailable")))
+    with TestClient(first) as client:
+        body = prepare_reset(client)
+        failed = submit_reset(client, body)
+        assert failed["phase"] == "resetting_memory"
+        target = first.state.api.runtime.bank.current_demo_round_id
+        assert first.state.api.demo.current_round_id == "D1"
+    second = reset_app(tmp_path)
+    with TestClient(second) as client:
+        admin_enter(client)
+        original = client.get("/api/v1/admin/operations/" + failed["management_operation_id"])
+        assert original.status_code == 200
+        assert original.json()["data"] == failed
+        assert second.state.api.demo.current_round_id == "D1"
+        assert second.state.api.runtime.bank.current_demo_round_id == target
+        completed = submit_reset(client, body)
+        assert completed["status"] == "succeeded", completed
+        assert completed["resulting_round_id"] == target
+        assert completed["management_operation_id"] == failed["management_operation_id"]
+
+
+def test_missing_required_admin_audit_stops_before_the_bank_reset(tmp_path, monkeypatch):
+    app = reset_app(tmp_path)
+    runtime = app.state.api.runtime
+    append = runtime.audit.append
+
+    def unavailable(*_args, **_kwargs):
+        raise OSError("audit unavailable")
+
+    with TestClient(app) as client:
+        body = prepare_reset(client)
+        monkeypatch.setattr(runtime.audit, "append", unavailable)
+        failed = submit_reset(client, body)
+        assert (failed["status"], failed["phase"]) == ("failed", "resetting_bank")
+        assert runtime.bank.current_demo_round_id is None
+        assert runtime.bank.store.get_account("U1", "A1").book_balance_fen == 6000000
+        monkeypatch.setattr(runtime.audit, "append", append)
+        completed = submit_reset(client, body)
+        assert completed["status"] == "succeeded", completed
+        assert completed["management_operation_id"] == failed["management_operation_id"]
+
+
+def test_reset_persists_admission_stop_without_waiting_on_the_api_worker_lock(tmp_path):
+    app = reset_app(tmp_path)
+    service = app.state.api
+    acquired, release = Event(), Event()
+
+    def worker():
+        with service.mutation_lock:
+            acquired.set()
+            assert release.wait(5)
+
+    with TestClient(app) as client:
+        body = prepare_reset(client)
+        thread = Thread(target=worker)
+        thread.start()
+        try:
+            assert acquired.wait(2)
+            waiting = submit_reset(client, body)
+            assert (waiting["status"], waiting["phase"]) == ("running", "waiting_inflight")
+            assert service.demo.state()["reset_state"] == "waiting_inflight"
+            assert service.runtime.bank.current_demo_round_id is None
+        finally:
+            release.set()
+            thread.join(3)
+        completed = submit_reset(client, body)
+        assert completed["status"] == "succeeded", completed

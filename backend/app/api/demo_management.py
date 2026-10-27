@@ -29,8 +29,8 @@ class DemoManagement:
         self.path = service.store.path
         bank = getattr(service.runtime, "bank", None)
         bank_round = bank.current_demo_round_id if bank is not None else None
-        at = (getattr(bank, "current_demo_logical_at", None)
-              or datetime.now(timezone.utc)).isoformat()
+        at = ((getattr(bank, "current_demo_logical_at", None) or bank.clock())
+              if bank is not None else datetime.now(timezone.utc)).isoformat()
         with transaction(self.path) as connection:
             connection.execute("""CREATE TABLE IF NOT EXISTS api_demo_state (
                 singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
@@ -50,9 +50,9 @@ class DemoManagement:
                 UNIQUE(actor_id, source_round_id, request_id))""")
             connection.execute("INSERT OR IGNORE INTO api_demo_state VALUES (1, ?, ?, ?, 'idle', NULL)",
                 (bank_round or service.config.demo_round_id, at, at))
-        setter = getattr(service.runtime, "set_demo_clock", None)
-        if setter is not None:
-            setter(datetime.fromisoformat(self.state()["logical_at"]))
+        state = self.state()
+        if bank_round is not None or state["management_operation_id"] is not None:
+            service.runtime.set_demo_clock(datetime.fromisoformat(state["logical_at"]))
 
     def state(self):
         return self.service.store.rows("SELECT * FROM api_demo_state WHERE singleton = 1")[0]
@@ -140,7 +140,17 @@ class DemoManagement:
                                    "WHERE confirmation_id = ?", (operation_id, body.reset_confirmation_id))
                 connection.execute("UPDATE api_demo_state SET reset_state = 'waiting_inflight', "
                                    "management_operation_id = ? WHERE singleton = 1", (operation_id,))
-        return self._advance(operation_id, who)
+        # Stop admission durably before trying the API lock. An already running
+        # worker needs that lock to finish publishing and leave its active set.
+        # Returning the original running operation lets it finish safely.
+        if not self.service.mutation_lock.acquire(blocking=False):
+            return self.get_operation(who, operation_id)
+        try:
+            who = self.service.identity(self.service.cookie(who.session_id), management=True)
+            self.require_admin(who)
+            return self._advance(operation_id, who)
+        finally:
+            self.service.mutation_lock.release()
 
     def owns_historical_round(self, actor_id, demo_round_id):
         return bool(self.service.store.rows("SELECT 1 FROM api_management_operations "
@@ -236,12 +246,12 @@ def install_demo_routes(application, api, success):
     @application.post("/api/v1/admin/demo/reset-preview")
     def preview(body: ResetPreviewRequest, who=Depends(admin_identity), service=Depends(api)):
         with service.mutation_lock:
+            who = service.identity(service.cookie(who.session_id), management=True)
             return success(service.demo.preview(who, body))
 
     @application.post("/api/v1/admin/demo/reset")
     def reset(body: ResetRequest, who=Depends(admin_identity), service=Depends(api)):
-        with service.mutation_lock:
-            return success(service.demo.reset(who, body))
+        return success(service.demo.reset(who, body))
 
     @application.get("/api/v1/admin/operations/{management_operation_id}")
     def operation(management_operation_id: str, who=Depends(admin_identity), service=Depends(api)):
