@@ -1,5 +1,12 @@
 # security —— 安全底座
 
+2026-10-27 [v05-birthday-platform-dependencies/20](../../../.scratch/v05-birthday-platform-dependencies/issues/20-pension-demo-risk-provider.md)：公开
+pension_demo_risk.pension_demo_risk(inputs: RiskInputs) -> DemoRiskEvidence，提供本轮用户明确批准的有限P01演示profile，source=marked-pension-demo、source_version=p01-marked-demo-v1。平台须先真实核验同user/task/round、冻结参数和持久父子关系；request_source_task_id缺失、为空或等于当前task_id均不继承模拟覆盖。函数不自行证明一个任意parent字符串可信，不读写存储或授予资金权限。
+
+仅接受[精确原话与四项完整跟进](../../../.scratch/v05-birthday-platform-dependencies/pension-demo-risk-20.md)，参数只为A1→OwnPayee A5/250000分或A1→SavedPayee A4/100000分；不改own为saved，不接任意养老金语句、内部marker或未知附言。正向危险先沿原demo_text_risk(inputs,None)判HIGH，异参/异源也先检测危险；其余不匹配输入保留原危险或unknown。匹配时模拟signals仅FAMILIAR_DEVICE/USUAL_AMOUNT_RANGE/CLEAR_REQUEST，模拟checked固定为十四维扣除FAMILIAR_PAYEE/NEW_PAYEE的十二维；真实银行收款人checked/signals覆盖模拟，NEW_PAYEE仍MEDIUM，缺银行两维仍PAUSE。原RiskFact不改为known，证据只返回来源版本和opaque摘要。
+
+本票只提供函数，运行时默认行为、原A2规则与私密配置未改；平台19提供真实来源，平台21另行显式opt-in，之后新隔离案例验证闭环。确认/验证/执行器不变，局部测试与本次有限范围批准均不代表通用反诈覆盖或真人最终安全验收。
+
 2026-10-27 [v05-birthday-platform-dependencies/17](../../../.scratch/v05-birthday-platform-dependencies/issues/17-release-confirmation-origin.md)：新增`SQLiteSecurityState.get_release_confirmation(context, release_authorization_id) -> ConfirmationRecord`，只读取得已生效限定释放的原冻结批准，供平台16构建审计来源。context必须是真实当前结束上下文，`context.release_authorization_id`等于显式ID；不切换为原session。
 
 同一SQLite只读快照复用既有授权的user/task/round核验，只接受active/completed且已有freeze_id、无invalid_reason的记录；按原confirmation_id/version从当前或历史取唯一源，再核对原session/user/task/round、freeze operation、bank.freeze_funds、原revision、approved和正式释放条款。原批准必须在当时确认期内、不晚于grant；不按当前时间刷新旧确认或原session。旧授权缺可选action_revision时仍由精确ID/version唯一指向原record，不能以S2当前版本替代。缺失、无效、异绑定、歧义或损坏数据抛SecurityStateError。
