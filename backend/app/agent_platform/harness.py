@@ -39,7 +39,7 @@ from app.storage.application import ApplicationStore, ArrangementConflictError, 
 from app.storage.database import transaction
 
 from .budget_inputs import BudgetInputs
-from .model import ContinueProposal, Planner, ReplyOnly, TransferProposal
+from .model import ContinueProposal, Planner, PlanningError, ReplyOnly, TransferProposal
 from .input_privacy import has_chat_secret
 from .risk_conversation import RiskConversation
 from .registry import CapabilityRegistry
@@ -59,6 +59,10 @@ _SELECTED_CAPABILITIES = frozenset({
 _UNTRUSTED_MATERIAL_REFUSAL = (
     "这段资料我只当作线索来分析，不会据此替您发起任何转账或业务办理。"
     "请先通过银行官方渠道核实来源，不要向陌生账户汇款，也不要向他人透露验证码。"
+)
+_PLANNING_FAILURE_NOTICE = (
+    "这次没能处理好您的消息，请换个说法。"
+    "如果是在继续之前的办理，请先查看原任务卡片。"
 )
 # The audit output probe mirrors journal.redact's free-text rules, which do not
 # cover an English password/passwd/pwd label. A reply must not widen that gap into
@@ -579,7 +583,7 @@ class AgentHarness:
         started = monotonic()
         try:
             outcome = self._select_outcome(trusted, intent_text, trace.thread_id, blocks)
-        except Exception:
+        except Exception as error:
             model_error = ModuleError(
                 code="MODEL_UNDERSTANDING_FAILED", source="platform", field=None,
                 reason="模型暂未形成受控回复或业务候选", upstream_code=None,
@@ -593,6 +597,8 @@ class AgentHarness:
                     error=model_error,
                 ), "failed", parent_span_id=model_started.span_id,
             )
+            if isinstance(error, PlanningError):
+                raise error from None
             raise ValueError("MODEL_UNDERSTANDING_FAILED") from None
 
         if isinstance(outcome, ReplyOnly):
@@ -695,7 +701,16 @@ class AgentHarness:
                         raise ValueError("INVALID_ARGUMENT")
                     outcome = TransferProposal(capability_name=selected_capability)
                 else:
-                    outcome = self._understand_with_trace(trusted, intent_text, trace, material)
+                    try:
+                        outcome = self._understand_with_trace(trusted, intent_text, trace, material)
+                    except PlanningError:
+                        return ModuleResult(
+                            task_id=trusted.task_id, run_id=trusted.run_id,
+                            status=TaskStatus.FAILED, data=None, message=_PLANNING_FAILURE_NOTICE,
+                            interaction=None, error=ModuleError(
+                                code="MODEL_PROPOSAL_FAILED", source="platform", field=None,
+                                reason=_PLANNING_FAILURE_NOTICE, upstream_code=None),
+                            allowed_actions=[], recovery_required=False, recovery_reason=None)
                 if material is not None and isinstance(outcome, (TransferProposal, ContinueProposal)):
                     # Deterministic gate: outside material may be read and explained,
                     # never turned into a task, a tool call or a funds action (S2).
