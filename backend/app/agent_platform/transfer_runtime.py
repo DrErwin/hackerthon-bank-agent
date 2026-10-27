@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 from pydantic import TypeAdapter
 from langgraph.errors import GraphInterrupt
 
+
 from app.audit.journal import AuditJournal
 from app.contracts.audit import (
     AuthorizationConfirmation, AuthorizationSnapshot, AuthorizationVerification,
@@ -42,6 +43,7 @@ from app.storage.application import ApplicationStore
 from app.storage.database import connect, parameter_digest, transaction
 
 from .harness import AgentHarness, RunTrace
+from .demo_clock import DemoClock
 from .model import Planner
 from .payee_references import ControlledPayeeReferences
 from .registry import CapabilityRegistry
@@ -390,8 +392,11 @@ class TransferRuntime:
                  audit: AuditJournal, bank: MockBankService, planner: Planner,
                  authorize_capability: Callable[[TrustedContext, CapabilityDefinition], bool],
                  authorize_tool: ScopeAuthorizer, assess_risk: RiskAssessor,
-                 authorize_face: Callable[..., bool] | None = None):
+                 authorize_face: Callable[..., bool] | None = None,
+                 demo_clock: DemoClock | None = None):
         self.application, self.memory, self.audit = application, memory, audit
+        self.bank = bank
+        self._demo_clock = demo_clock
         self.authorize_tool, self.assess_risk = authorize_tool, assess_risk
         self.facts = TransferFacts(application)
         self.snapshots = TransferSnapshots(application.path)
@@ -421,6 +426,12 @@ class TransferRuntime:
 
     def close(self) -> None:
         self.gateway.close()
+
+    def set_demo_clock(self, at: datetime) -> None:
+        """Change business time only; API owns its durable management receipt."""
+        if self._demo_clock is None:
+            raise ValueError("DEMO_CLOCK_UNAVAILABLE")
+        self._demo_clock.set(at)
 
     def read_transfer_choices(self, trusted, kind):
         """Read owned banking facts without resuming or modifying the transfer."""

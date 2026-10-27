@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -33,6 +32,7 @@ from app.storage.database import StoragePaths
 from app.storage.mock_bank.repository import MockBankStore
 
 from . import subscription_runtime
+from .demo_clock import DemoClock
 from .model import DeepAgentPlanner, ModelSettings
 from .transfer_runtime import TransferRuntime
 from .own_bank_queries import register_own_bank_queries
@@ -211,23 +211,34 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
         # Ordinary unconfigured transfers remain unknown and pause at the gate.
         return demo_text_risk(inputs, None)
 
-    policy = DemoSecurityPolicy(
-        demo_user_id=config.demo_user_id, admin_actor_id=config.admin_actor_id,
-        current_demo_round=lambda: config.demo_round_id, risk_facts=risk_facts,
-    )
+    clock = DemoClock()
     bank = MockBankService(
         MockBankStore(paths.bank), demo_secret=config.bank_secret.get_secret_value().encode(),
+        clock=clock,
+    )
+    restored_at = bank.current_demo_logical_at
+    if restored_at is not None:
+        clock.set(restored_at)
+
+    def current_demo_round():
+        stored = bank.current_demo_round_id
+        return config.demo_round_id if stored is None else stored
+
+    policy = DemoSecurityPolicy(
+        demo_user_id=config.demo_user_id, admin_actor_id=config.admin_actor_id,
+        current_demo_round=current_demo_round, risk_facts=risk_facts,
     )
     if config.birthday_response_loss_once:
         bank.birthday.arm_response_loss(config.demo_user_id)
     # The bills line reads real flows; the demo bank carries the shared sample history.
     bank.seed_flow_history()
     runtime = TransferRuntime(
-        application, MemoryAdapter(application, active_round=lambda: config.demo_round_id),
+        application, MemoryAdapter(application, active_round=current_demo_round),
         AuditJournal(paths.application), bank,
         planner, authorize_capability=policy.authorize_capability,
         authorize_tool=policy.authorize_tool, assess_risk=policy.assess_risk,
         authorize_face=policy.authorize_face,
+        demo_clock=clock,
     )
     # Register the real bills capabilities before ApiService construction so the
     # contract-shaped stub steps aside as a whole (v04-platform/05): L01, L02 and
@@ -238,11 +249,11 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     # Issue #187), so report and anomaly tasks reach their real handlers; L03 also
     # serves the frontend bills slot (ticket 04).
     register_bills(runtime.harness.registry, _bills_reads_factory(runtime),
-                   lambda: datetime.now(timezone.utc))
+                   clock)
     register_bills_anomalies(runtime.harness.registry, _bills_reads_factory(runtime),
-                             lambda: datetime.now(timezone.utc))
+                             clock)
     register_bills_report(runtime.harness.registry, _bills_reads_factory(runtime),
-                          lambda: datetime.now(timezone.utc))
+                          clock)
     # Scenario 05 rides the same confirmation service, audit journal and bank gateway;
     # its one write is authorized by a live claim from the shared executor.
     subscription_runtime.register_subscription(runtime, bank.clock)
@@ -255,7 +266,7 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
     from .birthday_runtime import BirthdayRuntime
     runtime.birthday = BirthdayRuntime(
         runtime, demo_user_id=config.demo_user_id,
-        current_demo_round=lambda: config.demo_round_id,
+        current_demo_round=current_demo_round,
     )
     register_cross(runtime.harness, bank.clock,
                    birthday_ports_factory=runtime.birthday.ports_factory)

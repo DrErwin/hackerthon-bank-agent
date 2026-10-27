@@ -16,6 +16,7 @@ continuation as ACTION_RETIRED.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Callable
 from uuid import UUID, uuid4
 
@@ -827,7 +828,7 @@ class BirthdayTaskPorts:
             self.wiring.state,
             self._security_context(context, freeze["operation_id"]), record,
             account_id=plan.payer_account_id, amount_fen=plan.freeze_amount_fen,
-            now=self.runtime.gateway._bank.clock(),
+            now=datetime.now(timezone.utc),
         )
         task = self.runtime.application.get_task(
             context.user_id, context.demo_round_id, context.task_id)
@@ -855,7 +856,7 @@ class BirthdayTaskPorts:
             self.wiring.state,
             self._security_context(context, operation_id), release_id,
             self.runtime.gateway.get_operation(context, UUID(operation_id)),
-            self.runtime.gateway._bank.clock(),
+            datetime.now(timezone.utc),
         )
         return authorization.freeze_id
 
@@ -971,7 +972,7 @@ class BirthdayTaskPorts:
                 self.runtime.gateway.get_operation(trusted, operation_id),
             bank_release=lambda trusted, operation_id, request:
                 self.runtime.gateway.release_frozen(trusted, operation_id, request),
-            clock=self.runtime.gateway._bank.clock,
+            clock=lambda: datetime.now(timezone.utc),
             current_demo_round=self.wiring.current_demo_round,
         )
         outcome = finalizer.finalize(security_context, reason)
