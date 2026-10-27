@@ -6,8 +6,8 @@ Spec: [联动业务规格](../spec.md)，[安全依赖与失败证据](../sessio
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/modules/cross/`
-Status: ready_for_review — 完整组合207过/1个错误文案断言，校正同节点1过；208唯一用例覆盖，待中控独立两轴
-Blocked by: 无实施前置；平台18（PR #344）、17（PR #342）及16（PR #343）已合入受测主线 `ed1596d5`。前置[平台票13](../../v05-birthday-platform-dependencies/issues/13-session-recovery-proof.md)（PR #335）与安全 PR #330 已合入 main `30cbe740`
+Status: in_progress — 独立审查 capture P2 已真实红绿（四阶段组合及暂停取消共5过）；新冻结成功后快照前异常再取消真实失败，等待原操作提交事实接缝，PR暂不合
+Blocked by: 无冻结快照时安全区分 not_submitted 与未知的公开原操作提交事实接缝，已报平台 owner，见[审查修补](../session-recovery-09-review-fixes.md)。既有平台18（PR #344）、17（PR #342）及16（PR #343）已合入受测主线 `ed1596d5`。前置[平台票13](../../v05-birthday-platform-dependencies/issues/13-session-recovery-proof.md)（PR #335）与安全 PR #330 已合入 main `30cbe740`
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27
 Core scenarios: XL-B 敏感等待恢复、XL-X 会话/权限与重复执行

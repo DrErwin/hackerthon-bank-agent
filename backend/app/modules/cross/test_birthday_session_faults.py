@@ -95,6 +95,33 @@ def test_capture_recovery_budget_retry_keeps_the_original_order(
     assert len(bank_orders(env.runtime)) == len(products)
 
 
+def test_cancel_during_recovered_capture_budget_pause_does_not_restart_payment(
+    harness_env, monkeypatch,
+):
+    env = harness_env
+    freeze = adopted_budget_freeze(env, ("鲜花", "蛋糕"))
+    settle(env, settle(env, freeze))
+    before = deepcopy(cross_state(env)["birthday"])
+    orders = bank_orders(env.runtime)
+    monkeypatch.setattr(env.runtime.gateway, "list_transactions", lambda *_: QueryFailure(
+        kind="error", error=BankError(code="BANK_UNAVAILABLE", details={})))
+    caller = target_session(env)
+    paused = env.runtime.harness.recover_session(caller)
+    env.who = caller
+    stale_retry = option_id(paused, "重新核对预算")
+
+    stopped = env.resume({"choice": "cancel"})
+
+    assert stopped.status is TaskStatus.CANCELLED, stopped.message
+    assert bank_orders(env.runtime) == orders and paid_amounts(env) == []
+    assert cross_state(env)["birthday"]["orders"] == before["orders"]
+    assert cross_state(env)["birthday"]["session_recovery_target"] is None
+    assert env.runtime.gateway.get_freeze(caller, before["freeze"]["freeze_id"]).data.remaining_fen == 0
+    replay = env.resume({"selected_option_id": stale_retry})
+    assert replay.status is TaskStatus.CANCELLED
+    assert bank_orders(env.runtime) == orders and paid_amounts(env) == []
+
+
 def test_cancel_reconciles_recovered_freeze_committed_before_cross_snapshot(
     harness_env, monkeypatch,
 ):

@@ -26,6 +26,10 @@
 确认，再以真实新验证付款并完成全部原商品；下单数量没有增加。
 JUnit：`evidence/2026-10-27-session-recovery-09-review-capture-after.xml`。
 
+同一修补另经“预算仍不可读时取消、重放旧预算选项”**1 passed / 16.57s**：
+原已成单未付款事实不变，原冻结限定释放到零，待恢复目标清除，旧选项不重开付款。
+JUnit：`evidence/2026-10-27-session-recovery-09-review-capture-cancel.xml`。
+
 ## 待核：新冻结写成功、Cross 快照前异常后的取消
 
 须经真实 Harness/G3、已采用个人预算、新会话 fresh、新确认及新验证，让
