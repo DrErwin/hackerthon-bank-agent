@@ -6,7 +6,7 @@ Spec: [原规格](../spec.md)；[本轮授权与分派](../../v05-control/non-ma
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/api/`
-Status: in_progress
+Status: ready_for_review — 7项故障恢复检查、API目录232项通过；依赖PR323，待两轴审查与合入
 Accepted by: 本对话 AI，依据用户 2026-10-27 明确要求完成非资料任务
 Accepted at: 2026-10-27
 Blocked by: v05-birthday-platform-dependencies/10 的原输入转换只读查询接缝
@@ -23,3 +23,7 @@ Core scenarios: 生日普通输入的发布失败、HTTP回执中断、原号重
 - 原赢家存在而任务已有后继时，只返回原结果，不将旧结果重新发布为当前卡。
 - 复用平台原请求查询和现有请求HMAC摘要，不复制转换摘要算法、不跨目录补状态。
 - 局部回归、受影响API检查、规范/规格独立审查；真实模型/页面/银行验收另票留证。
+
+## 验证记录
+
+受测 `07eb319f`（平台代码 `5aae44b6`）：新文件7 passed；API目录232 passed / 0 failed，461.19秒。原基线已真实复现发布报错后同request永远503。API保存原完成TaskView后稳定发布，平台pending按原UUID恢复；后继已推进时不重新广播旧卡。证据见[API11验证](../api-input-recovery-verification.md)。
