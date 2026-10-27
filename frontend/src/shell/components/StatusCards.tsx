@@ -3,16 +3,18 @@ import type { InteractionRequest } from "../../contracts";
 import type { DataOrigin, DisplayField, ReportView, ResultView } from "../types";
 import { Card, FieldList, OriginTag, ReadOnlyStamp, Spinner, StatusBadge } from "./Primitives";
 import { DetailsDrawer } from "./DetailsDrawer";
+import { Progress } from "@/components/ui/progress";
 
 const RESULT_ICON: Record<ResultView["tone"], string> = { success: "✓", danger: "✕", warning: "!", pending: "…", neutral: "−" };
 
 export function WaitingCard({ message, facts, id }: { message: string; facts: DisplayField[]; id: string }) {
   return (
-    <Card title="正在办理，请不要重复操作" labelledBy={id} highlight badge={<StatusBadge tone="pending" icon="…" text="处理中" />}>
+    <Card title="正在办理" labelledBy={id} highlight badge={<StatusBadge tone="pending" icon="…" text="处理中" />}>
       <div className="sh-progress" role="status" aria-live="polite">
         <Spinner />
         <span>{message}</span>
       </div>
+      <Progress value={null} aria-label="办理进度" />
       <FieldList fields={facts} />
     </Card>
   );
@@ -132,7 +134,6 @@ export function NeedsAttentionCard({ facts, message, canQuery, busy, onQuery, id
       ) : (
         <p className="sh-hint">请按上面的提示处理。</p>
       )}
-      {canQuery && <p className="sh-hint">查询不会再办一次。</p>}
     </Card>
   );
 }
@@ -158,7 +159,7 @@ export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText
       badge={resolved ? <ReadOnlyStamp text="已处理" /> : <StatusBadge tone="warning" icon="↺" text="待您查看" />}
     >
       {resolved ? (
-        <p className="sh-readonly-line">{resolvedText ?? "已恢复原任务，没有创建新任务，也没有重新提交。"}</p>
+        <p className="sh-readonly-line">{resolvedText ?? "已找回上次的内容，可以接着办。"}</p>
       ) : (
         <>
           <p className="sh-lead">要接着办吗？先查看上次的内容，再由您决定。</p>

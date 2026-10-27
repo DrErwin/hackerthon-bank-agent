@@ -1,0 +1,96 @@
+/* No Tailwind preflight: the existing user shell and legacy pages own their reset. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+
+.sh-root, .sh-detail-surface, .ds-page, [data-sonner-toaster] {
+  --background: #f5f5ef;
+  --foreground: #272a25;
+  --card: #ffffff;
+  --card-foreground: #272a25;
+  --popover: #ffffff;
+  --popover-foreground: #272a25;
+  --primary: #a54218;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f1ea;
+  --secondary-foreground: #272a25;
+  --muted: #edeFE7;
+  --muted-foreground: #5a6257;
+  --accent: #fbeee5;
+  --accent-foreground: #853512;
+  --destructive: #a42b28;
+  --border: #89927f;
+  --input: #89927f;
+  --ring: #a54218;
+  --radius: .75rem;
+  --ds-success: #356447;
+  --ds-warning: #825b12;
+  --ds-line-soft: #e0e4da;
+  --ds-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* New controls own only their local normalization, including portal surfaces. */
+[data-slot="button"], [data-slot="input"], [data-slot="sheet-content"], [data-slot="drawer-content"] {
+  box-sizing: border-box;
+  font-family: var(--ds-font);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+[data-slot="button"] { border: 0 solid transparent; white-space: normal; cursor: pointer; background: var(--primary); color: var(--primary-foreground); }
+[data-slot="button"][data-variant="outline"] { border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+[data-slot="button"][data-variant="secondary"] { background: var(--secondary); color: var(--secondary-foreground); }
+[data-slot="button"][data-variant="ghost"], [data-slot="button"][data-variant="link"] { background: transparent; color: var(--foreground); }
+[data-slot="button"][data-variant="link"] { color: var(--primary); text-decoration: underline; text-underline-offset: 4px; }
+[data-slot="button"][data-variant="destructive"] { background: var(--destructive); color: white; }
+[data-slot="button"][data-variant="default"]:hover:not(:disabled) { background: #853512; }
+[data-slot="button"][data-variant="outline"]:hover:not(:disabled), [data-slot="button"][data-variant="ghost"]:hover:not(:disabled) { background: var(--accent); }
+[data-slot="button"]:disabled { cursor: not-allowed; }
+[data-slot="button"]:focus-visible, [data-slot="input"]:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; box-shadow: none; }
+[data-slot="input"] { border-style: solid; }
+[data-slot="sheet-content"], [data-slot="drawer-content"] { color: var(--foreground); }
+[data-slot="sheet-content"] *, [data-slot="drawer-content"] * { box-sizing: border-box; }
+[data-slot="sheet-overlay"], [data-slot="drawer-overlay"] { background: rgb(39 42 37 / .38); }
+[data-slot="sheet-title"], [data-slot="drawer-title"] { font-size: 1.375rem; line-height: 1.4; margin: 0; }
+[data-slot="sheet-content"] :focus-visible, [data-slot="drawer-content"] :focus-visible {
+  outline: 3px solid var(--ring); outline-offset: 3px;
+}
+.sh-root ::selection, .ds-page ::selection { background: #f0cfb8; color: var(--foreground); }
+.sh-root, .ds-page { scrollbar-color: #89927f var(--background); caret-color: var(--primary); }
+[data-sonner-toast] [data-close-button] { min-width: 48px; min-height: 48px; top: 50%; left: auto; right: 8px; transform: translateY(-50%); }
+[data-sonner-toast] { padding-right: 64px !important; }
+
+@keyframes ds-wait { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+[data-slot="progress"][data-state="indeterminate"] [data-slot="progress-indicator"] {
+  width: 35%; animation: ds-wait 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot], .ds-page *, .sh-detail-surface *, [data-sonner-toast] { animation: none !important; transition: none !important; }
+  [data-slot="progress"][data-state="indeterminate"] [data-slot="progress-indicator"] { transform: none; }
+}

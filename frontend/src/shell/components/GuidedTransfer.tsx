@@ -3,6 +3,7 @@ import type { AccountList, PayeeList, TransferTaskView } from "../../contracts";
 import type { ShellTask } from "../types";
 import type { Conversation } from "../useConversation";
 import { yuan } from "../format";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function transferDraft(task: ShellTask): TransferTaskView | null {
   return (!task.module || task.module === "transfer") && task.data && typeof task.data === "object" && "amount_fen" in task.data
@@ -55,7 +56,7 @@ export function GuidedTransfer({ task, conversation, busy }: { task: ShellTask; 
       ] as const).map(([key, label, value]) => <div key={key}><dt>{label}</dt><dd>{value}</dd>
         {editable && <button className="sh-link-btn" type="button" disabled={busy} onClick={() => { setEdit(key); setError(""); setAmount(data.amount_fen ? String(data.amount_fen / 100) : ""); }}>{value.startsWith("待") ? "填写" : "修改"}{label}</button>}</div>)}
     </dl>
-    {loading && <p role="status">正在读取您的账户和收款人…</p>}
+    {loading && <div role="status"><p>正在读取您的账户和收款人…</p><div aria-hidden="true" className="sh-loading-choices"><Skeleton /><Skeleton /></div></div>}
     {loadError && <div role="alert"><p>{loadError}</p><button className="sh-btn sh-btn-secondary" onClick={() => setReload((n) => n + 1)}>重新读取</button></div>}
     {editable && current === "amount" && <form className="sh-guided-form" onSubmit={(event) => {
       event.preventDefault();

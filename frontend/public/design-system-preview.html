@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手机组件体验</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f0f1e9; font-family: "Microsoft YaHei", sans-serif; color: #272a25; }
+    main { display: flex; gap: 60px; justify-content: center; padding: 18px; }
+    section { width: 286px; }
+    h1, h2 { font-size: 18px; margin: 0 0 12px; }
+    .frame { width: 281px; height: 610px; border: 4px solid #30362d; border-radius: 24px; overflow: hidden; }
+    iframe { width: 390px; height: 860px; transform: scale(.7); transform-origin: top left; border: 0; }
+    @media (max-width: 640px) {
+      main { padding: 0; display: block; }
+      section, .frame { width: 100%; height: 100dvh; border: 0; border-radius: 0; }
+      h1, .comparison { display: none; }
+      iframe { width: 100%; height: 100%; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section><h1>办理与填写</h1><div class="frame"><iframe title="手机组件" src="/v04/design-system"></iframe></div></section>
+    <section class="comparison"><h2>现有页面接入</h2><div class="frame"><iframe title="手机银行助手" src="/"></iframe></div></section>
+  </main>
+</body>
+</html>
