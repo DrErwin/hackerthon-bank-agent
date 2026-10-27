@@ -6,7 +6,7 @@ Spec: [原规格](../spec.md)；[本轮授权与分派](../../v05-control/non-ma
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/api/`
-Status: ready_for_review — 7项故障恢复检查、API目录232项通过；依赖PR323，待两轴审查与合入
+Status: ready_for_review — 独立审查两项P2已补修，精确提交9项通过；原API目录232项仅属补修前，待最终组合回归、两轴复审与合入
 Accepted by: 本对话 AI，依据用户 2026-10-27 明确要求完成非资料任务
 Accepted at: 2026-10-27
 Blocked by: v05-birthday-platform-dependencies/10 的原输入转换只读查询接缝
@@ -27,3 +27,5 @@ Core scenarios: 生日普通输入的发布失败、HTTP回执中断、原号重
 ## 验证记录
 
 受测 `07eb319f`（平台代码 `5aae44b6`）：新文件7 passed；API目录232 passed / 0 failed，461.19秒。原基线已真实复现发布报错后同request永远503。API保存原完成TaskView后稳定发布，平台pending按原UUID恢复；后继已推进时不重新广播旧卡。证据见[API11验证](../api-input-recovery-verification.md)。
+
+独立审查补修受测 `e44f281d`：新增两项先失败，修后专用9项通过，19.92秒。覆盖原视图保存失败后后继推进及不同任务复用UUID；详见同一验证记录。最终完整API组合与复审待补，不能沿用旧232项冒称当前完整通过。
