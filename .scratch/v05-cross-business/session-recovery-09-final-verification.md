@@ -7,6 +7,13 @@
 机械重基后的完整受测提交为 `895a72836f848f31a1c561b8675adc615bd508fe`，Cross 树
 `298a2d3a4069adc4b1e748131ee4cc00870971ef`；与重基前 `ddb4a755` 的五提交 range-diff 全 `=`。
 
+交审前再机械同步最新 main `aae8335394f79e30ebcabb9b57ba89cd950737c4`，对应
+重基头 `c2302215c208a9e592b440e40e7b6551eeee8052`，七提交 range-diff 全 `=`。
+该主线增量仅前端风险披露与根任务记录；新旧主线 backend 树均为
+`02bf2c988ab52d0ffac7ac5b9e160a2802af5917`。校正测试提交 `83672967` 与重基头的
+完整 backend 树均为 `0d985c1f46a5c246ff3e00dfcef51b1260d1f2de`，Cross 树均为
+`4b92fed2715b8c08a21e307da2f9838d62ae9752`。后续只回填本证据文档，不变更受测 backend。
+
 唯一一次完整组合命令（`PYTHONPATH` 明确指向本工作树 backend，解释器为既有 backend venv）：
 
 ```text

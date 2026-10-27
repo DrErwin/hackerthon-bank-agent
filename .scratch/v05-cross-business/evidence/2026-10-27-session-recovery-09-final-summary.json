@@ -31,5 +31,9 @@
     "backend/app/modules/cross/entry.py",
     "backend/app/modules/cross/personal_budget.py"
   ],
-  "statement": "207 successful original cases plus the same single corrected case passing; not a new all-green 208-case invocation."
+  "statement": "207 successful original cases plus the same single corrected case passing; not a new all-green 208-case invocation.",
+  "review_base": "aae8335394f79e30ebcabb9b57ba89cd950737c4",
+  "review_rebase_head": "c2302215c208a9e592b440e40e7b6551eeee8052",
+  "tested_corrected_and_review_backend_tree": "0d985c1f46a5c246ff3e00dfcef51b1260d1f2de",
+  "cross_tree": "4b92fed2715b8c08a21e307da2f9838d62ae9752"
 }
