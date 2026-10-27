@@ -345,12 +345,17 @@ def create_app(runtime=None, config=None):
             # One read routes this request: the platform-published edit option or
             # its durable accepted record. Only an exact durable budget origin or
             # a birthday edit record bound to this original request makes an
-            # interrupted F10 retryable; ordinary input receipts stay non-retryable.
+            # interrupted F10 retryable. Normal G3 inputs additionally require
+            # their own durable conversion; other inputs stay non-retryable.
             prepared = service.birthday_edit_request(who, task_id, body)
             recorded = (None if prepared is not None
                         else service.budget_input_record(who, task_id, body.request_id))
             recoverable = (recorded is not None
                            or service.birthday_edit_recovery(prepared, body) is not None)
+            if prepared is None and not recoverable:
+                recoverable = service.birthday_input_record(
+                    who, task_id, body.request_id,
+                ) is not None
             return mutation(service, who, request, body,
                 lambda: service.provide_task_input(who, task_id, body, prepared=prepared),
                 retry_interrupted=recoverable)

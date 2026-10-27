@@ -14,7 +14,7 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from app.audit.journal import AuditReader, AuditViewer, redact
 from app.audit.output_guard import probe_output, probe_secrets
 from app.agent_platform.bills_stub import register_bills_stub
-from app.agent_platform.birthday_edit import BirthdayEditError
+from app.agent_platform.birthday_edit import BirthdayEditError, PublicationOutcome
 from app.agent_platform.model import ContinueProposal, ReplyOnly
 from app.agent_platform.input_privacy import has_chat_secret
 from app.contracts.audit import (
@@ -1644,6 +1644,12 @@ class ApiService:
                 snapshot = {key: value for key, value in current.snapshot.items() if key != "pending_verification"}
                 self.runtime.application.update_task(identity.user_id, identity.demo_round_id, task_id,
                     current.revision, current.run_id, current.status, current.checkpoint_id, snapshot)
+        if request_id is not None:
+            publication = self.birthday_input_record(identity, task_id, request_id)
+            if isinstance(publication, PublicationOutcome):
+                return self.publish_birthday_input(
+                    identity, task_id, request_id, publication, publish=publish,
+                )
         return self.publish_task(identity, task_id) if publish else self.task_view(identity, task_id)
 
     def continue_export_task(self, identity, export, response):
@@ -1683,6 +1689,57 @@ class ApiService:
     def _birthday_handoff(self):
         birthday = getattr(self.runtime, "birthday", None)
         return getattr(birthday, "handoff", None) if birthday is not None else None
+
+    def birthday_input_record(self, identity, task_id, request_id):
+        """Only the platform's original input conversion permits F10 recovery."""
+        task = self.runtime.application.get_task(
+            identity.user_id, identity.demo_round_id, task_id,
+        )
+        handoff = self._birthday_handoff()
+        if (task is None or task.snapshot.get("capability_name") != "cross.start_task"
+                or handoff is None):
+            return None
+        saved = self.store.input_completion(identity, task_id, request_id)
+        if saved is not None:
+            return TaskView.model_validate(saved)
+        try:
+            return handoff.find_input_conversion(
+                self.trusted(identity, task_id), request_id,
+            )
+        except BirthdayEditError as exc:
+            raise birthday_edit_problem(exc) from None
+
+    def publish_birthday_input(self, identity, task_id, request_id, publication,
+                               *, publish=True):
+        """Return the frozen winner; never broadcast an old card as current."""
+        link = self.link(identity, task_id, mutate=True)
+        current = self.runtime.application.get_task(
+            identity.user_id, identity.demo_round_id, task_id,
+        )
+        if isinstance(publication, TaskView):
+            view = publication
+        else:
+            if current.checkpoint_id == publication.published_ref.checkpoint_id:
+                # Harness appends run metadata after its G3 CAS. Freeze the
+                # actual transport view while it is still the current winner.
+                view = self.task_view(identity, task_id)
+            else:
+                # The API save itself may have failed before a later input.
+                # Only the platform's sealed original result/revision is known;
+                # return that historical fact without broadcasting it as current.
+                view = TaskView(**publication.result.model_dump(), module="cross",
+                    thread_id=link["thread_id"], demo_round_id=identity.demo_round_id,
+                    snapshot_at=now(), task_revision=publication.task_revision,
+                    cancel_requested=bool(link["cancel_requested"]))
+            self.store.save_input_completion(identity, task_id, request_id, view)
+        if publish and current.revision == view.task_revision:
+            namespace = uuid5(NAMESPACE_URL, dump([
+                "birthday-input", identity.user_id, identity.demo_round_id,
+                task_id, str(request_id),
+            ]))
+            return self.publish_task(identity, task_id, view=view,
+                                     stable_namespace=namespace)
+        return view
 
     def birthday_edit_request(self, identity, task_id, request):
         """One read of the platform facts that route this F10 request.
@@ -1785,8 +1842,17 @@ class ApiService:
         # become needs_attention / interaction=None after its business write.
         record = self.budget_input_record(identity, task_id, request.request_id)
         if record is None:
-            task = self.current_input_task(identity, task_id, request.interaction_id)
-            response = self.input_response(task, request)
+            publication = self.birthday_input_record(identity, task_id, request.request_id)
+            if isinstance(publication, (PublicationOutcome, TaskView)):
+                return self.publish_birthday_input(
+                    identity, task_id, request.request_id, publication,
+                )
+            recovering_input = publication == "pending"
+            task = (self.task_view(identity, task_id) if recovering_input
+                    else self.current_input_task(identity, task_id, request.interaction_id))
+            response = self.input_response(
+                task, request, replaying_birthday_input=recovering_input,
+            )
             saved = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
             view = (CrossTaskView.model_validate(task.data)
                     if saved and saved.snapshot.get("capability_name") == "cross.start_task"
@@ -1856,7 +1922,7 @@ class ApiService:
         # the old confirmation would terminate this task, so never answer it here.
         return self.continue_task(identity, task_id, {"fields": fields}, publish=publish)
 
-    def input_response(self, task, request):
+    def input_response(self, task, request, *, replaying_birthday_input=False):
         """F10: turn one answer into the response the task's own module expects (§5.6)."""
 
         interaction = task.interaction
@@ -1866,9 +1932,9 @@ class ApiService:
             # forwards what the user typed. These are control values, not free
             # prose, so the bare-code guard must not reject a plain "1500".
             if request.selected_option_id is not None:
-                if request.text is not None or request.selected_option_id not in {
+                if request.text is not None or (not replaying_birthday_input and request.selected_option_id not in {
                     item.id for item in interaction.options
-                }:
+                }):
                     raise ApiProblem(400, "INVALID_OPTION")
                 return {"choice": request.selected_option_id}
             return {"text": safe_text(request.text, numeric_field=True)}

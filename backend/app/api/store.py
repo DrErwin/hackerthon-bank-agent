@@ -65,6 +65,10 @@ class ApiStore:
                     user_id TEXT NOT NULL, demo_round_id TEXT NOT NULL, endpoint TEXT NOT NULL,
                     request_id TEXT NOT NULL, digest TEXT NOT NULL, response_json TEXT,
                     PRIMARY KEY(user_id, demo_round_id, endpoint, request_id))""",
+                """CREATE TABLE IF NOT EXISTS api_input_completions (
+                    user_id TEXT NOT NULL, demo_round_id TEXT NOT NULL,
+                    task_id TEXT NOT NULL, request_id TEXT NOT NULL, view_json TEXT NOT NULL,
+                    PRIMARY KEY(user_id, demo_round_id, task_id, request_id))""",
                 """CREATE TABLE IF NOT EXISTS api_events (
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT UNIQUE NOT NULL,
                     thread_id TEXT NOT NULL, event_json TEXT NOT NULL)""",
@@ -146,6 +150,17 @@ class ApiStore:
         self.write("""UPDATE api_requests SET response_json=? WHERE user_id=?
             AND demo_round_id=? AND endpoint=? AND request_id=?""",
             (dump(response), identity.user_id, identity.demo_round_id, endpoint, str(request_id)))
+
+    def input_completion(self, identity, task_id, request_id):
+        rows = self.rows("""SELECT view_json FROM api_input_completions
+            WHERE user_id=? AND demo_round_id=? AND task_id=? AND request_id=?""",
+            (identity.user_id, identity.demo_round_id, task_id, str(request_id)))
+        return json.loads(rows[0]["view_json"]) if rows else None
+
+    def save_input_completion(self, identity, task_id, request_id, view):
+        self.write("""INSERT OR IGNORE INTO api_input_completions
+            VALUES (?, ?, ?, ?, ?)""", (identity.user_id, identity.demo_round_id,
+            task_id, str(request_id), dump(view)))
 
     def publish_budget_input(self, task, message, events):
         """One idempotent publication after a durable platform budget completion."""
