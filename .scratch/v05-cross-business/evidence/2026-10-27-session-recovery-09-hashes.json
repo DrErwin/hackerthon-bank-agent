@@ -1,0 +1,22 @@
+[
+  {
+    "name": "2026-10-27-session-recovery-09-provider-ready-red.xml.gz",
+    "raw_sha256": "238f595b02dbfc703994b74ec5b61c614461311e46e26b57e6aba675bbb9604a"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-observe-red.xml.gz",
+    "raw_sha256": "57148ec06d61e296c342ee3d2f2030dc600ed41cba8663a0441d4b2885f2a074"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-old-unknown-red.xml.gz",
+    "raw_sha256": "fa762203378873b6901b1dd99605759f7f74e31d639b67ff814c6fbfbbd029a4"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-before-release-provider.xml.gz",
+    "raw_sha256": "8c95d0e2513387dfe1fe7f257d87ba585c367347064b7555ef75a86d26418c8d"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-controls.xml.gz",
+    "raw_sha256": "fdf60d300ece5273a88df6b62176cccfa0a2ac197f93e130af57ce668bb13524"
+  }
+]

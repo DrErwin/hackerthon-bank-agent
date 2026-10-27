@@ -6,8 +6,8 @@ Spec: [联动业务规格](../spec.md)，[安全依赖与失败证据](../sessio
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/modules/cross/`
-Status: in_progress — 先保存真实失败；安全提供接缝前不宣称冻结验证阶段恢复闭环
-Blocked by: [v05-birthday-platform-dependencies/10：G3 会话恢复 provider](../../v05-birthday-platform-dependencies/issues/10-g3-session-recovery.md)（PR #323）；旧会话 pending_freeze 安全处置接缝由中控另派安全目录票
+Status: in_progress — 依赖已合，消费公开 fresh/observe 投影并验证真实银行链
+Blocked by: 无；[平台票13](../../v05-birthday-platform-dependencies/issues/13-session-recovery-proof.md)（PR #335）与安全 PR #330 已合入 main `30cbe740`
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27
 Core scenarios: XL-B 敏感等待恢复、XL-X 会话/权限与重复执行
@@ -22,3 +22,4 @@ Verification: 真实 Harness/Cross/存储/安全/模拟银行，规划器为明�
 ## Comments
 
 - 2026-10-27：中控安排本票在平台票12之后完成；先以真实组合保存冻结旧卡与限定授权冲突失败，安全最小接口需求另文，未修改安全状态规则。
+- 2026-10-27：中控明确续作本票生产消费。基于最新 main 保留 #332/#334；原始 1fail/1pass 不覆盖，按续作规格 R09-1—4 验证。全局进度、合并与独立两轴审查由中控负责。

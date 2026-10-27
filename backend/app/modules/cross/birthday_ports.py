@@ -81,6 +81,13 @@ class BirthdayPlan:
 class BirthdayPorts(Protocol):
     """Platform-supplied seam over the birthday gateway and security gate."""
 
+    def session_recovery_status(self, context: TrustedContext) -> dict | None:
+        """Owned recovery projection: fresh attempt or observe original only.
+
+        The platform proves retirement and links the replacement before this
+        read; Cross never creates operation IDs or reads the private proof.
+        """
+
     def products(self, context: TrustedContext, request: ListProductsInput):
         """B22 read: the bank's real candidate products for the goal."""
 
