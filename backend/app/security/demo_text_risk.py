@@ -8,7 +8,7 @@ from .demo_policy import DemoRiskEvidence, DemoRiskSignal as Signal, _HIGH_RISK_
 from .risk_detector import detect_transfer_risk
 
 
-VERSION = "demo-text-risk-4"
+VERSION = "demo-text-risk-5"
 # This is deliberately a small language surface for the local demonstration,
 # not a claim that arbitrary Chinese prose has been classified as safe.
 _ACCOUNT = r"(?:A[123]|(?:主账户|付款账户)A[123]|日常账户|储蓄账户|养老金账户)"
@@ -16,7 +16,8 @@ _PAYEE = r"(?:妈妈|爸爸|家人|P[12]|A2)"
 _AMOUNT = r"\d+(?:\.\d{1,2})?(?:元|块钱|块)?"
 _NORMAL_TURN = re.compile(
     rf"(?:(?:请|麻烦|帮我|我要|我想|请帮我)?(?:从{_ACCOUNT}|用{_ACCOUNT})?"
-    rf"(?:给|向){_PAYEE}(?:转账?|汇款)(?:{_AMOUNT})?"
+    rf"(?:(?:给|向){_PAYEE}(?:转账?|汇款)(?:{_AMOUNT})?"
+    rf"|(?:转账?|汇款){_AMOUNT}(?:给|向){_PAYEE})"
     r"|(?:请|麻烦|帮我|我要|我想|请帮我)?(?:转账|汇款)"
     r"|(?:我(?:有|的)?(?:哪些|什么)(?:收款人|账户)(?:和余额)?|"
     r"(?:请|帮我|请帮我)?(?:查看|查询|看看)(?:我的)?(?:收款人|账户|账户和余额)|"
@@ -59,7 +60,8 @@ def demo_text_risk(inputs, fixture: DemoRiskEvidence | None) -> DemoRiskEvidence
                                 frozenset(threats), frozenset(threats))
     # Each clause must independently match the finite normal grammar. Never
     # discard trailing prose: one unknown clause still leaves facts unchecked.
-    turns = [re.sub(r"\s+", "", line).strip() for line in re.split(r"[，,。.!！？?；;\n]", text) if line.strip()]
+    turns = [re.sub(r"\s+", "", line).strip() for line in
+             re.split(r"[，,。!！？?；;\n]|(?<!\d)\.|\.(?!\d)", text) if line.strip()]
     if fixture is not None and turns and all(_NORMAL_TURN.fullmatch(turn) for turn in turns):
         # Real checked bank facts replace the fictional value in those dimensions.
         # In particular NEW_PAYEE must not disappear behind a familiar-payee fixture.
