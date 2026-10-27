@@ -2,7 +2,7 @@
 
 日期：2026-10-27。只修改 `backend/app/agent_platform/` 与本组规格/证据。
 
-- `a680055a` 首轮完整平台目录：**378 passed / 13 skipped / 1 failed，419.07s，exit 1**。[原始失败 JUnit](evidence/2026-10-27-platform12-failed-utc.xml)保留，不覆盖。
+- `a680055a` 首轮完整平台目录：**378 passed / 13 skipped / 1 failed，419.07s，exit 1**。[原始失败 JUnit 无损压缩归档](evidence/2026-10-27-platform12-failed-utc.xml.gz)保留，不覆盖；解压字节与原文件完全一致。pytest 的 CRLF/内嵌空白未经改写，压缩仅避免把原始失败 trace 当作源码尾空白检查。
 - 唯一失败 `test_cross_runtime_wiring.py::test_real_composition_mounts_cross_and_traces_children`：初版业务时钟返回 UTC，原银行/账单使用北京时间月界；scope 的月初不一致。修正 `62bc3372` 让业务时钟默认值与 setter 均返回北京时间。
 - 修正后定向 **4 passed，8.52s，exit 0**：上述真实 Cross 装配回归及本票三个组合用例。额外固定 UTC 月末 16:00 在银行/账单/订阅/联动均为北京时间次月 1 日 00:00；setter 不替换各模块持有的 callable。
 - 重置后同进程 memory、生日及能力策略读取银行持久新轮次，旧轮次拒绝；重启配置仍为 D1 时恢复银行 D2 和持久业务起点。
