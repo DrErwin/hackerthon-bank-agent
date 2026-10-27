@@ -1,7 +1,7 @@
 # 16：限定释放审计消费原确认只读入口
 
 Ticket ID: v05-birthday-platform-dependencies/16
-Package: [生日联动平台](../../v05-cross-linkage/packages/03-platform.md)
+Package: [生日联动平台](../../v05-cross-linkage/packages/01-platform-bank.md)
 Spec: [限定释放原确认接线](../release-source-16.md)
 Owner: Erwin；root 按用户完成非比赛资料任务授权实施
 Type: 开发

@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="136" failures="0" errors="0" time="22.9526689">
+    <testsuite name="src/admin-reset.test.tsx" timestamp="2026-10-27T11:18:05.791Z" hostname="ErwinWu" tests="14" failures="0" errors="0" skipped="0" time="1.3480068">
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; shows the server&apos;s effects and sends no reset before a second confirmation" time="0.2921387">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; requires the explicit checkbox even if a form is submitted directly" time="0.0763142">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; prevents duplicate submissions and queries running progress without another POST" time="0.1071421">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; keeps partial failure and its stage, then continues the exact original reset request" time="0.0938039">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; restores a lost-response request after reload and never submits automatically" time="0.1814125">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; restores the original management number for read-only queries across a reload" time="0.1089589">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; reuses the preview request after a read failure and allows cancelling before reset" time="0.0808716">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; does not send a reset when its original request cannot be saved" time="0.0638116">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; retains a request rejected by the server rather than starting a second reset" time="0.0874182">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; keeps the original request through administrator reauthentication" time="0.1049797">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; offers another preview only after entering the resulting round with a fresh admin session" time="0.099697">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; blocks a fresh reset if a saved record cannot be read" time="0.0232372">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; does not expose the reset entry to a user session" time="0.0077193">
+        </testcase>
+        <testcase classname="src/admin-reset.test.tsx" name="administrator demo reset &gt; labels contract-demo as unavailable without simulating a real reset" time="0.0184471">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/agent-conversation.test.tsx" timestamp="2026-10-27T11:18:05.796Z" hostname="ErwinWu" tests="3" failures="0" errors="0" skipped="0" time="2.5388818">
+        <testcase classname="src/shell/agent-conversation.test.tsx" name="mixes clicks, a side question and a spoken edit in one demo draft, requiring a fresh confirmation" time="1.6453644">
+        </testcase>
+        <testcase classname="src/shell/agent-conversation.test.tsx" name="keeps an unfinished task reachable through history and returns focus to it" time="0.3708005">
+        </testcase>
+        <testcase classname="src/shell/agent-conversation.test.tsx" name="opens folded groups when continuing a nested task, and opens finished records from history" time="0.5212763">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/all-journeys.test.tsx" timestamp="2026-10-27T11:18:05.798Z" hostname="ErwinWu" tests="7" failures="0" errors="0" skipped="0" time="1.1933858">
+        <testcase classname="src/shell/all-journeys.test.tsx" name="renders one confirmation action per decision and routes extra options separately" time="0.2350037">
+        </testcase>
+        <testcase classname="src/shell/all-journeys.test.tsx" name="searches masked payees locally and applies the selected identity to the existing transfer" time="0.1345002">
+        </testcase>
+        <testcase classname="src/shell/all-journeys.test.tsx" name="keeps every substantive receipt fact visible while putting only references in the drawer" time="0.0688333">
+        </testcase>
+        <testcase classname="src/shell/all-journeys.test.tsx" name="changes a bill month with the public action while preserving the source task" time="0.0556344">
+        </testcase>
+        <testcase classname="src/shell/all-journeys.test.tsx" name="preserves multiline drafts and sends Enter only after Chinese composition ends" time="0.03662">
+        </testcase>
+        <testcase classname="src/shell/all-journeys.test.tsx" name="keeps the user&apos;s large text choice on the next page visit" time="0.2983591">
+        </testcase>
+        <testcase classname="src/shell/all-journeys.test.tsx" name="offers a progress view for a paused task instead of promising it can continue" time="0.3629205">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/api/realDataSource.test.ts" timestamp="2026-10-27T11:18:05.800Z" hostname="ErwinWu" tests="4" failures="0" errors="0" skipped="0" time="0.0194487">
+        <testcase classname="src/shell/api/realDataSource.test.ts" name="real shell data source &gt; restores confirmation and verification records in server creation order" time="0.0075549">
+        </testcase>
+        <testcase classname="src/shell/api/realDataSource.test.ts" name="real shell data source &gt; loads server-owned confirmation and verification history through F39" time="0.0069275">
+        </testcase>
+        <testcase classname="src/shell/api/realDataSource.test.ts" name="real shell data source &gt; preserves the server ownership denial instead of falling back to local history" time="0.0028631">
+        </testcase>
+        <testcase classname="src/shell/api/realDataSource.test.ts" name="real shell data source &gt; sends mutations to the existing task with caller-provided idempotency ids" time="0.000957">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/birthday-ui.test.tsx" timestamp="2026-10-27T11:18:05.802Z" hostname="ErwinWu" tests="23" failures="0" errors="0" skipped="0" time="1.9507106">
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="answers a server-published confirmation option through F10 and swaps in the returned card" time="0.449449">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="answers the same published option on a verification card without asking for a code" time="0.1350618">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="explains next to the published options what the edit option can and cannot do" time="0.1481919">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="replays one F10 request after a dependency failure and never turns it into a message" time="0.1005392">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="shows the server&apos;s own reason verbatim and adds a refresh step only when it is missing" time="0.1302128">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="reads orders, payment state and bank amounts from the birthday steps only" time="0.0294945">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="keeps unknown birthday facts as 待核实 without filling zero or 已办结" time="0.0099814">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="presents a stopped birthday plan as no new work plus the bank receipts" time="0.0153562">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="shows the adopted personal budget with its version and facts time, and a candidate apart" time="0.0305908">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="takes a typed quantity as a positive integer and leaves the refusal to the server" time="0.1346633">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="renders the parked retired state from the server menu without claiming an outcome" time="0.0427407">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="collects delivery facts in a dedicated form instead of the generic text box" time="0.056738">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="continues only the interaction that issued the reference" time="0.0239207">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="shows the approved refill note and one required sentence per blank delivery field" time="0.0421624">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="stops at the first blank field, names it and keeps the rest untouched" time="0.0361492">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="sends the delivery facts only to F36, then continues F10 with the reference" time="0.0910236">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="shows the server mask and continues the same F10 reference when the first handoff fails" time="0.0922909">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="asks for the form again only when the server cannot resolve the reference" time="0.0614991">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="keeps the F36 reference and mask in memory only, never in web storage" time="0.0625204">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="asks for the delivery facts again after a reload instead of reusing the reference" time="0.0839487">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="clears the form when F36 answers, so a dropped reference returns to empty boxes" time="0.0458506">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="drops the reference on a stale interaction and follows the replaced snapshot" time="0.0469266">
+        </testcase>
+        <testcase classname="src/shell/birthday-ui.test.tsx" name="does not carry the reference into another session" time="0.0795226">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/business-cards.test.tsx" timestamp="2026-10-27T11:18:05.807Z" hostname="ErwinWu" tests="6" failures="0" errors="0" skipped="0" time="0.9311954">
+        <testcase classname="src/shell/business-cards.test.tsx" name="keeps the full subscription explanation available without duplicating it above the cards" time="0.1029758">
+        </testcase>
+        <testcase classname="src/shell/business-cards.test.tsx" name="groups subscriptions and binds the clicked row, with no action on suspected or cancelled rows" time="0.4649288">
+        </testcase>
+        <testcase classname="src/shell/business-cards.test.tsx" name="disables stale-session or busy controls and renders only the bank balance and masked account" time="0.1097102">
+        </testcase>
+        <testcase classname="src/shell/business-cards.test.tsx" name="passes the chosen bill category without generating a chat prompt" time="0.1253018">
+        </testcase>
+        <testcase classname="src/shell/business-cards.test.tsx" name="retries a lost card response with the same id, adds the child module and deduplicates subsequent clicks" time="0.1192045">
+        </testcase>
+        <testcase classname="src/shell/business-cards.test.tsx" name="uses the card action endpoint with exact source and selection" time="0.0048341">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/cards-remediation.test.tsx" timestamp="2026-10-27T11:18:05.808Z" hostname="ErwinWu" tests="6" failures="0" errors="0" skipped="0" time="0.6946705">
+        <testcase classname="src/shell/cards-remediation.test.tsx" name="offers a labelled amount form, preserves a rejected value and then continues the same step" time="0.1667781">
+        </testcase>
+        <testcase classname="src/shell/cards-remediation.test.tsx" name="keeps ordinary rejected message text available to correct" time="0.0418203">
+        </testcase>
+        <testcase classname="src/shell/cards-remediation.test.tsx" name="keeps waiting beyond fifteen seconds and exposes a real processing error" time="0.0936816">
+        </testcase>
+        <testcase classname="src/shell/cards-remediation.test.tsx" name="retries a failed input with its original request id and never sends it as a new message" time="0.0950373">
+        </testcase>
+        <testcase classname="src/shell/cards-remediation.test.tsx" name="ends the old pending wait when the session expires and can reenter" time="0.0936559">
+        </testcase>
+        <testcase classname="src/shell/cards-remediation.test.tsx" name="keeps a new confirmation received via SSE before the draft HTTP response" time="0.2022652">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/conversation-layout.test.tsx" timestamp="2026-10-27T11:18:05.809Z" hostname="ErwinWu" tests="7" failures="0" errors="0" skipped="0" time="0.877419">
+        <testcase classname="src/shell/conversation-layout.test.tsx" name="shows every reply, keeps one task card after the latest related reply, and nests explicit children" time="0.0129624">
+        </testcase>
+        <testcase classname="src/shell/conversation-layout.test.tsx" name="folds old results but keeps pending and failed child work visible" time="0.1820982">
+        </testcase>
+        <testcase classname="src/shell/conversation-layout.test.tsx" name="reuses persisted card relationships after refresh without creating another child" time="0.1638341">
+        </testcase>
+        <testcase classname="src/shell/conversation-layout.test.tsx" name="opens a restored subscription confirmation in the selected row without a new action" time="0.0606502">
+        </testcase>
+        <testcase classname="src/shell/conversation-layout.test.tsx" name="opens long details in a dialog and returns focus to the same trigger after closing" time="0.1889134">
+        </testcase>
+        <testcase classname="src/shell/conversation-layout.test.tsx" name="keeps category, direction and bank amount available in an unfiltered transaction list" time="0.0157921">
+        </testcase>
+        <testcase classname="src/shell/conversation-layout.test.tsx" name="keeps a fourth-row pending check visible after closing its drawer" time="0.2517063">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/cross-plan.test.tsx" timestamp="2026-10-27T11:18:05.810Z" hostname="ErwinWu" tests="11" failures="0" errors="0" skipped="0" time="1.0086037">
+        <testcase classname="src/shell/cross-plan.test.tsx" name="renders the adopted plan from the server payload and nests the current child card" time="0.2043854">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="uses the server message as the receipt and the stop reason for a stopped plan" time="0.0614751">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="keeps an already stopped plan&apos;s own stop note when the server also sends a receipt" time="0.037917">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="removes cancellation from a stopped plan even when its last action list still includes cancel" time="0.1136647">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="shows the arrangement facts only when the server sends them" time="0.0808061">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="does not add a standalone record for a cross parent&apos;s child tasks" time="0.0007142">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="loads children from the API and renders the child&apos;s confirmation inside the plan" time="0.2307691">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="reads a parent&apos;s children from the documented endpoint" time="0.0037232">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="takes a typed answer on a cross menu and sends it as the module&apos;s text answer" time="0.1550319">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="does not put a text box on a cross menu that already offers enough choices" time="0.0426853">
+        </testcase>
+        <testcase classname="src/shell/cross-plan.test.tsx" name="never marks a step as current when the server sends no interaction id" time="0.0753425">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/design-system.test.tsx" timestamp="2026-10-27T11:18:05.812Z" hostname="ErwinWu" tests="5" failures="0" errors="0" skipped="0" time="1.4239261">
+        <testcase classname="src/shell/design-system.test.tsx" name="closes details with Escape and returns focus at 390 px" time="0.4722348">
+        </testcase>
+        <testcase classname="src/shell/design-system.test.tsx" name="closes details with Escape and returns focus at 1280 px" time="0.1218296">
+        </testcase>
+        <testcase classname="src/shell/design-system.test.tsx" name="announces only a known percentage and leaves unknown progress indeterminate" time="0.0570861">
+        </testcase>
+        <testcase classname="src/shell/design-system.test.tsx" name="keeps services reachable and blocks new requests while a message is pending" time="0.2853769">
+        </testcase>
+        <testcase classname="src/shell/design-system.test.tsx" name="retains amount when the example payee changes and leaves a readable review" time="0.4858643">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/guided-experience.test.tsx" timestamp="2026-10-27T11:18:05.813Z" hostname="ErwinWu" tests="10" failures="0" errors="0" skipped="0" time="1.4862983">
+        <testcase classname="src/shell/guided-experience.test.tsx" name="shows masked choices and updates the same draft without sending a chat message" time="0.3635203">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="keeps draft facts visible when discovery fails and lets the user retry" time="0.159007">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="follows requested fields while a payee is not yet bank-verified" time="0.118917">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="retains draft facts and edit actions beside ambiguous payee choices" time="0.1318723">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="always sends a question to chat while a transfer is waiting for a recipient" time="0.3580688">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="reports a failed status refresh rather than silently swallowing it" time="0.0797062">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="does not report a bank-level draft rejection as a successful edit" time="0.0753693">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="keeps repeated refreshes and their pending children in a single root record" time="0.0008065">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="queries the new month instead of reopening the previous month&apos;s cached category" time="0.1967195">
+        </testcase>
+        <testcase classname="src/shell/guided-experience.test.tsx" name="labels full-month ranges with their inclusive calendar dates" time="0.0006155">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/shell.test.tsx" timestamp="2026-10-27T11:18:05.815Z" hostname="ErwinWu" tests="13" failures="0" errors="0" skipped="0" time="6.4625693">
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; walks confirm → code → admin face → waiting → result and keeps finished cards read-only" time="1.6945274">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; sends one confirmation answer even when the button is clicked twice" time="0.3948906">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; edits the original draft and shows a fresh confirmation without cancelling or sending a prompt" time="0.5675646">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; keeps the editable form and original confirmation when the draft update fails" time="0.4521828">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; refreshes after a 409 and keeps a expired confirmation read-only without resubmitting" time="0.3428295">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; refreshes after a 409 and keeps a superseded confirmation read-only without resubmitting" time="0.3268376">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; ends the task without a result when the medium-risk code is wrong" time="0.4394084">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; asks before continuing after a refresh and restores history without a new submission" time="0.4504655">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; shows needs_attention with a query-only entry and resolves it from the original operation" time="0.6019425">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; locks old buttons when the demo login expires and re-confirms after re-entering" time="0.5334851">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; refuses a verification code typed into the chat" time="0.0798837">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; only lets the separate admin entry answer a started face check" time="0.5529802">
+        </testcase>
+        <testcase classname="src/shell/shell.test.tsx" name="v0.4 shell with stub data &gt; falls back to the generic slot for an unknown module and mounts under /v04 only" time="0.0239537">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/slots/billsSlot.test.tsx" timestamp="2026-10-27T11:18:05.817Z" hostname="ErwinWu" tests="4" failures="0" errors="0" skipped="0" time="0.4633134">
+        <testcase classname="src/shell/slots/billsSlot.test.tsx" name="bills slot &gt; shows a report from the returned summary and spoken text, without a transaction list" time="0.3842094">
+        </testcase>
+        <testcase classname="src/shell/slots/billsSlot.test.tsx" name="bills slot &gt; keeps the demo banner when the same report is not from the real API" time="0.0735372">
+        </testcase>
+        <testcase classname="src/shell/slots/billsSlot.test.tsx" name="bills slot &gt; shows summary, detail and anomaly text returned by the server" time="0.0030576">
+        </testcase>
+        <testcase classname="src/shell/slots/billsSlot.test.tsx" name="bills slot &gt; does not invent an amount when the query fails" time="0.0003764">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shell/useConversation.recovery.test.tsx" timestamp="2026-10-27T11:18:05.818Z" hostname="ErwinWu" tests="9" failures="0" errors="0" skipped="0" time="1.33965">
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; reads a missed reply without resending the accepted message" time="0.0339434">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; clears only its polling error when a persisted failure reply arrives" time="0.0039246">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; keeps the page usable when one task history request fails" time="0.4279252">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; merges confirmation history when the thread reconnects" time="0.1309227">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; does not stack another history reload while one reconnect is still reading records" time="0.369805">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; shows the backend&apos;s Chinese explanation instead of raw recovery codes" time="0.1168372">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; keeps a safety-paused task paused after viewing restored records" time="0.194641">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="shell recovery from server records &gt; falls back to the error reason when a recovery task has no message copy" time="0.0592426">
+        </testcase>
+        <testcase classname="src/shell/useConversation.recovery.test.tsx" name="real-api admin entry &gt; switches the administrator host and reuses the shared API mode" time="0.0006998">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/ui-recovery.test.tsx" timestamp="2026-10-27T11:18:05.820Z" hostname="ErwinWu" tests="14" failures="0" errors="0" skipped="0" time="1.2145895">
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; submits a code once while waiting and queries after a lost response without replaying it" time="0.2399599">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; clears entered codes and demo hints when a new challenge replaces the old one" time="0.0789907">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; ignores a delayed demo code from a previous challenge" time="0.0901618">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; keeps delayed history from a previous thread out of the selected conversation" time="0.1222594">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; allows editing a definitively rejected chat message" time="0.1251661">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; loads remaining pages with the server cursor" time="0.0009849">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; refreshes the same verification challenge when the task snapshot changes" time="0.0168227">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; retries an unknown chat send only in its original thread with the same request id" time="0.3032875">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; offers explicit resume for a server-marked recovery task and keeps old verification actions disabled" time="0.0764252">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; does not offer modify when the server permits confirmation but not cancellation" time="0.0225101">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; keeps an approved confirmation visible as a read-only record during verification" time="0.0889939">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; shows actionable insufficient-funds guidance without claiming submission" time="0.0243864">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; shows a terminal anti-fraud warning with no continuation action" time="0.0189467">
+        </testcase>
+        <testcase classname="src/ui-recovery.test.tsx" name="recovery and retry controls &gt; shows readable Chinese recovery copy instead of the raw recovery code" time="0.0036872">
+        </testcase>
+    </testsuite>
+</testsuites>

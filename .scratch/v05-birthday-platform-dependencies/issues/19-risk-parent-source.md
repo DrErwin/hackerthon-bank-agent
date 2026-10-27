@@ -1,7 +1,7 @@
 # 19：转账风险输入补可信父原话和受控跟进
 
 Ticket ID: v05-birthday-platform-dependencies/19
-Package: [生日及跨场景联动平台](../../v05-cross-linkage/packages/03-platform.md)
+Package: [生日及跨场景联动平台](../../v05-cross-linkage/packages/01-platform-bank.md)
 Spec: [可信父风险来源](../risk-parent-source-19.md)
 Type: 开发
 Owner: Erwin；root 按用户完成非比赛资料任务授权顺序实施
