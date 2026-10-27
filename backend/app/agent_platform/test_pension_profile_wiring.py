@@ -10,14 +10,14 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 import pytest
 
 from app.api.app import ApiConfig, create_app
-from app.api.test_app import approve, enter, post, start
+from app.api.test_app import approve, post, start
 from app.contracts.common import Phase, RiskLevel
 from app.contracts.platform import TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext
 from app.modules.transfer.manifest import PRIVATE_TOOLS
 from app.security.gate import RiskFactsUnavailable
 from app.storage.database import connect, transaction
-from .local_demo import LocalDemoConfig, build_runtime, create_local_app, load_config
+from .local_demo import build_runtime, create_local_app, load_config
 from .risk_conversation import RiskConversation
 from .risk_inputs import TrustedRiskInputs
 from .test_local_demo import ConnectorTestModel, app_for, configuration
@@ -403,7 +403,8 @@ def test_p01_two_medium_transfers_confirm_verify_and_restart_without_duplicate_m
             saved = client.get(f"/api/v1/tasks/{first['task_id']}").json()["data"]
             assert saved["data"]["operation_id"] == original_op
             assert saved["data"]["operation"]["receipt"] == done_first["data"]["operation"]["receipt"]
-            queried = post(client, f"/tasks/{first['task_id']}/query-result")
+            assert post(client, f"/tasks/{first['task_id']}/query-result").status_code == 409
+            queried = client.get(f"/api/v1/tasks/{first['task_id']}")
             assert queried.status_code == 200, queried.text
             assert queried.json()["data"]["data"]["operation_id"] == original_op
             assert len(bank_writes(restarted)) == 1
