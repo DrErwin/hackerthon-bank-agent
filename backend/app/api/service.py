@@ -248,12 +248,14 @@ class ApiService:
         # The supported demo deployment uses one ASGI worker. Harness also locks
         # individual tasks across processes; this lock spans API validation + dispatch.
         self.mutation_lock = RLock()
+        from .demo_management import DemoManagement
+        self.demo = DemoManagement(self)
 
     def cookie(self, session_id):
         signature = hmac.new(self.config.secret, session_id.encode(), hashlib.sha256).hexdigest()
         return session_id + "." + signature
 
-    def identity(self, cookie):
+    def identity(self, cookie, *, management=False):
         try:
             session_id, signature = (cookie or "").split(".")
             if not hmac.compare_digest(self.cookie(session_id).encode(), cookie.encode()):
@@ -261,11 +263,13 @@ class ApiService:
         except ValueError:
             raise ApiProblem(401, "AUTH_REQUIRED") from None
         rows = self.store.rows("""SELECT s.*, a.role FROM sessions s JOIN api_sessions a
-            ON s.session_id=a.session_id WHERE s.session_id=? AND s.demo_round_id=?""",
-            (session_id, self.config.demo_round_id))
+            ON s.session_id=a.session_id WHERE s.session_id=?""", (session_id,))
         if not rows or datetime.fromisoformat(rows[0]["expires_at"]) <= now():
             raise ApiProblem(401, "AUTH_REQUIRED")
         row = rows[0]
+        if (row["demo_round_id"] != self.demo.current_round_id
+                and not (management and row["role"] == "admin")):
+            raise ApiProblem(401, "AUTH_REQUIRED")
         return Identity(row["user_id"], session_id, row["demo_round_id"], row["role"])
 
     def session_view(self, identity):
@@ -282,6 +286,8 @@ class ApiService:
                 raise ApiProblem(403, "ACCESS_DENIED")
             role = "admin"
         user_id = self.config.demo_user_id if role == "user" else self.config.admin_user_id
+        if role == "user":
+            self.demo.require_open()
         try:
             identity = self.identity(cookie)
             if identity.role != role or identity.user_id != user_id:
@@ -289,7 +295,7 @@ class ApiService:
         except ApiProblem as exc:
             if exc.status != 401:
                 raise
-            identity = Identity(user_id, str(uuid4()), self.config.demo_round_id, role)
+            identity = Identity(user_id, str(uuid4()), self.demo.current_round_id, role)
         previous = self.store.receipt(identity, "/session/enter", request_id, {"role": role})
         if previous:
             identity = self.identity(self.cookie(previous["session_id"]))
@@ -1988,7 +1994,10 @@ class ApiService:
         def authorize(viewer, action, target_round, target):
             try:
                 current = self.identity(self.cookie(viewer.session_id))
-                if current.role != "admin" or target_round != current.demo_round_id:
+                if current.role != "admin":
+                    return False
+                if target_round != current.demo_round_id and (
+                        action == "export" or not self.demo.owns_historical_round(current.user_id, target_round)):
                     return False
                 if action in {"list", "export"}:
                     # A round-wide audit export has no task filter; a task-scoped read or
