@@ -1351,11 +1351,17 @@ class AgentHarness:
             result = None
             completed_scope = None
             checkpoint_id = None
+            budget_source = None
+            publication = None
             try:
                 result = entry.resume(trusted, response, thread_id=task.checkpoint_thread_id)
                 self._check_result_scope(result, trusted)
+                budget_source = self.budget_inputs.publication_source(trusted)
                 if transition is not None:
-                    publication = transition.publish(result)
+                    publication = (transition.publish(result, source_revision=budget_source.revision)
+                                   if budget_source is not None else transition.publish(result))
+                    if publication is not None and budget_source is not None:
+                        result = publication.result
                     checkpoint_id = (
                         publication.published_ref.checkpoint_id
                         if publication is not None else task.checkpoint_id)
@@ -1427,7 +1433,8 @@ class AgentHarness:
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 current.revision, trusted.run_id, result.status, checkpoint_id,
-                {**self.budget_inputs.completed_snapshot(current, trusted, result, entry),
+                {**self.budget_inputs.completed_snapshot(current, trusted, result, entry,
+                    source=budget_source, publication=publication),
                  "result": result.model_dump(mode="json"),
                  "completed_bill_scope": completed_scope},
             )

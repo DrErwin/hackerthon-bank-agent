@@ -1161,10 +1161,21 @@ class BirthdayHandoff:
             return self._read_published_source(trusted, published)
         return read
 
+    def published_saver(self, trusted, base_saver, *, publication=None):
+        """Read an owned sealed source, including an original historical winner."""
+        if publication is None:
+            read = self._published_reader(trusted)
+        else:
+            source = {**_ref_dict(publication.published_ref),
+                      "content_digest": publication.content_digest}
+            read = lambda: self._read_published_source(trusted, source)
+        return _BufferedCheckpointSaver(base_saver, read, trusted.task_id)
+
     def publish_transition(self, trusted: TrustedContext, *, kind: str,
                            digest: str, conversion: dict | None,
                            buffer: "_BufferedContent | None",
-                           result: ModuleResult) -> PublicationOutcome | None:
+                           result: ModuleResult,
+                           source_revision: int | None = None) -> PublicationOutcome | None:
         if kind == _ROOT and not _publishable_initial(result):
             # N1: a non-publishable initial conversion is not an error. No root
             # is published; the existing failure/"pending verification" result
@@ -1174,6 +1185,8 @@ class BirthdayHandoff:
             raise BirthdayEditError("CANDIDATE_INVALID",
                                     "the cross entry produced no candidate content")
         task = self._task(trusted)
+        if source_revision is not None and task.revision != source_revision:
+            raise BirthdayEditError("PUBLISH_CONFLICT", "the dedicated input source changed")
         snapshot = task.snapshot or {}
         g3 = snapshot.get("birthday_g3") or {}
         edit = snapshot.get("birthday_edit")
@@ -1290,13 +1303,10 @@ class BirthdayTransition:
         return self._kind
 
     def attach(self, base_saver) -> "_BufferedCheckpointSaver":
-        self._saver = _BufferedCheckpointSaver(
-            base_saver, self._handoff._published_reader(self._trusted),
-            self._trusted.task_id,
-        )
+        self._saver = self._handoff.published_saver(self._trusted, base_saver)
         return self._saver
 
-    def publish(self, result: ModuleResult) -> PublicationOutcome | None:
+    def publish(self, result: ModuleResult, *, source_revision: int | None = None) -> PublicationOutcome | None:
         if self.replayed is not None:
             return self.replayed
         if self._kind == _ROOT and not _publishable_initial(result):
@@ -1310,7 +1320,7 @@ class BirthdayTransition:
         return self._handoff.publish_transition(
             self._trusted, kind=self._kind, digest=self._digest,
             conversion=self._conversion, buffer=self._saver.buffer,
-            result=result,
+            result=result, source_revision=source_revision,
         )
 
     def interrupted_snapshot(self, task, result: ModuleResult | None) -> dict:

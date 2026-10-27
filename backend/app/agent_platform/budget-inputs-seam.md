@@ -15,6 +15,12 @@
 
 来源写入一次CAS，dispatch_task_revision=accepted_task_revision+1；写入失败不调用模块。调用前再核对同一原候选与版本。模块正常结果与该来源的completed/completion在同一次原结果CAS保存；外部API receipt丢失时重放冻结结果，不读取当前新计划作为原响应。所有原字段重试不重签。
 
+G3生日路径（平台18）在模块返回后、G3预留前再次核验原dispatch版本与完整候选；G3预留CAS绑定该实际来源版本。G3自身发布后，completion只接受同调用的原来源与真实publication回执，当前版本/完整引用/内容摘要必须仍等于该winner，不刷新dispatch版本。内部G3输入关联使用服务端origin UUID，客户端input_request_id仍原样保存，不与普通F10同号publication混用。
+
+G3已经发布而completion中断时，原请求只读取该origin关联的封存winner；G3私有pending只由原会话/原受理沿原CAS收尾，不重新运行Cross或adopt。旧关联缺少origin关联时，沿已经封存的精确G3源让Cross只读核实原attempt与真实预算事实，绝不读default/latest。历史补completion保留当前计划/终态，原publication版本来自真实回执；没有可证明winner的已采用断点失败关闭，不重新激活来源。真实新库G3采用与这些边界由`test_budget_input_g3.py`覆盖，不代替Cross09完整会话恢复验收。
+
+当前专用调用的origin在completion前必须仍完整且accepted；外部CAS将其失效或移除时同样拒绝，不能通过跳过accepted循环或空记录早返回来覆盖较新的任务结果。
+
 ## API02调用样例
 
 以下仅示意专用预算分支；API02仍须保留原Cookie/同源/链接/交互/receipt参数摘要检查，以及text和option互斥检查。当前本票未修改API。
