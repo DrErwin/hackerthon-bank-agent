@@ -30,6 +30,7 @@ from app.storage.mock_bank.repository import BankAccount, MockBankStore
 from . import subscriptions
 from .birthday import BIRTHDAY_RECEIPTS, MockBirthdayBank
 from .flow_seeds import build_flow_rows, shift_months
+from .management import MockBankDemo, current_demo_round_id
 from .verification import MockBankVerification
 
 
@@ -127,6 +128,25 @@ class MockBankService:
                 ))
         self.verification = MockBankVerification(store.path, demo_secret)
         self.birthday = MockBirthdayBank(store, clock=self.clock, slow_seconds=slow_seconds)
+        self.demo = MockBankDemo(store.path, clock=self.clock, clear_faults=self._clear_demo_faults)
+
+    @property
+    def current_demo_round_id(self) -> str | None:
+        return current_demo_round_id(self.store.path)
+
+    def reset_demo(self, admin, management_operation_id: str, source_round_id: str,
+                   target_round_id: str, initial_logical_at: datetime):
+        """B26 internal management entry; never an ordinary Agent capability."""
+        return self.demo.reset_demo(admin, management_operation_id, source_round_id,
+                                    target_round_id, initial_logical_at)
+
+    def get_demo_management_operation(self, admin, management_operation_id: str):
+        return self.demo.get_operation(admin, management_operation_id)
+
+    def _clear_demo_faults(self) -> None:
+        with self._slow_lock:
+            self._slow_once.clear()
+        self.birthday.clear_demo_faults()
 
     def _refuse_roundless_objects(self) -> None:
         """Refuse objects written without a demo round.
@@ -484,6 +504,8 @@ class MockBankService:
     def submit_transfer(self, context: TrustedContext, operation_id: UUID,
                         payer_account_id: str, payee, amount_fen: int):
         user_id = context.user_id
+        if self.current_demo_round_id not in (None, context.demo_round_id):
+            return _error("ACCESS_DENIED")
         if operation_id.version != 4:
             return _error("INVALID_ARGUMENT", field="operation_id", reason="UUID v4 required")
         if not self._reserve_scope(context, operation_id):
@@ -609,6 +631,8 @@ class MockBankService:
 
     def cancel_subscription(self, context: TrustedContext, operation_id: UUID, mandate_id: str):
         """B30: stop the next and later debits of one active mandate of this user."""
+        if self.current_demo_round_id not in (None, context.demo_round_id):
+            return _error("ACCESS_DENIED")
         user_id = context.user_id
         if not isinstance(operation_id, UUID) or operation_id.version != 4:
             return _error("INVALID_ARGUMENT", field="operation_id", reason="UUID v4 required")

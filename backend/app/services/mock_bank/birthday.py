@@ -23,6 +23,8 @@ from app.storage.mock_bank.repository import (
     FreezeCapture, FreezeOpening, FreezeRelease, MockBankStore, OrderCreation,
 )
 
+from .management import current_demo_round_id
+
 
 def _error(code: str, **details) -> QueryFailure:
     return QueryFailure(kind="error", error=BankError(code=code, details=details))
@@ -76,6 +78,10 @@ class MockBirthdayBank:
         with self._fault_lock:
             self._response_loss.add(user_id)
 
+    def clear_demo_faults(self) -> None:
+        with self._fault_lock:
+            self._response_loss.clear()
+
     def _after_write(self, user_id: str, result):
         with self._fault_lock:
             if user_id in self._response_loss:
@@ -86,6 +92,8 @@ class MockBirthdayBank:
     # --- shared write plumbing ---
 
     def _prepare(self, context: TrustedContext, operation_id: UUID):
+        if current_demo_round_id(self.store.path) not in (None, context.demo_round_id):
+            return _error("ACCESS_DENIED")
         if operation_id.version != 4:
             return _error("INVALID_ARGUMENT", field="operation_id", reason="UUID v4 required")
         if not self._reserve_scope(context, operation_id):
