@@ -2,6 +2,14 @@
 
 归属：底座（Erwin）。本目录只接公开能力，不访问转账私有工具或银行规则。
 
+## 生日会话恢复的原尝试证明（v05-birthday-platform-dependencies/13）
+
+敏感卡发布时，平台在原 G3 严格 CAS 所封存的私有 metadata 中保存 action/option 摘要，仅含 hash，不把配送原文加入 Cross checkpoint。新会话迁移前固定该已发布来源，迁移后、Cross 恢复回调之前消费安全330的同事务校验与真实银行原挑战退役证明；安全受理/封存使用真实UTC。只有 sealed 后才用一个 task CAS 关联唯一新attempt并保留原history。已有claim、真实active冻结或银行无法证明未提交时，仅保留原号观察，不制造新attempt或改旧授权。
+
+Cross 消费只读 `ports.session_recovery_status(trusted)`（同能力也由 `birthday.handoff.session_recovery_status` 提供）：返回 `None` 或 `{status: fresh|observe, original_operation_id, action_name, action_revision, replacement_operation_id}`。fresh 的 replacement 是唯一新动作，必须新确认/验证；observe 的 replacement 为None。它不返回参数/配送资料，也不使 Cross 获得修改证明的权限。
+
+**历史边界**：旧敏感源缺少封存摘要，或当前参数不匹配当时已发布摘要时明确 `SOURCE_UNAVAILABLE`，不从当前可变快照补真。因此这类旧任务不能自动跨会话恢复，原历史保留。非敏感G3/legacy边界保持。Cross09仍须另票接入自己的恢复SOP；当前缓存旧卡继续拒绝，不能将本提供方通过写作完整会话闭环。
+
 ## 演示重置的时间与轮次（v05-birthday-platform-dependencies/12）
 
 `local_demo.build_runtime` 公开 `runtime.bank` 与 `runtime.set_demo_clock(at)`。银行业务、账单、订阅、联动共享可变业务时钟；确认、验证码/人脸有效期、安全记录和网络等待仍按真实时钟。未装配业务时钟的通用 `TransferRuntime` 调用 setter 时明确报 `DEMO_CLOCK_UNAVAILABLE`。

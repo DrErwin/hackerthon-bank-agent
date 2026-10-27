@@ -896,6 +896,7 @@ class AgentHarness:
 
             g3 = (task.snapshot or {}).get("birthday_g3") or {}
             recovery_conversion = None
+            birthday_source = None
             if g3:
                 if self.birthday_handoff is None:
                     raise PermissionError("DEPENDENCY_UNAVAILABLE")
@@ -910,7 +911,7 @@ class AgentHarness:
                 # Recovery is a new publication from the exact sealed source,
                 # never a copy through the legacy latest namespace. Validate
                 # before changing either session ownership or its marker.
-                self.birthday_handoff.check_session_recovery(
+                birthday_source = self.birthday_handoff.check_session_recovery(
                     trusted, recovery_conversion)
 
             if marker_matches:
@@ -940,6 +941,8 @@ class AgentHarness:
                     "expected_revision": task.revision + 1,
                     "phase": "prepared",
                 }
+                if recovery_conversion is not None:
+                    marker["birthday_source"] = birthday_source
                 snapshot = {**task.snapshot, "session_recovery": marker}
                 task = self.application.update_task(
                     trusted.user_id, trusted.demo_round_id, trusted.task_id,
@@ -956,6 +959,8 @@ class AgentHarness:
 
             if marker.get("phase") != "transitioned":
                 marker = {**marker, "phase": "transitioned"}
+                if recovery_conversion is not None:
+                    marker["transitioned_revision"] = task.revision + 1
                 snapshot = {**task.snapshot, "session_recovery": marker}
                 task = self.application.update_task(
                     trusted.user_id, trusted.demo_round_id, trusted.task_id,
@@ -975,6 +980,10 @@ class AgentHarness:
                 saver = transition.attach(saver)
             entry = registration.factory(trusted, saver, trace)
             try:
+                if recovery_conversion is not None:
+                    self.birthday_handoff._prepare_session_recovery(trusted, birthday_source)
+                    task = self.application.get_task(
+                        trusted.user_id, trusted.demo_round_id, trusted.task_id)
                 checkpoint_context = entry.checkpoint_context(
                     trusted, thread_id=task.checkpoint_thread_id,
                 )
