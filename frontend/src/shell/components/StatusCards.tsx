@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { InteractionRequest } from "../../contracts";
 import type { DataOrigin, DisplayField, ReportView, ResultView } from "../types";
 import { Card, FieldList, OriginTag, ReadOnlyStamp, Spinner, StatusBadge } from "./Primitives";
@@ -39,6 +39,8 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
   id: string;
 }) {
   const [text, setText] = useState("");
+  const [quantityError, setQuantityError] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const field = interaction.required_fields.length === 1 ? interaction.required_fields[0] : "";
   const labels: Record<string, string> = {
     amount_fen: "转账金额（元）", payee_hint: "收款人姓名或备注",
@@ -67,13 +69,19 @@ export function InputCard({ interaction, active, busy, selectedLabel, onSelect, 
           {typingLabel && onSubmitText && (
             <form className="sh-modify" onSubmit={async (event) => {
               event.preventDefault();
-              if (!ready || busy) return;
+              if (busy) return;
+              if (!ready) {
+                if (numeric) { setQuantityError(true); inputRef.current?.focus(); }
+                return;
+              }
               if (await onSubmitText(text)) setText("");
             }}>
               <label htmlFor={id + "-input"}>{typingLabel}</label>
-              <Input id={id + "-input"} value={text} onChange={(event) => setText(event.target.value)}
+              <Input ref={inputRef} id={id + "-input"} value={text} onChange={(event) => { setText(event.target.value); setQuantityError(false); }}
+                aria-invalid={quantityError} aria-describedby={quantityError ? id + "-error" : undefined}
                 inputMode={numeric ? "numeric" : field === "amount_fen" ? "decimal" : "text"} autoComplete="off" disabled={busy} required />
-              <Button disabled={busy || !ready}>{busy ? "正在更新…" : textLabel ? "填好了，继续" : "补充并继续"}</Button>
+              {quantityError && <p id={id + "-error"} role="alert" className="sh-inline-error">数量要填大于零的整数，例如 2。</p>}
+              <Button disabled={busy || (!numeric && !ready)}>{busy ? "正在更新…" : textLabel ? "填好了，继续" : "补充并继续"}</Button>
             </form>
           )}
           {typingLabel && <p className="sh-hint">也可以在下方对话框里告诉我。</p>}

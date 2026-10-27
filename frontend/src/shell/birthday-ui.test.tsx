@@ -441,9 +441,21 @@ it("takes a typed quantity as a positive integer and leaves the refusal to the s
   expect(input.getAttribute("inputmode")).toBe("numeric");
   expect(document.body.textContent).not.toContain("例如 1500");
 
-  fireEvent.change(input, { target: { value: "0" } });
-  expect(screen.getByRole("button", { name: "填好了，继续" }).hasAttribute("disabled")).toBe(true);
+  for (const invalid of ["0", "1.5"]) {
+    fireEvent.change(input, { target: { value: invalid } });
+    const submit = screen.getByRole("button", { name: "填好了，继续" });
+    expect(submit.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(submit);
+    const error = screen.getByRole("alert");
+    expect(error.textContent).toBe("数量要填大于零的整数，例如 2。");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("aria-describedby")).toBe(error.id);
+    expect(document.activeElement).toBe(input);
+    expect(accept).not.toHaveBeenCalled();
+  }
   fireEvent.change(input, { target: { value: "2" } });
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(input.getAttribute("aria-invalid")).toBe("false");
   const submit = screen.getByRole("button", { name: "填好了，继续" });
   expect(submit.hasAttribute("disabled")).toBe(false);
   await act(async () => { fireEvent.click(submit); });
