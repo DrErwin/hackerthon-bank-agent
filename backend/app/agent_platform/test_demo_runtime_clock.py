@@ -2,16 +2,22 @@
 
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 import pytest
 
 from app.api.test_app import approve, start
+from app.audit.journal import AuditReader, AuditViewer
+from app.contracts.common import TaskStatus
 from app.contracts.platform import TrustedContext
 from app.memory.adapter import MemoryContext
 from app.services.mock_bank.verification import AdminContext
 
+from .birthday_edit import EDIT_OPTION_LABEL
 from .local_demo import build_runtime
+from .test_birthday_harness_publication import harness_env
+from .test_birthday_runtime_wiring import DELIVERY_REF, approve_confirmation, option_id
 from .test_local_demo import ConnectorTestModel, app_for, configuration
 
 
@@ -106,3 +112,43 @@ def test_business_time_does_not_expire_or_extend_security_waits(tmp_path, monkey
         monkeypatch.setattr(runtime.bank.verification, "clock",
                             lambda: challenge.code_expires_at + timedelta(seconds=1))
         assert runtime.bank.verification.get_verification(who, challenge_ref).code_result == "expired"
+
+
+@pytest.mark.parametrize("business_at", [INITIAL, INITIAL - timedelta(days=8000)],
+                         ids=["forward", "backward"])
+def test_controlled_edit_retirement_and_audit_use_real_time(harness_env, business_at):
+    env = harness_env
+    env.runtime.set_demo_clock(business_at)
+    current = env.start()
+    for text in ("500元", (business_at + timedelta(days=3)).date().isoformat(), DELIVERY_REF):
+        current = env.resume({"text": text})
+    for choice in ("鲜花", "蛋糕", "就选这些", "采用并开始办理"):
+        current = env.resume({"selected_option_id": option_id(current, choice)})
+    assert current.interaction.kind == "confirmation"
+    approve_confirmation(env.runtime, env.who, current.interaction.record_ref)
+    current = env.resume({"choice": "approve"})
+    assert current.interaction.kind == "verification"
+    original = env.snapshot()["birthday_actions"]["freeze"]
+    edit_option = next(option.id for option in current.interaction.options
+                       if option.label == EDIT_OPTION_LABEL)
+
+    before = datetime.now(timezone.utc)
+    outcome = env.runtime.birthday.handoff.begin_birthday_edit(
+        env.who, request_id=uuid4(),
+        interaction_id=current.interaction.interaction_id, option_id=edit_option)
+    after = datetime.now(timezone.utc)
+
+    assert outcome.result.status is TaskStatus.WAITING_INPUT
+    operation_id = UUID(original["operation_id"])
+    context = env.runtime._context(env.who, operation_id, original["action_revision"])
+    retirement = env.runtime.confirmations.state.get_retirement(
+        context, env.who.task_id, operation_id, original["action_revision"])
+    assert retirement.state == "sealed"
+    bank_retired_at = datetime.fromisoformat(retirement.bank_evidence["retired_at"])
+    assert before <= retirement.created_at <= bank_retired_at <= retirement.sealed_at <= after
+    reader = AuditReader(env.runtime.audit, authorize=lambda *_: True)
+    event = reader.detail(AuditViewer("U1", "S1", "D1"), "D1", retirement.audit_ref)
+    assert event.event_type == "security.decided"
+    assert event.timestamp == retirement.sealed_at
+    assert event.payload.decision.checked_at == retirement.sealed_at
+    assert datetime.fromisoformat(env.snapshot()["birthday_edit"]["accepted_at"]) == business_at
