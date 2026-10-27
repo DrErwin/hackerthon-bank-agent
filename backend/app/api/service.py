@@ -336,7 +336,9 @@ class ApiService:
         task = self.runtime.application.get_task(identity.user_id, identity.demo_round_id, task_id)
         return TrustedContext(user_id=identity.user_id, session_id=identity.session_id,
             demo_round_id=identity.demo_round_id, task_id=task_id,
-            run_id=str(uuid4()) if new_run else task.run_id if task else link["run_id"], parent_task_id=None)
+            run_id=str(uuid4()) if new_run else task.run_id if task else link["run_id"],
+            parent_task_id=self.runtime.application.parent_of_task(
+                identity.user_id, identity.demo_round_id, task_id))
 
     @staticmethod
     def _task_module(task):
