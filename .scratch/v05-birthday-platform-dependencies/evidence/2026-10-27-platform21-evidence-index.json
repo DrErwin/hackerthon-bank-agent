@@ -1,6 +1,24 @@
 {
   "entries": [
     {
+      "file": "2026-10-27-platform21-api22-combined-observation.json",
+      "sha256": "c3f16fd7eb5ca732275f663e64c7dbb92a1a3fc596a0eba51b61382a3888641e"
+    },
+    {
+      "file": "2026-10-27-platform21-api22-combined.xml",
+      "sha256": "f6ee2225962533855acbb5c2f8331b50283c327a4c41fdfb74b2e9fd7b404d4d",
+      "testsuite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "6",
+        "time": "53.629",
+        "timestamp": "2026-10-27T19:38:26.236370+08:00",
+        "hostname": "ErwinWu"
+      }
+    },
+    {
       "file": "2026-10-27-platform21-api22-red-observation.json.gz",
       "sha256": "a2d8b401d4f4c62d42c5a8293e0a34003e9b1a321f42addb43a292d72fa6dcc2",
       "original_sha256": "1d648a6c799c13106d6841dbeb5d53d7d3b86556ba8c8c748082fbf91d2a9c5c"

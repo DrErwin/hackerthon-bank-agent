@@ -1,12 +1,13 @@
 # P01：显式演示profile接线与完整跟进来源
 
-Status: in_progress
+Status: developed — 本票局部/广回归及API22脚本模型精确组合通过，待独立两轴/CI与真实模型页面验收
 Owner: Erwin；Codex按中控分派，非真人最终安全接受
 Accepted at: 2026-10-27
 Accepted by: Erwin本轮中控分派，用户明确答复“批准这两笔的限定演示范围，继续完成闭环”
 Directory: backend/app/agent_platform/
 Ticket: [v05-birthday-platform-dependencies/21](issues/21-pension-profile-wiring.md)
 Dependencies: 平台19 [PR #346](https://github.com/DrErwin/hackerthon-bank-agent/pull/346)、安全20 [PR #347](https://github.com/DrErwin/hackerthon-bank-agent/pull/347)，均已合入基线ed1596d5
+Integration dependency: 本票实际集成发现的API22 [PR #350](https://github.com/DrErwin/hackerthon-bank-agent/pull/350)，现已合入ef8f9220，保留原失败证据后准确复验通过
 
 ## Problem Statement / Solution
 
