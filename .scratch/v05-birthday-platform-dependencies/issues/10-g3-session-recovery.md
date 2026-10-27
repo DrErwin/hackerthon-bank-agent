@@ -6,7 +6,7 @@ Spec: [本组规格](../spec.md)，补充规格见下方
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/agent_platform/`
-Status: in_progress
+Status: ready_for_review — provider 实现及平台目录 387 passed / 13 skipped，待中控两轴审查与合入；敏感等待消费方 SOP 另票。
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务的授权及中控委派
 Accepted at: 2026-10-27
 Blocked by: None（既有 G3 封存/发布、Cross 恢复入口和会话迁移已合入）
@@ -28,3 +28,4 @@ API11 所需只读接缝一并交付：`BirthdayHandoff.find_input_conversion(tr
 ## Comments
 
 - 2026-10-27：中控批准本票最小单目录计划；分支 `codex/v05-g3-session-recovery`，基线 `152d61d4`。
+- 2026-10-27：已交 [Draft PR #323](https://github.com/DrErwin/hackerthon-bank-agent/pull/323)；[实际验证与边界](../recovery-10-verification.md)。原输入查询供 API11，敏感卡缓存缺口另交 Cross 消费方，不在平台复制 SOP。
