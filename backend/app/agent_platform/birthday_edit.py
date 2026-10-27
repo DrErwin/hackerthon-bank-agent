@@ -280,11 +280,16 @@ class BirthdayHandoff:
 
     def _read_published_source(self, trusted: TrustedContext, record: dict):
         """Read the exact immutable ref; latest/parent refs are never a fallback."""
-        ref = _ref_from(record, "SOURCE_UNAVAILABLE")
         task = self._task(trusted)
-        if ref.thread_id != task.checkpoint_thread_id:
+        return self._read_source(self._saver(trusted), record,
+                                 task.checkpoint_thread_id)
+
+    @staticmethod
+    def _read_source(saver, record: dict, thread_id: str):
+        ref = _ref_from(record, "SOURCE_UNAVAILABLE")
+        if ref.thread_id != thread_id:
             raise BirthdayEditError("SOURCE_UNAVAILABLE", "source is in another thread")
-        saved = self._saver(trusted).get_tuple({"configurable": {
+        saved = saver.get_tuple({"configurable": {
             "thread_id": ref.thread_id,
             "checkpoint_ns": ref.checkpoint_ns,
             "checkpoint_id": ref.checkpoint_id,
@@ -298,6 +303,71 @@ class BirthdayHandoff:
         if digest != record.get("content_digest"):
             raise BirthdayEditError("SOURCE_UNAVAILABLE", "source content changed")
         return saved
+
+    def check_session_recovery(self, trusted: TrustedContext, conversion: dict):
+        """Check the owned immutable source before moving its session.
+
+        The Harness has authenticated the target session and authorized the
+        capability. The old session may have expired, so this read uses the
+        application's task-scoped saver; it does not open a write path or use
+        the expired session's memory authority.
+        """
+        task = self.runtime.application.get_task(
+            trusted.user_id, trusted.demo_round_id, trusted.task_id)
+        if task is None or task.snapshot.get("capability_name") != _CROSS_CAPABILITY:
+            raise BirthdayEditError("ACCESS_DENIED")
+        g3 = task.snapshot.get("birthday_g3") or {}
+        published = g3.get("published_ref")
+        if not isinstance(published, dict):
+            raise BirthdayEditError("SOURCE_UNAVAILABLE")
+        edit = task.snapshot.get("birthday_edit")
+        if isinstance(edit, dict) and edit.get("published") is None:
+            raise BirthdayEditError("TRANSITION_PENDING")
+        digest = _digest({"kind": _NORMAL,
+                          "conversion": _checked_conversion(conversion)})
+        pending = g3.get("pending")
+        if isinstance(pending, dict) and pending.get("conversion_digest") != digest:
+            raise BirthdayEditError("TRANSITION_PENDING")
+        saver = self.runtime.application.checkpoint_saver(
+            trusted.user_id, trusted.demo_round_id, trusted.task_id)
+        self._read_source(saver, published, task.checkpoint_thread_id)
+
+    def check_recovered_interaction(self, trusted: TrustedContext,
+                                    result: ModuleResult) -> None:
+        """A resumed sensitive card must belong to the authenticated session."""
+        interaction = result.interaction
+        if interaction is None:
+            return
+        try:
+            if interaction.kind == "confirmation":
+                self.runtime.confirmations.get(
+                    self.runtime._context(trusted, None, None),
+                    interaction.record_ref)
+            elif interaction.kind == "verification":
+                self.runtime.gateway.get_verification(
+                    trusted, interaction.record_ref)
+        except (PermissionError, ValueError) as exc:
+            raise BirthdayEditError(
+                "DEPENDENCY_UNAVAILABLE",
+                "the recovered interaction belongs to the old session") from exc
+
+    def find_input_conversion(self, trusted: TrustedContext, request_id: UUID
+                              ) -> PublicationOutcome | Literal["pending"] | None:
+        """Read this F10 input's frozen publication or its pending association.
+
+        API retries still have to match their original request body. Merely
+        having a published birthday task is never proof for another request.
+        """
+        task = self._task(trusted)
+        g3 = task.snapshot.get("birthday_g3") or {}
+        conversion = {"kind": "input", "request_id": str(request_id)}
+        digest = _digest({"kind": _NORMAL, "conversion": conversion})
+        pending = g3.get("pending")
+        if (isinstance(pending, dict)
+                and pending.get("kind") == _NORMAL
+                and pending.get("conversion_digest") == digest):
+            return "pending"
+        return _completed_publication(g3, digest)
 
     # ------------------------------------------------------- published edit option
 
@@ -986,6 +1056,29 @@ class BirthdayHandoff:
             if isinstance(pending, dict) and pending.get("conversion_digest") != digest:
                 raise BirthdayEditError("TRANSITION_PENDING",
                                         "an unpublished conversion is in flight")
+            if replay is None and isinstance(pending, dict):
+                candidate = _ref_from(pending["candidate"], "CANDIDATE_INVALID")
+                saved = self._saver(trusted).get_tuple({"configurable": {
+                    "thread_id": candidate.thread_id,
+                    "checkpoint_ns": candidate.checkpoint_ns,
+                    "checkpoint_id": candidate.checkpoint_id,
+                }})
+                if saved is not None:
+                    # Re-check the original seal binding and publish its first
+                    # winner; a lost publication must not run Cross again. An
+                    # unsealed occupied namespace is refused by seal_candidate.
+                    source = pending["source"]
+                    sealed = self._seal_content(
+                        trusted, kind=_NORMAL, candidate_ref=candidate,
+                        conversion_digest=digest,
+                        accepted_version=int(pending["accepted_version"]),
+                        checkpoint=saved.checkpoint, metadata=saved.metadata,
+                        new_versions={}, result=_validated_result(
+                            saved.metadata.get(RESULT_METADATA_KEY), "CANDIDATE_INVALID"),
+                        source=_ref_from(source, "SOURCE_UNAVAILABLE"),
+                        source_digest=source["content_digest"],
+                    )
+                    replay = self._publish_successor(trusted, pending, sealed, _NORMAL)
             return BirthdayTransition(
                 self, trusted, kind=_NORMAL, digest=digest,
                 conversion=conversion, replayed=replay,

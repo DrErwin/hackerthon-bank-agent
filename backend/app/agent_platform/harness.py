@@ -888,22 +888,36 @@ class AgentHarness:
             )
             if task.session_id == trusted.session_id and not marker_matches:
                 raise ValueError("SESSION_RECOVERY_NOT_REQUIRED")
+            if marker_matches and marker.get("phase") == "complete":
+                # Recovery is already over. A later input may have advanced the
+                # task; replaying its old recovery publication would roll it
+                # back. Return the current owned result without any write.
+                return self._result(task).model_copy(update={"run_id": trusted.run_id})
 
-            # R1: a G3 birthday task keeps its Cross state in an isolated sealed
-            # namespace, and cross-session recovery of that state is not wired
-            # yet (tickets 04/08). Refuse BEFORE any session/marker change instead
-            # of silently returning the old card and failing on the next resume.
             g3 = (task.snapshot or {}).get("birthday_g3") or {}
-            if isinstance(g3.get("published_ref"), dict):
-                raise PermissionError("DEPENDENCY_UNAVAILABLE")
+            recovery_conversion = None
+            if g3:
+                if self.birthday_handoff is None:
+                    raise PermissionError("DEPENDENCY_UNAVAILABLE")
+                source_session = (marker["source_session_id"] if marker_matches
+                                  else task.session_id)
+                source_run = marker["source_run_id"] if marker_matches else task.run_id
+                recovery_conversion = {
+                    "kind": "fact",
+                    "event_ref": (f"session-recovery:{source_session}:"
+                                  f"{trusted.session_id}:{source_run}"),
+                }
+                # Recovery is a new publication from the exact sealed source,
+                # never a copy through the legacy latest namespace. Validate
+                # before changing either session ownership or its marker.
+                self.birthday_handoff.check_session_recovery(
+                    trusted, recovery_conversion)
 
             if marker_matches:
                 source_session_id = marker["source_session_id"]
                 previous_run_id = marker["source_run_id"]
                 if task.session_id not in {source_session_id, trusted.session_id}:
                     raise PermissionError("ACCESS_DENIED")
-                if marker.get("phase") == "complete" and task.run_id == trusted.run_id:
-                    return self._result(task)
             else:
                 source_session_id = task.session_id
                 previous_run_id = task.run_id
@@ -953,6 +967,12 @@ class AgentHarness:
             capability_name = task.snapshot.get("capability_name", "transfer.start_transfer")
             registration = self.registry.get(capability_name)
             saver = self.memory.checkpointer(context, task.task_id)
+            transition = self._birthday_transition(
+                trusted, capability=capability_name,
+                conversion=recovery_conversion, allow_root=False,
+            ) if recovery_conversion is not None else None
+            if transition is not None:
+                saver = transition.attach(saver)
             entry = registration.factory(trusted, saver, trace)
             try:
                 checkpoint_context = entry.checkpoint_context(
@@ -963,7 +983,10 @@ class AgentHarness:
                     and checkpoint_context.session_id == trusted.session_id
                     and marker.get("initializing_checkpoint") is True
                 )
-                if checkpoint_context is None or initializing_here:
+                if transition is not None and transition.replayed is not None:
+                    result = transition.replayed.result.model_copy(
+                        update={"run_id": trusted.run_id})
+                elif checkpoint_context is None or initializing_here:
                     if "result" in task.snapshot and checkpoint_context is None:
                         # A model failure can finish a task before business execution starts.
                         result = self._result(task).model_copy(update={"run_id": trusted.run_id})
@@ -986,17 +1009,28 @@ class AgentHarness:
                     checkpoint_source = marker.get("checkpoint_source_session_id", source_session_id)
                     if checkpoint_context.session_id != trusted.session_id:
                         checkpoint_source = checkpoint_context.session_id
-                    marker = {**marker, "checkpoint_source_session_id": checkpoint_source}
-                    task = self.application.update_task(
-                        trusted.user_id, trusted.demo_round_id, trusted.task_id,
-                        task.revision, task.run_id, task.status, task.checkpoint_id,
-                        {**task.snapshot, "session_recovery": marker},
-                    )
+                    if marker.get("checkpoint_source_session_id") != checkpoint_source:
+                        marker = {**marker, "checkpoint_source_session_id": checkpoint_source}
+                        task = self.application.update_task(
+                            trusted.user_id, trusted.demo_round_id, trusted.task_id,
+                            task.revision, task.run_id, task.status, task.checkpoint_id,
+                            {**task.snapshot, "session_recovery": marker},
+                        )
                     result = entry.recover_session(
                         trusted, source_session_id=checkpoint_source,
                         thread_id=task.checkpoint_thread_id,
                     )
                 self._check_result_scope(result, trusted)
+                if transition is not None:
+                    self.birthday_handoff.check_recovered_interaction(trusted, result)
+                    publication = transition.publish(result)
+                    checkpoint_id = publication.published_ref.checkpoint_id
+                else:
+                    checkpoint_id = self._checkpoint_id(context, task)
+                # Cross and the publication seam can both write the task while
+                # rebuilding the current-session card. Keep those fresh facts.
+                task = self.application.get_task(
+                    trusted.user_id, trusted.demo_round_id, trusted.task_id)
             except Exception:
                 trace.record(
                     "recovery.checked",
@@ -1015,7 +1049,7 @@ class AgentHarness:
                 "recovery.checked",
                 RecoveryCheckedPayload(
                     previous_run_id=previous_run_id, current_run_id=trusted.run_id,
-                    checkpoint_ref=self._checkpoint_id(context, task),
+                    checkpoint_ref=checkpoint_id,
                     operation_ids=operation_ids, result=self._recovery_result(result.status),
                     reason_code="SESSION_RECOVERY_COMPLETED",
                 ),
@@ -1030,7 +1064,7 @@ class AgentHarness:
             self.application.update_task(
                 trusted.user_id, trusted.demo_round_id, trusted.task_id,
                 task.revision, trusted.run_id, result.status,
-                self._checkpoint_id(context, task), snapshot,
+                checkpoint_id, snapshot,
             )
             return result
 

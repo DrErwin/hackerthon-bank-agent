@@ -598,8 +598,8 @@ def test_harness_replays_a_published_conversion_with_the_current_run_id(
     assert env.task().revision == revision
 
 
-def test_harness_cross_session_recovery_fails_closed_for_a_g3_task(tmp_path):
-    """R1: G3 cross-session recovery refuses before any migration."""
+def test_harness_cross_session_recovery_refuses_a_missing_g3_source(tmp_path):
+    """R1: an unprovable G3 source refuses before any migration."""
     from datetime import datetime, timedelta, timezone
 
     runtime, _entry = composition(tmp_path)
@@ -608,7 +608,13 @@ def test_harness_cross_session_recovery_fails_closed_for_a_g3_task(tmp_path):
         started = runtime.harness.handle_message(who, request_id, INTENT)
         assert started.status is TaskStatus.WAITING_INPUT, started.message
         task = runtime.application.get_task("U1", "D1", "HARNESS_RECOVER")
-        published = task.snapshot["birthday_g3"]["published_ref"]
+        published = {**task.snapshot["birthday_g3"]["published_ref"],
+                     "checkpoint_id": str(uuid4())}
+        task = runtime.application.update_task(
+            "U1", "D1", "HARNESS_RECOVER", task.revision, task.run_id,
+            task.status, task.checkpoint_id,
+            {**task.snapshot, "birthday_g3": {
+                **task.snapshot["birthday_g3"], "published_ref": published}})
         completed = len(task.snapshot["birthday_g3"]["completed"])
         result_before = task.snapshot["result"]
         thread_id = task.checkpoint_thread_id
@@ -621,11 +627,11 @@ def test_harness_cross_session_recovery_fails_closed_for_a_g3_task(tmp_path):
             user_id="U1", session_id="S2", task_id="HARNESS_RECOVER",
             run_id=str(uuid4()), parent_task_id=None, demo_round_id="D1")
 
-        # The unsupported G3 recovery fails explicitly and returns no old card.
-        with pytest.raises(PermissionError) as refused:
+        # A missing immutable source fails explicitly and returns no old card.
+        with pytest.raises(BirthdayEditError) as refused:
             returned = runtime.harness.recover_session(stranger)
             assert returned is not None  # never reached
-        assert str(refused.value) == "DEPENDENCY_UNAVAILABLE"
+        assert str(refused.value) == "SOURCE_UNAVAILABLE"
         # The ordinary same-session contract is unchanged (no recovery needed).
         with pytest.raises(ValueError, match="SESSION_RECOVERY_NOT_REQUIRED"):
             runtime.harness.recover_session(who)
