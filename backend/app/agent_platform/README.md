@@ -10,6 +10,16 @@ Harness仅新建根/子任务时在现有snapshot写risk_capture_version=RiskCon
 
 原模型配置摘要不因新开关改变，防止用MODEL_CONFIG_CHANGED遮住旧任务应有的unknown暂停；profile版本和capture来源由安全证据说明。默认行为、秘密文件、确认/验证/执行器和银行规则不改。该接线的脚本模型集成与真实GLM/页面/本人安全接受分开记录。
 
+## 取消前观察当前冻结提交状态（v05-birthday-platform-dependencies/23）
+
+`BirthdayTaskPorts.observe_freeze_submission(context, plan, operation_id) -> str` 仅观察当前
+owned任务的当前freeze准确op/revision/plan，返回 `not_submitted` / `submitted` / `unknown`。
+当前owner/round/session门保留，旧退休号不能代替当前号；不伪装旧会话，不复用验证或重绑授权。
+只有银行原号Found且终态才submitted；无claim双读、真实OperationNotFound、公开gateway在途
+已排空且动作来源未变才not_submitted；None、读取失败、未排空、claim但银行未知均unknown。
+本方法不调用gate/执行器/requery/grant/bind/retire，不产生银行写或新claim，也不是关闭hold的授权。
+Cross应在真实Harness任务串行锁内消费，再沿原号核实及原限定finalize；Protocol/消费由Cross09另票交付。
+
 专用个人预算输入经G3发布时，原dispatch来源校验保留；G3预留还须匹配该来源的实际CAS版本，完成只认同受理的封存publication回执。丢失completion沿原origin找原winner，或让Cross只读核实旧封存attempt，不二次adopt、不覆盖后继计划；无证明或外部CAS漂移仍拒绝。见[预算来源接缝](budget-inputs-seam.md)（v05-birthday-platform-dependencies/18）。
 
 ## 明确规划失败的消息结果（v05-birthday-platform-dependencies/14）

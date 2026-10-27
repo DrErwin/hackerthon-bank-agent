@@ -22,7 +22,7 @@ from uuid import UUID, uuid4
 
 from app.contracts.bank import (
     CaptureFrozenInput, CreateOrderInput, DeliveryInput, FreezeFundsInput,
-    ListProductsInput, OperationResult, OrderResult, QueryFailure, QueryOk,
+    ListProductsInput, OperationFound, OperationNotFound, OperationResult, OrderResult, QueryFailure, QueryOk,
 )
 from app.contracts.common import (
     Category, DisplayField, OperationStatus, Phase, SecurityDecisionCode, TaskStatus,
@@ -33,7 +33,7 @@ _TERMINAL = {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED,
 from app.contracts.platform import TrustedContext
 from app.contracts.audit import AuthorizationSnapshot
 from app.contracts.security import (
-    ActionDescriptor, SecurityDecision, VerificationSummary,
+    ActionDescriptor, ExecutionSecurityContext, SecurityDecision, VerificationSummary,
 )
 from app.modules.cross.birthday_ports import (
     GateAnswer, ReleaseOutcome as PortsRelease, WriteOutcome as PortsWrite,
@@ -675,6 +675,69 @@ class BirthdayTaskPorts:
 
     def freeze_execute(self, context, plan):
         return self._execute(context, "freeze", self._FREEZE_PARAMETERS(plan))
+
+    def observe_freeze_submission(self, context: TrustedContext, plan, operation_id: str) -> str:
+        """Read the current exact freeze attempt; this grants no closure authority.
+
+        The consumer holds the existing Harness task lock. A missing claim is
+        insufficient: not_submitted also needs a real bank miss, a drained
+        gateway and a second absent claim. No gate or executor is invoked.
+        """
+        try:
+            task = self.runtime._task(context)
+        except PermissionError:
+            raise
+        except ValueError as exc:
+            if str(exc) == "STALE_ROUND":
+                raise
+            return "unknown"
+        except Exception:
+            return "unknown"
+        try:
+            action = (task.snapshot.get("birthday_actions") or {}).get("freeze")
+            if (task.snapshot.get("capability_name") != "cross.start_task"
+                    or not isinstance(action, dict)
+                    or action.get("operation_id") != str(operation_id)
+                    or action.get("parameters") != self._FREEZE_PARAMETERS(plan)
+                    or type(action.get("action_revision")) is not int
+                    or action["action_revision"] < 1):
+                return "unknown"
+            operation = UUID(str(operation_id))
+            # The ordinary _context may reuse session verification and write
+            # its binding/audit. This observation carries no authorization.
+            security_context = ExecutionSecurityContext(
+                user_id=context.user_id, session_id=context.session_id,
+                demo_round_id=context.demo_round_id, task_id=context.task_id,
+                run_id=context.run_id, source_task_id=context.parent_task_id,
+                operation_id=operation, action_revision=action["action_revision"],
+                confirmation_id=None, confirmation_version=None, verification_ids=[],
+                release_authorization_id=None)
+            descriptor = ActionDescriptor(action_name="bank.freeze_funds",
+                parameters_ref=str(operation), resource_refs=[], phase=Phase.EXECUTION)
+            claim = self.wiring.state.get_execution(security_context, descriptor)
+            found = self.runtime.gateway.get_operation(context, operation)
+            current = self.runtime._task(context)
+            if (current.snapshot.get("birthday_actions") or {}).get("freeze") != action:
+                return "unknown"
+            if isinstance(found, OperationFound):
+                result = found.operation
+                if (result.operation_id == operation and result.operation_type == "bank.freeze_funds"
+                        and result.operation_status in {OperationStatus.SUCCEEDED, OperationStatus.FAILED}):
+                    return "submitted"
+                return "unknown"
+            if not isinstance(found, OperationNotFound) or claim is not None:
+                return "unknown"
+            if not self.runtime.gateway.wait_for_inflight(timeout=0.0):
+                return "unknown"
+            if self.wiring.state.get_execution(security_context, descriptor) is not None:
+                return "unknown"
+            current = self.runtime._task(context)
+            if (current.snapshot.get("birthday_actions") or {}).get("freeze") != action:
+                return "unknown"
+            return "not_submitted"
+        except Exception:
+            # A read failure or an unprovable binding never means no write.
+            return "unknown"
 
     def _order_request(self, context, plan, item, quantity: int):
         detail = self.runtime.application.get_controlled_detail(
