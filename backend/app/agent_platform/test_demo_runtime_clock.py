@@ -44,6 +44,9 @@ def test_registered_business_clocks_observe_later_setter(tmp_path):
         with pytest.raises(ValueError, match="INVALID_ARGUMENT"):
             runtime.set_demo_clock(datetime(2031, 1, 1))
         assert all(clock() == later for clock in clocks)
+        runtime.set_demo_clock(datetime(2031, 6, 30, 16, tzinfo=timezone.utc))
+        assert all((clock().month, clock().day, clock().hour) == (7, 1, 0)
+                   for clock in clocks)
     finally:
         runtime.close()
 
