@@ -50,6 +50,7 @@ def reset(bank, operation="reset-1", **kwargs):
 def test_reset_restores_seed_facts_and_persists_its_original_result(tmp_path):
     bank, gate = ready(tmp_path)
     try:
+        assert bank.current_demo_logical_at is None
         transfer = gate.submit_transfer(context(), uuid4(), "A1", SavedPayee(kind="saved", payee_id="A2"), 50000)
         assert transfer.operation_status == "succeeded"
         frozen = gate.freeze_funds(context(), uuid4(), FreezeFundsInput(
@@ -63,6 +64,7 @@ def test_reset_restores_seed_facts_and_persists_its_original_result(tmp_path):
         assert result.status == "succeeded"
         assert (result.source_round_id, result.demo_round_id, result.logical_at) == ("D1", "D2", INITIAL)
         assert bank.current_demo_round_id == "D2"
+        assert bank.current_demo_logical_at == INITIAL
         restored = bank.store.get_account("U1", "A1")
         assert (restored.book_balance_fen, restored.frozen_balance_fen) == (6000000, 0)
         for table in ("bank_operations", "bank_operation_scopes", "freezes", "orders", "order_payments"):
@@ -82,6 +84,7 @@ def test_reset_restores_seed_facts_and_persists_its_original_result(tmp_path):
     reopened, reopened_gate = ready(tmp_path)
     try:
         assert reopened.current_demo_round_id == "D2"
+        assert reopened.current_demo_logical_at == INITIAL
         assert reopened.get_demo_management_operation(admin("D2"), "reset-1") == result
     finally:
         reopened_gate.close()
@@ -96,6 +99,7 @@ def test_successful_replay_does_not_clear_new_round_activity(tmp_path):
             SavedPayee(kind="saved", payee_id="A2"), 10000)
         assert transferred.operation_status == "succeeded"
         assert reset(bank) == first
+        assert bank.current_demo_logical_at == INITIAL
         assert bank.store.get_account("U1", "A1").book_balance_fen == 5990000
         assert len(rows(bank, "bank_operations")) == 1
         conflict = bank.reset_demo(admin(), "reset-1", "D1", "D3", INITIAL)
@@ -129,6 +133,7 @@ def test_failed_seed_restore_rolls_back_then_the_same_operation_can_retry(tmp_pa
         failed = reset(bank)
         assert failed.status == "failed"
         assert bank.current_demo_round_id == "D1"
+        assert bank.current_demo_logical_at is None
         assert bank.store.get_account("U1", "A1").book_balance_fen == 5950000
         assert len(rows(bank, "bank_operations")) == 1
         assert bank.get_demo_management_operation(admin(), "reset-1") == failed
@@ -159,6 +164,7 @@ def test_processing_transfer_keeps_original_reset_running_until_it_finishes(tmp_
         assert started.wait(2)
         waiting = reset(bank)
         assert waiting.status == "running"
+        assert bank.current_demo_logical_at is None
         assert len(rows(bank, "bank_operations")) == 1
         assert bank.reset_demo(admin(), "new-reset", "D1", "D2", INITIAL).error.code == "STATE_CONFLICT"
         release.set()
@@ -166,6 +172,45 @@ def test_processing_transfer_keeps_original_reset_running_until_it_finishes(tmp_
         assert bank.get_operation(context(), operation).operation.operation_status == "succeeded"
         assert reset(bank).status == "succeeded"
         assert rows(bank, "bank_operations") == []
+    finally:
+        release.set()
+        gate.close()
+
+
+def test_later_pending_and_failed_resets_preserve_the_last_successful_origin(tmp_path, monkeypatch):
+    bank, gate = ready(tmp_path, slow_seconds=0.3, timeout=0.02)
+    started, release = Event(), Event()
+
+    def wait_for_release(_seconds):
+        started.set()
+        assert release.wait(5)
+
+    try:
+        assert reset(bank).status == "succeeded"
+        later = INITIAL + timedelta(days=1)
+        monkeypatch.setattr("app.services.mock_bank.core.time.sleep", wait_for_release)
+        bank.arm_slow_once("U1")
+        assert gate.submit_transfer(context("D2"), uuid4(), "A1",
+            SavedPayee(kind="saved", payee_id="A2"), 100).error.code == "CALL_TIMEOUT"
+        assert started.wait(2)
+        assert bank.reset_demo(admin("D2"), "reset-2", "D2", "D3", later).status == "running"
+        assert bank.current_demo_logical_at == INITIAL
+        release.set()
+        assert gate.wait_for_inflight(3.0)
+        with transaction(bank.store.path) as connection:
+            connection.execute("""CREATE TRIGGER reject_later_seed BEFORE INSERT ON accounts
+                WHEN NEW.account_id = 'A1' BEGIN SELECT RAISE(ABORT, 'seed fault'); END""")
+        failed = bank.reset_demo(admin("D2"), "reset-2", "D2", "D3", later)
+        assert failed.status == "failed"
+        assert bank.current_demo_logical_at == INITIAL
+        assert reset(bank).status == "succeeded"  # Old success replay is not a new origin.
+        assert bank.current_demo_logical_at == INITIAL
+        with transaction(bank.store.path) as connection:
+            connection.execute("DROP TRIGGER reject_later_seed")
+        assert bank.reset_demo(admin("D2"), "reset-2", "D2", "D3", later).status == "succeeded"
+        assert bank.current_demo_logical_at == later
+        assert reset(bank).status == "succeeded"
+        assert bank.current_demo_logical_at == later
     finally:
         release.set()
         gate.close()

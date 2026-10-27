@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import sqlite3
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError
+from threading import Condition
 from typing import Callable
 from uuid import UUID
 
@@ -31,9 +32,34 @@ class BankGateway:
         self._authorize_cancel = authorize_cancel
         self._authorize_birthday = authorize_birthday
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mock-bank")
+        self._inflight_condition = Condition()
+        self._inflight: set[Future] = set()
 
     def close(self) -> None:
         self._executor.shutdown(wait=True)
+
+    def wait_for_inflight(self, timeout: float) -> bool:
+        """Wait for submitted writes; callers must first stop new admission.
+
+        A caller timeout does not cancel its bank future. Only the future's
+        completion removes it, including queued writes and exceptional results.
+        This lock never acquires the API's mutation lock, and waiting keeps the
+        executor available for the next demo round.
+        """
+        with self._inflight_condition:
+            return self._inflight_condition.wait_for(lambda: not self._inflight, timeout)
+
+    def _submit_write(self, invoke: Callable, *args) -> Future:
+        with self._inflight_condition:
+            future = self._executor.submit(invoke, *args)
+            self._inflight.add(future)
+        future.add_done_callback(self._write_finished)
+        return future
+
+    def _write_finished(self, future: Future) -> None:
+        with self._inflight_condition:
+            self._inflight.remove(future)
+            self._inflight_condition.notify_all()
 
     def list_accounts(self, context: TrustedContext):
         return self._bank.list_accounts(context.user_id)
@@ -67,7 +93,7 @@ class BankGateway:
             context, operation_id, payer_account_id, payee, amount_fen,
         ):
             return QueryFailure(kind="error", error=BankError(code="ACCESS_DENIED", details={}))
-        future = self._executor.submit(
+        future = self._submit_write(
             self._bank.submit_transfer, context, operation_id,
             payer_account_id, payee, amount_fen,
         )
@@ -91,7 +117,7 @@ class BankGateway:
             context, operation_id, action, request,
         ):
             return QueryFailure(kind="error", error=BankError(code="ACCESS_DENIED", details={}))
-        future = self._executor.submit(invoke)
+        future = self._submit_write(invoke)
         try:
             return future.result(timeout=self._transfer_timeout_seconds)
         except TimeoutError:
@@ -152,7 +178,7 @@ class BankGateway:
             context, operation_id, mandate_id,
         ):
             return QueryFailure(kind="error", error=BankError(code="ACCESS_DENIED", details={}))
-        future = self._executor.submit(
+        future = self._submit_write(
             self._bank.cancel_subscription, context, operation_id, mandate_id,
         )
         try:
