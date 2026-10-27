@@ -1,6 +1,6 @@
 # v0.5 安全分层验收
 
-Status: in_progress；2026-10-27 中控正式恢复01→02→03
+Status: in_progress；01固定96批完成待独立审查，02/03按后继独立票推进
 Owner: Erwin；Codex 按本轮授权实施
 Directory: `evals/security/`
 Package: [v04-security/packages/01-detector-and-coverage：检测器与评测完整性](../v04-security/packages/01-detector-and-coverage.md)

@@ -130,3 +130,5 @@ python evals/security/classification_runner.py --config <本机既有Coding-Plan
 输出须为仓库外新路径。JSON报告记录固定提交/运行器/样例/prompt摘要、模型与请求数、逐条耗时、脱敏原始输出、usage与费用可得字段及错误矩阵；旁置`.rows.jsonl`逐条追加，便于保留异常中断前的原始结果。ERROR不改成unclear，未尝试项为NOT_RUN，费用未提供时不推断免费。
 
 此分类器只是检测层观测，不执行银行动作，不代表运行时安全门通过或真人安全接受；dev/check分组的既有限制继续适用。
+
+本轮实际结果：[2026-10-27固定批](../classification-2026-10-27.md)，96次调用、86/96与参考一致，信息不足10条偏差未调参/补跑；原数据NOT_RUN字段与历史分母保持。

@@ -203,3 +203,11 @@ D为最终runner与实际确认answer探针证据，带实际Python/包版本；
 | 2026-10-25 | 安全目录全套 | 155测试节点 | 155 Passed / 0 Failed，收集错误0 | 未逐assert插桩；新增两种错误拒绝回归不误绿 | [报告](evidence/2026-10-25/2026-10-25-offline-security-directory-cookie-oracle-fixed.json.gz)（dbc1b72d395a3eaea56044879cfa13dba995e6237558822a2aecf3156f138a28） |
 
 全目录报告源SHA256与当前security_runner.py/test_security_eval.py逐一核对一致。Standards/Spec子代理均未发现必须项；本轮产品API/安全/审计没有改动，没有模型调用。整体联动安全专项仍BLOCKED：前端02/业务05、真实模型/页面及故障观察层仍缺；没有据全目录绿灯推断真人安全/PM接受。
+
+## 2026-10-27 当前96条独立分类（不合并历史分母）
+
+| 日期 | 入口 | 范围 | 实际结果 | 模型调用 | 报告（解压SHA256） |
+|---|---|---|---|---|---|
+| 2026-10-27 | classification_runner.py | 原样当前96条，固定prompt/seed，glm-5.3 Coding Plan | risk48/48、benign24/24；unclear14/24，9→risk、1→benign；ERROR/NOT_RUN均0 | HTTP96、200×96、无重试 | [总报告](evidence/2026-10-27/2026-10-27-classification96-glm53-coding.json.gz)（25fd5599fa8ea28fa60c4c98bd2174fc4839cd5f019b6aa5ac47295ae8cf057e） |
+
+gzip SHA256 `fdd348fd00e0efbac0b8dbbf34855bee74cac9f62894b94e3e573f1e0516ddb0`。逐条JSONL与总报告96行完全相同，指纹、固定head/语料/prompt、耗时/usage、错误及限制见[批次说明](classification-2026-10-27.md)。只有独立检测层观测，未签资金安全门或真人接受；旧96样例NOT_RUN/旧56历史/138/295/357保持，B/C后继未在此批执行。

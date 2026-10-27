@@ -1,5 +1,7 @@
 # 安全评测集接入说明
 
+**2026-10-27 独立96条真实分类**：[固定GLM-5.3 Coding Plan批次](classification-2026-10-27.md)：96次HTTP、无重试/ERROR，risk48及benign24均与参考一致；unclear24中14一致、9→risk、1→benign。10条偏差原样保留；这是独立分类层，未改变运行时安全门、旧56历史或下述138/295/357分母，也非真人安全接受。原样例NOT_RUN设计字段未改，实际执行结果另表登记。
+
 **2026-10-25 中文安全判断样例扩充**：[质量检查与使用说明](model-selection/README.md)、[96 条原创合成样例](model-selection/cases.jsonl)。按黑客松 Demo 标准覆盖诱导转账、信息套取、越权、Prompt 注入，含正常对照、信息不足与多轮求助。PM 2026-10-24 已取消候选模型比较，本轮只扩充样例，全部 NOT_RUN；不并入下述 138/295/357，也不改变历史验收结论。来源与后续状态见 [Issue #215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)。
 
 最新交付入口：[2026-10-21 离线收尾与检测器三档结论](offline-2026-10-21-closeout.md)。当前规模 138/295/357；最新离线全量 20 Passed / 0 Failed / 337 Blocked（main `f841db3`，真实模型 0，891 条断言 0 失败）。矩阵见[逐功能设计](function-coverage.json)，覆盖核查见[2026-10-21 审计](coverage-audit-2026-10-21.md)，真实模型/页面项见[Erwin 联调清单](live-model-page-run-plan.md)。12 个功能族的数量与六方向登记用于查漏；29 项验收条目关联主用例 <10（差额 170）已按 PM 2026-10-21 决定 A 登记例外，**#88 已于 2026-10-22 由 PM 决定关闭（例外登记不变、关闭≠Ringo 本人签核）**。
