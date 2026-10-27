@@ -6,8 +6,8 @@ Spec: [本组规格](../spec.md)，本票补充规格见下方
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/agent_platform/`
-Status: in_progress
-Blocked by: [v05-bank-reset/02：银行重置排空与起点读取](../../v05-bank-reset/issues/02-gateway-drain-and-clock.md)，PR #325（实现已提供，待审查合入）
+Status: ready_for_review — 完整平台合并态 393 passed / 13 skipped，待中控两轴审查与合入
+Blocked by: None（前置 [v05-bank-reset/02：银行重置排空与起点读取](../../v05-bank-reset/issues/02-gateway-drain-and-clock.md)、PR #323 均已合入）
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27
 Core scenarios: 公共契约 B26 / F25、F30—F32；API 协调另票
@@ -24,3 +24,4 @@ Verification: 本地替身规划器与真实平台/银行的定向组合回归�
 ## Comments
 
 - 2026-10-27：中控安排本票，敏感等待 Cross 消费方票 09 后置；分支 `codex/v05-demo-runtime-clock`，依赖 PR #325 head `45bf2612`。
+- 2026-10-27：前置合入后 rebase main `0b72b0a1`；[PR #328](https://github.com/DrErwin/hackerthon-bank-agent/pull/328)，[最终验证](../recovery-12-verification.md)。受测 `cd6a1690` 完整平台 393 passed / 13 skipped；原 UTC 月界失败证据保留。
