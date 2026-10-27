@@ -66,6 +66,30 @@ class RequestIdOnly(ContractModel):
     request_id: RequestId
 
 
+class ResetPreviewRequest(RequestIdOnly):
+    demo_round_id: ID
+
+
+class ResetRequest(RequestIdOnly):
+    reset_confirmation_id: ID
+
+
+class ResetPreview(ContractModel):
+    reset_confirmation_id: ID
+    demo_round_id: ID
+    effects: list[str]
+
+
+class ManagementOperation(ContractModel):
+    management_operation_id: ID
+    kind: Literal["advance_time", "reset"]
+    status: Literal["running", "succeeded", "failed"]
+    source_round_id: ID
+    resulting_round_id: ID | None
+    phase: str
+    error: ModuleError | None
+
+
 class SendMessageRequest(RequestIdOnly):
     text: str
 

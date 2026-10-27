@@ -2,8 +2,8 @@
 
 from .api import (
     ApiError, ApiSuccess, ConfirmationAnswerRequest, DeliveryDetailsFields, DemoCodeView, DetailsResponse,
-    ExportView, InteractionRequired, MessageAccepted, MessageDelta, MessageView, Page, PayeeDetailsFields,
-    PayeeSearchFields, ProvideInputRequest, RequestIdOnly, SendMessageRequest, SessionExpired,
+    ExportView, InteractionRequired, ManagementOperation, MessageAccepted, MessageDelta, MessageView, Page, PayeeDetailsFields,
+    PayeeSearchFields, ProvideInputRequest, RequestIdOnly, ResetPreview, ResetPreviewRequest, ResetRequest, SendMessageRequest, SessionExpired,
     SessionView, StreamEvent, SubmitDetailsRequest, TaskRecordsView, ThreadView, VerificationCodeRequest,
     VerificationResponse,
 )
