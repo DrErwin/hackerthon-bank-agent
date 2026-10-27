@@ -19,4 +19,4 @@ Package: [底座与模拟银行](../v05-cross-linkage/packages/01-platform-bank.
 - P18-04：外部CAS在发布前/后漂移仍拒绝，不刷新dispatch版本或把任意新publication当本次采用。
 - P18-05：G3拥有的seal/publication断点只沿原受理封存发布；没有可证明原winner时失败关闭，不新建采用。
 
-使用NoopModel及新隔离库，真实业务采用与G3接缝；不重跑真实模型、不改Cross09原controls、B/C报告、337或16/17释放工作。基线当前main f4a98724，其他平台票合入后仅按实际依赖整合。
+使用NoopModel及新隔离库，真实业务采用与G3接缝；不重跑真实模型、不改Cross09原controls、B/C报告、337或16/17释放工作。初始基线main f4a98724；完整平台组合同步至16/17均合入的main c760f0d0后仅运行一次。

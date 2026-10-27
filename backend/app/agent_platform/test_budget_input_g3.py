@@ -221,3 +221,23 @@ def test_old_g3_association_can_only_recover_its_sealed_budget_attempt(harness_e
     assert recovered.result.status is TaskStatus.WAITING_INPUT
     assert adopt.call_count == 1
     assert env.runtime.harness.budget_input_origin(env.who) is None
+
+
+@pytest.mark.parametrize("choice,status", [
+    ("修改个人限额", TaskStatus.WAITING_INPUT),
+    ("不采用", TaskStatus.CANCELLED),
+])
+def test_other_dedicated_budget_choices_publish_without_adopting(harness_env, choice, status):
+    env = harness_env
+    candidate = budget_candidate(env)
+    request_id = uuid4()
+    option = option_id(candidate, choice)
+    completed = env.runtime.harness.resume_budget_input(env.who,
+        input_request_id=request_id, interaction_id=candidate.interaction.interaction_id,
+        selected_option_id=option)
+    assert completed.result.status is status
+    assert env.runtime.harness.resume_budget_input(env.who,
+        input_request_id=request_id, interaction_id=candidate.interaction.interaction_id,
+        selected_option_id=option) == completed
+    assert env.runtime.application.list_adopted_budgets("U1", "D1") == []
+    assert env.runtime.harness.budget_input_origin(env.who) is None
