@@ -17,6 +17,10 @@ export type DeliveryDetailsFields = ContractDeliveryDetailsFields;
 
 // Contract types are generated from backend/app/contracts with npm run generate:contracts.
 export type SessionView = PublicContract["SessionView"];
+export type ResetPreviewRequest = PublicContract["ResetPreviewRequest"];
+export type ResetPreview = PublicContract["ResetPreview"];
+export type ResetRequest = PublicContract["ResetRequest"];
+export type ManagementOperation = PublicContract["ManagementOperation"];
 export type ThreadView = PublicContract["ThreadView"];
 export type MessageAccepted = PublicContract["MessageAccepted"];
 export type MessageView = PublicContract["MessageView"];

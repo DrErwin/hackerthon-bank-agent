@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { API_MODE, userPageUrl, apiErrorMessage, get, post, ApiError } from "./api";
 import { getPageItems } from "./pagination";
 import type { AuditEventDetail, AuditEventSummary, SessionView, VerificationResponse } from "./contracts";
+import AdminResetCard from "./AdminResetCard";
 
 function requestId(): string {
   return crypto.randomUUID();
@@ -182,7 +183,7 @@ export default function AdminPage() {
       <AdminBanner />
       <header className="admin-header">
         <div className="brand-mark brand-mark-admin" aria-hidden="true">管</div>
-        <div><p className="eyebrow">只读审计与模拟核验</p><h1>管理员演示入口</h1></div>
+        <div><p className="eyebrow">审计、模拟核验与演示管理</p><h1>管理员演示入口</h1></div>
         <div className="admin-header-actions">
           <span className="identity-pill"><span className="online-dot" />{session.user_display}</span>
           <a className="button button-secondary" href={userPageUrl()}>返回普通页面</a>
@@ -190,6 +191,7 @@ export default function AdminPage() {
       </header>
 
       <div className="admin-content" id="main-content" tabIndex={-1}>
+        <AdminResetCard session={session} onSessionExpired={() => setSession(null)} />
         <section className="admin-card face-admin-card">
           <div className="task-card-heading">
             <div><p className="eyebrow">仅处理当前模拟挑战</p><h2>模拟人脸核验</h2></div>
