@@ -8,6 +8,7 @@
 - 第一轮7项API重置检查通过；连同既有 `app/api/test_app.py` 与平台业务时钟定向，**95 passed / 0 failed**，233.43秒。
 - 最终11项API重置HTTP检查 **11 passed / 0 failed**，11.18秒：预览权限/只读/原号重放、等待确认任务可以重置、普通请求停收、原确认与参数冲突、旧轮授权拒绝、记忆预置、历史审计保留和本人只读范围、银行响应丢失恢复、记忆局部失败与管理重新登录、旧配置重启、真正超时网关future及API worker占锁、必要审计失败零银行重置。
 - 受测组合 `07b6fc50`（消费平台时区修正 `62bc3372`）上，`app/api/test_demo_reset.py app/agent_platform/test_demo_runtime_clock.py` **14 passed / 0 failed**，19.37秒。[原始JUnit](reset-results.xml) SHA256 `C9E6FB6F4B9BC1B4E7FE3F6B165CFE9446C068A98E5505856F0A5BAE2339876C`。随后只将已具备的公开bank属性直接取值，最终依赖整合后还需API目录回归，不把旧组合当最新main全量。
+- 补充正式 `local_demo` 装配：整体重置后以新轮新会话完成500元的真实有限安全策略、确认、验证码与模拟银行转账，**1 passed**，8.16秒；仅Chat connector输出为脚本替身。该用例使本票API新增用例共12项，验证新轮不会被最初config关闭；不是新真实模型/页面证据。
 
 测试均使用新的临时SQLite。规划器与风险授权是明确测试装配；银行、账户、真实future、API HTTP、记忆与共享业务时钟使用本地正式实现。一个future探针为了只验证重置协调，显式注入允许该固定测试动作的网关授权；它不是专业安全或真实模型验收。
 

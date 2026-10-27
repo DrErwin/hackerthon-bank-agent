@@ -20,7 +20,7 @@ from app.storage.application import ApplicationStore
 from app.storage.mock_bank.repository import MockBankStore
 
 from .app import ApiConfig, create_app
-from .test_app import Planner, enter, make_app, post, start
+from .test_app import Planner, approve, enter, make_app, post, start
 
 
 def reset_app(path):
@@ -41,9 +41,9 @@ def reset_app(path):
                                         origins=("http://testserver",)))
 
 
-def prepare_reset(client):
+def prepare_reset(client, admin_key="test-admin-key"):
     client.cookies.clear()
-    admin_enter(client)
+    admin_enter(client, admin_key)
     preview = post(client, "/admin/demo/reset-preview", demo_round_id="D1")
     assert preview.status_code == 200, preview.text
     return {"request_id": str(uuid4()),
@@ -57,9 +57,9 @@ def submit_reset(client, body):
     return response.json()["data"]
 
 
-def admin_enter(client):
+def admin_enter(client, admin_key="test-admin-key"):
     response = client.post("/api/v1/session/enter", json={"request_id": str(uuid4())},
-        headers={"Origin": "http://testserver", "X-Demo-Admin-Key": "test-admin-key"})
+        headers={"Origin": "http://testserver", "X-Demo-Admin-Key": admin_key})
     assert response.status_code == 200, response.text
     return response.json()["data"]
 
@@ -383,3 +383,28 @@ def test_reset_persists_admission_stop_without_waiting_on_the_api_worker_lock(tm
             thread.join(3)
         completed = submit_reset(client, body)
         assert completed["status"] == "succeeded", completed
+
+
+def test_reset_then_new_round_transfer_uses_the_real_local_policy_and_bank(tmp_path):
+    # The connector returns scripted model output; real local policy, memory,
+    # confirmation, verification, gateway and bank remain in the composition.
+    from app.agent_platform.test_local_demo import app_for, configuration
+
+    app = app_for(configuration(tmp_path))
+    with TestClient(app) as client:
+        body = prepare_reset(client, "local-test-admin")
+        completed = submit_reset(client, body)
+        assert completed["status"] == "succeeded", completed
+        client.cookies.clear()
+        _thread, task = start(client)
+        assert task["demo_round_id"] == completed["resulting_round_id"]
+        assert task["status"] == "waiting_approval", task
+        waiting = approve(client, task)
+        assert waiting["interaction"]["kind"] == "verification"
+        challenge = waiting["interaction"]["record_ref"]
+        code = client.get(f"/api/v1/verifications/{challenge}/demo-code").json()["data"]["code"]
+        result = post(client, f"/verifications/{challenge}/code", submission_id=str(uuid4()), code=code)
+        assert result.status_code == 200, result.text
+        actual = result.json()["data"]["task"]
+        assert actual["status"] == "succeeded", actual
+        assert actual["data"]["operation"]["receipt"]["amount_fen"] == 50000
