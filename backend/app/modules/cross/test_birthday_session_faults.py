@@ -66,6 +66,10 @@ def test_capture_recovery_budget_retry_keeps_the_original_order(
     assert cross_state(env)["birthday"]["orders"] == before
     assert bank_orders(env.runtime) == orders and paid_amounts(env) == []
     monkeypatch.setattr(env.runtime.gateway, "list_transactions", read)
+    if verification_wait and len(products) == 1:
+        from .test_birthday_session_controls import restart
+
+        restart(env)
     recovered = env.resume({"selected_option_id": option_id(paused, "重新核对预算")})
 
     assert recovered.status is TaskStatus.WAITING_APPROVAL, recovered.message
@@ -122,8 +126,9 @@ def test_cancel_during_recovered_capture_budget_pause_does_not_restart_payment(
     assert bank_orders(env.runtime) == orders and paid_amounts(env) == []
 
 
+@pytest.mark.parametrize("observation_fault", ["available", "bank_unavailable", "probe_none"])
 def test_cancel_reconciles_recovered_freeze_committed_before_cross_snapshot(
-    harness_env, monkeypatch,
+    harness_env, monkeypatch, observation_fault,
 ):
     """An unpublished intent must not hide an actual bank freeze on cancel."""
     from unittest.mock import Mock
@@ -157,6 +162,8 @@ def test_cancel_reconciles_recovered_freeze_committed_before_cross_snapshot(
     execute = BirthdayTaskPorts.freeze_execute
     calls = Mock(wraps=env.runtime.gateway.freeze_funds)
     monkeypatch.setattr(env.runtime.gateway, "freeze_funds", calls)
+    releases = Mock(wraps=env.runtime.gateway.release_frozen)
+    monkeypatch.setattr(env.runtime.gateway, "release_frozen", releases)
 
     def after_real_effect(ports, trusted, plan):
         outcome = execute(ports, trusted, plan)
@@ -178,12 +185,113 @@ def test_cancel_reconciles_recovered_freeze_committed_before_cross_snapshot(
     assert cross_state(env)["birthday"] == before
 
     # Cancellation must reconcile the real new freeze before closing its hold.
+    get_operation = env.runtime.gateway.get_operation
+    observation = BirthdayTaskPorts.observe_freeze_submission
+    if observation_fault == "bank_unavailable":
+        monkeypatch.setattr(env.runtime.gateway, "get_operation", lambda *_: QueryFailure(
+            kind="error", error=BankError(code="BANK_UNAVAILABLE", details={})))
+    elif observation_fault == "probe_none":
+        # Explicit provider-read fault, never a fabricated no-submission fact.
+        monkeypatch.setattr(BirthdayTaskPorts, "observe_freeze_submission", lambda *_: None)
     stopped = env.resume({"choice": "cancel"})
+    if observation_fault != "available":
+        assert stopped.status is TaskStatus.WAITING_INPUT, stopped.message
+        assert "提交情况仍待核实" in stopped.message
+        pending = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
+        assert pending == hold
+        assert releases.call_count == 0 and calls.call_count == 1
+        assert bank_orders(env.runtime) == [] and paid_amounts(env) == []
+        assert env.runtime.gateway.get_freeze(caller, freeze_id).data.remaining_fen == 50000
+        monkeypatch.setattr(env.runtime.gateway, "get_operation", get_operation)
+        monkeypatch.setattr(BirthdayTaskPorts, "observe_freeze_submission", observation)
+        stopped = env.resume({"selected_option_id": option_id(stopped, "重新核对预算")})
     assert stopped.status is TaskStatus.CANCELLED, stopped.message
-    assert calls.call_count == 1
+    assert calls.call_count == releases.call_count == 1
     assert bank_orders(env.runtime) == [] and paid_amounts(env) == []
     assert env.runtime.gateway.get_freeze(caller, freeze_id).data.remaining_fen == 0
     closed = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id,
         include_closed=True)[0]
     assert closed.state == "closed" and closed.unconsumed_fen == 0
     assert closed.operation_ids[:2] == [old_confirmation.operation_id, replacement.operation_id]
+    facts = deepcopy(cross_state(env)["birthday"])
+    repeated = env.resume({"choice": "cancel"})
+    assert repeated.status is TaskStatus.CANCELLED
+    assert cross_state(env)["birthday"] == facts
+    assert calls.call_count == releases.call_count == 1
+
+
+@pytest.mark.parametrize("claim_state", ["processing", "unknown"])
+def test_cancel_keeps_a_recovered_pending_claim_without_a_bank_receipt(
+    harness_env, monkeypatch, claim_state,
+):
+    """An explicit claim-state fault remains uncertain, even on real bank miss."""
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from app.contracts.common import Phase
+    from app.contracts.security import ActionDescriptor
+    from app.security.test_retirement import insert_claim_row
+
+    env = harness_env
+    freeze = adopted_budget_freeze(env, ("鲜花",))
+    approve_confirmation(env.runtime, env.who, freeze.interaction.record_ref)
+    assert env.resume({"choice": "approve"}).interaction.kind == "verification"
+    caller = target_session(env)
+    recovered = env.runtime.harness.recover_session(caller)
+    env.who = caller
+    confirmation = env.runtime.confirmations.get(
+        env.runtime._context(caller, None, None), recovered.interaction.record_ref)
+    approve_confirmation(env.runtime, caller, recovered.interaction.record_ref)
+    waiting = env.resume({"choice": "approve"})
+    answer_verification(env.runtime, caller, "R1", waiting.interaction.record_ref)
+    context = env.runtime._context(caller, confirmation.operation_id, confirmation.action_revision)
+    action = ActionDescriptor(action_name="bank.freeze_funds",
+        parameters_ref=str(confirmation.operation_id), resource_refs=[], phase=Phase.EXECUTION)
+    insert_claim_row(SimpleNamespace(path=env.runtime.application.path), context, action, claim_state)
+    budget = env.runtime.application.list_adopted_budgets("U1", "D1")[0]
+    hold = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
+    before = env.runtime.gateway.get_operation(caller, confirmation.operation_id)
+    assert before.lookup == "not_found"
+    forbidden = []
+    for method in ("freeze_funds", "create_order", "capture_frozen", "release_frozen"):
+        spy = Mock(side_effect=AssertionError("UNRESOLVED_CANCEL_MUST_NOT_WRITE"))
+        forbidden.append(spy)
+        monkeypatch.setattr(env.runtime.gateway, method, spy)
+
+    paused = env.resume({"choice": "cancel"})
+
+    assert paused.status is TaskStatus.WAITING_INPUT, paused.message
+    assert "提交情况仍待核实" in paused.message
+    again = env.resume({"selected_option_id": option_id(paused, "重新核对预算")})
+    assert again.status is TaskStatus.WAITING_INPUT
+    assert env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0] == hold
+    assert env.runtime.gateway.get_operation(caller, confirmation.operation_id) == before
+    assert cross_state(env)["birthday"]["freeze"] is None
+    assert bank_orders(env.runtime) == [] and paid_amounts(env) == []
+    assert all(spy.call_count == 0 for spy in forbidden)
+
+
+def test_cancel_closes_only_the_proved_unsubmitted_replacement(harness_env):
+    env = harness_env
+    freeze = adopted_budget_freeze(env, ("鲜花",))
+    original = env.runtime.confirmations.get(
+        env.runtime._context(env.who, None, None), freeze.interaction.record_ref)
+    approve_confirmation(env.runtime, env.who, freeze.interaction.record_ref)
+    assert env.resume({"choice": "approve"}).interaction.kind == "verification"
+    caller = target_session(env)
+    recovered = env.runtime.harness.recover_session(caller)
+    env.who = caller
+    replacement = env.runtime.confirmations.get(
+        env.runtime._context(caller, None, None), recovered.interaction.record_ref)
+    budget = env.runtime.application.list_adopted_budgets("U1", "D1")[0]
+
+    stopped = env.resume({"choice": "cancel"})
+
+    assert stopped.status is TaskStatus.CANCELLED, stopped.message
+    assert bank_orders(env.runtime) == [] and paid_amounts(env) == []
+    assert env.runtime.gateway.get_operation(caller, original.operation_id).lookup == "not_found"
+    assert env.runtime.gateway.get_operation(caller, replacement.operation_id).lookup == "not_found"
+    hold = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id,
+        include_closed=True)[0]
+    assert hold.operation_ids == [original.operation_id, replacement.operation_id]
+    assert hold.state == "closed" and hold.unconsumed_fen == 0

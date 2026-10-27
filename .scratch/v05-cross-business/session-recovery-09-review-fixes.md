@@ -107,3 +107,21 @@ not_submitted 才沿取消关闭；submitted 转既有原号 bind/requery、限�
 JUnit：`evidence/2026-10-27-session-recovery-09-after23-freeze.xml`。
 银行只冻结一次、原已证实50000分冻结限定释放到零、占用关闭、旧新号历史不变。
 后续未决/故障与最终整组验证另记，不将此前5项或208批写成本次整组全过。
+
+新增定向 **11 passed / 161.60s**：
+
+- 原 capture 目标的单/双商品 × 确认/验证等待四项，其中单件验证等待经过真实
+  runtime 重启后再核对，证明目标来自持久发布状态。
+- capture 预算暂停时取消与旧选项重放一项。
+- 新冻结成功后Cross快照前异常：正常、银行get_operation不可读、provider读
+  返回None三项。后两项保留完整原占用和50000分实际冻结，恢复后原号限定释放，
+  只冻结一次、只释放一次；重复cancel无新写。
+- 显式注入 processing/unknown 执行claim且真实银行原号not_found两项：取消
+  和预算重试仍暂停，原占用完全不变，四个银行写入口调用数均为零。
+- 新替换号尚未确认、银行原号确无操作且无claim的一项：明确未提交才关闭，
+  旧退休号、新号及金额历史保留。
+
+上述11项的交易、Harness/G3、确认/验证和银行链均真实；claim状态与provider
+空返回为明示故障注入，未伪造银行成功/安全证明。JUnit：
+`evidence/2026-10-27-session-recovery-09-after23-faults.xml`。最终固定源码完整
+Cross及必要provider兼容将另单批运行、单独计算唯一用例，不累加此批重复节点。
