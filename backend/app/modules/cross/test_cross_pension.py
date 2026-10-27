@@ -353,7 +353,7 @@ def test_p06_unknown_second_transfer_keeps_the_arrangement_open(tmp_path):
 
     held = entry.resume(parent_trusted(), {})
     assert held.status is TaskStatus.RUNNING
-    assert "结果未知" in held.message and "核实" in held.message
+    assert "已暂停" in held.message and second_result.message in held.message
     assert entry.resume(parent_trusted(), {}).message == held.message  # no retry
     stopped = entry.resume(parent_trusted(), {"cancel": True})
     assert stopped.status is TaskStatus.RUNNING  # D2: unsettled stays open

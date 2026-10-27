@@ -169,6 +169,8 @@ def test_unknown_child_parent_resume_waits_and_child_query_uses_original_operati
         assert len(original_operations) == 1
         resumed = post(client, f"/tasks/{menu['task_id']}/resume")
         assert resumed.status_code == 200, resumed.text
+        assert "已暂停" in resumed.json()["data"]["message"]
+        assert unknown["message"] in resumed.json()["data"]["message"]
         assert resumed.json()["data"]["data"]["interaction_task_id"] == child["task_id"]
         assert write.call_count == 1
         assert post(client, f"/tasks/{menu['task_id']}/query-result").status_code == 409
