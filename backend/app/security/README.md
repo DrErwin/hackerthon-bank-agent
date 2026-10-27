@@ -1,5 +1,11 @@
 # security —— 安全底座
 
+2026-10-27 [v05-birthday-session-security/01](../../../.scratch/v05-birthday-session-security/issues/01-session-retirement.md)：增加`SQLiteSecurityState.begin_session_retirement`/`seal_session_retirement`，用于生日未提交敏感动作跨会话撤离。目标context只带已认证目标session和原operation/revision，confirmation字段必须None；旧session、旧确认ID/version显式传入，安全从当前/历史确认核对原主体、任务、轮次、action及参数引用。原绑定保留源session并持久增加`recovery_target_session_id`，没有把旧批准迁移到新会话。
+
+两阶段均要求后端`recovery_validator(connection, target_context, original_binding) -> bool`在传入同一应用事务connection中核对目标任务所有权、原attempt仍是冻结发布/CAS来源、原action/resource_refs/phase及受控参数快照精确一致。dict另含user/task/round/operation/revision，True才继续，False为RETIREMENT_STALE，异常或非bool为DEPENDENCY_UNAVAILABLE。不能把客户端/模型布尔值或单独的_task_terminated回调当proof。源事实必须在新check/新卡之前由平台冻结；银行proof只能来自真实gateway对旧attempt的挑战退役，不得由请求正文伪造。
+
+begin只写pending_proof；seal在二次无claim、银行退役匹配和任务/CAS仍有效时，使原pending_freeze授权invalid(RETIRED_UNSUBMITTED)，与封存/审计同事务。任何claim、未知或已有真实active冻结均不产生新授权；claim抢先仍按G2胜序转conflict。普通G2 seal不能跳过跨会话validator，其他session不能封存。审计保留原绑定和源/目标session，策略版本`v05-birthday-session-retirement-1`；历史确认和银行挑战不改写。sealed后平台才可创建关联的新attempt并重新确认/验证；迟到旧grant/bind/claim/挑战不可复活。新attempt创建与Cross消费另票，本接口不分配新operation、不放宽唯一/身份/确认/验证规则，也不是整体恢复或真人安全接受。
+
 2026-10-27 [v05-demo-risk-phrasing/01](../../../.scratch/v05-demo-risk-phrasing/issues/01-normal-transfer-phrasing.md)：有限语序覆盖版本递增为 `demo-text-risk-5`。在原有礼貌前缀、付款账户、金额及收款人词表内，补充“转/转账/汇款 + 金额 + 给/向收款人”；数字间小数点保留在金额内，其他句号仍分句。每句仍须完整匹配，正向危险优先 HIGH，否定/未知内容或无参数绑定演示数据继续暂停，真实新收款人仍覆盖熟悉收款人夹具。本票沿用选项 A 的有限真实检测 + 演示风险数据，不代表 #160 去夹具、完整识别或真人安全接受。
 
 2026-10-23 连续办理修复票 bank-e2e-remediation/21：有限演示文字覆盖版本为 `demo-text-risk-4`，支持用户先说纯“我要转账 / 汇款”再在卡片补资料，以及中途查询本人账户、余额和收款人的有限表达。查询原文仍参与判断，混入威胁或未知附言不会沿用低风险夹具。仅在冻结金额、账户、收款人仍匹配服务端夹具时沿用原判定；新收款、真实银行事实覆盖、正向威胁优先、未识别附言暂停、确认和验证均保留。不丢弃原请求，不把任意自然语言判为安全。此修复须在本次 PR 明示，AI 审查不替代 Ringo 专业批准。

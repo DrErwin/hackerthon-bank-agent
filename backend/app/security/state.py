@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 from pathlib import Path
+import sqlite3
 from typing import Callable, Literal
 from uuid import UUID, uuid4
 
@@ -26,6 +27,8 @@ from app.storage.database import connect, transaction
 
 
 RETIREMENT_POLICY_VERSION = "v05-birthday-retirement-1"
+SESSION_RETIREMENT_POLICY_VERSION = "v05-birthday-session-retirement-1"
+RecoveryValidator = Callable[[sqlite3.Connection, ExecutionSecurityContext, dict[str, object]], bool]
 
 
 class SecurityStateError(ValueError):
@@ -753,65 +756,148 @@ class SQLiteSecurityState:
         if context.operation_id is None or context.action_revision is None:
             raise SecurityStateError("INPUT_REQUIRED")
         binding = self._retirement_binding(context, action)
-        binding_key = self._binding_key(binding)
         with transaction(self.path) as connection:
             self._ensure_task_open(connection, context, task_state_resolver)
-            claim = connection.execute(
-                "SELECT * FROM security_executions WHERE operation_id = ?",
-                (str(context.operation_id),),
-            ).fetchone()
-            if claim is not None:
-                if (claim["user_id"], claim["demo_round_id"], claim["task_id"]) != (
-                    context.user_id, context.demo_round_id, context.task_id,
-                ):
-                    raise SecurityStateError("ACCESS_DENIED")
-                # An existing claim can only be observed by its original id; it
-                # is never accepted as unsubmitted (completed is not success).
-                raise SecurityStateError("OPERATION_UNKNOWN")
+            return self._accept_retirement(connection, context, binding, now)
+
+    def begin_session_retirement(
+        self, context: ExecutionSecurityContext, action: ActionDescriptor, now: datetime,
+        *, source_session_id: str, source_confirmation_id: str,
+        source_confirmation_version: int, recovery_validator: RecoveryValidator,
+    ) -> RetirementRecord:
+        """Withdraw an exact old-session attempt, never transfer its approval.
+
+        The provider must freeze the source before creating any new-session card.
+        Its validator reads the current target task and original publication/CAS
+        and parameter snapshot through this transaction's connection. Only after
+        bank retirement and seal may it publish a separate, freshly gated attempt.
+        """
+        if context.operation_id is None or context.action_revision is None:
+            raise SecurityStateError("INPUT_REQUIRED")
+        if (context.confirmation_id is not None or context.confirmation_version is not None
+                or source_session_id == context.session_id):
+            raise SecurityStateError("INPUT_REQUIRED")
+        if action.action_name not in {
+            "bank.freeze_funds", "bank.create_order", "bank.capture_frozen",
+        } or action.phase is not Phase.EXECUTION:
+            raise SecurityStateError("POLICY_VIOLATION")
+        with transaction(self.path) as connection:
             row = connection.execute(
-                "SELECT * FROM security_retirements WHERE operation_id = ?",
-                (str(context.operation_id),),
+                "SELECT confirmation_json AS record_json FROM security_confirmations "
+                "WHERE confirmation_id = ?", (source_confirmation_id,),
             ).fetchone()
-            if row is not None:
-                record = self._retirement(row)
-                if (record.user_id, record.demo_round_id, record.task_id) != (
-                    context.user_id, context.demo_round_id, context.task_id,
-                ):
-                    raise SecurityStateError("ACCESS_DENIED")
-                if (record.action_revision != context.action_revision
-                        or record.state == "conflict"):
+            source = ConfirmationRecord.model_validate_json(row["record_json"]) if row else None
+            if source is None or source.confirmation_version != source_confirmation_version:
+                row = connection.execute(
+                    "SELECT record_json FROM security_confirmation_history "
+                    "WHERE confirmation_id = ? AND version = ?",
+                    (source_confirmation_id, source_confirmation_version),
+                ).fetchone()
+                source = ConfirmationRecord.model_validate_json(row["record_json"]) if row else None
+            if source is None:
+                raise SecurityStateError("CONFIRMATION_STALE")
+            if (source.user_id, source.demo_round_id, source.task_id, source.session_id) != (
+                context.user_id, context.demo_round_id, context.task_id, source_session_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            if (source.operation_id, source.action_revision, source.action_name, source.parameters_ref) != (
+                context.operation_id, context.action_revision, action.action_name, action.parameters_ref,
+            ):
+                raise SecurityStateError("OPERATION_CONFLICT")
+            if source.decision == "cancelled":
+                raise SecurityStateError("TASK_TERMINATED")
+            source_context = context.model_copy(update={
+                "session_id": source_session_id, "confirmation_id": source.confirmation_id,
+                "confirmation_version": source.confirmation_version,
+            })
+            binding = {**self._retirement_binding(source_context, action),
+                       "recovery_target_session_id": context.session_id}
+            release = connection.execute(
+                "SELECT authorization_json FROM security_release_authorizations "
+                "WHERE task_id = ? AND freeze_operation_id = ?",
+                (context.task_id, str(context.operation_id)),
+            ).fetchone()
+            if release is not None and FreezeReleaseAuthorization.model_validate_json(
+                    release["authorization_json"]).status in {"active", "completed"}:
+                raise SecurityStateError("OPERATION_UNKNOWN")
+            self._ensure_session_recovery(connection, context, binding, recovery_validator)
+            return self._accept_retirement(connection, context, binding, now)
+
+    @staticmethod
+    def _ensure_session_recovery(connection, context, binding, validator: RecoveryValidator) -> None:
+        if context.operation_id is None or context.action_revision is None:
+            raise SecurityStateError("INPUT_REQUIRED")
+        if context.confirmation_id is not None or context.confirmation_version is not None:
+            raise SecurityStateError("INPUT_REQUIRED")
+        if binding.get("recovery_target_session_id") != context.session_id:
+            raise SecurityStateError("ACCESS_DENIED")
+        if connection.execute("SELECT 1 FROM security_terminated_tasks WHERE task_id = ?",
+                              (context.task_id,)).fetchone() is not None:
+            raise SecurityStateError("TASK_TERMINATED")
+        proof_binding = {
+            **binding, "user_id": context.user_id, "demo_round_id": context.demo_round_id,
+            "task_id": context.task_id, "operation_id": str(context.operation_id),
+            "action_revision": context.action_revision,
+        }
+        try:
+            valid = validator(connection, context, proof_binding)
+        except Exception as exc:
+            raise SecurityStateError("DEPENDENCY_UNAVAILABLE") from exc
+        if not isinstance(valid, bool):
+            raise SecurityStateError("DEPENDENCY_UNAVAILABLE")
+        if not valid:
+            raise SecurityStateError("RETIREMENT_STALE")
+
+    def _accept_retirement(self, connection, context, binding, now) -> RetirementRecord:
+        binding_key = self._binding_key(binding)
+        claim = connection.execute(
+            "SELECT * FROM security_executions WHERE operation_id = ?",
+            (str(context.operation_id),),
+        ).fetchone()
+        if claim is not None:
+            if (claim["user_id"], claim["demo_round_id"], claim["task_id"]) != (
+                context.user_id, context.demo_round_id, context.task_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            raise SecurityStateError("OPERATION_UNKNOWN")
+        row = connection.execute(
+            "SELECT * FROM security_retirements WHERE operation_id = ?",
+            (str(context.operation_id),),
+        ).fetchone()
+        if row is not None:
+            record = self._retirement(row)
+            if (record.user_id, record.demo_round_id, record.task_id) != (
+                context.user_id, context.demo_round_id, context.task_id,
+            ):
+                raise SecurityStateError("ACCESS_DENIED")
+            if record.action_revision != context.action_revision or record.state == "conflict":
+                raise SecurityStateError("OPERATION_CONFLICT")
+            if self._binding_key(record.original_binding) != binding_key:
+                raise SecurityStateError("OPERATION_CONFLICT")
+            if record.original_binding.get("recovery_target_session_id") or binding.get("recovery_target_session_id"):
+                if (record.original_binding.get("recovery_target_session_id"),
+                    record.original_binding.get("session_id")) != (
+                        binding.get("recovery_target_session_id"), binding.get("session_id")):
                     raise SecurityStateError("OPERATION_CONFLICT")
-                if self._binding_key(record.original_binding) != binding_key:
-                    raise SecurityStateError("OPERATION_CONFLICT")
-                return record
-            record = RetirementRecord(
-                retirement_id=str(uuid4()),
-                user_id=context.user_id,
-                demo_round_id=context.demo_round_id,
-                task_id=context.task_id,
-                operation_id=context.operation_id,
-                action_revision=context.action_revision,
-                state="pending_proof",
-                original_binding=binding,
-                bank_evidence=None,
-                audit_ref=None,
-                created_at=now,
-                sealed_at=None,
-            )
-            connection.execute(
-                """INSERT INTO security_retirements
-                   (retirement_id, user_id, demo_round_id, task_id, operation_id,
-                    action_revision, state, original_binding_json,
-                    bank_evidence_json, audit_ref, created_at, sealed_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, NULL)""",
-                (
-                    record.retirement_id, record.user_id, record.demo_round_id,
-                    record.task_id, str(record.operation_id),
-                    record.action_revision, record.state, _canonical(binding),
-                    now.isoformat(),
-                ),
-            )
             return record
+        record = RetirementRecord(
+            retirement_id=str(uuid4()), user_id=context.user_id,
+            demo_round_id=context.demo_round_id, task_id=context.task_id,
+            operation_id=context.operation_id, action_revision=context.action_revision,
+            state="pending_proof", original_binding=binding, bank_evidence=None,
+            audit_ref=None, created_at=now, sealed_at=None,
+        )
+        connection.execute(
+            """INSERT INTO security_retirements
+               (retirement_id, user_id, demo_round_id, task_id, operation_id,
+                action_revision, state, original_binding_json,
+                bank_evidence_json, audit_ref, created_at, sealed_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, NULL)""",
+            (record.retirement_id, record.user_id, record.demo_round_id, record.task_id,
+             str(record.operation_id), record.action_revision, record.state,
+             _canonical(binding), now.isoformat()),
+        )
+        return record
 
     def seal_retirement(
         self,
@@ -831,6 +917,22 @@ class SQLiteSecurityState:
         ``security.retired_unsubmitted``; the synthetic decision is BLOCK with
         reason RETIRED_UNSUBMITTED and the real binding/bank evidence snapshot.
         """
+        return self._seal_retirement(context, retirement_id, bank_evidence, now,
+                                     audit_writer=audit_writer, task_state_resolver=task_state_resolver)
+
+    def seal_session_retirement(
+        self, context: ExecutionSecurityContext, retirement_id: str,
+        bank_evidence: object, now: datetime, *, audit_writer: Callable[..., object],
+        recovery_validator: RecoveryValidator,
+    ) -> RetirementRecord:
+        """Seal only for the recorded target session and freshly revalidated source."""
+        return self._seal_retirement(context, retirement_id, bank_evidence, now,
+                                     audit_writer=audit_writer, recovery_validator=recovery_validator)
+
+    def _seal_retirement(
+        self, context, retirement_id, bank_evidence, now, *, audit_writer,
+        task_state_resolver=None, recovery_validator=None,
+    ) -> RetirementRecord:
         evidence = self._normalise_bank_evidence(bank_evidence)
         with transaction(self.path) as connection:
             row = connection.execute(
@@ -840,12 +942,15 @@ class SQLiteSecurityState:
             if row is None:
                 raise SecurityStateError("RETIREMENT_STALE")
             record = self._retirement(row)
-            self._ensure_task_open(connection, context, task_state_resolver)
             if (record.user_id, record.demo_round_id, record.task_id) != (
                 context.user_id, context.demo_round_id, context.task_id,
             ):
                 raise SecurityStateError("ACCESS_DENIED")
-            self._check_retirement_context(record, context)
+            self._check_retirement_context(record, context, session_recovery=recovery_validator is not None)
+            if recovery_validator is not None:
+                self._ensure_session_recovery(connection, context, record.original_binding, recovery_validator)
+            else:
+                self._ensure_task_open(connection, context, task_state_resolver)
             if record.state == "sealed":
                 if _canonical(record.bank_evidence) != _canonical(evidence):
                     raise SecurityStateError("OPERATION_CONFLICT")
@@ -940,6 +1045,7 @@ class SQLiteSecurityState:
     @staticmethod
     def _check_retirement_context(
         record: RetirementRecord, context: ExecutionSecurityContext,
+        *, session_recovery: bool = False,
     ) -> None:
         if (context.operation_id is not None
                 and str(context.operation_id) != str(record.operation_id)):
@@ -954,7 +1060,10 @@ class SQLiteSecurityState:
         if (context.confirmation_version is not None
                 and context.confirmation_version != binding.get("confirmation_version")):
             raise SecurityStateError("OPERATION_CONFLICT")
-        if context.session_id != binding.get("session_id"):
+        if session_recovery:
+            if context.session_id != binding.get("recovery_target_session_id"):
+                raise SecurityStateError("ACCESS_DENIED")
+        elif binding.get("recovery_target_session_id") is not None or context.session_id != binding.get("session_id"):
             # The old action's session is part of its binding (same rule as
             # _check_owner); a stale/foreign session must not seal edit evidence.
             raise SecurityStateError("ACCESS_DENIED")
@@ -1015,6 +1124,11 @@ class SQLiteSecurityState:
         if authorization.status != "pending_freeze":
             return None
         binding = record.original_binding
+        if binding.get("recovery_target_session_id") is not None and (
+            authorization.session_id != binding.get("session_id")
+            or authorization.action_revision not in (None, record.action_revision)
+        ):
+            raise SecurityStateError("OPERATION_CONFLICT")
         if binding.get("confirmation_id") is not None and (
             authorization.confirmation_id != binding.get("confirmation_id")
             or authorization.confirmation_version
@@ -1081,7 +1195,8 @@ class SQLiteSecurityState:
             decision=SecurityDecisionCode.BLOCK,
             reason_codes=["RETIRED_UNSUBMITTED"],
             rule_ids=["retirement-before-bank-submit"],
-            policy_version=RETIREMENT_POLICY_VERSION,
+            policy_version=(SESSION_RETIREMENT_POLICY_VERSION
+                            if binding.get("recovery_target_session_id") else RETIREMENT_POLICY_VERSION),
             authorization_snapshot_ref=None, evidence_refs=[], interaction=None,
             checked_at=now,
             message="旧动作在提交银行前已安全撤离，未产生提交。",
