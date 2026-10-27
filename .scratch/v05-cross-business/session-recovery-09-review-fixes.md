@@ -61,5 +61,31 @@ claim、平台 snapshot 或伪造 bank proof。确认现成能力或提供接缝
 
 ## P3：提交正文
 
-最终仅补 `656439d3` 与 `cfc039cb` 的 why 正文，保留所有文件树字节；使用
-精确远端 head 的 force-with-lease，只重写本分支，另存旧新映射及树等价证据。
+仅补 `656439d3` 与 `cfc039cb` 的 why 正文，保留所有文件树字节。基线仍为
+`aae8335394f79e30ebcabb9b57ba89cd950737c4`，没有借此次改消息同步新代码。
+
+消息重写前 `cf63c2b2f405a7a10f8235c541cd84b561e21d5a`，重写后
+`35d7ae7a1082c59bf10ea5b4a42b5f90cab0cd37`；整仓树均为
+`f39277006720bde4c63cf048f91286c2a91fd256`，两提交直接 diff 为空。
+12提交 range-diff 仅上述两条有提交正文差异，其余10条 `=`，文件补丁全不变。
+
+| 原来源 | 新来源 | 不变的证据范围 |
+|---|---|---|
+| `656439d3` | `56289d6a` | 原09的1fail/1pass与接缝说明 |
+| `cfc039cb` | `927fc8c1` | Draft和历史范围链接 |
+| `5e8c8ebb` | `6724f154` | capture单商品真实红例 |
+| `f7204bdc` | `2ae4bc45` | 稳定目标生产修补、capture四组合通过 |
+| `14117e64` | `c79f3bcf` | freeze真实红例、此前两条测试探测错误 |
+| `cf63c2b2` | `35d7ae7a` | capture预算暂停时取消与旧选项重放通过 |
+
+当前 backend 树 `6a338e7d05d7bcb268d32c7718a0f9c005289c69`，Cross 树
+`22c68c98c9fe10daedc1a12e32651fa617e17172`。此后只补本组说明/计数，
+不改变受测生产或测试体；不重跑未变化的旧整批。
+
+平台 owner 已委派平台23，拟提供只读 `observe_freeze_submission` 三态；待
+其固定签名和独立交付后另续消费。当前5项capture通过不包含freeze问题已修，
+也不写成当前完整Cross通过。根最终全backend及真实页面验收分开记录。
+
+本次推送仅本功能分支，以远端已核实
+`ea8da3da4e6e24255410cba56add9e377b82c30b` 为精确 lease。原 XML 无损 gzip
+的 SHA256、逐层计数及来源另存 `evidence/2026-10-27-session-recovery-09-review-summary.json`。

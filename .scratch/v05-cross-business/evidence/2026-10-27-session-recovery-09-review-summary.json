@@ -1,0 +1,64 @@
+{
+  "base": "aae8335394f79e30ebcabb9b57ba89cd950737c4",
+  "pre_message_head": "cf63c2b2f405a7a10f8235c541cd84b561e21d5a",
+  "post_message_head": "35d7ae7a1082c59bf10ea5b4a42b5f90cab0cd37",
+  "identical_whole_tree": "f39277006720bde4c63cf048f91286c2a91fd256",
+  "backend_tree": "6a338e7d05d7bcb268d32c7718a0f9c005289c69",
+  "cross_tree": "22c68c98c9fe10daedc1a12e32651fa617e17172",
+  "capture_green_unique": 5,
+  "capture_green_layers": [
+    "4 passed /85.12s",
+    "1 passed /16.57s"
+  ],
+  "freeze_product_failure": "cancelled with new freeze remaining_fen=50000; 1 failed /18.22s",
+  "freeze_prior_probe_errors_not_product_failures": [
+    "wrong OperationFound shape /15.23s",
+    "unproved TRANSITION_PENDING assumption /16.86s"
+  ],
+  "blocked_on": "platform ticket23 owned original freeze submission observation; not yet consumed",
+  "historical_208_cases": "unchanged original207 successes plus corrected same node1; before new production fix; not a current full green batch",
+  "artifacts": {
+    "2026-10-27-session-recovery-09-review-capture-after.xml": {
+      "raw_sha256": "54011283f5472ae1b6e02a8d981b2d51b97fa2cdc37b4b91f244b67d1a8c1c10",
+      "tests": 4,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-27-session-recovery-09-review-capture-before.xml.gz": {
+      "raw_sha256": "a50902e1d718708afa4b30f6b7b4f4626a762ae951e6bfe37b6e2628f4e9037e",
+      "tests": 1,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-27-session-recovery-09-review-capture-cancel.xml": {
+      "raw_sha256": "931f6aae0aec10e26dc7598299779cbc3293d48bbe469501829f920c4b0187ec",
+      "tests": 1,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-27-session-recovery-09-review-freeze-barrier-assumption.xml.gz": {
+      "raw_sha256": "fec7f69afec08c09800e748817a3d0d21eeab38f0309603dd5bcf1d942698223",
+      "tests": 1,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-27-session-recovery-09-review-freeze-before.xml.gz": {
+      "raw_sha256": "0c02608dfc0cadbf458f00e80321e561a0adfb5a8fa814cc209d4cec12a4528b",
+      "tests": 1,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-27-session-recovery-09-review-freeze-test-shape-error.xml.gz": {
+      "raw_sha256": "0b20231046e299fe1c321e3a3c7d8433da292ad80fe0f88f82d1643a87824e46",
+      "tests": 1,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    }
+  }
+}
