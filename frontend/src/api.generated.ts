@@ -562,6 +562,19 @@ export type MonthlyAverageFen = number | null;
 export type StatisticalDays = number;
 export type AverageBasis = string;
 export type GeneratedAt = string;
+export type RequestId8 = string;
+export type DemoRoundId7 = string;
+export type ResetConfirmationId = string;
+export type DemoRoundId8 = string;
+export type Effects = string[];
+export type RequestId9 = string;
+export type ResetConfirmationId1 = string;
+export type ManagementOperationId1 = string;
+export type Kind4 = "advance_time" | "reset";
+export type Status3 = "running" | "succeeded" | "failed";
+export type SourceRoundId1 = string;
+export type ResultingRoundId1 = string | null;
+export type Phase1 = string;
 
 export interface ContractSchema {
   CardActionRequest: CardActionRequest;
@@ -602,6 +615,10 @@ export interface ContractSchema {
   AnomalyResult: AnomalyResult;
   TransactionCandidates: TransactionCandidates;
   BillReport: BillReport;
+  ResetPreviewRequest: ResetPreviewRequest;
+  ResetPreview: ResetPreview;
+  ResetRequest: ResetRequest;
+  ManagementOperation: ManagementOperation;
   [k: string]: unknown;
 }
 /**
@@ -1692,6 +1709,44 @@ export interface BillReport {
 }
 /**
  * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "ResetPreviewRequest".
+ */
+export interface ResetPreviewRequest {
+  request_id: RequestId8;
+  demo_round_id: DemoRoundId7;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "ResetPreview".
+ */
+export interface ResetPreview {
+  reset_confirmation_id: ResetConfirmationId;
+  demo_round_id: DemoRoundId8;
+  effects: Effects;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "ResetRequest".
+ */
+export interface ResetRequest {
+  request_id: RequestId9;
+  reset_confirmation_id: ResetConfirmationId1;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
+ * via the `definition` "ManagementOperation".
+ */
+export interface ManagementOperation {
+  management_operation_id: ManagementOperationId1;
+  kind: Kind4;
+  status: Status3;
+  source_round_id: SourceRoundId1;
+  resulting_round_id: ResultingRoundId1;
+  phase: Phase1;
+  error: ModuleError | null;
+}
+/**
+ * This interface was referenced by `ContractSchema`'s JSON-Schema
  * via the `definition` "PublicContract".
  */
 export interface PublicContract {
@@ -1733,5 +1788,9 @@ export interface PublicContract {
   AnomalyResult: AnomalyResult;
   TransactionCandidates: TransactionCandidates;
   BillReport: BillReport;
+  ResetPreviewRequest: ResetPreviewRequest;
+  ResetPreview: ResetPreview;
+  ResetRequest: ResetRequest;
+  ManagementOperation: ManagementOperation;
   [k: string]: unknown;
 }

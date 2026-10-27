@@ -16,11 +16,15 @@ from app.contracts.api import (  # noqa: E402
     DetailsResponse,
     MessageAccepted,
     MessageView,
+    ManagementOperation,
     Page,
     PayeeDetailsFields,
     PayeeSearchFields,
     ProvideInputRequest,
     RequestIdOnly,
+    ResetPreview,
+    ResetPreviewRequest,
+    ResetRequest,
     SendMessageRequest,
     SessionView,
     StreamEvent,
@@ -83,6 +87,10 @@ PUBLIC_MODELS = {
     "AnomalyResult": AnomalyResult,
     "TransactionCandidates": TransactionCandidates,
     "BillReport": BillReport,
+    "ResetPreviewRequest": ResetPreviewRequest,
+    "ResetPreview": ResetPreview,
+    "ResetRequest": ResetRequest,
+    "ManagementOperation": ManagementOperation,
 }
 
 
