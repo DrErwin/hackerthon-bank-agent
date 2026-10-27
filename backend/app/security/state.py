@@ -10,6 +10,8 @@ import sqlite3
 from typing import Callable, Literal
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
 from app.audit.journal import run_key
 from app.contracts.audit import AuditEvent, SecurityDecidedPayload
 from app.contracts.common import (
@@ -1301,21 +1303,88 @@ class SQLiteSecurityState:
     ) -> FreezeReleaseAuthorization | None:
         connection = connect(self.path)
         try:
+            return self._read_release_authorization(connection, context, release_authorization_id)
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _read_release_authorization(connection, context, release_authorization_id):
+        row = connection.execute(
+            """SELECT * FROM security_release_authorizations
+               WHERE release_authorization_id = ?""",
+            (release_authorization_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        record = FreezeReleaseAuthorization.model_validate_json(row["authorization_json"])
+        if (record.user_id, record.demo_round_id, record.task_id) != (
+            context.user_id, context.demo_round_id, context.task_id,
+        ):
+            raise SecurityStateError("ACCESS_DENIED")
+        return record
+
+    def get_release_confirmation(
+        self, context: ExecutionSecurityContext, release_authorization_id: str,
+    ) -> ConfirmationRecord:
+        """Read one effective release's original approval, never a new approval.
+
+        The trusted caller supplies the current ending context. Its session is
+        not substituted with the original one; only the bound source is read.
+        A historical approval's expiry is not refreshed by this read.
+        """
+        from .birthday_policy import has_release_clause
+
+        if context.release_authorization_id != release_authorization_id:
+            raise SecurityStateError("ACCESS_DENIED")
+        connection = connect(self.path)
+        try:
+            # Authorization and source must come from the same read snapshot.
+            connection.execute("BEGIN")
+            authorization = self._read_release_authorization(connection, context, release_authorization_id)
+            if authorization is None:
+                raise SecurityStateError("POLICY_VIOLATION")
+            if authorization.release_authorization_id != release_authorization_id:
+                raise SecurityStateError("OPERATION_CONFLICT")
+            if (authorization.status not in {"active", "completed"}
+                    or authorization.freeze_id is None or authorization.invalid_reason is not None):
+                raise SecurityStateError("POLICY_VIOLATION")
             row = connection.execute(
-                """SELECT * FROM security_release_authorizations
-                   WHERE release_authorization_id = ?""",
-                (release_authorization_id,),
+                "SELECT confirmation_json FROM security_confirmations WHERE confirmation_id = ?",
+                (authorization.confirmation_id,),
             ).fetchone()
-            if row is None:
-                return None
-            record = FreezeReleaseAuthorization.model_validate_json(
-                row["authorization_json"],
-            )
-            if (record.user_id, record.demo_round_id, record.task_id) != (
-                context.user_id, context.demo_round_id, context.task_id,
+            current = ConfirmationRecord.model_validate_json(row["confirmation_json"]) if row else None
+            sources = ([current] if current is not None and
+                       current.confirmation_version == authorization.confirmation_version else [])
+            history = connection.execute(
+                "SELECT record_json FROM security_confirmation_history WHERE confirmation_id = ? AND version = ?",
+                (authorization.confirmation_id, authorization.confirmation_version),
+            ).fetchone()
+            if history is not None:
+                sources.append(ConfirmationRecord.model_validate_json(history["record_json"]))
+            if not sources:
+                raise SecurityStateError("CONFIRMATION_STALE")
+            if len(sources) != 1:
+                raise SecurityStateError("OPERATION_CONFLICT")
+            source = sources[0]
+            if (source.user_id, source.session_id, source.demo_round_id, source.task_id) != (
+                authorization.user_id, authorization.session_id, authorization.demo_round_id, authorization.task_id,
             ):
                 raise SecurityStateError("ACCESS_DENIED")
-            return record
+            if ((source.confirmation_id, source.confirmation_version, source.operation_id) !=
+                    (authorization.confirmation_id, authorization.confirmation_version, authorization.freeze_operation_id)
+                    or authorization.action_revision is not None and source.action_revision != authorization.action_revision):
+                raise SecurityStateError("OPERATION_CONFLICT")
+            # Old rows without the redundant action_revision still identify one
+            # exact source version, which retains its original revision.
+            if (source.action_name != "bank.freeze_funds" or source.decision != "approved"
+                    or not has_release_clause(source.display_fields)
+                    or source.decided_at is None
+                    or not source.created_at <= source.decided_at < source.expires_at
+                    or source.decided_at > authorization.granted_at):
+                raise SecurityStateError("POLICY_VIOLATION")
+            return source
+        except ValidationError:
+            raise SecurityStateError("POLICY_VIOLATION") from None
         finally:
             connection.close()
 
