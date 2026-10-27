@@ -1,0 +1,37 @@
+[
+  {
+    "name": "2026-10-27-platform23-before.xml.gz",
+    "raw_sha256": "412968fb1592553e6771fde9a327ffc9b11f7c148439ae79cad9183ee83bcf23",
+    "tests": 1,
+    "failures": 1,
+    "skipped": 0
+  },
+  {
+    "name": "2026-10-27-platform23-first.xml.gz",
+    "raw_sha256": "9325ecfc7a30c7aff6c042281907bc917ca12d123fd42890e39c76514b896ce6",
+    "tests": 16,
+    "failures": 1,
+    "skipped": 0
+  },
+  {
+    "name": "2026-10-27-platform23-after.xml",
+    "raw_sha256": "e07256dee68f131029091ac5f29de14453fba45242be380b5cc8f7e1229f3b1b",
+    "tests": 28,
+    "failures": 0,
+    "skipped": 0
+  },
+  {
+    "name": "2026-10-27-platform23-final.xml",
+    "raw_sha256": "ed1e03ded76e8f801428b4378c2a26633fa7c9b780ab0937792553e648400f82",
+    "tests": 36,
+    "failures": 0,
+    "skipped": 0
+  },
+  {
+    "name": "2026-10-27-platform23-main.xml",
+    "raw_sha256": "73afa8445cb88196152ac86fa599c4d5f3af2ef23d7513df8b369438d25ba63a",
+    "tests": 36,
+    "failures": 0,
+    "skipped": 0
+  }
+]
