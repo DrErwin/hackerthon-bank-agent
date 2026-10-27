@@ -991,7 +991,11 @@ class BirthdayHandoff:
             sealed.checkpoint, sealed.metadata, sealed.writes,
             code="CANDIDATE_INVALID",
         )
-        revision = int(pending["accepted_version"]) + 1
+        # A known Harness fault record may advance only this conversion's
+        # publication guard. The seal still binds the original admission.
+        publication_version = int(pending.get(
+            "publication_version", pending["accepted_version"]))
+        revision = publication_version + 1
         result_json = result.model_dump(mode="json")
         published = {
             **_ref_dict(sealed.ref), "kind": kind,
@@ -1009,7 +1013,7 @@ class BirthdayHandoff:
             updated = self._update_task(
                 trusted, task, snapshot, status=result.status,
                 checkpoint_id=sealed.ref.checkpoint_id, run_id=trusted.run_id,
-                expected_revision=int(pending["accepted_version"]),
+                expected_revision=publication_version,
             )
         except ValueError as exc:
             raise BirthdayEditError("PUBLISH_CONFLICT",
@@ -1063,7 +1067,10 @@ class BirthdayHandoff:
                     "checkpoint_ns": candidate.checkpoint_ns,
                     "checkpoint_id": candidate.checkpoint_id,
                 }})
-                if saved is not None:
+                content = ({"checkpoint": saved.checkpoint,
+                            "metadata": saved.metadata, "new_versions": {}}
+                           if saved is not None else pending.get("staged_content"))
+                if isinstance(content, dict):
                     # Re-check the original seal binding and publish its first
                     # winner; a lost publication must not run Cross again. An
                     # unsealed occupied namespace is refused by seal_candidate.
@@ -1072,9 +1079,10 @@ class BirthdayHandoff:
                         trusted, kind=_NORMAL, candidate_ref=candidate,
                         conversion_digest=digest,
                         accepted_version=int(pending["accepted_version"]),
-                        checkpoint=saved.checkpoint, metadata=saved.metadata,
-                        new_versions={}, result=_validated_result(
-                            saved.metadata.get(RESULT_METADATA_KEY), "CANDIDATE_INVALID"),
+                        checkpoint={**content["checkpoint"], "id": candidate.checkpoint_id},
+                        metadata=content["metadata"],
+                        new_versions=content["new_versions"], result=_validated_result(
+                            content["metadata"].get(RESULT_METADATA_KEY), "CANDIDATE_INVALID"),
                         source=_ref_from(source, "SOURCE_UNAVAILABLE"),
                         source_digest=source["content_digest"],
                     )
@@ -1277,6 +1285,37 @@ class BirthdayTransition:
             conversion=self._conversion, buffer=self._saver.buffer,
             result=result,
         )
+
+    def interrupted_snapshot(self, task, result: ModuleResult | None) -> dict:
+        """Persist this accepted candidate with the Harness fault, not as activity.
+
+        A storage failure before sealing must not force a retry to run Cross
+        again (it may already have created a confirmation or bank operation).
+        This private pending content is retained by the same task CAS as the
+        fault; only the normal seal/publication path can make it visible.
+        """
+        snapshot = task.snapshot
+        g3 = snapshot.get("birthday_g3") or {}
+        pending = g3.get("pending")
+        if not isinstance(pending, dict) or pending.get("conversion_digest") != self._digest:
+            return snapshot
+        guard = int(pending.get("publication_version", pending["accepted_version"]))
+        if (task.revision != guard
+                or self._kind == _NORMAL
+                and not _same_ref(g3.get("published_ref"), pending.get("source"))):
+            raise BirthdayEditError("PUBLISH_CONFLICT",
+                                    "the accepted conversion changed before its fault record")
+        pending = {**pending, "publication_version": task.revision + 1}
+        if ("staged_content" not in pending and self._saver is not None
+                and self._saver.buffer is not None and result is not None):
+            buffer = self._saver.buffer
+            pending["staged_content"] = {
+                "checkpoint": buffer.checkpoint,
+                "metadata": {**buffer.metadata,
+                             RESULT_METADATA_KEY: result.model_dump(mode="json")},
+                "new_versions": buffer.new_versions,
+            }
+        return {**snapshot, "birthday_g3": {**g3, "pending": pending}}
 
 
 class _BufferedCheckpointSaver:

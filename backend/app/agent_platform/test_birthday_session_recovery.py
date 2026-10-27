@@ -261,3 +261,80 @@ def test_g3_recovery_rejects_an_unrelated_pending_conversion(harness_env):
 
     assert env.task() == before
 
+
+@pytest.mark.parametrize("adopt", [False, True])
+def test_original_input_retries_a_seal_storage_failure(harness_env, monkeypatch, adopt):
+    env = harness_env
+    current = env.start()
+    if adopt:
+        from .test_birthday_runtime_wiring import DELIVERY_REF, option_id
+
+        current = env.resume({"text": "500元"})
+        current = env.resume({"text": "2026-10-30"})
+        current = env.resume({"text": DELIVERY_REF})
+        current = env.resume({"selected_option_id": option_id(current, "鲜花")})
+        current = env.resume({"selected_option_id": option_id(current, "就选这些")})
+        response = {"selected_option_id": option_id(current, "采用并开始办理")}
+    else:
+        response = {"text": "500元"}
+    source = env.published_ref()
+    handoff = env.runtime.birthday.handoff
+    seal = handoff._seal_content
+    failures = 0
+
+    def unavailable(*args, **kwargs):
+        nonlocal failures
+        if failures == 0:
+            failures += 1
+            raise OSError("simulated seal storage unavailable")
+        return seal(*args, **kwargs)
+
+    monkeypatch.setattr(handoff, "_seal_content", unavailable)
+    request_id = uuid4()
+    with pytest.raises(OSError, match="seal storage"):
+        env.resume(response, request_id=request_id)
+    assert handoff.find_input_conversion(env.who, request_id) == "pending"
+    assert env.published_ref() == source
+    assert env.task().checkpoint_id == source["checkpoint_id"]
+    assert env.snapshot()["result"]["status"] == "needs_attention"
+    assert env.snapshot()["result"]["interaction"] is None
+    from app.modules.cross.entry import CrossEntry
+
+    def must_not_run_again(*args, **kwargs):
+        raise AssertionError("an accepted candidate must not execute Cross twice")
+
+    monkeypatch.setattr(CrossEntry, "resume", must_not_run_again)
+
+    recovered = env.resume(response, request_id=request_id)
+
+    assert recovered.status is (TaskStatus.WAITING_APPROVAL if adopt else TaskStatus.WAITING_INPUT)
+    assert env.published_ref()["checkpoint_id"] != source["checkpoint_id"]
+    assert env.snapshot()["birthday_g3"]["pending"] is None
+    assert submitted_ledger_count(env.runtime) == 0
+
+
+def test_staged_input_cannot_cross_an_unrelated_task_revision(harness_env, monkeypatch):
+    env = harness_env
+    env.start()
+    handoff = env.runtime.birthday.handoff
+    seal = handoff._seal_content
+
+    def unavailable(*args, **kwargs):
+        raise OSError("simulated seal storage unavailable")
+
+    monkeypatch.setattr(handoff, "_seal_content", unavailable)
+    request_id = uuid4()
+    with pytest.raises(OSError):
+        env.resume({"text": "500元"}, request_id=request_id)
+    task = env.task()
+    env.runtime.application.update_task(
+        "U1", "D1", "BIRTHDAY", task.revision, task.run_id,
+        task.status, task.checkpoint_id, {**task.snapshot, "another_writer": True})
+    before = env.task()
+    monkeypatch.setattr(handoff, "_seal_content", seal)
+
+    with pytest.raises(BirthdayEditError, match="PUBLISH_CONFLICT"):
+        env.resume({"text": "500元"}, request_id=request_id)
+
+    assert env.task() == before
+

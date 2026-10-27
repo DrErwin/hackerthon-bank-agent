@@ -1344,13 +1344,15 @@ class AgentHarness:
                 # The trusted task was checked before entering the capability.
                 # Bookkeeping remains possible if its session expires inside it;
                 # this does not authorize another bank read or execution.
-                if result is None:
+                unpublished_result = result
+                if result is None or transition is not None:
                     # Keep the last owned payload readable, whatever module owns it;
                     # forcing the transfer view here would re-raise inside the handler.
                     result = ModuleResult(
                         task_id=trusted.task_id, run_id=trusted.run_id,
                         status=TaskStatus.NEEDS_ATTENTION,
-                        data=trace.transfer_data if trace.transfer_data is not None else previous.data,
+                        data=(previous.data if transition is not None else
+                              trace.transfer_data if trace.transfer_data is not None else previous.data),
                         message="流程中断，请核实原任务后继续。", interaction=None,
                         error=ModuleError(code="DEPENDENCY_UNAVAILABLE", source="platform",
                                           field=None, reason="流程推进未完成。", upstream_code=None),
@@ -1362,15 +1364,18 @@ class AgentHarness:
                 if current is None:
                     raise ValueError("TASK_NOT_FOUND")
                 try:
-                    fault_checkpoint_id = self._checkpoint_id(context, current)
+                    fault_checkpoint_id = (current.checkpoint_id if transition is not None
+                                           else self._checkpoint_id(context, current))
                 except PermissionError:
                     # Retain the last owned reference when authority expired;
                     # do not bypass the checkpointer's scope check.
                     fault_checkpoint_id = current.checkpoint_id
+                fault_snapshot = (transition.interrupted_snapshot(current, unpublished_result)
+                                  if transition is not None else current.snapshot)
                 self.application.update_task(
                     trusted.user_id, trusted.demo_round_id, trusted.task_id,
                     current.revision, trusted.run_id, result.status, fault_checkpoint_id,
-                    {**current.snapshot, "result": result.model_dump(mode="json"),
+                    {**fault_snapshot, "result": result.model_dump(mode="json"),
                      "capability_fault": {"reason_code": "PUBLIC_CAPABILITY_INTERRUPTED",
                                           "audit_evidence": "not_confirmed"}},
                 )
