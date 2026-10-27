@@ -115,3 +115,18 @@ source_refs 中 SEC/MAT 编号链接到本目录上级的既有用例/材料；T
 - **未运行任何模型，未接入原 security_runner，也未改变后端或页面。** 全部 96 条保持 NOT_RUN。
 - 本集适合 Demo 检测层回归。它不包含独立采集的真实受害者语料，不能用通过率推断真实诈骗拦截率；也不覆盖真实语音识别、方言音频或图像诈骗。文字中的“验正码”只模拟一种转写错误。
 - 专业签核、现有检测器与真实演示接线的状态按原项目记录，本次数据补充不改变它们。
+
+## 6. 当前96条的独立分类入口（2026-10-27）
+
+中控本轮授权以现有`glm-5.3` Coding Plan执行一次固定批，入口为[分类运行器](../classification_runner.py)，实施票为[v05-security-acceptance/01](../../../.scratch/v05-security-acceptance/issues/01-classification-96.md)。不改本文件夹样例、参考标签或其NOT_RUN设计状态；实际逐条输出另存新报告，不并入旧56结果或138/295/357分母，不比较模型或调参。
+
+运行器校验当前语料SHA256，固定prompt与seed，严格只发送完整input；多轮消息和不可信channel保留，答案与id/split等元数据不发送。只读取本机既有配置，不输出或复制凭据，不允许切其他模型或普通API端点。每条最多一次invoke、无供应商重试；429、明确额度/费用或认证阻塞会停止新派发，已完成/ERROR/NOT_RUN仍保留在96分母。
+
+```powershell
+$out = Join-Path $env:TEMP ("security-classification96-" + [guid]::NewGuid().ToString("N") + ".json")
+python evals/security/classification_runner.py --config <本机既有Coding-Plan配置> --output $out
+```
+
+输出须为仓库外新路径。JSON报告记录固定提交/运行器/样例/prompt摘要、模型与请求数、逐条耗时、脱敏原始输出、usage与费用可得字段及错误矩阵；旁置`.rows.jsonl`逐条追加，便于保留异常中断前的原始结果。ERROR不改成unclear，未尝试项为NOT_RUN，费用未提供时不推断免费。
+
+此分类器只是检测层观测，不执行银行动作，不代表运行时安全门通过或真人安全接受；dev/check分组的既有限制继续适用。

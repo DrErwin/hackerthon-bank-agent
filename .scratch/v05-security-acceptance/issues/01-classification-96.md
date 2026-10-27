@@ -6,8 +6,8 @@ Spec: [安全分层验收](../spec.md)
 Type: 评测（含运行器开发）
 Owner: Erwin；Codex 按本轮授权实施
 Directory: `evals/security/`
-Status: planned — 已领取；中控要求先提供B26网关排空依赖
-Blocked by: 无实施依赖；执行顺序暂让位B26
+Status: in_progress — 2026-10-27 中控正式恢复执行
+Blocked by: None（B26与生日安全提供前置已交付，96真实批获准）
 Core scenarios: [SA01](../spec.md#solution--core-scenarios)
 
 ## What to build
