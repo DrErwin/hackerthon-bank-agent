@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ArrowLeftRight, ChevronDown, ChevronUp, CreditCard, LayoutGrid, ReceiptText, Repeat2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const SERVICES = [
+export const SERVICES = [
   { label: "我要转账", text: "我要转账", icon: ArrowLeftRight },
   { label: "我的账户", text: "我有哪些账户和余额", icon: CreditCard },
   { label: "我的收款人", text: "我有哪些收款人", icon: Users },

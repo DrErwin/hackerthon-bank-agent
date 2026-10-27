@@ -27,9 +27,15 @@ async function sendText(text: string) {
   fireEvent.click(screen.getByRole("button", { name: "发送" }));
 }
 
+async function choosePayeeAndAccount() {
+  fireEvent.click(await screen.findByRole("button", { name: /演示账户.*1234/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /妈妈.*6688/ }));
+  await screen.findByRole("button", { name: "确认办理" });
+}
+
 async function reachVerification() {
   await sendText("转给妈妈500块");
-  fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+  await choosePayeeAndAccount();
   fireEvent.click(await screen.findByRole("button", { name: "确认办理" }));
   return screen.findByRole("heading", { name: "为了安全，请完成两项验证" });
 }
@@ -75,7 +81,7 @@ describe("v0.4 shell with stub data", () => {
     const confirmation = screen.getByRole("heading", { name: "确认单记录" }).closest("section")!;
     expect(within(confirmation).getByText("已确认办理 · 只读")).toBeTruthy();
     expect(within(confirmation).queryByRole("button")).toBeNull();
-    expect(screen.getByText("您选择了：妈妈 · 尾号 6688（常用收款人）")).toBeTruthy();
+    expect(within(confirmation).getByText("妈妈（尾号 6688）")).toBeTruthy();
 
     await passCode();
     expect(screen.queryByRole("button", { name: /模拟成功|通过/ })).toBeNull();
@@ -97,7 +103,7 @@ describe("v0.4 shell with stub data", () => {
     const answer = vi.spyOn(backend.user, "answerConfirmation");
     renderPage(backend);
     await sendText("转给妈妈500块");
-    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+    await choosePayeeAndAccount();
     const confirm = await screen.findByRole("button", { name: "确认办理" });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
@@ -112,11 +118,12 @@ describe("v0.4 shell with stub data", () => {
     const revise = vi.spyOn(backend.user, "reviseDraft");
     renderPage(backend);
     await sendText("转给妈妈500块");
-    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+    await choosePayeeAndAccount();
 
-    fireEvent.click(await screen.findByRole("button", { name: "修改转多少钱" }));
+    fireEvent.click(await screen.findByRole("button", { name: "修改转账资料" }));
+    fireEvent.click(screen.getByRole("button", { name: "修改金额" }));
     fireEvent.change(screen.getByLabelText("转账金额（元）"), { target: { value: "300" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存金额" }));
+    fireEvent.click(screen.getByRole("button", { name: "用这个金额" }));
 
     const composer = await screen.findByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
     expect(composer.value).toBe("");
@@ -131,14 +138,15 @@ describe("v0.4 shell with stub data", () => {
     const backend = makeBackend();
     renderPage(backend);
     await sendText("转给妈妈500块");
-    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+    await choosePayeeAndAccount();
     vi.spyOn(backend.user, "reviseDraft").mockRejectedValue(
       new ApiError(409, "CONFIRMATION_STALE", "这张确认单已经失效，请以最新状态为准。"),
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "修改转多少钱" }));
+    fireEvent.click(await screen.findByRole("button", { name: "修改转账资料" }));
+    fireEvent.click(screen.getByRole("button", { name: "修改金额" }));
     fireEvent.change(screen.getByLabelText("转账金额（元）"), { target: { value: "300" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存金额" }));
+    fireEvent.click(screen.getByRole("button", { name: "用这个金额" }));
 
     expect(await screen.findByText("这张确认单已经失效，请以最新状态为准。")).toBeTruthy();
     const composer = screen.getByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
@@ -153,7 +161,7 @@ describe("v0.4 shell with stub data", () => {
     const backend = makeBackend();
     renderPage(backend);
     await sendText("转给妈妈500块");
-    fireEvent.click(await screen.findByRole("button", { name: /妈妈 · 尾号 6688/ }));
+    await choosePayeeAndAccount();
     const confirm = await screen.findByRole("button", { name: "确认办理" });
     const thread = await backend.user.ensureThread();
     const [envelope] = await backend.user.listTasks(thread.thread_id);
@@ -305,6 +313,6 @@ describe("v0.4 shell with stub data", () => {
     expect(slots.resolve("transfer")).toBe(transferSlot);
     expect(slots.resolve("payroll")).toBe(genericSlot);
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "AI 银行助手" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "银行小助手" })).toBeTruthy();
   });
 });

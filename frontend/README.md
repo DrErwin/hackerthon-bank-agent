@@ -2,9 +2,10 @@
 
 ## 当前设计入口（2026-10-26）
 
-- [设计系统 v0.2](DESIGN.md)：手机优先，shadcn/ui + Radix / Vaul、Tailwind 4、Lucide、Sonner。
+- [设计系统 v0.3](DESIGN.md)：对话驱动、手机优先，shadcn/ui + Radix / Vaul、Tailwind 4、Lucide、Sonner。
 - [全业务交互改造方案](交互改造方案-v0.2.md)：现状、目标与逐项替换顺序。
 - `npm run dev` 后打开 `/v04/design-system`：实际安装组件的可点击体验页，使用虚构示例资料；`/design-system-preview.html` 显示手机预览。
+- `/conversation-preview.html`：当前前台的手机预览，复用实际 React 界面。以 `VITE_API_MODE=contract-demo` 启动可体验转账、查询穿插与修改；固定回复仅用于交互演示。真实 Agent 仍经既有 API 接入。
 - 当前前台首批接入：常驻服务入口、手机抽屉/桌面侧栏、加载/等待、图标和字号反馈。后续任务重排按方案分票推进。
 - shadcn 源码位于 `src/components/ui/`，由官方 CLI 的 `new-york` 注册表加入，已调整默认字号/高度、中文关闭、进度语义和浅色提示。后续 `add` 先看差异，保留这些适老化调整。Tailwind 不导入 preflight；变量限定用户前台、组件体验页和 portal，历史页面沿用原样式。
 

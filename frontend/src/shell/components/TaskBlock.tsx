@@ -37,7 +37,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   const { actions, history, confirmations, verifications, bootRecovery, recovered, expired } = conversation;
   const busyKey = conversation.busy[task.task_id] ?? "";
   const busy = Boolean(busyKey) || expired;
-  const guided = Boolean(conversation.readTransferChoices && transferDraft(task));
+  const guided = Boolean(conversation.readTransferChoices && transferDraft(task)
+    && (task.interaction?.kind === "input" || task.interaction?.kind === "confirmation"));
   const plan = crossPlan(task);
   // Cross menus sometimes arrive without a plan body (the server only attaches the
   // view while a step runs); the promise line must still show before "adopt".
@@ -111,7 +112,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
           statusText=""
           reason={null}
           resolved
-          resolvedText={outcome === "discarded" ? "已放弃这次任务，没有提交新的操作。" : undefined}
+          resolvedText={outcome === "discarded" ? "这次办理已取消。" : undefined}
           canDiscard={false}
           busy
           onResume={() => undefined}
@@ -131,7 +132,11 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         const isActive = entry.kind === "input"
           ? !expired && task.status === "waiting_input" && task.allowed_actions.includes("provide_input") && task.interaction?.interaction_id === entry.id
           : interactionActive && task.interaction?.record_ref === entry.id;
-        if (guided && isActive && entry.kind === "input" && entry.interaction.required_fields.some((field) => ["amount_fen", "payer_account_id", "payee_hint"].includes(field))) return null;
+        // The draft and confirmation already retain these facts. Avoid a second
+        // field picker and empty historic forms after every guided selection.
+        if (conversation.readTransferChoices && transferDraft(task) && entry.kind === "input"
+          && entry.interaction.required_fields.length > 0
+          && entry.interaction.required_fields.every((field) => ["amount_fen", "payer_account_id", "payee_hint"].includes(field))) return null;
         const content = (() => {
         const id = base + "-" + entry.id;
         if (entry.kind === "input") {

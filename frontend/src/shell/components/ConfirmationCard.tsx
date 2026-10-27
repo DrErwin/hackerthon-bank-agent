@@ -40,7 +40,7 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
       <FieldList fields={view.display_fields} emphasize={emphasize} />
       {live ? (
         <>
-          <p className="sh-hint">请逐项核对。在聊天里说「确认」不算数，必须点下面的按钮。确认单在 {clockTime(view.expires_at)} 前有效。</p>
+          <p className="sh-hint">核对好后，请点「确认办理」。这份确认单在 {clockTime(view.expires_at)} 前有效。</p>
           <div className="sh-actions">
             {canConfirm && (
               <button type="button" className="sh-btn sh-btn-primary" disabled={busy} onClick={() => onAnswer("approve")}>
@@ -63,7 +63,7 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
           {(options ?? []).length > 0 && <p className="sh-hint">{EDIT_OPTION_NOTE}</p>}
         </>
       ) : (
-        <p className="sh-readonly-line">这张确认单已转为只读，保留在记录里供您核对，按钮不能再点。</p>
+        <p className="sh-readonly-line">这份确认记录已保存，供您回看。</p>
       )}
     </Card>
   );

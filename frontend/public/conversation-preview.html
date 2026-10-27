@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>对话带着您办 · 手机交互原型</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#eceee6;color:#272a25;font-family:system-ui,"Microsoft YaHei",sans-serif;line-height:1.7}
+    main{max-width:1000px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:64px;padding:28px}
+    aside{max-width:320px}h1{font-size:32px;line-height:1.4;font-weight:650;margin:0 0 24px}p{font-size:18px;color:#5a6257}ol{padding-left:24px;font-size:18px}li{margin:14px 0}a{display:inline-block;color:#a54218;text-underline-offset:5px;min-height:48px;margin-right:18px}
+    .device{border:6px solid #384431;border-radius:28px;overflow:hidden;flex-shrink:0;background:white}iframe{display:block;width:390px;height:780px;border:0}
+    .note{font-size:16px;margin-top:28px}@media(min-width:761px) and (max-height:880px){.device{width:305px;height:598px}iframe{transform:scale(.75);transform-origin:0 0}} @media(max-width:760px){main{padding:0;display:block}aside{max-width:none;padding:16px}aside h1{font-size:22px;margin:0}aside p,aside ol,aside .note{display:none}.device{border:0;border-radius:0}iframe{width:100%;height:calc(100dvh - 112px)}}
+  </style>
+</head>
+<body><main>
+  <aside><h1>说一句，<br>一起把事情办好。</h1><p>对话带路，卡片帮您选择。</p>
+    <ol><li>说“我要转账”，点选收款人和付款卡。</li><li>问“我还有多少余额？”，随时查看资料。</li><li>说“改成300元”，回到同一笔转账核对。</li></ol>
+    <a href="/">打开电脑界面</a><a href="/v04/design-system">组件设计系统</a>
+    <p class="note">交互演示 · 虚构资料与固定回复<br>当前可操作路径：转账、查询穿插、修改、确认与验证。</p>
+  </aside>
+  <div class="device"><iframe title="银行小助手手机对话" src="/"></iframe></div>
+</main></body>
+</html>

@@ -47,8 +47,8 @@ interface StubState {
 
 const PAYER_LABEL = "主账户（尾号 1234）";
 const PAYEES: Record<string, PayeeDisplay> = {
-  "demo-payee-mom": { payee_id: "demo-payee-mom", name_masked: "妈妈", account_masked: "尾号 6688", remark: "常用收款人", bank_name: "演示银行" },
-  "demo-payee-zhang": { payee_id: "demo-payee-zhang", name_masked: "张阿姨", account_masked: "尾号 3166", remark: "最近转过", bank_name: "演示银行" },
+  "demo-payee-mom": { payee_id: "demo-payee-mom", name_masked: "妈妈", account_masked: "尾号 6688", remark: "妈妈", bank_name: "演示银行" },
+  "demo-payee-zhang": { payee_id: "demo-payee-zhang", name_masked: "张阿姨", account_masked: "尾号 3166", remark: "张阿姨", bank_name: "演示银行" },
 };
 
 function emptyState(): StubState {
@@ -440,6 +440,34 @@ export function createDemoBackend(options: StubOptions = {}) {
     return confirmation;
   }
 
+  // Contract-demo only: exercise the same draft editing surface as the real API.
+  // Real chat intent handling stays entirely in the backend Agent.
+  function updateDraft(state: StubState, record: StubTask, changes: Parameters<ShellDataSource["reviseDraft"]>[1]) {
+    if (!["choose", "confirm"].includes(record.phase) || record.task.recovery_required || record.task.task_revision !== changes.task_revision)
+      throw new ApiError(409, "TASK_REVISION_STALE", "请刷新当前办理内容。");
+    const payee = changes.payee_id ? PAYEES[changes.payee_id] : changes.payee_hint
+      ? Object.values(PAYEES).find((item) => item.remark === changes.payee_hint || item.name_masked === changes.payee_hint) : undefined;
+    if ((changes.payee_id || changes.payee_hint) && !payee) throw new ApiError(400, "INVALID_OPTION", "请选择列表中的收款人。");
+    if (changes.payer_account_id && changes.payer_account_id !== "demo-acct-1234") throw new ApiError(400, "INVALID_OPTION", "请选择列表中的付款卡。");
+    const old = record.task.interaction?.record_ref ? state.confirmations[record.task.interaction.record_ref] : undefined;
+    if (old) old.decision = "superseded";
+    record.task.data = { ...record.task.data!,
+      ...(changes.amount_fen !== undefined ? { amount_fen: changes.amount_fen } : {}),
+      ...(changes.payer_account_id ? { payer_account_id: changes.payer_account_id } : {}),
+      ...(payee ? { payee } : {}),
+    };
+    const data = record.task.data;
+    if (data.payee && data.amount_fen && data.payer_account_id) newConfirmation(state, record, (old?.confirmation_version ?? 0) + 1);
+    else {
+      const field = !data.amount_fen ? "amount_fen" : !data.payer_account_id ? "payer_account_id" : "payee_hint";
+      const prompt = !data.amount_fen ? "这次转多少钱？" : !data.payer_account_id ? "用哪张银行卡？" : "这笔钱转给谁？";
+      bump(record, { status: "waiting_input", message: prompt, allowed_actions: ["provide_input", "cancel"],
+        interaction: { interaction_id: nextId(state, "demo-interaction"), kind: "input", prompt,
+          required_fields: [field], options: [], record_ref: null } });
+    }
+    return record.task as ShellTask;
+  }
+
   const user: ShellDataSource = {
     origin: "stub",
 
@@ -521,7 +549,18 @@ export function createDemoBackend(options: StubOptions = {}) {
       return once(state, request_id, (): MessageAccepted => {
         const userMessage = addMessage(state, "user", text);
         let taskId: string | null = null;
-        if (/转|汇/.test(text)) {
+        const pending = Object.values(state.tasks).filter((record) => ["choose", "confirm"].includes(record.phase) && !record.task.recovery_required);
+        const changedAmount = text.trim().match(/^(?:金额)?改(?:成|为)\s*(\d+(?:\.\d{1,2})?)\s*(?:元|块)?[。！!]?$/);
+        if (changedAmount && pending.length === 1) {
+          const record = pending[0];
+          taskId = record.task.task_id;
+          updateDraft(state, record, { request_id, task_revision: record.task.task_revision, amount_fen: Math.round(Number(changedAmount[1]) * 100) });
+          addMessage(state, "assistant", "金额改好了，请核对当前转账单。", [taskId], replyDelay);
+        } else if (/账户|余额|银行卡/.test(text) && !/转|汇/.test(text)) {
+          addMessage(state, "assistant", "您的演示账户尾号 1234，可用余额 1,000 元。" + (pending.length ? "点上方「接着办」，可以继续转账。" : ""), [], replyDelay);
+        } else if (/有哪些收款人|有什么收款人/.test(text)) {
+          addMessage(state, "assistant", "您有两位常用收款人：妈妈（尾号 6688）、张阿姨（尾号 3166）。转账时可以直接点选。", [], replyDelay);
+        } else if (/转|汇/.test(text)) {
           taskId = nextId(state, "demo-task");
           const now = clock();
           state.tasks[taskId] = {
@@ -533,13 +572,13 @@ export function createDemoBackend(options: StubOptions = {}) {
               task_id: taskId,
               run_id: nextId(state, "demo-run"),
               status: "waiting_input",
-              data: { operation_id: null, payer_account_id: null, payee: null, amount_fen: amountFromText(text), operation: null },
+              data: { operation_id: null, payer_account_id: null, payee: null, amount_fen: /\d/.test(text) ? amountFromText(text) : null, operation: null },
               message: "请选择收款人。",
               interaction: {
                 interaction_id: nextId(state, "demo-interaction"),
                 kind: "input",
                 prompt: "请选择收款人：",
-                required_fields: [],
+                required_fields: [/\d/.test(text) ? "payer_account_id" : "amount_fen"],
                 options: Object.values(PAYEES).map((payee) => ({
                   id: payee.payee_id!,
                   label: payee.name_masked + " · " + payee.account_masked + "（" + payee.remark + "）",
@@ -559,9 +598,9 @@ export function createDemoBackend(options: StubOptions = {}) {
           };
           addMessage(state, "assistant", "好的，我帮您办一笔转账。", [taskId], replyDelay);
         } else if (/确认/.test(text)) {
-          addMessage(state, "assistant", "聊天里说「确认」不会批准任何资金操作。请在确认单上点按钮。", [], replyDelay);
+          addMessage(state, "assistant", "请核对转账单，再点「确认办理」。", [], replyDelay);
         } else {
-          addMessage(state, "assistant", "我听到了。演示环境目前只接了转账形状的演示流程，您可以说「转给妈妈 500 块」。", [], replyDelay);
+          addMessage(state, "assistant", "这份演示可以体验转账。试着告诉我「转给妈妈 500 元」，办理中也可以查余额或改金额。", [], replyDelay);
         }
         return { message_id: userMessage.message_id, thread_id: threadId, accepted_at: userMessage.created_at, task_id: taskId };
       });
@@ -589,18 +628,7 @@ export function createDemoBackend(options: StubOptions = {}) {
       requireUser(state);
       return once(state, request_id, () => {
         const record = getRecord(state, taskId);
-        if (record.phase !== "confirm" || record.task.task_revision !== task_revision) {
-          throw new ApiError(409, "TASK_REVISION_STALE", "请刷新当前确认单。");
-        }
-        const old = state.confirmations[record.task.interaction!.record_ref!];
-        const { payee_hint, ...transferFields } = fields;
-        const payee = payee_hint ? Object.values(PAYEES).find((item) => item.remark === payee_hint || item.name_masked === payee_hint) : undefined;
-        if (payee_hint && !payee) throw new ApiError(400, "INVALID_OPTION", "此演示只支持列出的收款人。");
-        if (fields.payer_account_id && fields.payer_account_id !== "demo-acct-1234") throw new ApiError(400, "INVALID_OPTION", "此演示只有当前付款账户。");
-        old.decision = "superseded";
-        record.task.data = { ...record.task.data!, ...transferFields, ...(payee ? { payee } : {}) };
-        newConfirmation(state, record, old.confirmation_version + 1);
-        return record.task as ShellTask;
+        return updateDraft(state, record, { request_id, task_revision, ...fields });
       });
     }),
 

@@ -41,7 +41,7 @@ export function taskTitle(task: ShellTask): string {
     if (Array.isArray(data?.transactions)) return (categories[String(data.category)] ?? "账单") + "明细";
     return "查看账单";
   }
-  if (task.module === "transfer") {
+  if (task.module === "transfer" || data && "amount_fen" in data) {
     const payee = data?.payee as { remark?: string; name_masked?: string } | undefined;
     return (payee ? "转给" + (payee.remark || payee.name_masked) : "转账办理")
       + (typeof data?.amount_fen === "number" ? " · " + (data.amount_fen / 100).toFixed(2) + " 元" : "");
@@ -64,8 +64,9 @@ export function inputPrompt(task: ShellTask): string {
 export type TimelineItem = { type: "message"; message: MessageView }
   | { type: "task"; envelope: TaskEnvelope; messages: MessageView[] };
 
-// A record stays at its first assistant response. Later progress belongs inside
-// that record, never moves it below unrelated conversation. Legacy unlinked
+// Replies stay in the conversation. Each task has one interactive record after
+// its latest reply; a new answer relocates the same card instead of duplicating
+// transaction controls. Expanding details alone never relocates it. Legacy unlinked
 // tasks use the public snapshot time; no fabricated parent relationship.
 // `nestedChildren` are the server-declared child tasks of a cross parent: they
 // render inside the parent card, never as standalone records of their own.
@@ -86,14 +87,17 @@ export function buildTimeline(messages: MessageView[], tasks: Map<string, TaskEn
   const anchored = new Set<string>();
   const items: { value: TimelineItem; time: string; order: number }[] = [];
   messages.forEach((message, index) => {
+    items.push({ time: message.created_at, order: index * 2, value: { type: "message", message } });
     const ids = message.task_ids.filter((id) => tasks.has(id));
     if (message.role === "assistant" && ids.length === 1) {
       const id = ids[0];
       if (nested.has(id) || anchored.has(id)) return;
+      if (messages.slice(index + 1).some((later) => later.role === "assistant"
+        && later.task_ids.length === 1 && later.task_ids[0] === id)) return;
       anchored.add(id);
-      items.push({ time: message.created_at, order: index, value: { type: "task", envelope: tasks.get(id)!,
+      items.push({ time: message.created_at, order: index * 2 + 1, value: { type: "task", envelope: tasks.get(id)!,
         messages: messages.filter((item) => item.role === "assistant" && item.task_ids.length === 1 && item.task_ids[0] === id) } });
-    } else items.push({ time: message.created_at, order: index, value: { type: "message", message } });
+    }
   });
   for (const envelope of tasks.values()) {
     if (!anchored.has(envelope.task.task_id) && !nested.has(envelope.task.task_id))

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { MessageView } from "../contracts";
-import { Composer, ExpiredBanner, MessageBubble, SafetyRail, TopBar, TypingBubble } from "./components/Chrome";
+import { Composer, ExpiredBanner, MessageBubble, TopBar, TypingBubble } from "./components/Chrome";
 import { Notice } from "./components/Primitives";
 import { TaskBlock } from "./components/TaskBlock";
 import { businessPayload } from "./components/BusinessCards";
@@ -10,8 +10,10 @@ import { useConversation } from "./useConversation";
 
 import { buildTimeline, needsAttentionInTree, taskTitle } from "./presentation";
 import { TaskRecord } from "./components/TaskRecord";
-import { isTerminal } from "./format";
-import { ServiceNav } from "./components/ServiceNav";
+import { isTerminal, taskStatusLabel } from "./format";
+import { ConversationStarters, ConversationTools } from "./components/ConversationTools";
+import { DetailsDrawer } from "./components/DetailsDrawer";
+import { History, ArrowUpRight } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
@@ -20,7 +22,7 @@ export function cardMessageSummary(message: MessageView, tasks: Map<string, Task
   const task = tasks.get(message.task_ids[0])?.task;
   const data = task && businessPayload(task);
   if (data && "action" in data && data.action === "list" && data.list_result)
-    return "已整理订阅与自动扣款。请在卡片中查看签约、疑似扣款和已退订项目，选择需要办理的一项。";
+    return "这些是您的自动扣费。点开一项，就能查看或办理。";
   return undefined;
 }
 
@@ -30,14 +32,19 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const bodyRef = useRef<HTMLDivElement>(null);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
   const [largeText, setLargeText] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyTarget = useRef<string | null>(null);
+  const [expandedRecords, setExpandedRecords] = useState<Record<string, boolean>>({});
   const pinned = useRef(true);
   // Cross-linkage children belong inside their parent card, so they never get a
   // record, a "continue" entry or a counter of their own.
   const childIds = conversation.serverChildIds;
   const topTasks = [...tasks.values()].filter(({ task }) => !childIds.has(task.task_id));
   const timeline = useMemo(() => buildTimeline(messages, tasks, conversation.cardLinks, childIds), [messages, tasks, conversation.cardLinks, childIds]);
+  const records = timeline.flatMap((item) => item.type === "task" ? [item.envelope] : []);
   const latestTaskId = timeline.filter((item) => item.type === "task").at(-1)?.envelope.task.task_id;
-  const exampleHints = slots.slots.flatMap((slot) => slot.exampleHints ?? []);
+  const currentTask = topTasks.filter(({ task }) => !isTerminal(task)).at(-1)?.task;
+  const canStart = !(expired || booting || sending || awaitingReply || pendingMessage);
   const inputTasks = [...tasks.values()].filter(({ task }) =>
     task.status === "waiting_input" && task.interaction?.kind === "input"
     && task.allowed_actions.includes("provide_input") && !task.recovery_required
@@ -74,12 +81,52 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
     return actions.send(text);
   }
 
+  function continueTask(id: string) {
+    pinned.current = false;
+    setAwayFromLatest(true);
+    const recordIds = new Set([id]);
+    let parentId = conversation.cardLinks.find((link) => link.childId === id)?.parentId;
+    while (parentId && !recordIds.has(parentId)) {
+      recordIds.add(parentId);
+      parentId = conversation.cardLinks.find((link) => link.childId === parentId)?.parentId;
+    }
+    setExpandedRecords((current) => ({ ...current, ...Object.fromEntries([...recordIds].map((key) => [key, true])) }));
+    requestAnimationFrame(() => {
+      const target = document.getElementById("task-" + id);
+      let ancestor = target?.parentElement;
+      while (ancestor) {
+        if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+        ancestor = ancestor.parentElement;
+      }
+      target?.scrollIntoView({ block: "start", behavior: "instant" });
+      target?.focus({ preventScroll: true });
+    });
+  }
+
   return (
-    <div className="sh-root" data-text-size={largeText ? "large" : "standard"}>
+    <div className="sh-root sh-conversation" data-text-size={largeText ? "large" : "standard"}>
       <a className="sh-skip" href="#sh-main">跳到对话内容</a>
-      <TopBar title="AI 银行助手" connected={connected} expired={expired} origin={source.origin} userDisplay={session?.user_display ?? null}
-        largeText={largeText} onTextSizeChange={() => { setLargeText(!largeText); toast(largeText ? "已恢复标准字号" : "文字已放大"); }} />
-      <ServiceNav disabled={expired || booting || sending || awaitingReply || Boolean(pendingMessage)} onChoose={(text) => void send(text)} />
+      <TopBar title="银行小助手" connected={connected} expired={expired} origin={source.origin} userDisplay={session?.user_display ?? null}
+        largeText={largeText} onTextSizeChange={() => { setLargeText(!largeText); toast(largeText ? "已恢复标准字号" : "文字已放大"); }}>
+        <DetailsDrawer title="办理记录" triggerLabel={<><History aria-hidden="true" />记录</>} open={historyOpen} onOpenChange={setHistoryOpen}
+          onCloseAutoFocus={(event) => {
+            if (historyTarget.current) { event.preventDefault(); continueTask(historyTarget.current); historyTarget.current = null; }
+          }}>
+          {records.length === 0 ? <p>办过的事情会留在这里，方便您回看。</p> : <ol className="sh-history-list">
+            {[...records].reverse().map(({ task, module }) => <li key={task.task_id}>
+              <h3>{taskTitle(task)}</h3><p>{taskStatusLabel(task).text}</p>
+              <dl>{(slots.resolve(module).summarize?.(task) ?? []).map((field, i) => <div key={i}><dt>{field.label}</dt><dd>{field.value_text}</dd></div>)}</dl>
+              <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : "继续这项办理"}</button>
+            </li>)}
+          </ol>}
+        </DetailsDrawer>
+      </TopBar>
+      {currentTask && <nav className="sh-current-task" aria-label="当前办理">
+        <button type="button" onClick={() => continueTask(currentTask.task_id)}>
+          <span><span className="sh-current-label">正在办</span><strong>{taskTitle(currentTask)}</strong></span>
+          <span>接着办<ArrowUpRight aria-hidden="true" /></span>
+        </button>
+      </nav>}
       {expired && <ExpiredBanner onReenter={() => void actions.reenter()} />}
       {!connected && !booting && !expired && <Notice tone="warning" title="实时更新暂时中断"
         action={<button className="sh-link-btn" onClick={() => void actions.refreshConversation()}>重新读取办理记录</button>}>已有资料仍保留。办理结果请以重新读取的状态为准。</Notice>}
@@ -95,17 +142,19 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         <div className="sh-body-inner">
         <main className="sh-main" id="sh-main" tabIndex={-1}>
           <div className="sh-timeline" >
-            <article className="sh-msg sh-msg-assistant">
-              <p className="sh-bubble">您好，今天想办什么？</p>
-              {exampleHints.length > 0 && (
-                <details className="sh-examples"><summary>试试这些说法</summary><ul>{exampleHints.map((hint) => <li key={hint}>{hint}</li>)}</ul></details>
-              )}
+            <article className={"sh-welcome" + (messages.length || topTasks.length ? " sh-welcome-compact" : "")}>
+              <h2>您好，今天想办什么？</h2>
+              {!messages.length && !topTasks.length && <><p>告诉我您的想法，我陪您一步步办。</p>
+                <ConversationStarters disabled={!canStart} onChoose={(text) => void send(text)} />
+                <p className="sh-hint">也可以在下面直接打字。</p></>}
             </article>
             {booting && <p className="sh-hint" role="status">正在读取对话记录…</p>}
             {timeline.map((item) => item.type === "message"
-              ? <MessageBubble key={item.message.message_id} message={item.message} />
+              ? <MessageBubble key={item.message.message_id} message={item.message} cardSummary={cardMessageSummary(item.message, tasks)} />
               : <TaskRecord key={item.envelope.task.task_id} task={item.envelope.task} messages={item.messages}
                   latest={item.envelope.task.task_id === latestTaskId}
+                  expanded={expandedRecords[item.envelope.task.task_id]}
+                  onExpandedChange={(open) => setExpandedRecords((current) => ({ ...current, [item.envelope.task.task_id]: open }))}
                   hasActiveChild={conversation.cardLinks.some((link) => link.parentId === item.envelope.task.task_id
                     && needsAttentionInTree(link.childId, tasks, conversation.cardLinks))}>
                   <TaskBlock envelope={item.envelope} slot={slots.resolve(item.envelope.module)}
@@ -120,24 +169,12 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         </div>
       </div>
       {awayFromLatest && <button type="button" className="sh-back-latest" onClick={jumpToLatest}>回到最新消息 ↓</button>}
-      <SafetyRail />
-      {topTasks.some(({ task }) => !isTerminal(task)) && <nav className="sh-pending-nav" aria-label="正在办理">
-        <span>继续办理：</span>{topTasks.filter(({ task }) => !isTerminal(task)).map(({ task }) =>
-          <button type="button" className="sh-link-btn" key={task.task_id} onClick={() => {
-            const target = document.getElementById("task-" + task.task_id);
-            let ancestor = target?.parentElement;
-            while (ancestor) {
-              if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
-              ancestor = ancestor.parentElement;
-            }
-            target?.scrollIntoView({ block: "center" }); target?.focus();
-          }}>{taskTitle(task)}</button>)}
-      </nav>}
       <Composer
         disabled={expired || booting || !conversation.thread || awaitingReply}
         sending={sending}
         pendingText={pendingMessage?.text ?? null}
         onSend={send}
+        tools={<ConversationTools disabled={!canStart} onChoose={(text) => void send(text)} />}
       />
       <Toaster />
     </div>

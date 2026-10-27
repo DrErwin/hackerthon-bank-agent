@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import type { MessageView } from "../../contracts";
 import type { DataOrigin } from "../types";
 import { clockTime, originLabel } from "../format";
-import { Type } from "lucide-react";
+import { MessageCircle, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function TopBar({ title, connected, expired, origin, userDisplay, largeText, onTextSizeChange }: {
+export function TopBar({ title, connected, expired, origin, userDisplay, largeText, onTextSizeChange, children }: {
   title: string;
   connected: boolean;
   expired: boolean;
@@ -14,6 +14,7 @@ export function TopBar({ title, connected, expired, origin, userDisplay, largeTe
   userDisplay: string | null;
   largeText?: boolean;
   onTextSizeChange?: () => void;
+  children?: ReactNode;
 }) {
   const state = expired ? { cls: "sh-conn-off", text: "登录已过期" } : connected ? { cls: "sh-conn-on", text: "已连接" } : { cls: "sh-conn-wait", text: "正在连接" };
   const demo = originLabel(origin);
@@ -21,24 +22,24 @@ export function TopBar({ title, connected, expired, origin, userDisplay, largeTe
     <>
       <header className="sh-topbar">
         <div className="sh-brand">
-          <span className="sh-brand-mark" aria-hidden="true">银</span>
+          <span className="sh-brand-mark" aria-hidden="true"><MessageCircle /></span>
           <div>
             <h1>{title}</h1>
             {userDisplay && <p>{userDisplay}</p>}
           </div>
         </div>
         <div className="sh-topbar-tools">
+        {children}
         {onTextSizeChange && <Button type="button" variant="ghost" size="sm" aria-pressed={largeText} onClick={onTextSizeChange}><Type aria-hidden="true" />{largeText ? "标准字" : "大字"}</Button>}
-        <span className={"sh-conn " + state.cls} role="status">
+        <span className={"sh-conn " + state.cls} role="status" aria-label={state.text}>
           <span className="sh-conn-dot" aria-hidden="true" />
-          {state.text}
+          <span className="sh-conn-text">{state.text}</span>
         </span>
         </div>
       </header>
       {demo && (
         <div className="sh-ribbon" role="note">
-          <strong>{demo}</strong>
-          <span>示例体验，资料和办理结果使用模拟数据。</span>
+          <strong>{demo}</strong><span>示例资料</span>
         </div>
       )}
     </>
@@ -65,12 +66,13 @@ export function TypingBubble() {
   );
 }
 
-export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend }: {
+export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend, tools }: {
   disabled: boolean;
   sending: boolean;
   pendingText: string | null;
   voiceDemoText?: string;
   onSend: (text: string) => Promise<boolean>;
+  tools?: ReactNode;
 }) {
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
@@ -116,6 +118,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
 
   return (
     <div className="sh-composer-wrap">
+      {tools && <div className="sh-composer-tools">{tools}<span>转钱前，请您亲自确认</span></div>}
       {listening && (
         <div className="sh-listening" role="status">
           <span className="sh-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span>
@@ -148,7 +151,7 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
           className="sh-input"
           value={value}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="说说您想办什么…"
+          placeholder="想办什么，直接告诉我"
           autoComplete="off"
           disabled={disabled || Boolean(pendingText)}
         />
@@ -156,9 +159,9 @@ export function Composer({ disabled, sending, pendingText, voiceDemoText, onSend
           {sending ? "发送中" : pendingText ? "重试" : "发送"}
         </button>
       </form>
-      <p className="sh-composer-hint" aria-live="polite">
-        {pendingText && !sending ? "上一条消息还没确认发出。点「重试」即可，不会重复办理。" : voiceNote || "随时提问，已填资料会保留。验证码只填专用框。"}
-      </p>
+      {(pendingText || voiceNote) && <p className="sh-composer-hint" aria-live="polite">
+        {pendingText && !sending ? "消息正在等待送达，请点「重试」。" : voiceNote}
+      </p>}
     </div>
   );
 }
