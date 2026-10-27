@@ -42,6 +42,11 @@ export function TopBar({ title, connected, expired, origin, userDisplay, largeTe
           <strong>{demo}</strong><span>示例资料</span>
         </div>
       )}
+      {origin === "real-api" && (
+        <div className="sh-ribbon" role="note">
+          演示数据：部分风险判断采用预设场景，转账仍需确认和验证。
+        </div>
+      )}
     </>
   );
 }
