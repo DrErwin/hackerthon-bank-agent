@@ -164,3 +164,21 @@ def test_actual_child_dispatch_keeps_parent_text_at_the_real_gate(tmp_path, orig
             assert connection.execute("SELECT COUNT(*) FROM bank_operations").fetchone()[0] == 0
     finally:
         runtime.gateway.close()
+
+
+@pytest.mark.parametrize("changed", [False, True])
+def test_original_message_replay_keeps_existing_request_checks(tmp_path, changed):
+    runtime, bank, store, _ = wired(tmp_path, flow_control_detector(LOW_SIGNALS))
+    try:
+        request_id = uuid4()
+        original = runtime.harness.start(trusted(), request_id, LEGAL_TEXT)
+        if changed:
+            with pytest.raises(ValueError, match="REQUEST_CONFLICT"):
+                runtime.harness.start(trusted(), request_id, "给妈妈转600元")
+        else:
+            repeated = runtime.harness.start(trusted(), request_id, LEGAL_TEXT)
+            assert repeated.task_id == original.task_id
+            assert repeated.data.operation_id == original.data.operation_id
+            assert repeated.status == original.status
+    finally:
+        runtime.gateway.close()

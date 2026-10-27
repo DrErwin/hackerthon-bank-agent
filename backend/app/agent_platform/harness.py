@@ -746,8 +746,6 @@ class AgentHarness:
                 self._check_task(task, trusted)
                 self._authorize(trusted, task.snapshot.get("capability_name",
                                                            "transfer.start_transfer"))
-                if request_id is not None and isinstance(response.get("text"), str) and response["text"].strip():
-                    self.risk_conversation.append(trusted, task.task_id, request_id, response["text"])
             if task.run_id != trusted.run_id:
                 raise ValueError("USE_RESUME_FOR_NEW_RUN")
             snapshot = task.snapshot
