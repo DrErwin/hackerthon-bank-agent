@@ -438,9 +438,13 @@ class CrossEntry:
         status = record["status"]
         child_id = record.get("child_task_id")
         if status is TaskStatus.NEEDS_ATTENTION:
+            child = self.harness.application.get_task(
+                trusted.user_id, trusted.demo_round_id, child_id)
+            message = (child.snapshot.get("result") or {}).get("message") if child else None
             return self._view(trusted, state,
-                              f"「{record.get('label') or holding['step_id']}」的办理结果未知，"
-                              "已保留原操作编号，需要先核实原操作；核实前不会继续办理其他项目。",
+                              f"「{record.get('label') or holding['step_id']}」已暂停。"
+                              f"{message or '请查看对应任务卡片的处理说明。'}"
+                              "处理完成前不会继续办理其他项目。",
                               active=holding, child_id=child_id)
         verb = "需要您在对应卡片上补充信息" if status is TaskStatus.WAITING_INPUT \
             else "需要您在确认单上确认或验证"

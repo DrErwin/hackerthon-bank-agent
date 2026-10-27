@@ -113,6 +113,9 @@ def test_real_own_account_is_available_without_saved_contact(tmp_path, payees_un
         assert data["payee"]["account_masked"] == runtime.gateway.get_account(who, "A5").data.account_masked
         assert first.status is not TaskStatus.SUCCEEDED  # no confirmation or verification was answered
         assert child.snapshot["result"]["status"] == "needs_attention", child.snapshot["result"]
+        assert "已暂停" in first.message
+        assert child.snapshot["result"]["message"] in first.message
+        assert "办理结果未知" not in first.message
         rows = runtime.gateway._bank.store.list_ledger("U1", "A1")
         assert all(row["operation_id"].startswith("seed:") for row in rows)
     finally:
