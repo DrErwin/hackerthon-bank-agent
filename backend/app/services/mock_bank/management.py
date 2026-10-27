@@ -71,6 +71,18 @@ class MockBankDemo:
                            "WHERE management_operation_id = ?",
                            (result.model_dump_json(), result.management_operation_id))
 
+    @property
+    def current_demo_logical_at(self) -> datetime | None:
+        """The latest committed success, never a running/failed reset's clock."""
+        with closing(connect(self.path)) as connection:
+            rows = connection.execute("SELECT result_json FROM bank_management_operations "
+                                      "ORDER BY rowid DESC").fetchall()
+        for row in rows:
+            result = BankDemoManagementResult.model_validate_json(row["result_json"])
+            if result.status == "succeeded":
+                return result.logical_at
+        return None
+
     def get_operation(self, admin: AdminContext, operation_id: str):
         if not self._authorized(admin):
             raise PermissionError("ACCESS_DENIED")

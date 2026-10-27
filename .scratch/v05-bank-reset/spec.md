@@ -27,9 +27,12 @@ Package: [v05-cross-linkage/packages/01-platform-bank](../v05-cross-linkage/pack
 - R04：拒绝普通身份、错轮次及非法时间/相同新旧轮次。
 - R05：种子写入中失败整体回滚，原号绑定保留，修复依赖后仍按原号续做。
 - R06：旧挑战失效，旧轮次资金写入拒绝，新轮次合法业务仍可完成。
+- R07（2026-10-27 消费前置）：API先持久停收并排空自身执行，再通过公开网关等待接口核对所有已提交的排队/执行中资金写；调用已超时但future未完仍在途。等待不关闭网关，结束后可继续新轮业务。启动可只读取得最近成功重置的持久逻辑起点；未成功为None，running/failed及旧成功重放不能伪造或覆盖它。
 
 ## 交付与依赖
 
 首票只改 services 及本组过程材料。F30—F32 的二次确认、停收/排空、应用及记忆重置由主代理另票实现，银行交付不等于 B26 整体或页面验收完成。
 
 本机已读取 to-spec、to-tickets、implement 及 code-review 文件；前三项设置 disable-model-invocation，本轮按明确授权与既有契约形成最小票据，不谎称调用了 slash 工具。独立两轴审查由主代理统一安排。
+
+2026-10-27：首票已由 [PR #322](https://github.com/DrErwin/hackerthon-bank-agent/pull/322) 合入main；整体API消费发现仅查bank_operations.processing不能覆盖生日写、释放及尚未入表的future。[票02](issues/02-gateway-drain-and-clock.md)补公开排空与成功时钟读取；仍不替API做停收、mutation_lock、active_message_jobs或应用/记忆重置。

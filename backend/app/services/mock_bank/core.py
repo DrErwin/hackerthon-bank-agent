@@ -134,6 +134,10 @@ class MockBankService:
     def current_demo_round_id(self) -> str | None:
         return current_demo_round_id(self.store.path)
 
+    @property
+    def current_demo_logical_at(self) -> datetime | None:
+        return self.demo.current_demo_logical_at
+
     def reset_demo(self, admin, management_operation_id: str, source_round_id: str,
                    target_round_id: str, initial_logical_at: datetime):
         """B26 internal management entry; never an ordinary Agent capability."""
