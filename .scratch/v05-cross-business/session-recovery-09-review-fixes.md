@@ -33,6 +33,28 @@ JUnit：`evidence/2026-10-27-session-recovery-09-review-capture-after.xml`。
 未跑通该链前不把静态 `operation_ids[0]` concern 写成产品失败；不以直接
 调用写端口并伪造快照替代真实链。
 
+真实链现已复现 **1 failed / 18.22s**，原生产 `f7204bdc`（只含上面的
+capture 修补），JUnit `evidence/2026-10-27-session-recovery-09-review-freeze-before.xml.gz`。
+新确认、新验证后，新冻结真实成功，紧接着在 `freeze_execute` 返回后抛 OSError，
+Cross 的 G3 published_ref 和旧验证快照未变。新的 cancel 实际可执行，返回
+CANCELLED；银行新冻结仍有 50000 分，旧操作 not_found，个人预算占用已关闭。
+这证明漏核实实际新冻结，但不是静态假设里的 `intent` 可见状态：该 intent
+只在缓冲中，故单改历史首项为末项不够。
+
+两条先前探测错误分别保存、不算产品红例：
+
+- `...-review-freeze-test-shape-error.xml.gz`，1 failed / 15.23s：测试作者
+  把 OperationFound 当 OperationResult，读取形状错，尚未检查取消。
+- `...-review-freeze-barrier-assumption.xml.gz`，1 failed / 16.86s：错误假设
+  中断后有持久 pending 会拒绝新 cancel。实际 result=None 时没有该持久
+  转换，新的 cancel 能进入。更正测试为核查真实银行剩余金额后取得上述红例。
+
+最小待核公开能力：`requery/bind_freeze == None` 既可能没 execution claim，
+也可能 claim 未决或银行不可读，不能据此宣称未提交。已向平台 owner 报明：
+取消无冻结快照的 pending hold 时需对准确末项原操作查只读提交事实；明确未
+提交才关闭，已完成绑定原冻结并按原授权收尾，未知保留占用。Cross 不读私有
+claim、平台 snapshot 或伪造 bank proof。确认现成能力或提供接缝后再消费。
+
 ## P3：提交正文
 
 最终仅补 `656439d3` 与 `cfc039cb` 的 why 正文，保留所有文件树字节；使用

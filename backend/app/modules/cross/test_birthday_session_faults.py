@@ -7,7 +7,7 @@ import pytest
 
 from app.agent_platform.test_birthday_harness_publication import harness_env
 from app.agent_platform.test_birthday_runtime_wiring import (
-    DELIVERY_REF, approve_confirmation, option_id,
+    DELIVERY_REF, answer_verification, approve_confirmation, option_id,
 )
 from app.agent_platform.test_birthday_session_recovery import target_session
 from app.contracts.bank import BankError, QueryFailure
@@ -93,3 +93,70 @@ def test_capture_recovery_budget_retry_keeps_the_original_order(
     assert all(row["capture"] == "completed" for row in final_orders)
     assert final_orders[0]["order_id"] == order_id
     assert len(bank_orders(env.runtime)) == len(products)
+
+
+def test_cancel_reconciles_recovered_freeze_committed_before_cross_snapshot(
+    harness_env, monkeypatch,
+):
+    """An unpublished intent must not hide an actual bank freeze on cancel."""
+    from unittest.mock import Mock
+
+    from app.agent_platform.birthday_runtime import BirthdayTaskPorts
+    from app.contracts.bank import OperationNotFound, OperationStatus
+
+    env = harness_env
+    freeze = adopted_budget_freeze(env, ("鲜花", "蛋糕"))
+    old_confirmation = env.runtime.confirmations.get(
+        env.runtime._context(env.who, None, None), freeze.interaction.record_ref)
+    approve_confirmation(env.runtime, env.who, freeze.interaction.record_ref)
+    assert env.resume({"choice": "approve"}).interaction.kind == "verification"
+    caller = target_session(env)
+    recovered = env.runtime.harness.recover_session(caller)
+    env.who = caller
+    replacement = env.runtime.confirmations.get(
+        env.runtime._context(caller, None, None), recovered.interaction.record_ref)
+    assert replacement.operation_id != old_confirmation.operation_id
+    approve_confirmation(env.runtime, caller, recovered.interaction.record_ref)
+    verification = env.resume({"choice": "approve"})
+    assert verification.interaction.kind == "verification"
+    answer_verification(env.runtime, caller, "R1", verification.interaction.record_ref)
+    published = env.published_ref()
+    before = deepcopy(cross_state(env)["birthday"])
+    assert before["freeze"] is None
+    assert before["freeze_submission"] == "not_submitted_verification"
+    budget = env.runtime.application.list_adopted_budgets("U1", "D1")[0]
+    hold = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
+    assert hold.operation_ids == [old_confirmation.operation_id, replacement.operation_id]
+    execute = BirthdayTaskPorts.freeze_execute
+    calls = Mock(wraps=env.runtime.gateway.freeze_funds)
+    monkeypatch.setattr(env.runtime.gateway, "freeze_funds", calls)
+
+    def after_real_effect(ports, trusted, plan):
+        outcome = execute(ports, trusted, plan)
+        assert outcome.state == "completed"
+        assert outcome.operation_id == str(replacement.operation_id)
+        raise OSError("freeze committed before Cross snapshot")
+
+    monkeypatch.setattr(BirthdayTaskPorts, "freeze_execute", after_real_effect)
+    request_id = uuid4()
+    with pytest.raises(OSError, match="freeze committed before Cross snapshot"):
+        env.resume({"choice": "resume"}, request_id=request_id)
+    bank_result = env.runtime.gateway.get_operation(caller, replacement.operation_id)
+    assert bank_result.operation.operation_status is OperationStatus.SUCCEEDED
+    freeze_id = bank_result.operation.receipt.freeze_id
+    assert env.runtime.gateway.get_freeze(caller, freeze_id).data.remaining_fen == 50000
+    assert isinstance(env.runtime.gateway.get_operation(caller, old_confirmation.operation_id),
+                      OperationNotFound)
+    assert env.published_ref() == published
+    assert cross_state(env)["birthday"] == before
+
+    # Cancellation must reconcile the real new freeze before closing its hold.
+    stopped = env.resume({"choice": "cancel"})
+    assert stopped.status is TaskStatus.CANCELLED, stopped.message
+    assert calls.call_count == 1
+    assert bank_orders(env.runtime) == [] and paid_amounts(env) == []
+    assert env.runtime.gateway.get_freeze(caller, freeze_id).data.remaining_fen == 0
+    closed = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id,
+        include_closed=True)[0]
+    assert closed.state == "closed" and closed.unconsumed_fen == 0
+    assert closed.operation_ids[:2] == [old_confirmation.operation_id, replacement.operation_id]
