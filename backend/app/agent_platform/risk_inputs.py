@@ -214,6 +214,8 @@ class TrustedRiskInputs:
             parent_id = self.application.parent_of_task(task.user_id, task.demo_round_id, task.task_id)
         except Exception:
             self._unavailable(REQUEST_BINDING_REQUIRED)
+        if parent_id is None and context.source_task_id is None and "step_id" in task.snapshot:
+            self._unavailable(REQUEST_BINDING_REQUIRED)
         source = task
         if parent_id is not None or context.source_task_id is not None:
             if parent_id is None or parent_id != context.source_task_id:

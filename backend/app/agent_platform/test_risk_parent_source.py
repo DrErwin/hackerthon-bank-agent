@@ -70,7 +70,7 @@ def test_parent_and_child_followups_survive_reopen_and_appear_in_the_hash(tmp_pa
 
 @pytest.mark.parametrize("fault", ["missing_context", "different_context", "relation_missing",
     "step_mismatch", "plan_mismatch", "parent_missing_request", "parent_missing_text", "parent_wrong_capability",
-    "relation_user", "relation_round", "missing_parent", "unreadable_parent"])
+    "relation_user", "relation_round", "missing_parent", "unreadable_parent", "relation_and_context_missing"])
 def test_missing_or_misbound_parent_never_falls_back_to_the_marker(tmp_path, monkeypatch, fault):
     from app.storage.database import transaction
 
@@ -80,7 +80,9 @@ def test_missing_or_misbound_parent_never_falls_back_to_the_marker(tmp_path, mon
             context = context.model_copy(update={"source_task_id": None})
         elif fault == "different_context":
             context = context.model_copy(update={"source_task_id": "OTHER"})
-        elif fault == "relation_missing":
+        elif fault in {"relation_missing", "relation_and_context_missing"}:
+            if fault == "relation_and_context_missing":
+                context = context.model_copy(update={"source_task_id": None})
             with transaction(store.path) as connection:
                 connection.execute("DELETE FROM task_relations WHERE child_task_id='T1'")
         elif fault in {"relation_user", "relation_round"}:
