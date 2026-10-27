@@ -2,6 +2,8 @@
 
 归属：底座（Erwin）。本目录只接公开能力，不访问转账私有工具或银行规则。
 
+专用个人预算输入经G3发布时，原dispatch来源校验保留；G3预留还须匹配该来源的实际CAS版本，完成只认同受理的封存publication回执。丢失completion沿原origin找原winner，或让Cross只读核实旧封存attempt，不二次adopt、不覆盖后继计划；无证明或外部CAS漂移仍拒绝。见[预算来源接缝](budget-inputs-seam.md)（v05-birthday-platform-dependencies/18）。
+
 ## 明确规划失败的消息结果（v05-birthday-platform-dependencies/14）
 
 `DeepAgentPlanner`仍严格拒绝缺失、多份或无效的受控outcome，不把自由回复补成业务提案。`handle_message`在尚未创建任务的分类阶段，将明确`PlanningError`回传为既有`MODEL_PROPOSAL_FAILED`失败ModuleResult，固定提示重新表述或查看原任务卡片；原`model.finished`审计保持failed，不记录原自由回复，也不宣称资金处理或风险拦截。API消费现有失败分支完成原消息，同request重放与重启不再次推理，旧待办不被替换。其他未知中断仍遵守原恢复规则；此改动不将历史B失败改为通过。

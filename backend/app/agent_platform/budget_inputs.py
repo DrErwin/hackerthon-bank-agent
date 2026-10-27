@@ -177,11 +177,34 @@ class BudgetInputs:
             return None
         return _projection(record)
 
-    def _entry(self, trusted, task):
+    def _entry(self, trusted, task, *, publication=None):
         context = self.harness._scope(trusted)
         registration = self.harness.registry.get(task.snapshot["capability_name"])
-        return registration.factory(trusted, self.harness.memory.checkpointer(context, trusted.task_id),
-                                    self.harness._trace(trusted, task))
+        saver = self.harness.memory.checkpointer(context, trusted.task_id)
+        if task.snapshot.get("birthday_g3") and self.harness.birthday_handoff is not None:
+            saver = self.harness.birthday_handoff.published_saver(
+                trusted, saver, publication=publication)
+        return registration.factory(trusted, saver, self.harness._trace(trusted, task))
+
+    def _publication(self, trusted, task, record):
+        handoff = self.harness.birthday_handoff
+        if handoff is None or not task.snapshot.get("birthday_g3"):
+            return None
+        # The server-owned origin is this admission's G3 identity, separate from
+        # an ordinary F10 that happens to carry the same client request UUID.
+        original = trusted.model_copy(update={"run_id": record["run_id"]})
+        publication = handoff.find_input_conversion(original, UUID(record["origin_id"]))
+        if publication == "pending":
+            if record["phase"] != "accepted" or record["session_id"] != trusted.session_id:
+                return None
+            transition = self.harness._birthday_transition(original,
+                capability=task.snapshot["capability_name"],
+                conversion={"kind": "input", "request_id": record["origin_id"]},
+                allow_root=False)
+            publication = transition.replayed
+        if publication is not None:
+            self.harness._check_result_scope(publication.result, original)
+        return publication
 
     def _reconcile(self, entry, trusted, task, record):
         reconcile = getattr(entry, "reconcile_budget_input", None)
@@ -196,7 +219,20 @@ class BudgetInputs:
             self.harness._check_result_scope(recovery.result, original)
         return recovery
 
-    def completed_snapshot(self, task, trusted, result, entry):
+    def publication_source(self, trusted):
+        """The still-current dedicated admission, before G3 may advance it."""
+        call = _CURRENT.get()
+        if (call is None or call.owner is not self or not call.active
+                or call.thread_id != get_ident() or call.actor != _actor(trusted)):
+            return None
+        task = self._task(trusted)
+        record = self._records(task).get(call.request_id)
+        if record is None or record["origin_id"] != call.origin_id:
+            raise ValueError("BUDGET_INPUT_STALE")
+        self._strict(task, record, trusted)
+        return task
+
+    def completed_snapshot(self, task, trusted, result, entry, *, source=None, publication=None):
         """Called by the existing result CAS: result and completion commit together."""
         snapshot = dict(task.snapshot)
         records = self._records(task)
@@ -209,7 +245,18 @@ class BudgetInputs:
             if (call is not None and call.owner is self and call.active
                     and call.thread_id == get_ident() and call.actor == _actor(trusted)
                     and call.request_id == key and call.origin_id == record["origin_id"]):
-                self._strict(task, record, trusted)
+                if source is not None and publication is not None:
+                    self._strict(source, record, trusted)
+                    published = (task.snapshot.get("birthday_g3") or {}).get("published_ref") or {}
+                    if (task.revision != publication.task_revision
+                            or task.checkpoint_id != publication.published_ref.checkpoint_id
+                            or published.get("checkpoint_ns") != publication.published_ref.checkpoint_ns
+                            or published.get("thread_id") != publication.published_ref.thread_id
+                            or published.get("content_digest") != publication.content_digest
+                            or publication.result != result):
+                        raise ValueError("BUDGET_INPUT_STALE")
+                else:
+                    self._strict(task, record, trusted)
                 recovery = self._reconcile(entry, trusted, task, record)
                 record.update(phase="completed", completion={"result": result.model_dump(mode="json"),
                     "task_revision": task.revision + 1,
@@ -242,10 +289,17 @@ class BudgetInputs:
                     return _completion(record)
                 # History is checked before current-input validation: an interrupted
                 # adoption may have persisted NEEDS_ATTENTION / interaction=None.
-                recovery = self._reconcile(self._entry(trusted, task), trusted, task, record)
-                if recovery is not None:
-                    record.update(phase="completed", completion={"result": recovery.result.model_dump(mode="json"),
-                        "task_revision": task.revision + 1, "attempt_ref": recovery.attempt_ref})
+                publication = self._publication(trusted, task, record)
+                task = self._task(trusted)  # G3 may have just sealed its original pending winner.
+                records = self._records(task)
+                record = records[request_id]
+                recovery = self._reconcile(self._entry(trusted, task, publication=publication),
+                                           trusted, task, record)
+                if publication is not None or recovery is not None:
+                    result = publication.result if publication is not None else recovery.result
+                    record.update(phase="completed", completion={"result": result.model_dump(mode="json"),
+                        "task_revision": (publication.task_revision if publication is not None else task.revision + 1),
+                        "attempt_ref": recovery.attempt_ref if recovery is not None else None})
                     records[request_id] = record
                     # Preserve the current plan/terminal status. This is only the
                     # original request's historical response, never a new step.
@@ -293,7 +347,8 @@ class BudgetInputs:
             call = _Call(self, get_ident(), record["origin_id"], request_id, _actor(dispatch))
             token = _CURRENT.set(call)
             try:
-                self.harness._resume(dispatch, {"choice": selected_option_id})
+                self.harness._resume(dispatch, {"choice": selected_option_id},
+                                     request_id=UUID(record["origin_id"]))
             finally:
                 call.active = False
                 _CURRENT.reset(token)
