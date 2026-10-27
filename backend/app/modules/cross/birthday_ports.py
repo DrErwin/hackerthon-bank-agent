@@ -98,6 +98,14 @@ class BirthdayPorts(Protocol):
                        plan: BirthdayPlan) -> WriteOutcome:
         """Submit the freeze; the outcome keeps its original operation id."""
 
+    def observe_freeze_submission(self, context: TrustedContext,
+                                  plan: BirthdayPlan, operation_id: str) -> str:
+        """Read not_submitted/submitted/unknown under the Harness task lock.
+
+        This observation grants no execution or release authority. Cross keeps
+        an uncertain reservation and uses the original operation for closure.
+        """
+
     def order_check(self, context: TrustedContext, plan: BirthdayPlan,
                     item: dict) -> GateAnswer:
         ...

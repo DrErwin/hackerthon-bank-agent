@@ -89,3 +89,21 @@ claim、平台 snapshot 或伪造 bank proof。确认现成能力或提供接缝
 本次推送仅本功能分支，以远端已核实
 `ea8da3da4e6e24255410cba56add9e377b82c30b` 为精确 lease。原 XML 无损 gzip
 的 SHA256、逐层计数及来源另存 `evidence/2026-10-27-session-recovery-09-review-summary.json`。
+
+## 平台23合入后的消费
+
+主线 `bec5621800dd58ec1c24ac224fd3008bba3f0ff4` 已含 PR #353 的只读三态
+`observe_freeze_submission(context, plan, operation_id)`。从 `eae1a32f` 机械
+重基到 `83db0b90fb01ecfff3fa7757827a7bcd53f54696`，14提交 range-diff 全 `=`，
+保留主线的具体子任务暂停说明、P01显式风险接线和所有原失败；这次组合变化
+不同于上节纯改消息，不沿用旧 backend 树等价声明。
+
+无freeze快照且有占用时，取历史末项准确原号，在既有 Harness 任务锁中探测。
+not_submitted 才沿取消关闭；submitted 转既有原号 bind/requery、限定 finalizer，
+不新建钱或订单；unknown、None及其他未证明状态抛 BudgetPending，保留占用。
+不以旧验证等待快照当作“没有提交”的证明，也不从历史首项找旧退休动作。
+
+原真实冻结取消红例不变，首次消费后 **1 passed / 18.52s**，
+JUnit：`evidence/2026-10-27-session-recovery-09-after23-freeze.xml`。
+银行只冻结一次、原已证实50000分冻结限定释放到零、占用关闭、旧新号历史不变。
+后续未决/故障与最终整组验证另记，不将此前5项或208批写成本次整组全过。

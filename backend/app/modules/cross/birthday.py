@@ -1556,13 +1556,21 @@ class BirthdayFlow:
         if not freeze:
             budget = PersonalBudget(self.entry, self.state)
             hold = budget.own()
-            if hold and self.b.get("freeze_submission") == "intent":
-                self.b["freeze"] = {"operation_id": str(hold.operation_ids[0]),
-                    "amount_fen": hold.committed_fen, "status": "unknown", "freeze_id": None}
-                self.b["holding"] = "unknown_freeze"
-                return self._finalize(trusted)
             if hold:
-                budget.close()  # acknowledged verify_wait: the write was not submitted
+                # The visible verification card can precede a real freeze if
+                # execution was interrupted before its G3 checkpoint. History
+                # retains retired attempts; only its current last id is probed.
+                operation_id = str(hold.operation_ids[-1])
+                submission = self.ports.observe_freeze_submission(
+                    trusted, self._plan(), operation_id)
+                if submission == "submitted":
+                    self.b["freeze"] = {"operation_id": operation_id,
+                        "amount_fen": hold.committed_fen, "status": "unknown", "freeze_id": None}
+                    self.b["holding"] = "unknown_freeze"
+                    return self._requery(trusted)
+                if submission != "not_submitted":
+                    raise BudgetPending("原冻结提交情况仍待核实，保留原编号和占用；核实前不关闭或重办。")
+                budget.close()
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
                                     "已停止办理。本次没有冻结资金，也没有下单或付款。")
         unknown = self.b.get("holding") in (
