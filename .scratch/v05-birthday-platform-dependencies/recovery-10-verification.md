@@ -17,6 +17,7 @@ python -m pytest backend/app/agent_platform -q --basetemp=<本worktree专用临�
 
 - [最终原始 JUnit](evidence/2026-10-27-platform10-fixed.xml)，SHA256 `1AF4F3FDA1158A30538BD3F3E319838FD124DAB3DE5CE29C40D869AA9B2CAE7D`。受测提交 `5aae44b6fef2862120b4d1a09ffe3b877980d381`，`agent_platform` 树为 `c9f8c7c56d533c4f03af412f57ccfff90f0b8534`。保留[先前回归](evidence/2026-10-27-platform10.xml)作为历史记录，不冒充最新受测树。
 - `git diff --check` 通过。新增 14 个参数化实际节点覆盖普通输入恢复、故障消费方旧确认/验证卡拒绝、跨主体/轮次拒绝、原输入 pending/完成投影查询、后继输入后原投影不变、封存前后/发布后断点、已完成恢复不得回滚后继输入及其他在途转换拒绝。封存前故障分别覆盖普通预算输入和会创建确认的采纳输入，验证未封存交互不公开、原号重试不新建确认、不重跑 Cross。
+- 合并前固定差异审查发现新增测试文件多余 EOF 空行，机械清除该一行后 `git diff --check origin/main` 通过。代码树因此与上述受测树有空白差异；没有重跑 390 项，不把机械修订后的树宣称为新的实测提交。
 
 ## API11 接缝
 

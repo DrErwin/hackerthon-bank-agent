@@ -337,4 +337,3 @@ def test_staged_input_cannot_cross_an_unrelated_task_revision(harness_env, monke
         env.resume({"text": "500元"}, request_id=request_id)
 
     assert env.task() == before
-
