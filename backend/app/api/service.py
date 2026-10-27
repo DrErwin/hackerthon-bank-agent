@@ -1699,6 +1699,9 @@ class ApiService:
         if (task is None or task.snapshot.get("capability_name") != "cross.start_task"
                 or handoff is None):
             return None
+        saved = self.store.input_completion(identity, task_id, request_id)
+        if saved is not None:
+            return TaskView.model_validate(saved)
         try:
             return handoff.find_input_conversion(
                 self.trusted(identity, task_id), request_id,
@@ -1709,15 +1712,20 @@ class ApiService:
     def publish_birthday_input(self, identity, task_id, request_id, publication,
                                *, publish=True):
         """Return the frozen winner; never broadcast an old card as current."""
-        link = self.link(identity, task_id, mutate=True)
-        view = TaskView(**publication.result.model_dump(), module="cross",
-            thread_id=link["thread_id"], demo_round_id=identity.demo_round_id,
-            snapshot_at=now(), task_revision=publication.task_revision,
-            cancel_requested=bool(link["cancel_requested"]))
+        self.link(identity, task_id, mutate=True)
         current = self.runtime.application.get_task(
             identity.user_id, identity.demo_round_id, task_id,
         )
-        if publish and current.revision == publication.task_revision:
+        if isinstance(publication, TaskView):
+            view = publication
+        else:
+            if current.checkpoint_id != publication.published_ref.checkpoint_id:
+                raise ApiProblem(409, "INTERACTION_STALE")
+            # Harness can append run metadata after its G3 CAS. Freeze the
+            # actual transport view, not the earlier publication revision.
+            view = self.task_view(identity, task_id)
+            self.store.save_input_completion(identity, task_id, request_id, view)
+        if publish and current.revision == view.task_revision:
             return self.publish_task(identity, task_id, view=view,
                                      stable_namespace=UUID(str(request_id)))
         return view
@@ -1824,7 +1832,7 @@ class ApiService:
         record = self.budget_input_record(identity, task_id, request.request_id)
         if record is None:
             publication = self.birthday_input_record(identity, task_id, request.request_id)
-            if isinstance(publication, PublicationOutcome):
+            if isinstance(publication, (PublicationOutcome, TaskView)):
                 return self.publish_birthday_input(
                     identity, task_id, request.request_id, publication,
                 )

@@ -2,9 +2,10 @@
 
 from uuid import uuid4
 
-from app.agent_platform.test_birthday_harness_publication import _fail_next_seal
 from app.contracts.api import ProvideInputRequest
+from app.memory.adapter import MemoryContext
 
+from .store import ApiStore
 from .test_edit_entry import demo, started_world, stored_task, submit_inputs
 
 
@@ -96,13 +97,27 @@ def test_recovery_still_rejects_changed_parameters(started_world, monkeypatch):
     assert stored_task(world).revision == before.revision
 
 
-def test_original_input_resumes_its_pending_seal(started_world):
+def test_original_input_resumes_its_pending_seal(started_world, monkeypatch):
     world = started_world
     request_id = uuid4()
     interaction_id = world.card.interaction.interaction_id
-    with _fail_next_seal(world.runtime):
-        first = answer(world, request_id, interaction_id)
-    assert first.status_code == 503
+    saver_type = type(world.runtime.memory.checkpointer(
+        MemoryContext(world.who.user_id, world.who.session_id,
+                      world.who.demo_round_id), world.task_id,
+    ))
+    seal = saver_type.seal_candidate
+    failed = False
+
+    def interrupt_once(saver, *args, **kwargs):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError("sealed storage unavailable")
+        return seal(saver, *args, **kwargs)
+
+    monkeypatch.setattr(saver_type, "seal_candidate", interrupt_once)
+    first = answer(world, request_id, interaction_id)
+    assert first.status_code == 503, first.text
     assert stored_task(world).snapshot["birthday_g3"]["pending"] is not None
 
     recovered = answer(world, request_id, interaction_id)
@@ -160,3 +175,25 @@ def test_unaccepted_input_receipt_is_not_replayed(started_world):
     assert response.status_code == 409, response.text
     assert response.json()["error"]["code"] == "REQUEST_IN_PROGRESS"
     assert stored_task(world).revision == before.revision
+
+
+def test_input_completion_survives_reopening_the_api_store(
+    started_world, monkeypatch,
+):
+    world = started_world
+    request_id = uuid4()
+    interaction_id = world.card.interaction.interaction_id
+    publish = world.api.publish_task
+
+    def unavailable(*args, **kwargs):
+        raise OSError("task publication unavailable")
+
+    monkeypatch.setattr(world.api, "publish_task", unavailable)
+    assert answer(world, request_id, interaction_id).status_code == 503
+    old_store = world.api.store
+    world.api.store = ApiStore(old_store.path, old_store.secret)
+    monkeypatch.setattr(world.api, "publish_task", publish)
+
+    recovered = answer(world, request_id, interaction_id)
+    assert recovered.status_code == 200, recovered.text
+    assert "哪一天" in recovered.json()["data"]["message"]
