@@ -27,10 +27,9 @@ class DemoManagement:
     def __init__(self, service):
         self.service = service
         self.path = service.store.path
-        bank = getattr(service.runtime, "bank", None)
-        bank_round = bank.current_demo_round_id if bank is not None else None
-        at = ((getattr(bank, "current_demo_logical_at", None) or bank.clock())
-              if bank is not None else datetime.now(timezone.utc)).isoformat()
+        bank = service.runtime.bank
+        bank_round = bank.current_demo_round_id
+        at = (bank.current_demo_logical_at or bank.clock()).isoformat()
         with transaction(self.path) as connection:
             connection.execute("""CREATE TABLE IF NOT EXISTS api_demo_state (
                 singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
