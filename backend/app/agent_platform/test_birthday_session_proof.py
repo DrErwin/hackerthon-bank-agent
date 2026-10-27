@@ -1,7 +1,7 @@
 """Provider 13: real retirement proof precedes every new-session gate card.
 
-The unchanged Cross consumer still returns its old cached card and is refused;
-this file tests the platform provider only, without patching Cross production.
+An explicit faulty consumer returns the old cached card and is refused. This
+provider test stays valid when the real Cross consumer learns session recovery.
 """
 
 from copy import deepcopy
@@ -14,6 +14,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.contracts.common import SecurityDecisionCode
+from app.contracts.tasks import ModuleResult
+from app.modules.cross.entry import CrossEntry
 from app.storage.database import connect
 from app.security.test_retirement import insert_claim_row
 
@@ -46,8 +48,15 @@ def operations(env):
 
 
 def recover_cached_card(env, caller):
-    with pytest.raises(BirthdayEditError, match="DEPENDENCY_UNAVAILABLE"):
-        env.runtime.harness.recover_session(caller)
+    def cached_result(_entry, trusted, **_kwargs):
+        task = env.runtime.application.get_task(
+            trusted.user_id, trusted.demo_round_id, trusted.task_id)
+        return ModuleResult.model_validate(task.snapshot["result"]).model_copy(
+            update={"run_id": trusted.run_id})
+
+    with patch.object(CrossEntry, "recover_session", cached_result):
+        with pytest.raises(BirthdayEditError, match="DEPENDENCY_UNAVAILABLE"):
+            env.runtime.harness.recover_session(caller)
 
 
 @pytest.mark.parametrize("stage", STAGES)
@@ -326,14 +335,11 @@ def test_retirement_audit_failure_retries_original_proof_before_linking(harness_
 
 
 def test_new_confirmation_id_reuse_cannot_make_the_old_card_current(harness_env, monkeypatch):
-    from app.modules.cross.entry import CrossEntry
-
     env = harness_env
     old = waiting_at(env, "freeze_confirmation")
     option = deepcopy(env.snapshot()["birthday_edit_option"])
     original = deepcopy(env.snapshot()["birthday_actions"][option["item"]])
     caller = target_session(env)
-    recover = CrossEntry.recover_session
     checked = False
 
     def new_check_then_cached(entry, trusted, **kwargs):
@@ -344,10 +350,11 @@ def test_new_confirmation_id_reuse_cannot_make_the_old_card_current(harness_env,
         assert answer.interaction.record_ref == old.interaction.record_ref
         assert answer.interaction.interaction_id != old.interaction.interaction_id
         checked = True
-        return recover(entry, trusted, **kwargs)
+        return old.model_copy(update={"run_id": trusted.run_id})
 
     monkeypatch.setattr(CrossEntry, "recover_session", new_check_then_cached)
-    recover_cached_card(env, caller)
+    with pytest.raises(BirthdayEditError, match="DEPENDENCY_UNAVAILABLE"):
+        env.runtime.harness.recover_session(caller)
     assert checked
     assert env.snapshot()["session_recovery"]["phase"] == "transitioned"
     assert env.snapshot()["result"]["interaction"]["interaction_id"] == old.interaction.interaction_id
