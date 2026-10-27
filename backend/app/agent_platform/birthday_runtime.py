@@ -927,14 +927,8 @@ class BirthdayTaskPorts:
             source = None
             if confirmation is None and release_context.release_authorization_id:
                 try:
-                    authorization = self.wiring.state.get_release_authorization(
+                    record = self.wiring.state.get_release_confirmation(
                         release_context, release_context.release_authorization_id)
-                    freeze_operation = authorization.freeze_operation_id
-                    freeze_operation = UUID(str(freeze_operation))
-                    record = self.runtime.confirmations.get(
-                        release_context.model_copy(update={
-                            "operation_id": freeze_operation}),
-                        authorization.confirmation_id)
                     source = AuthorizationConfirmation(
                         confirmation_id=record.confirmation_id,
                         version=record.confirmation_version,
