@@ -36,7 +36,7 @@ if TYPE_CHECKING:  # The detector lives in app.security; importing it here would
 TRANSFER_WRITE = "bank.submit_transfer"
 HISTORY_WINDOW = timedelta(days=180)
 AMOUNT_MULTIPLE = 2
-RISK_INPUTS_VERSION = "v05-risk-inputs-2"
+RISK_INPUTS_VERSION = "v05-risk-inputs-3"
 
 TASK_BINDING_REQUIRED = "risk-input-task-binding-required"
 REQUEST_BINDING_REQUIRED = "risk-input-request-binding-required"
@@ -114,6 +114,7 @@ class RiskInputs:
     facts: tuple[RiskFact, ...]
     evidence_ref: str
     request_source_task_id: str | None = None
+    request_capture_version: str | None = None
 
     def __post_init__(self) -> None:
         for label in (self.user_id, self.session_id, self.demo_round_id, self.task_id,
@@ -182,10 +183,11 @@ class TrustedRiskInputs:
         ):
             self._unavailable(ACTION_UNSUPPORTED)
         task = self._task(context)
-        request_id, request_text, source_task_id = self._request(task, context)
+        request_id, request_text, source_task_id, capture_version = self._request(task, context)
         action_facts, payee = self._action_facts(context, action)
         facts = self._facts(context, action_facts, payee)
-        reference = self._evidence_ref(context, action, request_id, request_text, facts, source_task_id)
+        reference = self._evidence_ref(
+            context, action, request_id, request_text, facts, source_task_id, capture_version)
         return RiskInputs(
             user_id=context.user_id, session_id=context.session_id,
             demo_round_id=context.demo_round_id, task_id=context.task_id,
@@ -195,6 +197,7 @@ class TrustedRiskInputs:
             action_revision=context.action_revision, action_facts=action_facts,
             facts=facts, evidence_ref=reference,
             request_source_task_id=source_task_id,
+            request_capture_version=capture_version,
         )
 
     def _task(self, context: ExecutionSecurityContext) -> TaskRecord:
@@ -209,7 +212,9 @@ class TrustedRiskInputs:
             self._unavailable(TASK_BINDING_REQUIRED)
         return task
 
-    def _request(self, task: TaskRecord, context: ExecutionSecurityContext) -> tuple[str, str, str]:
+    def _request(
+        self, task: TaskRecord, context: ExecutionSecurityContext,
+    ) -> tuple[str, str, str, str | None]:
         try:
             parent_id = self.application.parent_of_task(task.user_id, task.demo_round_id, task.task_id)
         except Exception:
@@ -244,7 +249,11 @@ class TrustedRiskInputs:
                 followups += self.conversation.texts(task)
         except Exception:
             self._unavailable(REQUEST_BINDING_REQUIRED)
-        return request_id, "\n".join([request_text, *followups]), source.task_id
+        capture_version = source.snapshot.get("risk_capture_version")
+        if (capture_version != RiskConversation.CAPTURE_VERSION
+                or task.snapshot.get("risk_capture_version") != RiskConversation.CAPTURE_VERSION):
+            capture_version = None
+        return request_id, "\n".join([request_text, *followups]), source.task_id, capture_version
 
     def _action_facts(
         self, context: ExecutionSecurityContext, action: ActionDescriptor,
@@ -376,6 +385,7 @@ class TrustedRiskInputs:
     def _evidence_ref(
         self, context: ExecutionSecurityContext, action: ActionDescriptor,
         request_id: str, request_text: str, facts: tuple[RiskFact, ...], source_task_id: str,
+        capture_version: str | None,
     ) -> str:
         canonical = {
             # run_id is deliberately absent: recovery moves the task to a new run
@@ -391,6 +401,7 @@ class TrustedRiskInputs:
             "request": {
                 "request_id": request_id,
                 "source_task_id": source_task_id,
+                "capture_version": capture_version,
                 "text_sha256": sha256(request_text.encode("utf-8")).hexdigest(),
             },
             "facts": [fact.as_dict() for fact in facts],

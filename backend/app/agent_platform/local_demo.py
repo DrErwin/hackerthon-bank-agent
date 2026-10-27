@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlparse
 
 from langchain_openai import ChatOpenAI
@@ -26,6 +27,7 @@ from app.modules.transfer.tools import TransferSnapshots
 from app.security import SecurityGate, ToolRegistry
 from app.security.demo_policy import DemoRiskEvidence, DemoRiskSignal, DemoSecurityPolicy
 from app.security.demo_text_risk import demo_text_risk
+from app.security.pension_demo_risk import PROFILE_ID, pension_demo_risk
 from app.services.mock_bank.core import MockBankService
 from app.storage.application import ApplicationStore
 from app.storage.database import StoragePaths
@@ -37,6 +39,7 @@ from .model import DeepAgentPlanner, ModelSettings
 from .transfer_runtime import TransferRuntime
 from .own_bank_queries import register_own_bank_queries
 from .risk_inputs import TrustedRiskInputs
+from .risk_conversation import RiskConversation
 
 
 class RiskFixture(BaseModel):
@@ -80,6 +83,8 @@ class LocalDemoConfig(BaseModel):
     transfer_fixtures: list[TransferFixture]
     # Operator-only, per-runtime fault for an isolated birthday demo/test.
     birthday_response_loss_once: bool = Field(default=False, strict=True)
+    # Explicit operator-only opt-in; the default retains the existing unknown path.
+    pension_demo_profile: Literal["p01-marked-demo-v1"] | None = None
 
     @model_validator(mode="after")
     def validate_local_scope(self):
@@ -118,7 +123,13 @@ class LocalDemoConfig(BaseModel):
 
 def load_config(path: Path) -> LocalDemoConfig:
     try:
-        return LocalDemoConfig.model_validate_json(path.read_text(encoding="utf-8-sig"))
+        config = LocalDemoConfig.model_validate_json(path.read_text(encoding="utf-8-sig"))
+        if "BANK_PENSION_DEMO_PROFILE" in os.environ:
+            config = LocalDemoConfig.model_validate({
+                **config.model_dump(),
+                "pension_demo_profile": os.environ["BANK_PENSION_DEMO_PROFILE"],
+            })
+        return config
     except (OSError, ValidationError, ValueError):
         # Pydantic's normal diagnostics may include the complete input (secrets).
         raise ValueError("LOCAL_DEMO_CONFIG_INVALID") from None
@@ -207,6 +218,9 @@ def build_runtime(config: LocalDemoConfig) -> TransferRuntime:
                     and parameters.get("payee") == SavedPayee(kind="saved", payee_id=fixture.payee_id).model_dump()
                     and parameters.get("amount_fen") == fixture.amount_fen):
                 return demo_text_risk(inputs, fixture.evidence(config.facts_version))
+        if (config.pension_demo_profile == PROFILE_ID
+                and inputs.request_capture_version == RiskConversation.CAPTURE_VERSION):
+            return pension_demo_risk(inputs)
         # A text threat still blocks when no fixed parameter scenario is available.
         # Ordinary unconfigured transfers remain unknown and pause at the gate.
         return demo_text_risk(inputs, None)

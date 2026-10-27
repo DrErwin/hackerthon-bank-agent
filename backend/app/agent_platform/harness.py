@@ -736,6 +736,7 @@ class AgentHarness:
                     trusted.task_id, trusted.user_id, trusted.session_id,
                     trusted.demo_round_id, trusted.run_id, TaskStatus.RUNNING,
                     {"request_id": str(request_id), "intent_text": intent_text,
+                     "risk_capture_version": RiskConversation.CAPTURE_VERSION,
                      "config_version": self.planner.config_version,
                      "selected_capability": selected_capability,
                      "bill_source_task_id": trusted.parent_task_id,
@@ -1174,6 +1175,7 @@ class AgentHarness:
         )
         snapshot = {
             "request_id": str(request_id), "intent_text": f"{capability_name}:{step_id}",
+            "risk_capture_version": RiskConversation.CAPTURE_VERSION,
             "config_version": self.planner.config_version,
             "capability_name": capability_name, "step_id": step_id,
             "plan_revision": plan_revision, "trace_id": trace_id,
@@ -1332,6 +1334,16 @@ class AgentHarness:
             self._authorize(trusted, task.snapshot["capability_name"])
             if request_id is not None and isinstance(response.get("text"), str) and response["text"].strip():
                 self.risk_conversation.append(trusted, task.task_id, request_id, response["text"])
+            elif (isinstance(response.get("text"), str) and response["text"].strip()
+                    and task.snapshot.get("risk_capture_version") == RiskConversation.CAPTURE_VERSION):
+                # A direct text resume without its original request ID cannot
+                # prove complete capture. Keep its business meaning/history,
+                # but never let the new P01 profile inherit that completeness.
+                task = self.application.update_task(
+                    trusted.user_id, trusted.demo_round_id, task.task_id,
+                    task.revision, task.run_id, task.status, task.checkpoint_id,
+                    {**task.snapshot, "risk_capture_version": None},
+                )
             trace = self._trace(trusted, task)
             registration = self.registry.get(task.snapshot["capability_name"])
             saver = self.memory.checkpointer(context, trusted.task_id)

@@ -2,6 +2,14 @@
 
 归属：底座（Erwin）。本目录只接公开能力，不访问转账私有工具或银行规则。
 
+## P01显式演示风险接线（v05-birthday-platform-dependencies/21）
+
+LocalDemoConfig.pension_demo_profile默认None，仅接受p01-marked-demo-v1显式开启；load_config也只读当前进程BANK_PENSION_DEMO_PROFILE并同样校验，错误值沿LOCAL_DEMO_CONFIG_INVALID脱敏失败，不改配置文件。旧A2匹配在先，其他动作只有已核验的父原请求和完整捕捉版本才交安全20提供方；完整范围见[票21规格](../../../.scratch/v05-birthday-platform-dependencies/pension-profile-wiring-21.md)。模拟十二维与真实银行两收款人维度保持区分，NEW_PAYEE仍中风险和逐笔确认/双因子，缺事实继续暂停。
+
+Harness仅新建根/子任务时在现有snapshot写risk_capture_version=RiskConversation.CAPTURE_VERSION。TrustedRiskInputs保留19的user/task/round、持久父子/step/plan及不可变动作绑定，只有来源父与当前子均为该版本时返回request_capture_version，并纳入opaque风险引用。普通F10有原UUID的文本继续被脱敏捕捉；已标记任务收到没有原request_id的普通text时只使完整标记失效，保留历史和原业务含义，以更新后的真实revision继续。无text的预算专用choice或验证记录不触发；旧任务和失效标记不回填。重启沿已存事实，不把当前代码版本当作旧跟进完整的证明。
+
+原模型配置摘要不因新开关改变，防止用MODEL_CONFIG_CHANGED遮住旧任务应有的unknown暂停；profile版本和capture来源由安全证据说明。默认行为、秘密文件、确认/验证/执行器和银行规则不改。该接线的脚本模型集成与真实GLM/页面/本人安全接受分开记录。
+
 专用个人预算输入经G3发布时，原dispatch来源校验保留；G3预留还须匹配该来源的实际CAS版本，完成只认同受理的封存publication回执。丢失completion沿原origin找原winner，或让Cross只读核实旧封存attempt，不二次adopt、不覆盖后继计划；无证明或外部CAS漂移仍拒绝。见[预算来源接缝](budget-inputs-seam.md)（v05-birthday-platform-dependencies/18）。
 
 ## 明确规划失败的消息结果（v05-birthday-platform-dependencies/14）
