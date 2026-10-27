@@ -22,4 +22,10 @@
 - 原失败场景再取只读备份：HTTP 200、父状态 waiting_input、原退订操作仍仅一条 succeeded、模型调用0；[最小回放摘要](evidence/2026-10-27-controls-10-captured-green.json)。原失败批次和原库不改写，未重新调用真实模型。
 - F13 核查结论：活动普通父卡只发布 resume/cancel，因此 query-result 仍409；终态 query 由 Cross.resume 的终态分支返回原结果。没有把 query 当 _advance 或开放新写动作。
 
-完整 Cross 目录回归与最新 main 同步后补证；独立两轴/CI/真实页面验收分别由中控记录。
+## 最新主线组合验证
+
+只重放本票到 main `e4f0fe50`（已含 API #327 和安全 #330）。先前本地基线的 API 五个提交已压缩合入，未再次携入本 PR；本票 range-diff 为 `=`。`695ce6e5` 与该 main 的 API 树均为 `9977e0613db524d0fbdaa201c36bb4c3c8b55732`，没有手改 API 冲突。
+
+受测提交 `b1f11f93`，Cross 树 `8e8ce8ba2c5cb33bbe87415ead7d28bf2022e474`。命令：`python -m pytest backend/app/modules/cross -q`，独立临时目录，结果 **126 passed，256.99s，exit 0**，包含上述六个 HTTP 节点与既有养老金/生日/预算/撤离业务回归。[原始 JUnit](evidence/2026-10-27-controls-10-main.xml)。后续只补证据，Cross 源码树保持；独立两轴/CI/真实页面验收分别由中控记录。
+
+本票没有运行新真实模型或页面；原模型路由成功/子任务成功及失败 HTTP 批次由中控原资料保留。没有修改风险配置、共享演示库、API、平台或安全目录，也没有实现09会话恢复。
