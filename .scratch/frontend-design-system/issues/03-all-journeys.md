@@ -6,10 +6,10 @@ Spec: [设计系统规格](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `frontend/`
-Status: ready_for_review — 前端实现、测试与独立检查完成，待用户体验接受及依赖合入；真实转账后半程有后端阻塞。
+Status: merged — PR #320 于 2026-10-27 squash 合入 `443e9b10`；合入后 122 项前端检查与两种构建通过；真实转账后半程、最终体验及业务验收仍待。
 Accepted by: 本对话 AI，依据用户“照现在这个原型的样子，把整个前端体验重新做一遍”
 Accepted at: 2026-10-26
-Blocked by: [frontend-design-system/02](02-conversation.md)，实现已复用，合入依赖 PR #319（继承 PR #318）
+Blocked by: None（[frontend-design-system/02](02-conversation.md) / PR #319 及 PR #318 已合入）
 Core scenarios: F01—F08，见下方验收
 
 ## 范围与验收

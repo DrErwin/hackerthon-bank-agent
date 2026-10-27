@@ -6,10 +6,10 @@ Spec: [设计系统规格](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `frontend/`
-Status: ready_for_review — 实现、局部测试、浏览器走查与 AI 审查已完成，等待体验接受与合入。
+Status: merged — PR #319 于 2026-10-27 squash 合入 `a2386e6b`；等价同步后 113 项前端检查及构建通过，最终体验与业务验收另记。
 Accepted by: 本对话 AI，依据用户“同意，改造吧”
 Accepted at: 2026-10-26
-Blocked by: [frontend-design-system/01：统一设计系统并接入常用组件](01-foundation.md)（实现已可复用，合入依赖 PR #318）
+Blocked by: None（[frontend-design-system/01：统一设计系统并接入常用组件](01-foundation.md) / PR #318 已合入）
 
 ## 业务结果与核心场景
 

@@ -3,7 +3,7 @@
 Type: 开发
 Owner: Erwin
 Directory: `frontend/`
-Status: ready_for_review — 本地实现、测试、浏览器走查和两轴问题复核完成，等待体验接受与合入。
+Status: merged — PR #318 于 2026-10-27 squash 合入 `2a9ebf7e`；合入后 108 项前端检查及构建通过，最终体验与业务验收另记。
 Accepted by: 本对话 AI（用户明确授权设计系统与组件接入）
 Accepted at: 2026-10-26
 Spec: [规格](../spec.md)
