@@ -1,6 +1,6 @@
 # 平台14：明确规划失败的受控消息结果
 
-Status: in_progress — PR335已合入main30cbe740，基于其新harness实施
+Status: ready_for_review — PR335后最小实现与完整平台验证完成，独立两轴/合入另记
 Owner: Erwin（v0.5）
 Accepted by: 中控明确授权，2026-10-27
 Directory: `backend/app/agent_platform/`
@@ -22,3 +22,5 @@ Package: [底座与模拟银行](../v05-cross-linkage/packages/01-platform-bank.
 - P14-04：合法ReplyOnly与正常proposal/continuation、缺/多outcome、解析失败和真实不可确定中断分别保持原语义。必要局部与一次完整平台回归，原13skip不当通过。
 
 前期诊断与未修复红例见[独立记录](../v05-model-protocol-diagnosis/README.md)。脚本模型、原回复回放与真实批分层记录；交PR后如需真实验证，最多另跑原三失败+一个正常对照一次新小批，不覆盖原B/C。
+
+实际结果见[平台14验证](model-failure-14-verification.md)：三条原回复与空/多outcome提示红转绿；同原号/重启、旧待办与失败审计检查通过；完整平台426 passed/13 skipped。此事实不等于原B失败变成通过，也没有资金安全或已拦截裁决。
