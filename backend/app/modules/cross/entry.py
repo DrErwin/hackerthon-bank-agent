@@ -284,6 +284,8 @@ class CrossEntry:
         if (response == {"choice": "resume"}
                 and state.get("scenario") != CrossScenario.BIRTHDAY.value):
             if "resume" in (state.get("result") or {}).get("allowed_actions", []):
+                if state.get("stop_reason"):
+                    return self._closeout(trusted, state, stop_reason=state["stop_reason"])
                 return self._advance(trusted, state)
             # A generic refresh does not choose or replace the current menu.
             return self._result(trusted, state)

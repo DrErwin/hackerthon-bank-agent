@@ -12,6 +12,7 @@ from app.agent_platform.model import TransferProposal
 from app.agent_platform.test_local_demo import app_for, configuration
 from app.api.test_app import approve, enter, post
 from app.contracts.bank import BankError, QueryFailure
+from app.contracts.common import RiskLevel
 from app.contracts.platform import TrustedContext
 from app.memory.adapter import MemoryContext
 from app.storage.database import connect
@@ -177,3 +178,76 @@ def test_unknown_child_parent_resume_waits_and_child_query_uses_original_operati
         assert write.call_count == 1
     assert post(client, f"/tasks/{menu['task_id']}/resume").status_code == 200
     assert operations(api) == original_operations
+
+
+def test_stopped_pension_parent_closes_after_unknown_transfer_is_verified(http_env, monkeypatch):
+    client, api = http_env
+    # This control-flow regression supplies a fixed risk assessment, like the
+    # API transfer tests; it does not validate local_demo's text-risk detector.
+    monkeypatch.setattr(api.runtime, "assess_risk", lambda *_: RiskLevel.LOW)
+    menu = parent(http_env, "养老金到了，帮我安排本月的钱")
+    current = menu
+    for label in ("主账户", "直接安排资金", "当前可用余额"):
+        response = choose(client, current, label)
+        assert response.status_code == 200, response.text
+        current = response.json()["data"]
+    response = post(client, f"/tasks/{menu['task_id']}/inputs",
+        interaction_id=current["interaction"]["interaction_id"], text="1500元")
+    assert response.status_code == 200, response.text
+    response = choose(client, response.json()["data"], "算进留存")
+    assert response.status_code == 200, response.text
+    current = response.json()["data"]
+    for amount in ("500元", "600元"):
+        response = choose(client, current, "妈妈")
+        assert response.status_code == 200, response.text
+        current = response.json()["data"]
+        response = post(client, f"/tasks/{menu['task_id']}/inputs",
+            interaction_id=current["interaction"]["interaction_id"], text=amount)
+        assert response.status_code == 200, response.text
+        current = response.json()["data"]
+    response = choose(client, current, "去向已选好")
+    assert response.status_code == 200, response.text
+    response = choose(client, response.json()["data"], "采用并开始办理")
+    assert response.status_code == 200, response.text
+    children_url = f"/api/v1/tasks/{menu['task_id']}/children"
+    children = client.get(children_url).json()["data"]
+    waiting = [child for child in children if child["status"] == "waiting_approval"]
+    assert len(waiting) == 1, [(child["status"], child["error"]) for child in children]
+    first = waiting[0]
+    child_ids = {child["task_id"] for child in children}
+    operation_id = first["data"]["operation_id"]
+    assert api.runtime.application.get_active_arrangement("U1", "D1", "A1") is not None
+    original = api.runtime.gateway.submit_transfer
+
+    def lose_response(*args, **kwargs):
+        result = original(*args, **kwargs)
+        assert result.operation_status.value == "succeeded"
+        return QueryFailure(kind="error", error=BankError(code="CALL_TIMEOUT", details={}))
+
+    with patch.object(api.runtime.gateway, "submit_transfer", side_effect=lose_response) as write:
+        with patch.object(api.runtime.gateway, "get_operation", return_value=QueryFailure(
+                kind="error", error=BankError(code="CALL_TIMEOUT", details={}))):
+            unknown = verify(client, first)
+            assert unknown["status"] == "needs_attention"
+            stopped = post(client, f"/tasks/{menu['task_id']}/cancel")
+        assert stopped.status_code == 200, stopped.text
+        assert stopped.json()["data"]["status"] == "running"
+        assert stopped.json()["data"]["data"]["stop_reason"] == "user_cancelled"
+        assert api.runtime.application.get_active_arrangement("U1", "D1", "A1") is not None
+        still_unknown = post(client, f"/tasks/{menu['task_id']}/resume")
+        assert still_unknown.status_code == 200, still_unknown.text
+        assert still_unknown.json()["data"]["status"] == "running"
+        assert {child["task_id"] for child in client.get(children_url).json()["data"]} == child_ids
+        queried = post(client, f"/tasks/{first['task_id']}/query-result")
+        assert queried.status_code == 200, queried.text
+        assert queried.json()["data"]["status"] == "succeeded"
+        assert queried.json()["data"]["data"]["operation_id"] == operation_id
+        resumed = post(client, f"/tasks/{menu['task_id']}/resume")
+        assert resumed.status_code == 200, resumed.text
+        assert {child["task_id"] for child in client.get(children_url).json()["data"]} == child_ids
+        assert resumed.json()["data"]["status"] == "partially_succeeded"
+        assert resumed.json()["data"]["data"]["stop_reason"] == "user_cancelled"
+        assert "后续已停止" in resumed.json()["data"]["message"]
+        assert api.runtime.application.get_active_arrangement("U1", "D1", "A1") is None
+        assert write.call_count == 1
+    api.runtime.harness.planner.select.assert_not_called()
