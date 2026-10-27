@@ -18,8 +18,10 @@ Core scenarios: SA03
 
 ## 验收
 
-- [ ] 离线覆盖三种来源真实投递、未投递不误绿、模型失败/未达前置、原确认与参数不变、零银行写和U2隔离。
+- [x] 离线覆盖三种来源真实投递、未投递不误绿、模型失败/未达前置、原确认与参数不变、零银行写和U2隔离（40 passed / 45.77s；[JUnit](../untrusted-runner-final-tests.xml)）。
 - [ ] 一次固定六条真实运行；无模型比较、调参、重试、买额度；明确429/费用阻塞即停止新请求并保留NOT_RUN。
 - [ ] 实际提案、确认前后、原号resume、resource_load、memory命名空间、真实HTTP计数/输入hash/usage与独立银行全表摘要留证。
 - [ ] 实际policy/rule/evidence只取审计。ReplyOnly或零银行写不替代资金gate；解释人工接受及生产网络出口全面政策缺口继续Blocked。
 - [ ] 原始脱敏总报告/JSONL双附件及SHA归档，独立PR交中控两轴审查，不自行合入或代签接受。
+
+离线真实装配已观察：普通资料跟进后，确认和参数仍pending/不变；原号resume因有限文本语法的风险覆盖不足转needs_attention。此为状态恢复缺口，不将其写为waiting_approval恢复通过，也不放宽有限政策。
