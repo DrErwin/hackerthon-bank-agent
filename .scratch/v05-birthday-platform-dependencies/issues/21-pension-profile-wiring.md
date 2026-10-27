@@ -1,7 +1,7 @@
 # 21：P01显式profile与完整来源接线
 
 Ticket ID: v05-birthday-platform-dependencies/21
-Package: [跨场景联动平台](../../v05-cross-linkage/packages/03-platform.md)
+Package: [平台与银行公开契约](../../v05-cross-linkage/packages/01-platform-bank.md)
 Spec: [P01显式profile与完整来源](../pension-profile-wiring-21.md)
 Type: 开发
 Owner: Erwin；Codex按中控分派
