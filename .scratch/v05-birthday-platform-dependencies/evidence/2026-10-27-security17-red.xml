@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.917" timestamp="2026-10-27T18:07:02.308590+08:00" hostname="ErwinWu"><testcase classname="app.security.test_release_confirmation" name="test_overwritten_source_is_read_exactly_without_rebinding_the_new_session" time="0.128"><failure message="AttributeError: 'SQLiteSecurityState' object has no attribute 'get_release_confirmation'. Did you mean: 'create_confirmation'?">backend\app\security\test_release_confirmation.py:49: in test_overwritten_source_is_read_exactly_without_rebinding_the_new_session
+    read = rig.state.get_release_confirmation(target, authorization.release_authorization_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'SQLiteSecurityState' object has no attribute 'get_release_confirmation'. Did you mean: 'create_confirmation'?</failure></testcase></testsuite></testsuites>
