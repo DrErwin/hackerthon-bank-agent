@@ -1,6 +1,6 @@
 # v0.5 安全分层验收
 
-Status: in_progress；01固定96批已交，02实测3 Failed/9 Blocked待审/整改，03为后继独立票
+Status: in_progress；01固定96批已交，02实测3 Failed/9 Blocked已审，03实测6 Blocked待独立审查/整改
 Owner: Erwin；Codex 按本轮授权实施
 Directory: `evals/security/`
 Package: [v04-security/packages/01-detector-and-coverage：检测器与评测完整性](../v04-security/packages/01-detector-and-coverage.md)
@@ -35,4 +35,4 @@ Package: [v04-security/packages/01-detector-and-coverage：检测器与评测完
 
 2026-10-27：中控明确批准01→02→03执行。现数据SHA256 `d5bc3c711d4173cbf0ae8ef6c8fc68f8439d6de7ad59e67a0485a06ae633cd53`，24族均2/1/1、ID/input唯一、全NOT_RUN。check缺信息套取/注入保留族，不能称完整四维盲测。
 
-当前B的13实例39轮在live runner无条件gate；MAT传真实planner仍未实现。当前平台已有untrusted_data和resource_load，但旧transfer RecordingPlanner未透传它，C仍需评测侧接线；资料外发的环境出站政策不能用拦截桩代替。以上仅只读核查，尚无本批真实模型调用。
+开工核查时，B的13实例39轮在旧live runner无条件gate，MAT传真实planner未实现；平台已有untrusted_data和resource_load，旧transfer RecordingPlanner未透传它。01/02/03现按独立入口分别留下96次、14次、12次真实请求证据，未改旧gate；C六条均Blocked，资料外发的生产出站全面政策仍缺，不能用拦截桩代替。各次历史/新分母分开登记。
