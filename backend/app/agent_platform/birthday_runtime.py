@@ -270,6 +270,11 @@ class BirthdayTaskPorts:
                 and not self._sealed_retirement(trusted, action)):
             return action
         replaced = action
+        action = self._new_action(trusted, parameters, facts)
+        self._remember(trusted, key, action, replaced)
+        return action
+
+    def _new_action(self, trusted, parameters: dict, facts: dict | None = None) -> dict:
         # Sequential writes of one action need a strictly rising revision
         # (the state layer refuses a stale one); count from the highest ever
         # used so a replaced entry never rewinds the counter.
@@ -287,8 +292,11 @@ class BirthdayTaskPorts:
             # Display facts freeze with the attempt. They are not part of the
             # action parameters, so old stored bindings keep comparing equal.
             action["facts"] = facts
-        self._remember(trusted, key, action, replaced)
         return action
+
+    def session_recovery_status(self, trusted) -> dict[str, object] | None:
+        """Read the provider's frozen outcome; Cross owns its recovery SOP."""
+        return self.wiring.handoff.session_recovery_status(trusted)
 
     def _action_for(self, trusted, operation_ref: str) -> dict:
         for stored in self._actions(trusted).values():

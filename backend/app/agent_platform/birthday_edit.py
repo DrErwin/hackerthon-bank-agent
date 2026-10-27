@@ -330,7 +330,20 @@ class BirthdayHandoff:
             raise BirthdayEditError("TRANSITION_PENDING")
         saver = self.runtime.application.checkpoint_saver(
             trusted.user_id, trusted.demo_round_id, trusted.task_id)
-        self._read_source(saver, published, task.checkpoint_thread_id)
+        saved = self._read_source(saver, published, task.checkpoint_thread_id)
+        from .birthday_session import freeze_source
+
+        return freeze_source(self.runtime, trusted, task, published, saved)
+
+    def _prepare_session_recovery(self, trusted: TrustedContext, frozen_source):
+        from .birthday_session import prepare
+
+        return prepare(self.runtime, trusted, frozen_source)
+
+    def session_recovery_status(self, trusted: TrustedContext) -> dict[str, object] | None:
+        from .birthday_session import status
+
+        return status(self.runtime, trusted)
 
     def check_recovered_interaction(self, trusted: TrustedContext,
                                     result: ModuleResult) -> None:
@@ -339,10 +352,22 @@ class BirthdayHandoff:
         if interaction is None:
             return
         try:
+            option = self._task(trusted).snapshot.get("birthday_edit_option") or {}
+            if (interaction.kind in {"confirmation", "verification"}
+                    and (option.get("interaction_id") != interaction.interaction_id
+                         or option.get("kind") != interaction.kind
+                         or option.get("record_ref") != interaction.record_ref
+                         or option.get("option_id") not in {item.id for item in interaction.options})):
+                raise ValueError("INTERACTION_STALE")
             if interaction.kind == "confirmation":
-                self.runtime.confirmations.get(
+                confirmation = self.runtime.confirmations.get(
                     self.runtime._context(trusted, None, None),
                     interaction.record_ref)
+                if (confirmation.confirmation_id != option.get("confirmation_id")
+                        or confirmation.confirmation_version != option.get("confirmation_version")
+                        or str(confirmation.operation_id) != option.get("operation_id")
+                        or confirmation.action_revision != option.get("action_revision")):
+                    raise ValueError("CONFIRMATION_STALE")
             elif interaction.kind == "verification":
                 self.runtime.gateway.get_verification(
                     trusted, interaction.record_ref)
@@ -889,9 +914,12 @@ class BirthdayHandoff:
             # Associated writes stay inside this task's own scope.
             raise BirthdayEditError("CANDIDATE_INVALID",
                                     "associated writes belong to another task")
+        from .birthday_session import ACTION_METADATA_KEY, publication_binding
+
         sealed_metadata = {
             **metadata,
             RESULT_METADATA_KEY: result.model_dump(mode="json"),
+            ACTION_METADATA_KEY: publication_binding(self._task(trusted), result),
         }
         try:
             return self._saver(trusted).seal_candidate(
