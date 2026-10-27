@@ -241,3 +241,44 @@ def test_other_dedicated_budget_choices_publish_without_adopting(harness_env, ch
         selected_option_id=option) == completed
     assert env.runtime.application.list_adopted_budgets("U1", "D1") == []
     assert env.runtime.harness.budget_input_origin(env.who) is None
+
+
+@pytest.mark.parametrize("origin_change", ["invalidated", "removed"])
+def test_external_origin_change_cannot_skip_completion_guard_or_replace_current_result(
+        harness_env, monkeypatch, origin_change):
+    from copy import deepcopy
+    from .birthday_edit import BirthdayTransition
+
+    env = harness_env
+    candidate = budget_candidate(env)
+    request_id = uuid4()
+    original_publish = BirthdayTransition.publish
+    foreign_result = None
+
+    def foreign_winner(transition, result, **kwargs):
+        nonlocal foreign_result
+        publication = original_publish(transition, result, **kwargs)
+        task = env.task()
+        snapshot = deepcopy(task.snapshot)
+        if origin_change == "removed":
+            snapshot["budget_input_origins"].pop(str(request_id))
+        else:
+            snapshot["budget_input_origins"][str(request_id)]["phase"] = "invalidated"
+        foreign_result = {**snapshot["result"], "message": "外部计划已更新"}
+        snapshot["result"] = foreign_result
+        env.runtime.application.update_task("U1", "D1", "BIRTHDAY", task.revision,
+            task.run_id, task.status, task.checkpoint_id, snapshot)
+        return publication
+
+    monkeypatch.setattr(BirthdayTransition, "publish", foreign_winner)
+    error = None
+    try:
+        env.runtime.harness.resume_budget_input(env.who, input_request_id=request_id,
+            interaction_id=candidate.interaction.interaction_id,
+            selected_option_id=option_id(candidate, "采用个人预算"))
+    except (ValueError, KeyError) as failure:
+        error = failure
+    assert env.task().snapshot["result"] == foreign_result
+    assert isinstance(error, ValueError) and str(error) == "BUDGET_INPUT_STALE"
+    assert len(env.runtime.application.list_adopted_budgets("U1", "D1")) == 1
+    assert env.runtime.harness.budget_input_origin(env.who) is None

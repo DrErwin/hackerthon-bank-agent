@@ -236,15 +236,23 @@ class BudgetInputs:
         """Called by the existing result CAS: result and completion commit together."""
         snapshot = dict(task.snapshot)
         records = self._records(task)
+        call = _CURRENT.get()
+        if call is not None and not (call.owner is self and call.active
+                and call.thread_id == get_ident() and call.actor == _actor(trusted)):
+            call = None
+        if call is not None:
+            current = records.get(call.request_id)
+            # A foreign CAS may remove or invalidate the origin. That must not
+            # skip the guard and let this call overwrite the newer task result.
+            if (current is None or current["origin_id"] != call.origin_id
+                    or current["phase"] != "accepted"):
+                raise ValueError("BUDGET_INPUT_STALE")
         if not records:
             return snapshot
-        call = _CURRENT.get()
         for key, record in records.items():
             if record["phase"] != "accepted":
                 continue
-            if (call is not None and call.owner is self and call.active
-                    and call.thread_id == get_ident() and call.actor == _actor(trusted)
-                    and call.request_id == key and call.origin_id == record["origin_id"]):
+            if call is not None and call.request_id == key and call.origin_id == record["origin_id"]:
                 if source is not None and publication is not None:
                     self._strict(source, record, trusted)
                     published = (task.snapshot.get("birthday_g3") or {}).get("published_ref") or {}

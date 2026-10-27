@@ -19,6 +19,8 @@ G3生日路径（平台18）在模块返回后、G3预留前再次核验原dispa
 
 G3已经发布而completion中断时，原请求只读取该origin关联的封存winner；G3私有pending只由原会话/原受理沿原CAS收尾，不重新运行Cross或adopt。旧关联缺少origin关联时，沿已经封存的精确G3源让Cross只读核实原attempt与真实预算事实，绝不读default/latest。历史补completion保留当前计划/终态，原publication版本来自真实回执；没有可证明winner的已采用断点失败关闭，不重新激活来源。真实新库G3采用与这些边界由`test_budget_input_g3.py`覆盖，不代替Cross09完整会话恢复验收。
 
+当前专用调用的origin在completion前必须仍完整且accepted；外部CAS将其失效或移除时同样拒绝，不能通过跳过accepted循环或空记录早返回来覆盖较新的任务结果。
+
 ## API02调用样例
 
 以下仅示意专用预算分支；API02仍须保留原Cookie/同源/链接/交互/receipt参数摘要检查，以及text和option互斥检查。当前本票未修改API。

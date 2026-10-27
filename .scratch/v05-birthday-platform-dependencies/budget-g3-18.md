@@ -16,7 +16,7 @@ Package: [底座与模拟银行](../v05-cross-linkage/packages/01-platform-bank.
 - P18-01：真实Harness/G3/Cross采用，正常回completion，实际预算只写一次、无资金动作。
 - P18-02：同原请求、换run与重启重放原结果；G3已发布而completion CAS中断后只读核实原winner，不再adopt；后来当前状态保留。
 - P18-03：异参、错会话/轮次/任务、无专用来源仍拒绝，既有预算来源测试保持。
-- P18-04：外部CAS在发布前/后漂移仍拒绝，不刷新dispatch版本或把任意新publication当本次采用。
+- P18-04：外部CAS在发布前/后漂移仍拒绝；将本origin失效或移除也不能跳过completion检查、覆盖当前新结果。不刷新dispatch版本或把任意新publication当本次采用。
 - P18-05：G3拥有的seal/publication断点只沿原受理封存发布；没有可证明原winner时失败关闭，不新建采用。
 
 使用NoopModel及新隔离库，真实业务采用与G3接缝；不重跑真实模型、不改Cross09原controls、B/C报告、337或16/17释放工作。初始基线main f4a98724；完整平台组合同步至16/17均合入的main c760f0d0后仅运行一次。
