@@ -1,6 +1,6 @@
 # 子任务暂停的父卡说明：票 12 最小规格
 
-Status: in_progress
+Status: implemented_pending_review
 Owner: Erwin（v0.5）；执行 merge_standards_review 子代理
 Accepted by: Erwin，通过非比赛资料任务授权与中控明确分派
 Accepted at: 2026-10-27
@@ -32,3 +32,13 @@ Directory: backend/app/modules/cross/
 ## Further Notes
 
 已核本组 12 未占用，复用附属且干净的旧 Cross 工作树，从最新已核 main 开独立分支。沿用已批准的单票粒度与既有验证接缝；已读取 to-spec / to-tickets / implement 指引，前三项 disable-model-invocation，本会话不声称调用斜杠命令。按其流程手工记录规格、票据及执行，低影响文案依中控要求不新增测试文件。独立两轴、CI 与最终合入交中控，不自合并。
+
+## 实际局部结果（2026-10-27）
+
+原生产实现、仅补既有本人账户用例的公开说明语义断言：两参数 **2 failed / 8.18s / exit 1**，均实际得到父卡“办理结果未知”。[原始红例 XML 的无损 gzip](evidence/2026-10-27-paused-summary-12-before.xml.gz) 解压 SHA256：`409b59b3f31f5cca73fe0d90dc4e276b19eee63499555c128e9bcbad86fadffe`。压缩后已校验与原 XML 字节相同，保留失败事实。
+
+受测源码 `e0eae1d92d28ce51a0e5307c574055c5e7b05d24`，base `35fd849d4aeb586bf7bc349b52ae7bf9eb42d107`；测试运行期间 backend 无差异。backend 树 `5ccd58b3260d0dbc71fceb002c66fc3e2ac80dca`，Cross 树 `effe087e37897f0f4f9aed17d0c765f3cd8fe3e3`。
+
+一次运行 `test_cross_pension.py`、`test_pension_contract_inputs.py`、`test_task_controls_http.py`：**23 passed / 0 failed、error、skipped / 56.47s / exit 0**，XML 共 23 个唯一测试。包含本人账户安全暂停的两参数、P06 未知及安排保留、通用 HTTP 原号查询、未知后叫停及核实后停止且不新建第二笔。仅补充三个既有用例的语义断言，资金结果与调用次数断言保留，无新增测试文件。
+
+[原始通过 XML](evidence/2026-10-27-paused-summary-12-after.xml) SHA256：`12757c8f693bbea6885f3187fe2cf5fa2cfc375142ca2b3d55086a439bd55ab5`。该证据为隔离临时库的既有模块/真实本地 HTTP 装配回归，含脚本替身，不是本轮真实模型、原 P01 或页面验收。原 P01 观察与 Cross09 冻结源/原 XML 保留。差异空白通过；两轴、CI 和合入仍交中控。
