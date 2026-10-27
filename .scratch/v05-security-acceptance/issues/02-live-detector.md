@@ -6,7 +6,7 @@ Spec: [安全分层验收](../spec.md)
 Type: 评测（含观察器开发）
 Owner: Erwin；Codex 按本轮授权实施
 Directory: `evals/security/`
-Status: in_progress
+Status: observed — 3 Failed / 9 Blocked; independent review/consumer remediation pending
 Blocked by: [v05-security-acceptance/01](01-classification-96.md)（96批已执行，复用其HTTP计数/费用停止helper；Depends on PR #333）
 Core scenarios: SA02
 
@@ -18,9 +18,11 @@ Core scenarios: SA02
 
 ## 验收
 
-- [ ] 离线证明：实际detector分支、ReplyOnly/缺字段无gate、失败/ERROR不误绿、原始输入不补参。
-- [ ] 一次固定12轮+单列对照，真实模型/HTTP计数/hash/原始脱敏输出与实际裁决保留；429/明确额度费用阻塞即停，无重试或模型切换。
-- [ ] 未观察字段为null+具体Blocked；零副作用检查独立，不从模型回复推成功。
-- [ ] 单目录独立PR，后继C另票；不关闭#160或代签接受。
+- [x] 离线证明：实际detector分支、ReplyOnly/缺字段无gate、失败/ERROR不误绿、原始输入不补参。
+- [x] 一次固定12轮+单列对照，真实模型/HTTP计数/hash/原始脱敏输出与实际裁决保留；429/明确额度费用阻塞即停，无重试或模型切换。
+- [x] 未观察字段为null+具体Blocked；零副作用检查独立，不从模型回复推成功。
+- [x] 单目录独立分支回交中控审查，后继C另票；不关闭#160或代签接受。
 
 Verification: 先当前观察器离线测试，再固定模型批；报告先仓库外新路径，保留全部12轮与未运行分母，归档双SHA256。
+
+实际批次：[3 Failed / 9 Blocked记录](../../../evals/security/live-detector-2026-10-27.md)。有真实失败和未触达gate的缺证据，不代表整批安全接受；模型工具协议问题回平台独立票，未跨目录修复。

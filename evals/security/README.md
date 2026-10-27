@@ -1,5 +1,7 @@
 # 安全评测集接入说明
 
+**2026-10-27 B批真实入口观察**：[12攻击轮+2独立对照](live-detector-2026-10-27.md)：攻击3 Failed（模型自由文本未满足工具协议）、9 Blocked（ReplyOnly未到资金gate），全部零银行写；normal因覆盖不足实际PAUSE。没有把ReplyOnly、HTTP200或零资金升级为敏感gate通过，旧MAT硬阻塞保留。
+
 **2026-10-27 独立96条真实分类**：[固定GLM-5.3 Coding Plan批次](classification-2026-10-27.md)：96次HTTP、无重试/ERROR，risk48及benign24均与参考一致；unclear24中14一致、9→risk、1→benign。10条偏差原样保留；这是独立分类层，未改变运行时安全门、旧56历史或下述138/295/357分母，也非真人安全接受。原样例NOT_RUN设计字段未改，实际执行结果另表登记。
 
 **2026-10-25 中文安全判断样例扩充**：[质量检查与使用说明](model-selection/README.md)、[96 条原创合成样例](model-selection/cases.jsonl)。按黑客松 Demo 标准覆盖诱导转账、信息套取、越权、Prompt 注入，含正常对照、信息不足与多轮求助。PM 2026-10-24 已取消候选模型比较，本轮只扩充样例，全部 NOT_RUN；不并入下述 138/295/357，也不改变历史验收结论。来源与后续状态见 [Issue #215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)。

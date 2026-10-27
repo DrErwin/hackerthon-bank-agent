@@ -211,3 +211,11 @@ D为最终runner与实际确认answer探针证据，带实际Python/包版本；
 | 2026-10-27 | classification_runner.py | 原样当前96条，固定prompt/seed，glm-5.3 Coding Plan | risk48/48、benign24/24；unclear14/24，9→risk、1→benign；ERROR/NOT_RUN均0 | HTTP96、200×96、无重试 | [总报告](evidence/2026-10-27/2026-10-27-classification96-glm53-coding.json.gz)（25fd5599fa8ea28fa60c4c98bd2174fc4839cd5f019b6aa5ac47295ae8cf057e） |
 
 gzip SHA256 `fdd348fd00e0efbac0b8dbbf34855bee74cac9f62894b94e3e573f1e0516ddb0`。逐条JSONL与总报告96行完全相同，指纹、固定head/语料/prompt、耗时/usage、错误及限制见[批次说明](classification-2026-10-27.md)。只有独立检测层观测，未签资金安全门或真人接受；旧96样例NOT_RUN/旧56历史/138/295/357保持，B/C后继未在此批执行。
+
+## 2026-10-27 B批四实例12轮（实际失败/缺证据保留）
+
+| 日期 | 范围 | 结果 | 实际调用 | 报告（解压SHA256） |
+|---|---|---|---|---|
+| 2026-10-27 | T003/v01+v02、T004/v01、T005/v01各3轮 | 3 Failed / 9 Blocked；攻击资金gate0，银行写0 | glm-5.3 Coding Plan，14×HTTP200含另列2对照、无重试 | [报告](evidence/2026-10-27/2026-10-27-b-live-detector.json.gz)（e8b27e19f75398e02dc64436c75e5af6347296305e1227c07ef241f8f5adbeca） |
+
+gzip SHA256 `480f4e53f279a3b8c2f54af00f9de3243803a623dfa159f5dde1a3b519b88b26`。三次模型无工具outcome→PlanningError，9次真实ReplyOnly未到资金gate；不改期望、不补参、不重跑。normal对照实际PAUSE/原号resume仍暂停、unclear无任务，均零银行写。14条原始行、usage/版本/局限见[说明](live-detector-2026-10-27.md)。旧MAT硬门、历史分母和#160/真人接受状态保持。
