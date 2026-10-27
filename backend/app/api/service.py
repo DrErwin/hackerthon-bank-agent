@@ -1712,22 +1712,33 @@ class ApiService:
     def publish_birthday_input(self, identity, task_id, request_id, publication,
                                *, publish=True):
         """Return the frozen winner; never broadcast an old card as current."""
-        self.link(identity, task_id, mutate=True)
+        link = self.link(identity, task_id, mutate=True)
         current = self.runtime.application.get_task(
             identity.user_id, identity.demo_round_id, task_id,
         )
         if isinstance(publication, TaskView):
             view = publication
         else:
-            if current.checkpoint_id != publication.published_ref.checkpoint_id:
-                raise ApiProblem(409, "INTERACTION_STALE")
-            # Harness can append run metadata after its G3 CAS. Freeze the
-            # actual transport view, not the earlier publication revision.
-            view = self.task_view(identity, task_id)
+            if current.checkpoint_id == publication.published_ref.checkpoint_id:
+                # Harness appends run metadata after its G3 CAS. Freeze the
+                # actual transport view while it is still the current winner.
+                view = self.task_view(identity, task_id)
+            else:
+                # The API save itself may have failed before a later input.
+                # Only the platform's sealed original result/revision is known;
+                # return that historical fact without broadcasting it as current.
+                view = TaskView(**publication.result.model_dump(), module="cross",
+                    thread_id=link["thread_id"], demo_round_id=identity.demo_round_id,
+                    snapshot_at=now(), task_revision=publication.task_revision,
+                    cancel_requested=bool(link["cancel_requested"]))
             self.store.save_input_completion(identity, task_id, request_id, view)
         if publish and current.revision == view.task_revision:
+            namespace = uuid5(NAMESPACE_URL, dump([
+                "birthday-input", identity.user_id, identity.demo_round_id,
+                task_id, str(request_id),
+            ]))
             return self.publish_task(identity, task_id, view=view,
-                                     stable_namespace=UUID(str(request_id)))
+                                     stable_namespace=namespace)
         return view
 
     def birthday_edit_request(self, identity, task_id, request):

@@ -1,12 +1,13 @@
 """F10 resumes a durable G3 input after publication/receipt interruption."""
 
+import json
 from uuid import uuid4
 
 from app.contracts.api import ProvideInputRequest
 from app.memory.adapter import MemoryContext
 
 from .store import ApiStore
-from .test_edit_entry import demo, started_world, stored_task, submit_inputs
+from .test_edit_entry import _build_world, demo, started_world, stored_task, submit_inputs
 
 
 def answer(world, request_id, interaction_id, text="500元"):
@@ -197,3 +198,56 @@ def test_input_completion_survives_reopening_the_api_store(
     recovered = answer(world, request_id, interaction_id)
     assert recovered.status_code == 200, recovered.text
     assert "哪一天" in recovered.json()["data"]["message"]
+
+
+def test_completion_save_failure_still_recovers_the_older_platform_winner(
+    started_world, monkeypatch,
+):
+    world = started_world
+    request_id = uuid4()
+    interaction_id = world.card.interaction.interaction_id
+    save = world.api.store.save_input_completion
+    failed = False
+
+    def interrupt_once(*args, **kwargs):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError("completion view unavailable")
+        return save(*args, **kwargs)
+
+    monkeypatch.setattr(world.api.store, "save_input_completion", interrupt_once)
+    assert answer(world, request_id, interaction_id).status_code == 503
+    original = world.runtime.birthday.handoff.find_input_conversion(world.who, request_id)
+    next_id = stored_task(world).snapshot["result"]["interaction"]["interaction_id"]
+    assert answer(world, uuid4(), next_id, "2026-10-30").status_code == 200
+    current = stored_task(world)
+    before_recovery = counts(world)
+
+    recovered = answer(world, request_id, interaction_id)
+    assert recovered.status_code == 200, recovered.text
+    view = recovered.json()["data"]
+    assert view["task_revision"] == original.task_revision
+    assert view["message"] == original.result.message
+    assert view["data"] == original.result.model_dump(mode="json")["data"]
+    assert stored_task(world).revision == current.revision
+    assert counts(world) == before_recovery
+
+
+def test_distinct_tasks_can_reuse_the_same_request_id_without_losing_history(demo):
+    worlds = [_build_world(demo, stage="start"), _build_world(demo, stage="start")]
+    request_id = uuid4()
+    for world in worlds:
+        world.client.cookies.set("bank_session", world.api.cookie(world.who.session_id))
+        response = answer(world, request_id, world.card.interaction.interaction_id)
+        assert response.status_code == 200, response.text
+        messages = world.api.store.rows(
+            "SELECT view_json FROM api_messages WHERE thread_id=?", (world.thread_id,),
+        )
+        events = world.api.store.rows(
+            "SELECT event_json FROM api_events WHERE thread_id=?", (world.thread_id,),
+        )
+        assert any(world.task_id in json.loads(row["view_json"])["task_ids"]
+                   for row in messages)
+        assert any(json.loads(row["event_json"])["task_id"] == world.task_id
+                   for row in events)
