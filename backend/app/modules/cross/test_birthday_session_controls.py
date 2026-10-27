@@ -195,7 +195,10 @@ def test_pending_personal_budget_moves_only_after_fresh_proof(harness_env):
     next_card = settle(env, recovered)
 
     assert next_card.interaction.kind == "confirmation", next_card.message
-    assert "下单" in next_card.message
+    next_confirmation = env.runtime.confirmations.get(
+        env.runtime._context(caller, None, None), next_card.interaction.record_ref)
+    assert next_confirmation.action_name == "bank.create_order"
+    assert next_confirmation.session_id == caller.session_id
     updated = env.runtime.application.list_budget_commitments("U1", "D1", record.budget_id)[0]
     assert updated.committed_fen == updated.unconsumed_fen == original.committed_fen
     assert original.operation_ids[0] in updated.operation_ids

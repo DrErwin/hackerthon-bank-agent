@@ -30,5 +30,9 @@
   {
     "name": "2026-10-27-session-recovery-09-budget-read-red.xml.gz",
     "raw_sha256": "8f1538f4267639552d9fb7c451f77bbe437e6b28046c1a15c6aa81744156c622"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-full-before-assertion.xml.gz",
+    "raw_sha256": "e3343274757f9462e31f72e2127b59ade2d8b08fc7a8246db8a875eaf7ef9605"
   }
 ]
