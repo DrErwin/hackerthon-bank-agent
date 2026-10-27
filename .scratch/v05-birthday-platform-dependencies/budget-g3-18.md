@@ -1,6 +1,6 @@
 # 平台18：专用预算输入与G3封存衔接
 
-Status: in_progress
+Status: ready_for_merge — 独立两轴0必须项，精确组合445 passed/13 skipped，最终CI/合入交中控
 Owner: Erwin（v0.5），中控2026-10-27明确委派
 Directory: `backend/app/agent_platform/`
 Package: [底座与模拟银行](../v05-cross-linkage/packages/01-platform-bank.md)
@@ -20,3 +20,5 @@ Package: [底座与模拟银行](../v05-cross-linkage/packages/01-platform-bank.
 - P18-05：G3拥有的seal/publication断点只沿原受理封存发布；没有可证明原winner时失败关闭，不新建采用。
 
 使用NoopModel及新隔离库，真实业务采用与G3接缝；不重跑真实模型、不改Cross09原controls、B/C报告、337或16/17释放工作。初始基线main f4a98724；完整平台组合同步至16/17均合入的main c760f0d0后仅运行一次。
+
+实际批次与中止说明见[平台18验证](budget-g3-18-verification.md)。最终完整源码a45407e3为445通过/13跳过，原相位CAS红例与原Cross09失败保留；后继19/20/21与Cross09消费者尚不在此受测树。
