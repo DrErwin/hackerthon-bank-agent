@@ -1,5 +1,11 @@
 # security —— 安全底座
 
+2026-10-27 [v05-birthday-platform-dependencies/17](../../../.scratch/v05-birthday-platform-dependencies/issues/17-release-confirmation-origin.md)：新增`SQLiteSecurityState.get_release_confirmation(context, release_authorization_id) -> ConfirmationRecord`，只读取得已生效限定释放的原冻结批准，供平台16构建审计来源。context必须是真实当前结束上下文，`context.release_authorization_id`等于显式ID；不切换为原session。
+
+同一SQLite只读快照复用既有授权的user/task/round核验，只接受active/completed且已有freeze_id、无invalid_reason的记录；按原confirmation_id/version从当前或历史取唯一源，再核对原session/user/task/round、freeze operation、bank.freeze_funds、原revision、approved和正式释放条款。原批准必须在当时确认期内、不晚于grant；不按当前时间刷新旧确认或原session。旧授权缺可选action_revision时仍由精确ID/version唯一指向原record，不能以S2当前版本替代。缺失、无效、异绑定、歧义或损坏数据抛SecurityStateError。
+
+此方法只返回一个原记录，不grant/bind/claim/退休/重绑，不修改S2确认、旧历史或审计，普通get/history仍严格session。原记录不是S2新交易批准，仍不能被grant当作当前会话批准。无新表、迁移或公共契约字段；平台与Cross消费/联合回放另票，局部验证不等于真人安全接受。
+
 2026-10-27 [v05-birthday-session-security/01](../../../.scratch/v05-birthday-session-security/issues/01-session-retirement.md)：增加`SQLiteSecurityState.begin_session_retirement`/`seal_session_retirement`，用于生日未提交敏感动作跨会话撤离。目标context只带已认证目标session和原operation/revision，confirmation字段必须None；旧session、旧确认ID/version显式传入，安全从当前/历史确认核对原主体、任务、轮次、action及参数引用。原绑定保留源session并持久增加`recovery_target_session_id`，没有把旧批准迁移到新会话。
 
 两阶段均要求后端`recovery_validator(connection, target_context, original_binding) -> bool`在传入同一应用事务connection中核对目标任务所有权、原attempt仍是冻结发布/CAS来源、原action/resource_refs/phase及受控参数快照精确一致。dict另含user/task/round/operation/revision，True才继续，False为RETIREMENT_STALE，异常或非bool为DEPENDENCY_UNAVAILABLE。不能把客户端/模型布尔值或单独的_task_terminated回调当proof。源事实必须在新check/新卡之前由平台冻结；银行proof只能来自真实gateway对旧attempt的挑战退役，不得由请求正文伪造。
