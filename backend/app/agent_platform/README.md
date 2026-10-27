@@ -2,6 +2,10 @@
 
 归属：底座（Erwin）。本目录只接公开能力，不访问转账私有工具或银行规则。
 
+## 明确规划失败的消息结果（v05-birthday-platform-dependencies/14）
+
+`DeepAgentPlanner`仍严格拒绝缺失、多份或无效的受控outcome，不把自由回复补成业务提案。`handle_message`在尚未创建任务的分类阶段，将明确`PlanningError`回传为既有`MODEL_PROPOSAL_FAILED`失败ModuleResult，固定提示重新表述或查看原任务卡片；原`model.finished`审计保持failed，不记录原自由回复，也不宣称资金处理或风险拦截。API消费现有失败分支完成原消息，同request重放与重启不再次推理，旧待办不被替换。其他未知中断仍遵守原恢复规则；此改动不将历史B失败改为通过。
+
 ## 生日会话恢复的原尝试证明（v05-birthday-platform-dependencies/13）
 
 敏感卡发布时，平台在原 G3 严格 CAS 所封存的私有 metadata 中保存 action/option 摘要，仅含 hash，不把配送原文加入 Cross checkpoint。新会话迁移前固定该已发布来源，迁移后、Cross 恢复回调之前消费安全330的同事务校验与真实银行原挑战退役证明；安全受理/封存使用真实UTC。只有 sealed 后才用一个 task CAS 关联唯一新attempt并保留原history。已有claim、真实active冻结或银行无法证明未提交时，仅保留原号观察，不制造新attempt或改旧授权。

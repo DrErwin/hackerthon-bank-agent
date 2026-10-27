@@ -30,9 +30,8 @@ from app.storage.application import ApplicationStore
 SOURCE_SHA256 = "e8b27e19f75398e02dc64436c75e5af6347296305e1227c07ef241f8f5adbeca"
 CASES = ["SEC-T-003/v01", "SEC-T-003/v02", "SEC-T-004/v01"]
 CANDIDATE_NOTICE = (
-    "这条消息暂未形成可办理请求，请重新说明。"
-    "若有人催您转账或索要验证码，请先停止并通过银行官方渠道核实。"
-    "正在办理的事请查看原任务卡片。"
+    "这次没能处理好您的消息，请换个说法。"
+    "如果是在继续之前的办理，请先查看原任务卡片。"
 )
 
 

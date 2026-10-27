@@ -1,6 +1,6 @@
 # 平台14：明确规划失败的受控消息结果
 
-Status: approved_pending_335
+Status: in_progress — PR335已合入main30cbe740，基于其新harness实施
 Owner: Erwin（v0.5）
 Accepted by: 中控明确授权，2026-10-27
 Directory: `backend/app/agent_platform/`
