@@ -50,6 +50,23 @@ BirthdayPorts 与模拟银行结果；规划器仅为明示测试替身。先保
   该中间批次为 **5 failed / 16 passed / 145.25s**，另外四失败是测试补丁使用了 pytest
   的相对模块别名、未注入实际注册 Cross 类（已改绝对 `app.modules.cross.entry`），
   不列作四个产品缺陷；修后最小真实重启与取消 **2 passed / 13.50s**。
+- 使用真实前任务旧入口 F10 采用建立已有预算（沿现成真实 L01 组合，未向存储伪造
+  采用记录），单独核验本票 pending 占用：**1 failed / 21.03s**，
+  [原 JUnit](evidence/2026-10-27-session-recovery-09-pending-budget-red.xml.gz)明确新确认
+  批准后被旧编号占用阻止。修复只在平台 fresh 证明下向原 pending 占用追加新编号，
+  金额、旧编号和已发生事实不变，已 claim/active/unknown 不走此路径。
+  四个真实保存前后中断+重启与该占用链 **5 passed / 51.21s**；
+  原个人预算全文件 **32 passed / 81.60s**。
+- 真实新恢复/已有 unknown 的只查原单、三 claim 状态、晚回调、G2 编辑、四中断重启及
+  已采用预算 pending 关联共 **21 passed / 13 deselected / 167.12s**；
+  [定向 JUnit](evidence/2026-10-27-session-recovery-09-local-fixed.xml)。选择条件明确排除
+  依赖票16的最终释放、已付后停止与依赖票18的 G3 预算采用；不当作全部34用例通过。
+  对已付款与停止继续核验的另六用例 **1 passed / 5 failed / 39.66s**
+  [保留在此](evidence/2026-10-27-session-recovery-09-stop-before16.xml.gz)，五个失败均停在
+  最终有限释放 `needs_attention`，未删除完成/取消断言。
+- 上述21与32在补 `recover_session` 的既有用户/轮次 `@serialized` 预算锁前完成。
+  补锁后真实 pending 续办与双任务预算竞争 **2 passed / 33.03s**，
+  [JUnit](evidence/2026-10-27-session-recovery-09-serialized.xml)。不将旧结果冒称补锁后的整套。
 
 gzip 均为原 XML 无损压缩，解压字节比较通过，raw SHA256 见
 [摘要清单](evidence/2026-10-27-session-recovery-09-hashes.json)。中间检查不冒称本票最终全套。

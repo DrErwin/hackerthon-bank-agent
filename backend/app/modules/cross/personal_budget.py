@@ -505,7 +505,7 @@ class PersonalBudget:
         if existing is not None and (existing.state != "pending"
                 or existing.committed_fen != self.b["budget_limit_fen"]
                 or existing.unconsumed_fen != self.b["budget_limit_fen"]
-                or existing.operation_ids != [UUID(str(op))]):
+                or not existing.operation_ids or existing.operation_ids[-1] != UUID(str(op))):
             raise BudgetPending("原预留金额或操作已变化，不能沿用旧占用执行；请核实原操作或收尾。")
         if existing is None:
             hold = BudgetCommitment(budget_ref=BudgetRef(budget_id=record.budget_id, version=record.version),
@@ -519,6 +519,25 @@ class PersonalBudget:
             self.b["commitment_id"] = cid
         self.b["freeze_submission"] = "intent"
         self.entry._save(trusted, None, self.state)
+
+    def recover_pending_freeze(self, original_operation_id, replacement_operation_id):
+        """Move the unchanged reservation after the platform's fresh proof.
+
+        Keep the retired operation in history; a claim or an active/changed
+        commitment cannot be rebound to a new write by this path.
+        """
+        hold = self.own()
+        if hold is None:
+            return
+        original, replacement = UUID(original_operation_id), UUID(replacement_operation_id)
+        if (hold.state != "pending" or hold.freeze_id or hold.settled_transaction_ids
+                or hold.committed_fen != self.b["budget_limit_fen"]
+                or hold.unconsumed_fen != hold.committed_fen
+                or not hold.operation_ids or hold.operation_ids[-1] not in {original, replacement}):
+            raise BudgetPending("原预留已有执行或参数变化，不能接到新尝试；请先核实原操作。")
+        if hold.operation_ids[-1] == replacement:
+            return
+        self._update(hold.model_copy(update={"operation_ids": [*hold.operation_ids, replacement]}))
 
     def check_freeze_room(self, trusted):
         record, room = self.refresh(trusted)

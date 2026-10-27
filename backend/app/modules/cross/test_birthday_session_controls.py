@@ -202,3 +202,49 @@ def test_pending_personal_budget_moves_only_after_fresh_proof(harness_env):
     confirmation = env.runtime.confirmations.get(
         env.runtime._context(caller, None, None), recovered.interaction.record_ref)
     assert UUID(str(confirmation.operation_id)) in updated.operation_ids
+
+
+def test_existing_personal_budget_reservation_uses_the_proved_new_attempt(harness_env):
+    """Real prior adoption, isolated from the separately reported G3/F10 fault."""
+    from app.contracts.bills import BillScope
+    from app.contracts.cross import CrossStartInput
+    from app.memory.adapter import MemoryContext
+    from .plan import month_range
+
+    env = harness_env
+    runtime = env.runtime
+    owner = env.who.model_copy(update={"task_id": "PRIOR_BUDGET"})
+    runtime.application.create_task(owner.task_id, "U1", "S1", "D1", owner.run_id,
+        TaskStatus.RUNNING, {"capability_name": "cross.start_task", "trace_id": str(uuid4())})
+    entry = CrossEntry(runtime.harness, runtime.memory.checkpointer(
+        MemoryContext("U1", "S1", "D1"), owner.task_id), None,
+        runtime.bank.clock, runtime.birthday.ports_factory)
+    start, end = month_range(runtime.bank.clock(), 0)
+    scope = BillScope(account_ids=["A1"], start_at=start, end_at=end)
+    candidate = entry.start(owner, CrossStartInput(request_id=uuid4(), goal="生日安排",
+        scenario="birthday", constraints={"payer_account_id": "A1",
+            "personal_limit_fen": 1000000, "scope": scope.model_dump(mode="json"),
+            "purpose": "生日安排"}))
+    task = runtime.application.get_task("U1", "D1", owner.task_id)
+    runtime.application.update_task("U1", "D1", owner.task_id, task.revision, owner.run_id,
+        candidate.status, task.checkpoint_id, {**task.snapshot,
+            "config_version": runtime.harness.planner.config_version,
+            "result": candidate.model_dump(mode="json")})
+    runtime.harness.resume_budget_input(owner, input_request_id=uuid4(),
+        interaction_id=candidate.interaction.interaction_id,
+        selected_option_id=option_id(candidate, "采用个人预算"))
+    _, original_action = waiting_at(env, "freeze_verification")
+    budget = runtime.application.list_adopted_budgets("U1", "D1")[0]
+    original = runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
+    caller = target_session(env)
+    recovered = runtime.harness.recover_session(caller)
+    env.who = caller
+
+    next_card = settle(env, recovered)
+
+    assert next_card.interaction.kind == "confirmation", next_card.message
+    current = runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
+    confirmation = runtime.confirmations.get(
+        runtime._context(caller, None, None), recovered.interaction.record_ref)
+    assert current.operation_ids == [original_action.operation_id, confirmation.operation_id]
+    assert current.committed_fen == current.unconsumed_fen == original.committed_fen

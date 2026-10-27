@@ -18,5 +18,13 @@
   {
     "name": "2026-10-27-session-recovery-09-controls.xml.gz",
     "raw_sha256": "fdf60d300ece5273a88df6b62176cccfa0a2ac197f93e130af57ce668bb13524"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-pending-budget-red.xml.gz",
+    "raw_sha256": "4ae8216a8434c033a9433b6cc9069c3924cdedb9a418bbae5d50813f695ec85e"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-stop-before16.xml.gz",
+    "raw_sha256": "7717bbc6dbb8e5c2fc9d83049c27f33ac15172ca72d37036198591cc62dd4252"
   }
 ]

@@ -315,6 +315,8 @@ class BirthdayFlow:
         if recovery["status"] != "fresh":
             raise ValueError("SESSION_RECOVERY_UNAVAILABLE")
         if kind == "freeze":
+            PersonalBudget(self.entry, self.state).recover_pending_freeze(
+                recovery["original_operation_id"], recovery["replacement_operation_id"])
             return self._run_freeze(trusted)
         item = self._order(key)
         if kind == "order":

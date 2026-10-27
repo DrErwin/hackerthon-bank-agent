@@ -900,6 +900,7 @@ class CrossEntry:
             return None
         return trusted.model_copy(update={"session_id": state["session_id"]})
 
+    @serialized
     def recover_session(self, trusted: TrustedContext, *, source_session_id: str,
                         thread_id=None) -> ModuleResult:
         saved, state = self._load(trusted, thread_id)
