@@ -194,6 +194,7 @@ def create_app(runtime=None, config=None):
     def mutation(service, who, request, body, action, *, status=200, fingerprint=None,
                  recover_verification=False, retry_interrupted=False, on_replay=None):
         with service.mutation_lock:
+            service.demo.require_open()
             # Recheck after a potentially long wait for another operation.
             service.identity(service.cookie(who.session_id))
             previous = service.store.receipt(who, request.url.path, body.request_id,
@@ -598,7 +599,9 @@ def create_app(runtime=None, config=None):
     @application.get("/api/v1/admin/audit/events/{event_id}")
     def evidence(event_id: str, who=Depends(identity), service=Depends(api)):
         reader, viewer = service.audit_reader(who)
-        return success(reader.detail(viewer, who.demo_round_id, event_id))
+        rows = service.store.rows("SELECT demo_round_id FROM audit_events WHERE event_id = ?", (event_id,))
+        selected_round = rows[0]["demo_round_id"] if rows else who.demo_round_id
+        return success(reader.detail(viewer, selected_round, event_id))
 
     @application.post("/api/v1/admin/audit/exports")
     def audit_export(request: Request, body: AuditExportRequest, who=Depends(identity), service=Depends(api)):
@@ -631,6 +634,8 @@ def create_app(runtime=None, config=None):
                 await asyncio.sleep(0.25)
         return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
+    from .demo_management import install_demo_routes
+    install_demo_routes(application, api, success)
     return application
 
 
