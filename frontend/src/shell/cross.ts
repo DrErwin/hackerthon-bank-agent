@@ -41,11 +41,11 @@ const BIRTHDAY_ACTIONS = new Set([
   "bank.release_frozen", "bank.get_freeze",
 ]);
 
-export const PLAN_PROMISE = "这个安排只是先定下怎么办；每一项真正办理时，还会单独请您确认。";
-export const PLAN_STOPPED = "已经停下，不再新办。已经办好的不会退回，没办的也不会再动。";
+export const PLAN_PROMISE = "按下面的步骤办理，需要确认时会逐项请您核对。";
+export const PLAN_STOPPED = "安排已停止。已经办好的事项继续生效，请查看各项结果。";
 // Cross menus ask for values (an amount, a date, a controlled reference) next to
 // their own choices; the answer is typed and the module validates it.
-export const CROSS_ANSWER_LABEL = "也可以直接打字回答，例如 1500 或 1500元";
+export const CROSS_ANSWER_LABEL = "填写您的回答";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

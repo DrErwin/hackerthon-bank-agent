@@ -4,6 +4,8 @@ import type { DemoCodeView, InteractionOption, VerificationView } from "../../co
 import { EDIT_OPTION_NOTE } from "../copy";
 import { clockTime } from "../format";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
+import { Button } from "@/components/ui/button";
+import { ScanFace } from "lucide-react";
 
 const CHALLENGE_TEXT: Record<VerificationView["challenge_status"], string> = {
   pending: "验证已暂停",
@@ -27,7 +29,7 @@ function faceText(view: VerificationView): string {
   return { passed: "已通过", failed: "未通过", expired: "已超时", cancelled: "已取消", not_required: "不需要" }[view.face_result];
 }
 
-function CodeBoxes({ value, onChange, disabled, inputId }: { value: string; onChange: (value: string) => void; disabled: boolean; inputId: string }) {
+function CodeBoxes({ value, onChange, disabled, inputId, errorId }: { value: string; onChange: (value: string) => void; disabled: boolean; inputId: string; errorId?: string }) {
   return (
     <div className="sh-code">
       <input
@@ -40,6 +42,8 @@ function CodeBoxes({ value, onChange, disabled, inputId }: { value: string; onCh
         maxLength={6}
         value={value}
         disabled={disabled}
+        aria-invalid={Boolean(errorId)}
+        aria-describedby={errorId}
         onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 6))}
       />
       <div className="sh-code-boxes" aria-hidden="true">
@@ -113,10 +117,11 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
 
   return (
     <Card
-      title={live ? needsCode && needsFace ? "为了安全，请完成两项验证" : "为了安全，请完成验证" : "安全验证记录"}
+      title={live ? needsCode && needsFace ? "请完成两项身份验证" : "请验证身份" : "安全验证记录"}
       labelledBy={id}
       readOnly={!live}
       highlight={live}
+      className="sh-verification"
       badge={live ? <StatusBadge tone="pending" icon="◆" text="等您验证" /> : <ReadOnlyStamp text={CHALLENGE_TEXT[view.challenge_status]} />}
     >
       {view.summary && live && <FieldList fields={view.summary.display_fields} />}
@@ -131,18 +136,18 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
             {live && canVerify && view.code_result === "pending" && (
               <form className="sh-code-form" onSubmit={(event) => void submit(event)}>
                 <div className="sh-demo-code" aria-live="polite">
-                  <span>模拟验证码（演示专用提示区）</span>
+                  <span>演示验证码</span>
                   {demoCode ? <strong>{demoCode.code}</strong> : (
                     <button type="button" className="sh-link-btn" onClick={() => void showDemoCode()}>点这里查看</button>
                   )}
                   {demoCode && <small>30 秒后自动隐藏，{clockTime(demoCode.expires_at)} 前有效</small>}
                 </div>
                 <label className="sh-label" htmlFor={id + "-code"}>请输入 6 位验证码</label>
-                <CodeBoxes value={code} onChange={setCode} disabled={busy} inputId={id + "-code"} />
-                {codeMessage && <p className="sh-inline-error" role="alert">{codeMessage}</p>}
-                <button className="sh-btn sh-btn-primary" disabled={busy || code.length !== 6}>{busy ? "正在提交…" : "提交验证码"}</button>
-                <button type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={onResend}>重新获取验证码</button>
-                <p className="sh-hint">验证码只填在这里，不要发到聊天里。请在 {clockTime(view.code_expires_at)} 前完成。</p>
+                <CodeBoxes value={code} onChange={(value) => { setCode(value); setCodeMessage(""); }} disabled={busy} inputId={id + "-code"} errorId={codeMessage ? id + "-error" : undefined} />
+                {codeMessage && <p id={id + "-error"} className="sh-inline-error" role="alert">{codeMessage}</p>}
+                <Button disabled={busy || code.length !== 6}>{busy ? "正在验证…" : "提交验证码"}</Button>
+                <Button type="button" variant="outline" disabled={busy} onClick={() => { setCode(""); setCodeMessage(""); setDemoCode(null); onResend(); }}>重新获取验证码</Button>
+                <p className="sh-hint">验证码请填在上方专用框，{clockTime(view.code_expires_at)} 前有效。</p>
               </form>
             )}
           </li>
@@ -156,15 +161,16 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
             </div>
             {live && !codeDone && <p className="sh-hint">请先完成验证码。</p>}
             {live && canVerify && codeDone && !view.face_started_at && (
-              <button type="button" className="sh-btn sh-btn-primary" disabled={busy} onClick={onStartFace}>
+              <Button type="button" disabled={busy} onClick={onStartFace}>
+                <ScanFace aria-hidden="true" />
                 {busy ? "正在开始…" : "开始模拟人脸验证"}
-              </button>
+              </Button>
             )}
             {live && view.face_started_at && view.face_result === "pending" && (
               <div className="sh-face-wait" role="status">
-                <span className="sh-face-mark" aria-hidden="true" />
-                <p className="sh-lead">正在等待管理员在独立演示端作答。</p>
-                <p className="sh-hint">本页面没有「通过」按钮，结果以后台返回为准。不会开启摄像头，也不采集生物信息。请在 {clockTime(view.face_expires_at)} 前完成。</p>
+                <ScanFace className="sh-face-mark" aria-hidden="true" />
+                <p className="sh-lead">请在独立演示端完成模拟验证。</p>
+                <p className="sh-hint">演示由管理员模拟作答，{clockTime(view.face_expires_at)} 前有效。</p>
                 {adminHref && (
                   <a className="sh-link-btn" href={adminHref} target="_blank" rel="noreferrer">{adminLabel}</a>
                 )}
@@ -184,7 +190,7 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
           <p className="sh-hint">{EDIT_OPTION_NOTE}</p>
         </>
       )}
-      {!live && <p className="sh-readonly-line">这项验证已转为只读，不会再次提交。</p>}
+      {!live && <p className="sh-readonly-line">验证记录已保存，供您回看。</p>}
     </Card>
   );
 }

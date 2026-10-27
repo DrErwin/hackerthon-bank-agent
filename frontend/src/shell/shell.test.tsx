@@ -37,14 +37,14 @@ async function reachVerification() {
   await sendText("转给妈妈500块");
   await choosePayeeAndAccount();
   fireEvent.click(await screen.findByRole("button", { name: "确认办理" }));
-  return screen.findByRole("heading", { name: "为了安全，请完成两项验证" });
+  return screen.findByRole("heading", { name: "请完成两项身份验证" });
 }
 
 async function passCode() {
   fireEvent.change(await screen.findByLabelText("请输入 6 位验证码"), { target: { value: "123456" } });
   fireEvent.click(screen.getByRole("button", { name: "提交验证码" }));
   fireEvent.click(await screen.findByRole("button", { name: "开始模拟人脸验证" }));
-  await screen.findByText("正在等待管理员在独立演示端作答。");
+  await screen.findByText("请在独立演示端完成模拟验证。");
 }
 
 async function adminAnswer(backend: DemoBackend, result: "passed" | "failed") {
@@ -79,7 +79,7 @@ describe("v0.4 shell with stub data", () => {
 
     await reachVerification();
     const confirmation = screen.getByRole("heading", { name: "确认单记录" }).closest("section")!;
-    expect(within(confirmation).getByText("已确认办理 · 只读")).toBeTruthy();
+    expect(within(confirmation).getByText("已确认办理")).toBeTruthy();
     expect(within(confirmation).queryByRole("button")).toBeNull();
     expect(within(confirmation).getByText("妈妈（尾号 6688）")).toBeTruthy();
 
@@ -89,12 +89,12 @@ describe("v0.4 shell with stub data", () => {
     await adminAnswer(backend, "passed");
     expect(await screen.findByRole("heading", { name: "正在办理" })).toBeTruthy();
     expect(await screen.findByText("转账成功")).toBeTruthy();
-    expect(screen.getByText(/演示结果，不代表真实银行交易/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /查看全部明细/ }));
+    expect(screen.getByText(/示例回执/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "办理凭证" }));
     expect(screen.getByText(/^DEMO-/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "关闭详情" }));
     const verification = screen.getByRole("heading", { name: "安全验证记录" }).closest("section")!;
-    expect(within(verification).getByText("验证已通过 · 只读")).toBeTruthy();
+    expect(within(verification).getByText("验证已通过")).toBeTruthy();
     expect(within(verification).queryByLabelText("请输入 6 位验证码")).toBeNull();
   });
 
@@ -107,7 +107,7 @@ describe("v0.4 shell with stub data", () => {
     const confirm = await screen.findByRole("button", { name: "确认办理" });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
-    await screen.findByRole("heading", { name: "为了安全，请完成两项验证" });
+    await screen.findByRole("heading", { name: "请完成两项身份验证" });
     expect(answer).toHaveBeenCalledTimes(1);
   });
 
@@ -127,7 +127,7 @@ describe("v0.4 shell with stub data", () => {
 
     const composer = await screen.findByRole("textbox", { name: "输入您想办的事" }) as HTMLInputElement;
     expect(composer.value).toBe("");
-    expect(await screen.findByText("已被新确认单替代 · 只读")).toBeTruthy();
+    expect(await screen.findByText("已被新确认单替代")).toBeTruthy();
     await screen.findByRole("button", { name: "确认办理" });
     expect(revise).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ amount_fen: 30000 }));
     expect(answer).not.toHaveBeenCalled();
@@ -155,8 +155,8 @@ describe("v0.4 shell with stub data", () => {
   });
 
   it.each([
-    ["expired", "已过期 · 只读"],
-    ["superseded", "已被新确认单替代 · 只读"],
+    ["expired", "已过期"],
+    ["superseded", "已被新确认单替代"],
   ] as const)("refreshes after a 409 and keeps a %s confirmation read-only without resubmitting", async (decision, label) => {
     const backend = makeBackend();
     renderPage(backend);
@@ -234,8 +234,8 @@ describe("v0.4 shell with stub data", () => {
     expect(screen.queryByLabelText("请输入 6 位验证码")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
-    expect(await screen.findByText("已找回上次的内容，可以接着办。")).toBeTruthy();
-    expect(await screen.findByText("已确认办理 · 只读")).toBeTruthy();
+    expect(await screen.findByText("已找回上次的办理资料，请查看当前进度。")).toBeTruthy();
+    expect(await screen.findByText("已确认办理")).toBeTruthy();
     expect(await screen.findByLabelText("请输入 6 位验证码")).toBeTruthy();
     expect(send).not.toHaveBeenCalled();
     expect(provide).not.toHaveBeenCalled();
@@ -270,15 +270,15 @@ describe("v0.4 shell with stub data", () => {
 
     expect(await screen.findByText("演示登录已过期")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "提交验证码" })).toBeNull();
-    expect(screen.getByText("验证已暂停 · 只读")).toBeTruthy();
+    expect(screen.getByText("验证已暂停")).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "输入您想办的事" }).hasAttribute("disabled")).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "点这里重新进入" }));
     expect(await screen.findByText(/登录已更换/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
     expect(await screen.findByRole("button", { name: "确认办理" })).toBeTruthy();
-    expect(await screen.findByText("已被新验证替代 · 只读")).toBeTruthy();
-    expect(screen.getByText("已确认办理 · 只读")).toBeTruthy();
+    expect(await screen.findByText("已被新验证替代")).toBeTruthy();
+    expect(screen.getByText("已确认办理")).toBeTruthy();
   });
 
   it("refuses a verification code typed into the chat", async () => {

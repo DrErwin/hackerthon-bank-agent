@@ -11,6 +11,7 @@ import { transferSlot } from "./slots/transferDemoSlot";
 import { createDemoBackend } from "./stub/demoBackend";
 import "./shell.css";
 import "./conversation.css";
+import "./journeys.css";
 const DesignSystemPage = lazy(() => import("./DesignSystemPage"));
 
 export function shellUsesContractDemo(mode: ApiMode = API_MODE): boolean {

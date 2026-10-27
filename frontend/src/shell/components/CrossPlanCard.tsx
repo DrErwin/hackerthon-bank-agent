@@ -12,6 +12,8 @@ import {
 import { isTerminal, statusLabel } from "../format";
 import type { ShellTask } from "../types";
 import { FieldList } from "./Primitives";
+import { Progress } from "@/components/ui/progress";
+import { CircleCheck, CircleAlert, Clock3 } from "lucide-react";
 
 /**
  * The parent plan card: what the arrangement is, which step runs now, and what
@@ -41,6 +43,8 @@ export function CrossPlanCard({ view, task, childTask, renderChild, onQueryChild
 
   return (
     <section className="sh-card sh-cross-plan" aria-label={scenarioTitle(view) + "安排"}>
+      <header className="sh-plan-heading"><h3>{scenarioTitle(view)}</h3>{counts && <span>{counts.done} / {counts.total} 项已办好</span>}</header>
+      {!terminal && counts && counts.total > 0 && <Progress value={counts.done / counts.total * 100} aria-label="安排进度" aria-valuetext={"已办好 " + counts.done + " 项，共 " + counts.total + " 项"} />}
       {lead && <p className={terminal ? "sh-lead" : "sh-cross-commit"}>{lead}</p>}
       {view && (
         <ol className="sh-steps sh-cross-steps">
@@ -66,7 +70,7 @@ export function CrossPlanCard({ view, task, childTask, renderChild, onQueryChild
                 <div className="sh-step-head">
                   <span className="sh-step-no" aria-hidden="true">{index + 1}</span>
                   <strong>{stepTitle(step)}</strong>
-                  <span className="sh-step-state">{label ? label.icon + " " + label.text : "待开始"}</span>
+                  <span className="sh-step-state">{label?.tone === "success" ? <CircleCheck aria-hidden="true" /> : label?.tone === "danger" || label?.tone === "warning" ? <CircleAlert aria-hidden="true" /> : <Clock3 aria-hidden="true" />}{label ? label.text : "待开始"}</span>
                 </div>
                 {(bank.amount || bank.details.length > 0) && (
                   <p className="sh-cross-facts">

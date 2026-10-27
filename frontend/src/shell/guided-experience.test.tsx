@@ -151,7 +151,8 @@ it("queries the new month instead of reopening the previous month's cached categ
     tasks: new Map([[sept.task_id, { task: sept, module: "bills" }], [aug.task_id, { task: aug, module: "bills" }]]) };
   const view = render(<TaskBlock envelope={{ task: sept, module: "bills" }} slot={genericSlot} origin="real-api"
     conversation={base} renderChild={(id) => <p>{id}</p>} />);
-  fireEvent.input(screen.getByLabelText("换一个月份（沿用这些银行卡）"), { target: { value: "2026-08" } });
+  fireEvent.click(screen.getByText("换一个月份"));
+  fireEvent.input(screen.getByLabelText("查询月份（沿用这些银行卡）"), { target: { value: "2026-08" } });
   fireEvent.click(screen.getByRole("button", { name: "查询这个月" }));
   expect(cardAction).toHaveBeenCalledWith(sept, { action: "bill_range", month: "2026-08" });
   fireEvent.click(screen.getByRole("button", { name: "查看餐饮明细" }));

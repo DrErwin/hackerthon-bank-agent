@@ -3,6 +3,8 @@ import { EDIT_OPTION_NOTE } from "../copy";
 import { clockTime } from "../format";
 import type { SlotAction } from "../slots";
 import { Card, FieldList, ReadOnlyStamp, StatusBadge } from "./Primitives";
+import { Button } from "@/components/ui/button";
+import { ShieldCheck } from "lucide-react";
 
 const DECISION_TEXT: Record<ConfirmationView["decision"], string> = {
   pending: "未作答",
@@ -29,12 +31,16 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
   id: string;
 }) {
   const live = active && view.decision === "pending";
+  // The gate publishes these two reserved IDs as well. They use the dedicated
+  // confirmation endpoint above, while additional options keep the F10 route.
+  const editOptions = (options ?? []).filter((option) => option.id !== "approve" && option.id !== "cancel");
   return (
     <Card
       title={live ? title : "确认单记录"}
       labelledBy={id}
       readOnly={!live}
       highlight={live}
+      className="sh-confirmation"
       badge={live ? <StatusBadge tone="pending" icon="?" text="等您确认" /> : <ReadOnlyStamp text={DECISION_TEXT[view.decision]} />}
     >
       <FieldList fields={view.display_fields} emphasize={emphasize} />
@@ -43,24 +49,25 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
           <p className="sh-hint">核对好后，请点「确认办理」。这份确认单在 {clockTime(view.expires_at)} 前有效。</p>
           <div className="sh-actions">
             {canConfirm && (
-              <button type="button" className="sh-btn sh-btn-primary" disabled={busy} onClick={() => onAnswer("approve")}>
+              <Button type="button" disabled={busy} onClick={() => onAnswer("approve")}>
+                <ShieldCheck aria-hidden="true" />
                 {busy ? "正在提交…" : "确认办理"}
-              </button>
+              </Button>
             )}
             {extraActions.map((action) => (
               <button key={action.label} type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={action.onClick}>{action.label}</button>
             ))}
-            {(options ?? []).map((option) => (
+            {editOptions.map((option) => (
               <button key={option.id} type="button" className="sh-btn sh-btn-secondary" disabled={busy}
                 onClick={() => onSelectOption?.(option.id, option.label)}>{option.label}</button>
             ))}
             {canCancel && (
-              <button type="button" className="sh-btn sh-btn-secondary" disabled={busy} onClick={() => onAnswer("cancel")}>取消</button>
+              <Button type="button" variant="outline" disabled={busy} onClick={() => onAnswer("cancel")}>取消</Button>
             )}
           </div>
           {/* The page never matches an option by its label, so "the server published
               options" is the only condition it can test for the edit explanation. */}
-          {(options ?? []).length > 0 && <p className="sh-hint">{EDIT_OPTION_NOTE}</p>}
+          {editOptions.length > 0 && <p className="sh-hint">{EDIT_OPTION_NOTE}</p>}
         </>
       ) : (
         <p className="sh-readonly-line">这份确认记录已保存，供您回看。</p>

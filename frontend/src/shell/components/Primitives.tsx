@@ -47,7 +47,7 @@ export function Notice({ tone, title, children, action }: { tone: "danger" | "wa
   );
 }
 
-export function Card({ title, badge, readOnly, highlight, children, footer, labelledBy }: {
+export function Card({ title, badge, readOnly, highlight, children, footer, labelledBy, className = "" }: {
   title: string;
   badge?: ReactNode;
   readOnly?: boolean;
@@ -55,10 +55,11 @@ export function Card({ title, badge, readOnly, highlight, children, footer, labe
   children?: ReactNode;
   footer?: ReactNode;
   labelledBy?: string;
+  className?: string;
 }) {
-  const className = "sh-card" + (readOnly ? " sh-card-readonly" : "") + (highlight ? " sh-card-highlight" : "");
+  const classes = "sh-card " + className + (readOnly ? " sh-card-readonly" : "") + (highlight ? " sh-card-highlight" : "");
   return (
-    <section className={className} aria-labelledby={labelledBy}>
+    <section className={classes} aria-labelledby={labelledBy}>
       <header className="sh-card-head">
         <h3 id={labelledBy}>{title}</h3>
         {badge}
@@ -70,7 +71,7 @@ export function Card({ title, badge, readOnly, highlight, children, footer, labe
 }
 
 export function ReadOnlyStamp({ text }: { text: string }) {
-  return <span className="sh-stamp">{text} · 只读</span>;
+  return <span className="sh-stamp">{text}</span>;
 }
 
 export function Spinner() {

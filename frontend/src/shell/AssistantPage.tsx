@@ -16,6 +16,8 @@ import { DetailsDrawer } from "./components/DetailsDrawer";
 import { History, ArrowUpRight } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function cardMessageSummary(message: MessageView, tasks: Map<string, TaskEnvelope>): string | undefined {
   if (message.role !== "assistant" || message.task_ids.length !== 1) return undefined;
@@ -31,7 +33,10 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const { messages, tasks, session, expired, connected, booting, pageError, awaitingReply, pendingMessage, sending, actions } = conversation;
   const bodyRef = useRef<HTMLDivElement>(null);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
-  const [largeText, setLargeText] = useState(false);
+  const [largeText, setLargeText] = useState(() => {
+    try { return localStorage.getItem("bank-text-size") === "large"; } catch { return false; }
+  });
+  const [historyFilter, setHistoryFilter] = useState<"all" | "pending">("all");
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyTarget = useRef<string | null>(null);
   const [expandedRecords, setExpandedRecords] = useState<Record<string, boolean>>({});
@@ -42,8 +47,11 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
   const topTasks = [...tasks.values()].filter(({ task }) => !childIds.has(task.task_id));
   const timeline = useMemo(() => buildTimeline(messages, tasks, conversation.cardLinks, childIds), [messages, tasks, conversation.cardLinks, childIds]);
   const records = timeline.flatMap((item) => item.type === "task" ? [item.envelope] : []);
+  const visibleRecords = records.filter(({ task }) => historyFilter === "all" || !isTerminal(task)
+    || needsAttentionInTree(task.task_id, tasks, conversation.cardLinks));
   const latestTaskId = timeline.filter((item) => item.type === "task").at(-1)?.envelope.task.task_id;
   const currentTask = topTasks.filter(({ task }) => !isTerminal(task)).at(-1)?.task;
+  const currentNeedsReview = currentTask && (currentTask.recovery_required || conversation.bootRecovery.has(currentTask.task_id) || currentTask.status === "needs_attention");
   const canStart = !(expired || booting || sending || awaitingReply || pendingMessage);
   const inputTasks = [...tasks.values()].filter(({ task }) =>
     task.status === "waiting_input" && task.interaction?.kind === "input"
@@ -107,24 +115,32 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
     <div className="sh-root sh-conversation" data-text-size={largeText ? "large" : "standard"}>
       <a className="sh-skip" href="#sh-main">跳到对话内容</a>
       <TopBar title="银行小助手" connected={connected} expired={expired} origin={source.origin} userDisplay={session?.user_display ?? null}
-        largeText={largeText} onTextSizeChange={() => { setLargeText(!largeText); toast(largeText ? "已恢复标准字号" : "文字已放大"); }}>
+        largeText={largeText} onTextSizeChange={() => {
+          setLargeText(!largeText);
+          try { localStorage.setItem("bank-text-size", largeText ? "standard" : "large"); } catch { /* The current page still supports large text when storage is unavailable. */ }
+          toast(largeText ? "已恢复标准字号" : "文字已放大");
+        }}>
         <DetailsDrawer title="办理记录" triggerLabel={<><History aria-hidden="true" />记录</>} open={historyOpen} onOpenChange={setHistoryOpen}
           onCloseAutoFocus={(event) => {
             if (historyTarget.current) { event.preventDefault(); continueTask(historyTarget.current); historyTarget.current = null; }
           }}>
-          {records.length === 0 ? <p>办过的事情会留在这里，方便您回看。</p> : <ol className="sh-history-list">
-            {[...records].reverse().map(({ task, module }) => <li key={task.task_id}>
+          {records.length > 0 && <div className="sh-history-filter" role="group" aria-label="筛选办理记录">
+            <Button variant={historyFilter === "all" ? "secondary" : "ghost"} aria-pressed={historyFilter === "all"} onClick={() => setHistoryFilter("all")}>全部记录</Button>
+            <Button variant={historyFilter === "pending" ? "secondary" : "ghost"} aria-pressed={historyFilter === "pending"} onClick={() => setHistoryFilter("pending")}>还没办完</Button>
+          </div>}
+          {visibleRecords.length === 0 ? <p className="sh-empty">{historyFilter === "pending" ? "当前没有待继续的事项。" : "办过的事情会留在这里，方便您回看。"}</p> : <ol className="sh-history-list">
+            {[...visibleRecords].reverse().map(({ task, module }) => <li key={task.task_id}>
               <h3>{taskTitle(task)}</h3><p>{taskStatusLabel(task).text}</p>
               <dl>{(slots.resolve(module).summarize?.(task) ?? []).map((field, i) => <div key={i}><dt>{field.label}</dt><dd>{field.value_text}</dd></div>)}</dl>
-              <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : "继续这项办理"}</button>
+              <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : task.recovery_required || conversation.bootRecovery.has(task.task_id) || task.status === "needs_attention" ? "查看办理进度" : "继续这项办理"}</button>
             </li>)}
           </ol>}
         </DetailsDrawer>
       </TopBar>
       {currentTask && <nav className="sh-current-task" aria-label="当前办理">
         <button type="button" onClick={() => continueTask(currentTask.task_id)}>
-          <span><span className="sh-current-label">正在办</span><strong>{taskTitle(currentTask)}</strong></span>
-          <span>接着办<ArrowUpRight aria-hidden="true" /></span>
+          <span><span className="sh-current-label">{currentNeedsReview ? "待查看" : "正在办"}</span><strong>{taskTitle(currentTask)}</strong></span>
+          <span>{currentNeedsReview ? "查看进度" : "接着办"}<ArrowUpRight aria-hidden="true" /></span>
         </button>
       </nav>}
       {expired && <ExpiredBanner onReenter={() => void actions.reenter()} />}
@@ -148,7 +164,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
                 <ConversationStarters disabled={!canStart} onChoose={(text) => void send(text)} />
                 <p className="sh-hint">也可以在下面直接打字。</p></>}
             </article>
-            {booting && <p className="sh-hint" role="status">正在读取对话记录…</p>}
+            {booting && <div className="sh-history-loading" role="status"><p className="sh-hint">正在读取对话记录…</p><div aria-hidden="true"><Skeleton /><Skeleton /></div></div>}
             {timeline.map((item) => item.type === "message"
               ? <MessageBubble key={item.message.message_id} message={item.message} cardSummary={cardMessageSummary(item.message, tasks)} />
               : <TaskRecord key={item.envelope.task.task_id} task={item.envelope.task} messages={item.messages}
