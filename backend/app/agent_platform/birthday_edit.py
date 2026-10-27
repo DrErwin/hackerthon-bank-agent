@@ -45,7 +45,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol
 from uuid import UUID, uuid4
 
@@ -556,10 +556,9 @@ class BirthdayHandoff:
         """Frozen order: security accept → bank retire → security seal."""
         context = self._security_context(trusted, record)
         descriptor = self._descriptor(record)
-        now = _clock(self.runtime)
         try:
             retirement = self.runtime.confirmations.state.begin_retirement(
-                context, descriptor, now,
+                context, descriptor, datetime.now(timezone.utc),
                 task_state_resolver=self.runtime._task_terminated,
             )
         except SecurityStateError as exc:
@@ -583,7 +582,7 @@ class BirthdayHandoff:
             raise BirthdayEditError("DEPENDENCY_UNAVAILABLE", code) from exc
         try:
             return self.runtime.confirmations.state.seal_retirement(
-                context, retirement.retirement_id, evidence, now,
+                context, retirement.retirement_id, evidence, datetime.now(timezone.utc),
                 audit_writer=self.runtime.audit.append_in_transaction,
                 task_state_resolver=self.runtime._task_terminated,
             )
