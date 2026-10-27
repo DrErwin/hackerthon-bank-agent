@@ -1,0 +1,35 @@
+{
+  "base_main": "ed1596d57a5b1092a324b6d3013b1367b403cbec",
+  "complete_batch_head": "895a72836f848f31a1c561b8675adc615bd508fe",
+  "corrected_test_head": "83672967bdf628438b926ab4d44d125c351ec256",
+  "complete_batch": {
+    "tests": 208,
+    "passed": 207,
+    "failed": 1,
+    "skipped": 0,
+    "pytest_seconds": 434.66,
+    "xml": "2026-10-27-session-recovery-09-full-before-assertion.xml.gz",
+    "raw_xml_sha256": "e3343274757f9462e31f72e2127b59ade2d8b08fc7a8246db8a875eaf7ef9605"
+  },
+  "targeted_after_test_assertion_correction": {
+    "tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "pytest_seconds": 16.06,
+    "xml": "2026-10-27-session-recovery-09-final-targeted.xml",
+    "raw_xml_sha256": "986c6aae32798c516e562249438b18a393ebf6bdc6b44388372eb53219fb98c9",
+    "case": "app.modules.cross.test_birthday_session_controls::test_pending_personal_budget_moves_only_after_fresh_proof"
+  },
+  "unique_cases": 208,
+  "duplicate_cases_in_complete_batch": 0,
+  "repeated_between_batches": 1,
+  "cross_cases": 162,
+  "platform_provider_cases": 46,
+  "production_files_unchanged": [
+    "backend/app/modules/cross/birthday.py",
+    "backend/app/modules/cross/birthday_ports.py",
+    "backend/app/modules/cross/entry.py",
+    "backend/app/modules/cross/personal_budget.py"
+  ],
+  "statement": "207 successful original cases plus the same single corrected case passing; not a new all-green 208-case invocation."
+}
