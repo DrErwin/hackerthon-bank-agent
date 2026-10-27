@@ -579,7 +579,8 @@ class CrossEntry:
         remaining = [item for item in self._cancellable(state)
                      if item["subscription_id"] not in done]
         suspected = self._suspected(state)
-        lines = [self._evidence_line(state)]
+        lines = ["以下可退订项目来自银行签约盘点。" if pension_mode
+                 else self._evidence_line(state)]
         if remaining:
             names = "、".join(f"{item['merchant_name']}·{item['service_name']}"
                              f"（{money(item['amount_fen'])}元/"
