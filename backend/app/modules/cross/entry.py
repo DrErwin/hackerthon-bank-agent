@@ -908,13 +908,16 @@ class CrossEntry:
             raise PermissionError("ACCESS_DENIED")
         state["session_id"] = trusted.session_id
         if state.get("result", {}).get("status") not in _TERMINAL:
-            if state.get("scenario") == CrossScenario.BIRTHDAY.value:
-                if not self.birthday_ports_factory:
-                    raise ValueError("SESSION_RECOVERY_UNAVAILABLE")
-                result = BirthdayFlow(
-                    self, state, self.birthday_ports_factory(trusted)).recover_session(trusted)
-            else:
-                result = self._advance(trusted, state)
+            try:
+                if state.get("scenario") == CrossScenario.BIRTHDAY.value:
+                    if not self.birthday_ports_factory:
+                        raise ValueError("SESSION_RECOVERY_UNAVAILABLE")
+                    result = BirthdayFlow(
+                        self, state, self.birthday_ports_factory(trusted)).recover_session(trusted)
+                else:
+                    result = self._advance(trusted, state)
+            except BudgetPending as exc:
+                result = PersonalBudget(self, state).pause(trusted, exc)
         else:
             result = self._result(trusted, state)
         state["result"] = result.model_dump(mode="json")

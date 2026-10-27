@@ -71,6 +71,23 @@ BirthdayPorts 与模拟银行结果；规划器仅为明示测试替身。先保
 gzip 均为原 XML 无损压缩，解压字节比较通过，raw SHA256 见
 [摘要清单](evidence/2026-10-27-session-recovery-09-hashes.json)。中间检查不冒称本票最终全套。
 
+### 平台16合入后的递进批
+
+同步 main `c760f0d0` 后，本分支 `576ccef7` 的 Cross 树仍为
+`a4ef3b8631562c82bfead5b43b6e3609f3835b05`。此前依赖16的六敏感等待全程成功、
+三取消、已付款后停止、两未知后停止共 **12 passed / 22 deselected / 109.08s**；
+[JUnit](evidence/2026-10-27-session-recovery-09-after16.xml)。旧最终成功/取消断言保留，
+原 `AUDIT_UNAVAILABLE` 已消除；此结果不声称覆盖待合平台18。
+
+随后补真实预算只读不可用分支：已有预算在 S1 验证等待、平台证明 fresh 后，银行
+`list_transactions` 返回明确 `BANK_UNAVAILABLE`，其余仍真实。原 Cross recover 未像
+start/resume 一样把 `BudgetPending` 显示为暂停，导致恢复异常。
+[真实红灯](evidence/2026-10-27-session-recovery-09-budget-read-red.xml.gz)
+**1 failed / 18.52s**；只给 recover 加同一暂停映射后，目标会话可见暂停，原预留金额
+保持，读服务恢复后重查、新确认/新验证及真实冻结续办 **1 passed / 27.86s**
+([JUnit](evidence/2026-10-27-session-recovery-09-budget-read.xml))。
+该新增修复另行提交，上面的12通过属于补此映射前；完整Cross待18合入后一次检查。
+
 初始基线为平台 PR #323 最终 `5bcc8551`；本票仅拥有 Cross 目录。以下是实际组合探针，规划器为明示替身，其余 Harness/Cross/安全/存储/模拟银行真实。未写作新真实模型或页面验收。
 
 ## 两个独立缺口

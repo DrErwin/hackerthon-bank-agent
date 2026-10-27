@@ -6,13 +6,13 @@ Spec: [联动业务规格](../spec.md)，[安全依赖与失败证据](../sessio
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/modules/cross/`
-Status: in_progress — Cross fresh/observe 消费已实现，验证控制分支；保留平台后置缺口失败
-Blocked by: 中控平台票16（原限定授权确认的只读来源快照）；平台票18（生日G3专用预算采用 `BUDGET_INPUT_STALE`）。前置[平台票13](../../v05-birthday-platform-dependencies/issues/13-session-recovery-proof.md)（PR #335）与安全 PR #330 已合入 main `30cbe740`
+Status: in_progress — 平台16后12个真实成功/取消组合已过；待18后完整组合及独立两轴
+Blocked by: 平台票18（生日G3专用预算采用 `BUDGET_INPUT_STALE`）。平台16（PR #343）已合入 main `c760f0d0`；前置[平台票13](../../v05-birthday-platform-dependencies/issues/13-session-recovery-proof.md)（PR #335）与安全 PR #330 已合入 main `30cbe740`
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27
 Core scenarios: XL-B 敏感等待恢复、XL-X 会话/权限与重复执行
 Verification: 真实 Harness/Cross/存储/安全/模拟银行，规划器为明示替身；旧卡拒绝、新会话新版本、旧挑战不复用，未知沿原号核实。局部组合不写作真实模型/页面/真人安全验收。
-PR: [Draft #341](https://github.com/DrErwin/hackerthon-bank-agent/pull/341)，等待平台票16/18后组合全目录检查及中控独立两轴；作者不自行合并。
+PR: [Draft #341](https://github.com/DrErwin/hackerthon-bank-agent/pull/341)，等待平台票18后组合全目录检查及中控独立两轴；作者不自行合并。
 
 ## What to build
 

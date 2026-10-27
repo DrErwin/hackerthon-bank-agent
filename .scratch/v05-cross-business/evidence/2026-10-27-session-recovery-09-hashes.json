@@ -26,5 +26,9 @@
   {
     "name": "2026-10-27-session-recovery-09-stop-before16.xml.gz",
     "raw_sha256": "7717bbc6dbb8e5c2fc9d83049c27f33ac15172ca72d37036198591cc62dd4252"
+  },
+  {
+    "name": "2026-10-27-session-recovery-09-budget-read-red.xml.gz",
+    "raw_sha256": "8f1538f4267639552d9fb7c451f77bbe437e6b28046c1a15c6aa81744156c622"
   }
 ]

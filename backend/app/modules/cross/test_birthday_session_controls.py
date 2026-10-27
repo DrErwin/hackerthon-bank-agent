@@ -204,7 +204,8 @@ def test_pending_personal_budget_moves_only_after_fresh_proof(harness_env):
     assert UUID(str(confirmation.operation_id)) in updated.operation_ids
 
 
-def test_existing_personal_budget_reservation_uses_the_proved_new_attempt(harness_env):
+@pytest.mark.parametrize("unavailable", [False, True])
+def test_existing_personal_budget_reservation_uses_the_proved_new_attempt(harness_env, monkeypatch, unavailable):
     """Real prior adoption, isolated from the separately reported G3/F10 fault."""
     from app.contracts.bills import BillScope
     from app.contracts.cross import CrossStartInput
@@ -237,8 +238,20 @@ def test_existing_personal_budget_reservation_uses_the_proved_new_attempt(harnes
     budget = runtime.application.list_adopted_budgets("U1", "D1")[0]
     original = runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
     caller = target_session(env)
+    if unavailable:
+        from app.contracts.bank import BankError, QueryFailure
+        original_read = runtime.gateway.list_transactions
+        monkeypatch.setattr(runtime.gateway, "list_transactions", lambda *_: QueryFailure(
+            kind="error", error=BankError(code="BANK_UNAVAILABLE", details={})))
     recovered = runtime.harness.recover_session(caller)
     env.who = caller
+    if unavailable:
+        assert recovered.status is TaskStatus.WAITING_INPUT
+        assert "已暂停新增办理" in recovered.message
+        paused = runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
+        assert paused.committed_fen == paused.unconsumed_fen == original.committed_fen
+        monkeypatch.setattr(runtime.gateway, "list_transactions", original_read)
+        recovered = env.resume({"selected_option_id": option_id(recovered, "重新核对预算")})
 
     next_card = settle(env, recovered)
 
