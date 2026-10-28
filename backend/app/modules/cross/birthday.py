@@ -67,6 +67,7 @@ class BirthdayFlow:
         "edit": None, "edit_text_target": None,
         "verified_failures": {}, "write_facts": {}, "session_observation": None,
         "session_recovery_target": None,
+        "freeze_submission_operation_id": None,
     }
 
     def __init__(self, entry, state: dict, ports):
@@ -1440,6 +1441,22 @@ class BirthdayFlow:
                     return self._finalize(trusted)
                 self.b["phase"] = "orders"
                 return self._run_next_order(trusted)
+            outcome = self.ports.requery(trusted, self._plan(), "freeze",
+                                          freeze["operation_id"])
+            result = outcome.result if outcome is not None else None
+            if (outcome is not None and outcome.state == "failed"
+                    and isinstance(result, OperationResult)
+                    and str(result.operation_id) == freeze["operation_id"]
+                    and result.operation_type == "bank.freeze_funds"
+                    and result.operation_status is OperationStatus.FAILED
+                    and result.receipt is None and result.failure is not None):
+                self._remember_write("freeze", None, outcome)
+                freeze["status"] = "failed"
+                self.b["holding"] = None
+                PersonalBudget(self.entry, self.state).close()
+                status = TaskStatus.CANCELLED if self.b.get("stop_reason") else TaskStatus.FAILED
+                return self.entry._done(trusted, self.state, status,
+                    f"原冻结银行已明确失败（{result.failure.code}），本次没有冻结、下单或付款；已结束办理。")
             return self._holding_view(trusted)
         if self.b["holding"] in ("unknown_order", "unknown_capture"):
             holding_kind = self.b["holding"].split("_")[1]
@@ -1549,6 +1566,9 @@ class BirthdayFlow:
         self.b["phase"] = "finalize"
         if self.b.get("stop_reason"):
             self.state["stop_reason"] = self.b["stop_reason"]
+        pending = self.b.get("pending") or {}
+        if (pending.get("target") or [None])[0] == "freeze":
+            self.b["freeze_submission_operation_id"] = pending["operation_id"]
         if self.b.get("holding") in ("gate", "verify"):
             self.b["holding"] = None
             self.b["pending"] = None
@@ -1556,20 +1576,26 @@ class BirthdayFlow:
         if not freeze:
             budget = PersonalBudget(self.entry, self.state)
             hold = budget.own()
-            if hold:
+            operation_id = self.b.get("freeze_submission_operation_id")
+            if operation_id is None and hold:
+                operation_id = str(hold.operation_ids[-1])
+            if operation_id is not None:
                 # The visible verification card can precede a real freeze if
                 # execution was interrupted before its G3 checkpoint. History
                 # retains retired attempts; only its current last id is probed.
-                operation_id = str(hold.operation_ids[-1])
+                self.b["freeze_submission_operation_id"] = operation_id
                 submission = self.ports.observe_freeze_submission(
                     trusted, self._plan(), operation_id)
                 if submission == "submitted":
                     self.b["freeze"] = {"operation_id": operation_id,
-                        "amount_fen": hold.committed_fen, "status": "unknown", "freeze_id": None}
+                        "amount_fen": self.b["budget_limit_fen"], "status": "unknown", "freeze_id": None}
+                    self.b["freeze_submission_operation_id"] = None
                     self.b["holding"] = "unknown_freeze"
                     return self._requery(trusted)
                 if submission != "not_submitted":
                     raise BudgetPending("原冻结提交情况仍待核实，保留原编号和占用；核实前不关闭或重办。")
+                self.b["freeze_submission_operation_id"] = None
+            if hold:
                 budget.close()
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
                                     "已停止办理。本次没有冻结资金，也没有下单或付款。")

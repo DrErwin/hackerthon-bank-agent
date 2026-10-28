@@ -214,7 +214,7 @@ class PersonalBudget:
             self.b.update(phase="budget", budget_limit_fen=None)
             return self.entry._birthday_flow(self.state)._ask_budget(trusted)
         if kind == "personal_review":
-            if self.b.get("pending") and not self.b.get("freeze"):
+            if (self.b.get("pending") or self.b.get("freeze_submission_operation_id")) and not self.b.get("freeze"):
                 raise BudgetPending("原确认或验证尚未结束，先按原操作核实或停止，不替换预算候选。")
             records = [r for r in self.store.list_adopted_budgets(self.user, self.round) if self._applicable(r)]
             if len(records) != 1:
@@ -359,7 +359,8 @@ class PersonalBudget:
         return None
 
     def can_edit_cap(self):
-        return not self.b.get("freeze") and not self.b.get("pending") and self.own() is None
+        return (not self.b.get("freeze") and not self.b.get("pending")
+                and not self.b.get("freeze_submission_operation_id") and self.own() is None)
 
     def text(self, trusted, text):
         if self.p.get("mode") == "candidate":
@@ -381,7 +382,7 @@ class PersonalBudget:
 
     def pause(self, trusted, reason):
         choices = [("重新核对预算", {"kind": "personal_retry"})]
-        if not self.b.get("pending") or self.b.get("freeze"):
+        if (not self.b.get("pending") or self.b.get("freeze")) and not self.b.get("freeze_submission_operation_id"):
             choices.append(("查看当前个人预算候选", {"kind": "personal_review"}))
         if self.can_edit_cap():
             choices.append(("调整本次生日上限", {"kind": "personal_birthday_limit"}))

@@ -34,3 +34,8 @@
 
 红绿、精确source/tree/JUnit及去重计数在本文件续记。原208批、原after23
 11批及此前全部失败均不覆盖、不冒称本轮源码完整通过。
+
+首个最小修补后原两节点 **2 passed /37.02s**，JUnit
+`evidence/2026-10-28-session-recovery-09-closeout-after.xml`：FAILED分支不
+释放、不重冻，有预算的原占用关闭；无个人预算成功分支沿已保存的准确原号
+限定释放到零。两者重复cancel均无新增写，原银行操作回执不变。
