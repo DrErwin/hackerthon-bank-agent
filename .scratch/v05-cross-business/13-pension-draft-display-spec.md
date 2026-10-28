@@ -1,6 +1,6 @@
 # Cross13: show the unallocated pension draft amount
 
-Status: in_progress
+Status: implemented_pending_review
 Owner: Erwin (v0.5); implementation: bank_reset_completion AI subagent
 Accepted by: Erwin through the user's non-material completion authorization and root's explicit Cross13 assignment
 Accepted at: 2026-10-28 (resuming the approved 2026-10-27 scope)

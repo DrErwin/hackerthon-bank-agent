@@ -1,0 +1,196 @@
+{
+  "ticket": "v05-cross-business/13",
+  "base": "bec5621800dd58ec1c24ac224fd3008bba3f0ff4",
+  "final_test_source": "dae4c1e3b5c5d9b21224828bbab72e647ef5a0c9",
+  "final_test_tree": "3063e7e9533a80546875e09ac371ade80c135c3a",
+  "final_test_cross_tree": "a74e42bffd58e320b73c3dca21ca11ffdf14e504",
+  "pension_blob": "21310e1e0051f01fa3cc6431745ac4d2c25959f7",
+  "test_blob": "a1d515d6d7625b1946dc6550067d37c7e58f6d06",
+  "original_assertions_unchanged": true,
+  "changed_existing_methods": [
+    "_ask_destination",
+    "_ask_amount"
+  ],
+  "added_methods": [
+    "_draft_remaining"
+  ],
+  "batches": [
+    {
+      "batch": "red01",
+      "source": "f2794d7f8193d9898d391ffb2fc7d57b3f2e0fd5",
+      "console_seconds": 10.9,
+      "meaning": "Product prompt regression before the fix",
+      "original_xml": "C:\\Users\\57652\\.codex\\worktrees\\v05-pension-draft-display\\cross13-local-evidence\\red01.xml",
+      "raw_sha256": "8ccd44db0d3c313ff4519aac4bb0def4420871ce412bab189fa7a10de42af499",
+      "archive": ".scratch/v05-cross-business/evidence/13-pension-draft-display-red01.xml.gz",
+      "gzip_sha256": "a893d25153d70437a612f63488b586ac3bd8bae93bbe37adca5332042b703773",
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "1",
+        "time": "10.710",
+        "timestamp": "2026-10-28T15:00:55.626815+08:00",
+        "hostname": "ErwinWu"
+      },
+      "nodes": [
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_selected_drafts_reduce_both_prompts_without_changing_adoption",
+          "outcome": "failed"
+        }
+      ]
+    },
+    {
+      "batch": "green01",
+      "source": "f2794d7f8193d9898d391ffb2fc7d57b3f2e0fd5 plus working pension.py SHA256 999ac859911a7f37f5f49be212a5a68e9dd5e525462dfa83df1c1190dc961fb1",
+      "console_seconds": 7.67,
+      "meaning": "First green; before adding synthetic restore cases",
+      "original_xml": "C:\\Users\\57652\\.codex\\worktrees\\v05-pension-draft-display\\cross13-local-evidence\\green01.xml",
+      "raw_sha256": "4ebf8d1bd37cb4dae02e8924c6326dfd6e942c65a69ea25cceea8f68bebd1a7b",
+      "archive": ".scratch/v05-cross-business/evidence/13-pension-draft-display-green01.xml.gz",
+      "gzip_sha256": "f9a8ce58d02e835b2bd449bfa5e04ce75065f7ea868b0b8fe1190a227221b5aa",
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "1",
+        "time": "7.414",
+        "timestamp": "2026-10-28T15:02:10.075622+08:00",
+        "hostname": "ErwinWu"
+      },
+      "nodes": [
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_selected_drafts_reduce_both_prompts_without_changing_adoption",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "batch": "targeted-final01",
+      "source": "f202ce349c30a0d11499bba632ea1b3a91b800f1",
+      "console_seconds": 28.19,
+      "meaning": "Seven passed; three fixture setup errors, not product failures",
+      "original_xml": "C:\\Users\\57652\\.codex\\worktrees\\v05-pension-draft-display\\cross13-local-evidence\\targeted-final01.xml",
+      "raw_sha256": "ea4a7a968079b7b6862346268c1209b623939fa7769065eab51f770be7bd153a",
+      "archive": ".scratch/v05-cross-business/evidence/13-pension-draft-display-targeted-final01.xml.gz",
+      "gzip_sha256": "61a9aa792a38c8ff1b0582831fb234d70282ffcfacb50d311e17c3ca94b45370",
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "3",
+        "skipped": "0",
+        "tests": "10",
+        "time": "27.962",
+        "timestamp": "2026-10-28T15:04:20.787799+08:00",
+        "hostname": "ErwinWu"
+      },
+      "nodes": [
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_selected_drafts_reduce_both_prompts_without_changing_adoption",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_restored_amount_omits_its_old_draft_and_counts_earlier_success_once[None]",
+          "outcome": "failed"
+        },
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_restored_amount_omits_its_old_draft_and_counts_earlier_success_once[failed]",
+          "outcome": "failed"
+        },
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_restored_amount_omits_its_old_draft_and_counts_earlier_success_once[succeeded]",
+          "outcome": "failed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_p01_income_basis_reserve_and_two_transfers",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_p03_known_debits_calibration_changes_protection",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_reserve_over_base_and_amount_over_remaining_are_refused",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_f1_balance_refresh_before_each_transfer_gates_the_second",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_f3_a_failed_transfer_pauses_the_remaining_ones",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_p06_unknown_second_transfer_keeps_the_arrangement_open",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "batch": "targeted-final02",
+      "source": "dae4c1e3b5c5d9b21224828bbab72e647ef5a0c9",
+      "console_seconds": 25.0,
+      "meaning": "Final exact ten-node set after correcting only the synthetic fixture thread",
+      "original_xml": "C:\\Users\\57652\\.codex\\worktrees\\v05-pension-draft-display\\cross13-local-evidence\\targeted-final02.xml",
+      "raw_sha256": "0d5da8d4d891fe4c49c57d0d0bff3049c2d08810042b903d7a692f2a5218eb5b",
+      "archive": ".scratch/v05-cross-business/evidence/13-pension-draft-display-targeted-final02.xml.gz",
+      "gzip_sha256": "d6212a2079d4ebdf59818ef344c583a98d06e97020c75d1174195fd9e0caddf9",
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "10",
+        "time": "24.806",
+        "timestamp": "2026-10-28T15:06:13.635295+08:00",
+        "hostname": "ErwinWu"
+      },
+      "nodes": [
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_selected_drafts_reduce_both_prompts_without_changing_adoption",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_restored_amount_omits_its_old_draft_and_counts_earlier_success_once[None]",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_restored_amount_omits_its_old_draft_and_counts_earlier_success_once[failed]",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_pension_draft_display::test_restored_amount_omits_its_old_draft_and_counts_earlier_success_once[succeeded]",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_p01_income_basis_reserve_and_two_transfers",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_p03_known_debits_calibration_changes_protection",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_reserve_over_base_and_amount_over_remaining_are_refused",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_f1_balance_refresh_before_each_transfer_gates_the_second",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_f3_a_failed_transfer_pauses_the_remaining_ones",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_pension::test_p06_unknown_second_transfer_keeps_the_arrangement_open",
+          "outcome": "passed"
+        }
+      ]
+    }
+  ],
+  "boundary": "Local CrossEntry prompts and existing contract-shaped child substitutes; synthetic checkpoint fixtures; no real model, HTTP, browser or shared data run."
+}
