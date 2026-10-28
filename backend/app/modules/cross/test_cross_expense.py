@@ -413,11 +413,16 @@ def test_s05_unknown_second_item_stays_pending_and_closes_partially(tmp_path):
                           {"selected_option_id": option_id(second_menu, "云端网盘")})
     unknown = child_confirm(harness, gate_states, second)
     assert unknown.status is TaskStatus.NEEDS_ATTENTION
+    assert unknown.recovery_reason == "OPERATION_UNKNOWN"
 
     held = entry.resume(parent_trusted(), {})
     assert held.status is TaskStatus.RUNNING
-    assert "结果未知" in held.message
-    assert "核实原操作" in held.message
+    assert "已暂停" in held.message
+    assert unknown.message in held.message
+    assert "还没拿到银行的最终确认" in unknown.message
+    assert "不要重复操作" in unknown.message
+    assert "查询结果" in unknown.message
+    assert "处理完成前不会继续办理其他项目" in held.message
     # Repeated resumes never redispatch or retry the unknown write.
     assert entry.resume(parent_trusted(), {}).message == held.message
     assert bank.cancel_calls == ["sub_001"]

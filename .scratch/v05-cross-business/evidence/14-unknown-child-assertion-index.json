@@ -1,0 +1,94 @@
+{
+  "ticket": "v05-cross-business/14",
+  "base": "bb6228bd6f96b8c5aaf2dd43abcd659da01bed86",
+  "final_test_source": "c78992ffc503bc93d758807afd74d5858d52c081",
+  "test_blob": "f968e4486914de502ad3d57ba7e35498f576a6aa",
+  "test_source_tree": "0ec985d984b0c241047ccf83a44b596f8ce18999",
+  "test_source_backend_tree": "40fd184bf2a622350bc2e3dc65e96bf169e8498b",
+  "base_backend_tree": "81168c901697a259ff3aed231bf896dfac9902df",
+  "production_proof": {
+    "definition": "git ls-tree -r --full-tree REV -- backend, exclude ONLY exact target_test; retain Git row order and LF including final LF",
+    "target_test": "backend/app/modules/cross/test_cross_expense.py",
+    "other_entries": 270,
+    "base_manifest_sha256": "cef00ad3e37b7b9b0f8c7cfea1099d2ee3df10f7105219c8f589964df3d8af96",
+    "source_manifest_sha256": "cef00ad3e37b7b9b0f8c7cfea1099d2ee3df10f7105219c8f589964df3d8af96",
+    "all_other_backend_entries_identical": true
+  },
+  "assertion_proof": {
+    "old_total": 13,
+    "replaced_obsolete_wording": 2,
+    "other_original_assertions_retained_in_order": 11,
+    "new_total": 18,
+    "only_changed_function": "test_s05_unknown_second_item_stays_pending_and_closes_partially"
+  },
+  "root_full_batch": {
+    "source": "bb6228bd6f96b8c5aaf2dd43abcd659da01bed86",
+    "passed": 2570,
+    "skipped": 13,
+    "failed": 1,
+    "junit_sha256": "23ee3fe65fa28d8832477bf25a73f3ddd3990d68fca8304f4cf1175990d01eb6",
+    "unchanged": true,
+    "is_a_new_passing_full_batch": false
+  },
+  "batches": [
+    {
+      "batch": "red01",
+      "source": "20a0fe5d27bbfb71f9c976f6f1cdc3ee53d4b4ac",
+      "console_seconds": 12.6,
+      "original_xml": "C:\\Users\\57652\\.codex\\worktrees\\v05-cross-unknown-assertion-14\\cross14-local-evidence\\red01.xml",
+      "raw_sha256": "385af17d2206a86e03517d97248a11b974f2e0e6a072745bce14c9ee6b97e8ad",
+      "archive": ".scratch/v05-cross-business/evidence/14-unknown-child-assertion-red01.xml.gz",
+      "gzip_sha256": "6ea6a325f83ac4218e334a4574cb7c975596b509b48fdeb9ae8f4f925667f40c",
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "1",
+        "time": "12.423",
+        "timestamp": "2026-10-28T20:08:14.726596+08:00",
+        "hostname": "ErwinWu"
+      },
+      "nodes": [
+        {
+          "name": "app.modules.cross.test_cross_expense::test_s05_unknown_second_item_stays_pending_and_closes_partially",
+          "outcome": "failed"
+        }
+      ]
+    },
+    {
+      "batch": "green01",
+      "source": "c78992ffc503bc93d758807afd74d5858d52c081",
+      "console_seconds": 9.42,
+      "original_xml": "C:\\Users\\57652\\.codex\\worktrees\\v05-cross-unknown-assertion-14\\cross14-local-evidence\\green01.xml",
+      "raw_sha256": "d48d12e02e61e957580f9f08261352abd07e08b7f4df26d53467a26d481c8ad3",
+      "archive": ".scratch/v05-cross-business/evidence/14-unknown-child-assertion-green01.xml.gz",
+      "gzip_sha256": "a3c697e4cfe2b669ce4fc113515bd677e27adb0ba00740973cf4e3a3ced0b111",
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "3",
+        "time": "9.234",
+        "timestamp": "2026-10-28T20:09:25.046277+08:00",
+        "hostname": "ErwinWu"
+      },
+      "nodes": [
+        {
+          "name": "app.modules.cross.test_cross_expense::test_s05_unknown_second_item_stays_pending_and_closes_partially",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_expense::test_s01_two_cancellations_one_kept_with_real_receipt",
+          "outcome": "passed"
+        },
+        {
+          "name": "app.modules.cross.test_cross_expense::test_s04_cancel_before_confirmation_writes_nothing",
+          "outcome": "passed"
+        }
+      ]
+    }
+  ],
+  "boundary": "Only local S05/S01/S04 tests with existing explicit substitutes. No production, model, HTTP, browser, full-suite or shared-data change/run."
+}
