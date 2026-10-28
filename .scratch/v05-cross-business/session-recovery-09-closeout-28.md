@@ -65,3 +65,35 @@
 支路：被动观察不关闭占用、不继续购买；明确停止且银行证据完整才close已有
 占用并取消。unknown/读失败保持原号等待，不调用任何银行写。根main后续
 `7d029a5d`仅docs、backend与58ab相同，不额外重基或重跑26。
+
+## observe修补与最终定向
+
+最终执行源码 `488e6fc59234dcf76f8aa691f3442c757e9209b8`，backend树
+`81168c901697a259ff3aed231bf896dfac9902df`，Cross树
+`733ccf249143832ba831e6ae73cff1e08b0c4197`。只抽出已有的严格原号失败证明
+供requery与observe明确停止复用，不动353、安全或银行规则。
+
+被动observe仍保留原占用；用户明确停止后再次按原号读取，只有真实同op/
+bank.freeze_funds/FAILED/receipt=None/有failure时关闭占用、取消任务。
+银行读失败仍待核实；没有release、重冻、下单或核销写。内部银行code继续
+保留在原OperationResult，用户只看到业务资金事实。
+
+单批 **4 passed /74.02s，0 failed/error/skipped**：
+
+- 正常FAILED响应丢失→unknown→首次S2只读observe→明确停止。
+- 同入口在明确停止时银行暂不可读：占用原样保留，恢复读取后原号结束。
+- 两个原must复核：有预算真实FAILED、无预算真实成功冻结再取消。
+
+所有分支都断言原银行回执和操作号不变、重复cancel无新增写；观察本身不
+关闭占用或继续购买。JUnit：
+`evidence/2026-10-28-session-recovery-09-observe-failed-after.xml`。
+
+命令使用 `test_birthday_freeze_closeout.py::test_explicit_stop_closes_the_observed_original_failed_freeze`
+的两个参数节点与 `test_cancel_reconciles_the_exact_bank_terminal_freeze` 的
+`budget-failed`、`no-budget-succeeded` 两节点，隔离basetemp为
+`../pytest-cross09-observe28-green`，没有重跑26或完整Cross。
+
+26批属于63d，4批属于488，两批交集2、去重28个节点，但**不宣称28个节点在
+最终源码一次全通过**，也不将26+4算成30。最终完整backend/实际HTTP及独立
+两轴/精确CI另由根任务收口。本票不自行合并、不写真人接受或安全真人签核。
+原XML及所有失败保留；最终只补本组scratch，backend树保持488原样。

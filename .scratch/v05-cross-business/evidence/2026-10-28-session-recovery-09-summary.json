@@ -1,0 +1,50 @@
+{
+  "base": "58ab51584dfd9e8dc7289eb0924594c42fe21e03",
+  "pre_observe_source": "63d80a0219829fe7196e5c380132dc95ad9792f4",
+  "post_observe_source": "488e6fc59234dcf76f8aa691f3442c757e9209b8",
+  "backend_tree": "81168c901697a259ff3aed231bf896dfac9902df",
+  "cross_tree": "733ccf249143832ba831e6ae73cff1e08b0c4197",
+  "pre_observe_passed": 26,
+  "post_observe_passed": 4,
+  "overlapping_nodes": 2,
+  "distinct_nodes_across_layers": 28,
+  "full_final_suite": "NOT_RUN_BY_AUTHOR; root will run backend once",
+  "interrupted_0fc_full_batch": "exit -1; incomplete; no test verdict; original DB retained",
+  "artifacts": {
+    "2026-10-28-session-recovery-09-closeout-before.xml.gz": {
+      "raw_sha256": "0065a8b3ab146c01f12b4d3c55beaf16163698810864c9c8df0c20e8e4304025",
+      "tests": 2,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-28-session-recovery-09-closeout-after.xml": {
+      "raw_sha256": "08aa720633247127a04ef27c53ad19f0164b93b14fda4516770aa3fd369f6fa3",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-28-session-recovery-09-targeted.xml": {
+      "raw_sha256": "bb9e6a284caaf1f905d720da51479810084db6a6992313590f26d228b10b2f4e",
+      "tests": 26,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-28-session-recovery-09-observe-failed-before.xml.gz": {
+      "raw_sha256": "e6b1c837fe81311b1120dd4868324c983427bdbec30423ba1e7e9ef6d0485ef4",
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-28-session-recovery-09-observe-failed-after.xml": {
+      "raw_sha256": "ba01c05f58a980856351d0a0f505b8c6c067d881f5db14f6df49f1df2b322251",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  }
+}
