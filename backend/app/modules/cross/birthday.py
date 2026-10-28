@@ -1414,6 +1414,26 @@ class BirthdayFlow:
                    ("停止新增办理，按原授权收尾", {"kind": "b_stop"})]
         return self._ask(trusted, prompt, choices)
 
+    def _finish_failed_freeze(self, trusted, outcome):
+        """End only after the original bank freeze proves no effect."""
+        freeze = self.b["freeze"]
+        result = outcome.result if outcome is not None else None
+        if not (outcome is not None and outcome.state == "failed"
+                and isinstance(result, OperationResult)
+                and str(result.operation_id) == freeze["operation_id"]
+                and result.operation_type == "bank.freeze_funds"
+                and result.operation_status is OperationStatus.FAILED
+                and result.receipt is None and result.failure is not None):
+            return None
+        self._remember_write("freeze", None, outcome)
+        freeze["status"] = "failed"
+        self.b["holding"] = None
+        self.b["session_observation"] = None
+        PersonalBudget(self.entry, self.state).close()
+        status = TaskStatus.CANCELLED if self.b.get("stop_reason") else TaskStatus.FAILED
+        return self.entry._done(trusted, self.state, status,
+            "银行已明确表示原冻结失败，本次没有冻结、下单或付款，已结束办理。")
+
     def _requery(self, trusted):
         if self.b.get("session_observation"):
             return self._observe_session(trusted)
@@ -1443,20 +1463,9 @@ class BirthdayFlow:
                 return self._run_next_order(trusted)
             outcome = self.ports.requery(trusted, self._plan(), "freeze",
                                           freeze["operation_id"])
-            result = outcome.result if outcome is not None else None
-            if (outcome is not None and outcome.state == "failed"
-                    and isinstance(result, OperationResult)
-                    and str(result.operation_id) == freeze["operation_id"]
-                    and result.operation_type == "bank.freeze_funds"
-                    and result.operation_status is OperationStatus.FAILED
-                    and result.receipt is None and result.failure is not None):
-                self._remember_write("freeze", None, outcome)
-                freeze["status"] = "failed"
-                self.b["holding"] = None
-                PersonalBudget(self.entry, self.state).close()
-                status = TaskStatus.CANCELLED if self.b.get("stop_reason") else TaskStatus.FAILED
-                return self.entry._done(trusted, self.state, status,
-                    "银行已明确表示原冻结失败，本次没有冻结、下单或付款，已结束办理。")
+            failed = self._finish_failed_freeze(trusted, outcome)
+            if failed is not None:
+                return failed
             return self._holding_view(trusted)
         if self.b["holding"] in ("unknown_order", "unknown_capture"):
             holding_kind = self.b["holding"].split("_")[1]
@@ -1527,6 +1536,9 @@ class BirthdayFlow:
         # A user-requested stop can finish the original limited ending once
         # its in-flight operation has actually settled. Recovery alone cannot.
         if self.b.get("stop_reason"):
+            if kind == "freeze" and outcome.state == "failed":
+                failed = self._finish_failed_freeze(trusted, outcome)
+                return failed if failed is not None else self._holding_view(trusted)
             self.b["holding"] = None
             self.b["session_observation"] = None
             return self._finalize(trusted)
@@ -1599,6 +1611,9 @@ class BirthdayFlow:
                 budget.close()
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
                                     "已停止办理。本次没有冻结资金，也没有下单或付款。")
+        if (self.b.get("stop_reason") and self.b.get("session_observation")
+                and freeze.get("status") == "failed"):
+            return self._observe_session(trusted)
         unknown = self.b.get("holding") in (
             "unknown_freeze", "unknown_order", "unknown_capture", "unknown_release")
         if unknown:

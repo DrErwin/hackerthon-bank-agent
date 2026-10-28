@@ -168,7 +168,10 @@ def test_unbudgeted_unknown_freeze_keeps_its_original_id_until_read_recovers(
     assert release.call_count == 1 and all(spy.call_count == 0 for spy in forbidden)
 
 
-def test_explicit_stop_closes_the_observed_original_failed_freeze(harness_env, monkeypatch):
+@pytest.mark.parametrize("read_unavailable_on_stop", [False, True])
+def test_explicit_stop_closes_the_observed_original_failed_freeze(
+    harness_env, monkeypatch, read_unavailable_on_stop,
+):
     """Real failed bank reply loss -> published unknown -> first S2 observation."""
     env = harness_env
     card = adopted_budget_freeze(env, ("鲜花", "蛋糕"))
@@ -213,7 +216,18 @@ def test_explicit_stop_closes_the_observed_original_failed_freeze(harness_env, m
     assert observation["status"] == "failed"
     assert env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0] == hold
     assert all(spy.call_count == 0 for spy in forbidden)
+    read = env.runtime.gateway.get_operation
+    if read_unavailable_on_stop:
+        from app.contracts.bank import BankError, QueryFailure
+
+        monkeypatch.setattr(env.runtime.gateway, "get_operation", lambda *_: QueryFailure(
+            kind="error", error=BankError(code="BANK_UNAVAILABLE", details={})))
     stopped = env.resume({"choice": "cancel"})
+    if read_unavailable_on_stop:
+        assert stopped.status is TaskStatus.WAITING_INPUT, stopped.message
+        assert env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0] == hold
+        assert all(spy.call_count == 0 for spy in forbidden)
+        monkeypatch.setattr(env.runtime.gateway, "get_operation", read)
     if stopped.status is not TaskStatus.CANCELLED:
         stopped = env.resume({"selected_option_id": option_id(stopped, "核实原操作")})
     assert stopped.status is TaskStatus.CANCELLED, stopped.message
