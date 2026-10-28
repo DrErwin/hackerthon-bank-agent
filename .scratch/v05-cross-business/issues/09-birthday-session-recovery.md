@@ -6,13 +6,13 @@ Spec: [联动业务规格](../spec.md)，[安全依赖与失败证据](../sessio
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/modules/cross/`
-Status: ready_for_review — 三个真实冻结收尾must已红绿；63d定向26过，最终488的observe与两原must定向4过，根完整backend/实际HTTP及最终两轴/CI待收口
+Status: merged — PR341，bb6228bd6f96b8c5aaf2dd43abcd659da01bed86；两个原must及observe分支闭合，最终自动核查见根集成记录，页面另待
 Blocked by: 无实施前置；平台23（PR #353）已合入本轮基线 `bec56218`，只读提交事实消费见[审查修补](../session-recovery-09-review-fixes.md)。既有平台18（PR #344）、17（PR #342）及16（PR #343）已合入受测主线 `ed1596d5`。前置[平台票13](../../v05-birthday-platform-dependencies/issues/13-session-recovery-proof.md)（PR #335）与安全 PR #330 已合入 main `30cbe740`
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27
 Core scenarios: XL-B 敏感等待恢复、XL-X 会话/权限与重复执行
 Verification: 真实 Harness/Cross/存储/安全/模拟银行，规划器为明示替身；旧卡拒绝、新会话新版本、旧挑战不复用，未知沿原号核实。局部组合不写作真实模型/页面/真人安全验收。
-PR: [Draft #341](https://github.com/DrErwin/hackerthon-bank-agent/pull/341)，[10-28收尾与精确分层验证](../session-recovery-09-closeout-28.md)已交，等待中控最终独立两轴与精确CI；[原208历史范围](../session-recovery-09-final-verification.md)保留，作者不自行合并。
+PR: [已合 #341](https://github.com/DrErwin/hackerthon-bank-agent/pull/341)。固定5810d67e：root Standards与独立Spec均0剩余必须项，精确head CI计费未启动；根合入bb6228bd，backend与488受测树一致。[10-28精确分层验证](../session-recovery-09-closeout-28.md)、[同源真实模型/HTTP中断取消](../../v05-control/freeze-recovery-http-2026-10-28.md)及[原208历史范围](../session-recovery-09-final-verification.md)分别保留；不是页面或真人安全接受。
 
 ## What to build
 

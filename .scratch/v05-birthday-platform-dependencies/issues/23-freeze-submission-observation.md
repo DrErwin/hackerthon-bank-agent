@@ -6,7 +6,7 @@ Spec: [冻结提交观察最小规格](../freeze-observation-23.md)
 Type: 开发
 Owner: Erwin（v0.5）；执行 frontend_acceptance 子代理
 Directory: backend/app/agent_platform/
-Status: implemented_pending_review
+Status: merged — PR353，bec5621800dd58ec1c24ac224fd3008bba3f0ff4；消费PR341已合bb6228bd
 Blocked by: None（公开get_execution、gateway.get_operation及wait_for_inflight可用）
 Source issue: [Issue #352](https://github.com/DrErwin/hackerthon-bank-agent/issues/352)，转给Erwin / Assignee DrErwin
 Accepted by: Erwin，通过本轮非比赛资料任务授权与中控明确分派
@@ -19,4 +19,4 @@ Branch: codex/v05-platform-freeze-observation-23
 - [x] 银行终态才submitted；NotFound+无claim双读+已排空且来源不变才not_submitted，其余unknown。
 - [x] 不新增银行写、claim、授权、绑定或退休，权限与原session门保留。
 - [x] 当前main组合36 passed，红绿与重叠范围见[验证记录](../freeze-observation-23-verification.md)。
-- [ ] 根代理独立两轴、精确head CI状态及合入；Cross消费另票，作者不自合并。
+- [x] 根Standards与独立Spec均0必须项；精确head CI计费未启动，根合入PR353。Cross消费另票PR341已合，Issue352按本能力范围关闭；不是页面或真人安全接受。

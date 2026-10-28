@@ -7,7 +7,7 @@ Core scenarios: PD01-PD04 in the specification
 Type: development
 Owner: Erwin (v0.5); implementation: bank_reset_completion AI subagent
 Directory: backend/app/modules/cross/
-Status: implemented_pending_review
+Status: merged — PR354, 58ab51584dfd9e8dc7289eb0924594c42fe21e03
 Blocked by: None (the current pension flow and public test seam are on main)
 Accepted by: Erwin through the user's authorization and root's explicit assignment
 Accepted at: 2026-10-28
@@ -20,7 +20,7 @@ Verification: Preserve the initial red result, then targeted public prompt and e
 - [x] Revising the current allocation excludes its own old amount; successful allocations are counted only once.
 - [x] Original execution range, money checks, input grammar, gates and profile are unchanged.
 - [x] Red/green and fixed-source evidence are recorded without replacing historical results.
-- [ ] Root arranges independent two-axis review and CI/merge verification; no author merge or human acceptance claim.
+- [x] Root Standards and independent Spec both have zero must-fix items; exact-head CI was billing-blocked before startup. Root merged PR354; no author merge or human acceptance claim.
 
 ## Comments
 

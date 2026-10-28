@@ -1,0 +1,110 @@
+{
+  "full_backend": {
+    "source": "bb6228bd6f96b8c5aaf2dd43abcd659da01bed86",
+    "backend_tree": "81168c901697a259ff3aed231bf896dfac9902df",
+    "tests": 2584,
+    "passed": 2570,
+    "failed": 1,
+    "skipped": 13,
+    "exit_code": 1,
+    "console_seconds": 13920.37,
+    "raw_sha256": "23ee3fe65fa28d8832477bf25a73f3ddd3990d68fca8304f4cf1175990d01eb6",
+    "archive": ".scratch/v05-control/evidence/2026-10-28-backend-final-original.xml.gz",
+    "gzip_sha256": "2b89e4ae5d810e9715320b0073cceed1e39e0bfdde31357de59aab712b29f75d"
+  },
+  "assertion_fix": {
+    "pr": 355,
+    "tested_source": "c78992ffc503bc93d758807afd74d5858d52c081",
+    "pr_head": "4a36d15ff23fb3b61c192154d643970e6ee37b51",
+    "merge": "51b93003f2577f65927c66aabd38fb7d3f27836f",
+    "passed": 3,
+    "console_seconds": 9.42,
+    "raw_sha256": "d48d12e02e61e957580f9f08261352abd07e08b7f4df26d53467a26d481c8ad3",
+    "nodes": [
+      "app.modules.cross.test_cross_expense::test_s05_unknown_second_item_stays_pending_and_closes_partially",
+      "app.modules.cross.test_cross_expense::test_s01_two_cancellations_one_kept_with_real_receipt",
+      "app.modules.cross.test_cross_expense::test_s04_cancel_before_confirmation_writes_nothing"
+    ]
+  },
+  "deduplicated_evidence": {
+    "unique_nodes": 2584,
+    "passed_with_evidence": 2571,
+    "skipped": 13,
+    "remaining_failed_non_skipped_nodes": 0,
+    "is_one_fresh_full_green_run": false,
+    "note": "Original full failure preserved; only its obsolete message assertion changed and the same node plus two already-passed neighbours rechecked."
+  },
+  "unchanged_backend_except_target_test": {
+    "entries": 270,
+    "manifest_sha256": "cef00ad3e37b7b9b0f8c7cfea1099d2ee3df10f7105219c8f589964df3d8af96",
+    "excluded_path": "backend/app/modules/cross/test_cross_expense.py"
+  },
+  "skips": [
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[original]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[spend_reason]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[spend_plan]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[spend_unused]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[single]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[single_missing_field]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[single_with_goal]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[inventory]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[subscription_query]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[ambiguous]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[pension]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[birthday]",
+      "reason": "explicit live routing opt-in only"
+    },
+    {
+      "node": "app.agent_platform.test_life_goal_routing::test_live_life_goal_routing[transfer]",
+      "reason": "explicit live routing opt-in only"
+    }
+  ],
+  "mockbank": {
+    "source": "bb6228bd",
+    "passed": 14,
+    "console_seconds": 1.49,
+    "xml_sha256": "07cffcc688299560e2e8e8c813895f1cc772034ecab68c47da6a89d404ad0af7"
+  },
+  "frontend": {
+    "tree": "3fe1279c8e17b7e3b59ee441949958085f556cd4",
+    "passed": 136,
+    "console_seconds": 25.19,
+    "xml_sha256": "6c2e104e2d80e728803901e9aab4d01ad9db0dc97cbf21f322ace716a82c266d"
+  },
+  "ci": "Related PR jobs did not start because of account billing; no CI pass claimed.",
+  "browser": "CUA URL security stop unresolved; no page/screenshot/200-percent/full-screen-reader/real-device or human acceptance evidence."
+}

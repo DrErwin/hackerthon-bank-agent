@@ -7,7 +7,7 @@ Core scenarios: UA01-UA03 in the specification
 Type: development (test maintenance only)
 Owner: Erwin (v0.5); implementation: bank_reset_completion AI subagent
 Directory: backend/app/modules/cross/
-Status: implemented_pending_review
+Status: merged — PR355, 51b93003f2577f65927c66aabd38fb7d3f27836f; root Standards and independent Spec both zero must-fix items; exact-head CI billing-blocked before startup
 Blocked by: None (PR349 behavior is already on main)
 Accepted by: Erwin through the user's continued authorization and root's assignment
 Accepted at: 2026-10-28
@@ -18,7 +18,7 @@ Verification: Preserve unchanged S05 red, then rerun only S05 and direct S01/S04
 - [x] Parent asserts the actual child public pause/unknown explanation and stops other work.
 - [x] All original state, bank, partial-success and duplicate-call assertions remain.
 - [x] The final local set passes and backend production equality is recorded.
-- [ ] Root independently reviews and merges; original full-backend failure remains historical evidence.
+- [x] Root Standards and independent Spec both have zero must-fix items; root merged PR355 after recording exact-head CI billing block. Original full-backend failure remains historical evidence.
 
 2026-10-28: Unchanged S05 red 1 failed / 12.60s at 20a0fe5d. Fixed source
 c78992ff: S05 and direct S01/S04 neighbors 3 passed / 9.42s. Only two stale wording
