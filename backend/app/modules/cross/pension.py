@@ -116,6 +116,16 @@ class PensionFlow:
     def _remaining(self) -> int:
         return self._distributable() - self._transferred()
 
+    def _draft_remaining(self, *, editing_current: bool = False) -> int:
+        allocations = self.pension["allocations"]
+        if editing_current:
+            allocations = allocations[:-1]
+        return self._remaining() - sum(
+            allocation["amount_fen"] or 0
+            for index, allocation in enumerate(allocations, 1)
+            if plan.step_state(self.state, f"transfer:{index}").get("status")
+            is not TaskStatus.SUCCEEDED)
+
     def view(self) -> ArrangementView:
         from app.contracts.bills import BillScope as Scope
         now = self.entry.clock()
@@ -359,7 +369,7 @@ class PensionFlow:
                     {"kind": "pension_own_account", "target_account_id": a["account_id"],
                      "name": f"本人·{a['display_name']}"}) for a in own_accounts] + choices
         choices.append(("去向已选好，开始办理", {"kind": "pension_adopt"}))
-        remaining = self._remaining()
+        remaining = self._draft_remaining()
         prompt = (f"本次还可安排 {money(remaining)} 元。请选择本人账户或收款人："
                   "（逐笔选择，每笔转账前还会有确认）")
         if not payees and own_accounts:
@@ -381,7 +391,7 @@ class PensionFlow:
         target = self.pension["allocations"][-1]
         return self.entry._ask(trusted, self.state,
                                f"转给 {target['name']} 多少元？（还可安排 "
-                               f"{money(self._remaining())} 元，可输入金额）",
+                               f"{money(self._draft_remaining(editing_current=True))} 元，可输入金额）",
                                [("不转了，去掉这笔", {"kind": "pension_drop_last"})])
 
     def _failed_cancels(self) -> list[str]:
