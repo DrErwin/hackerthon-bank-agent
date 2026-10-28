@@ -68,8 +68,8 @@ def interrupted_freeze(env, monkeypatch, *, personal_budget, failed):
     return original, replacement, result
 
 
-@pytest.mark.parametrize("personal_budget,failed", [(True, True), (False, False)],
-    ids=["budget-failed", "no-budget-succeeded"])
+@pytest.mark.parametrize("personal_budget,failed", [(True, True), (False, False), (False, True)],
+    ids=["budget-failed", "no-budget-succeeded", "no-budget-failed"])
 def test_cancel_reconciles_the_exact_bank_terminal_freeze(
     harness_env, monkeypatch, personal_budget, failed,
 ):
@@ -107,3 +107,62 @@ def test_cancel_reconciles_the_exact_bank_terminal_freeze(
     assert env.runtime.gateway.get_operation(env.who, replacement.operation_id).operation == result
     assert release.call_count == int(not failed)
     assert all(spy.call_count == 0 for spy in forbidden)
+
+
+@pytest.mark.parametrize("observation_fault", ["bank_unavailable", "probe_none"])
+def test_unbudgeted_unknown_freeze_keeps_its_original_id_until_read_recovers(
+    harness_env, monkeypatch, observation_fault,
+):
+    from app.contracts.bank import BankError, QueryFailure
+
+    env = harness_env
+    _, replacement, result = interrupted_freeze(env, monkeypatch,
+        personal_budget=False, failed=False)
+    assert env.runtime.application.list_adopted_budgets("U1", "D1") == []
+    read = env.runtime.gateway.get_operation
+    observe = BirthdayTaskPorts.observe_freeze_submission
+    if observation_fault == "bank_unavailable":
+        monkeypatch.setattr(env.runtime.gateway, "get_operation", lambda *_: QueryFailure(
+            kind="error", error=BankError(code="BANK_UNAVAILABLE", details={})))
+    else:
+        monkeypatch.setattr(BirthdayTaskPorts, "observe_freeze_submission", lambda *_: None)
+    release = Mock(wraps=env.runtime.gateway.release_frozen)
+    monkeypatch.setattr(env.runtime.gateway, "release_frozen", release)
+
+    paused = env.resume({"choice": "cancel"})
+
+    assert paused.status is TaskStatus.WAITING_INPUT, paused.message
+    assert "提交情况仍待核实" in paused.message
+    state = cross_state(env)["birthday"]
+    assert state["freeze_submission_operation_id"] == str(replacement.operation_id)
+    assert state["pending"] is None and state["freeze"] is None
+    labels = [option.label for option in paused.interaction.options]
+    assert not any("候选" in label or "调整" in label for label in labels)
+    assert env.runtime.gateway.get_freeze(env.who, result.receipt.freeze_id).data.remaining_fen == 50000
+    assert release.call_count == 0
+    monkeypatch.setattr(env.runtime.gateway, "get_operation", read)
+    monkeypatch.setattr(BirthdayTaskPorts, "observe_freeze_submission", observe)
+    if observation_fault == "bank_unavailable":
+        # The saved operation, not a budget hold or in-memory variable, survives.
+        from .test_birthday_session_controls import restart
+
+        restart(env)
+        release = Mock(wraps=env.runtime.gateway.release_frozen)
+        monkeypatch.setattr(env.runtime.gateway, "release_frozen", release)
+    forbidden = []
+    for name in ("freeze_funds", "create_order", "capture_frozen"):
+        spy = Mock(side_effect=AssertionError("UNKNOWN_CLOSEOUT_MUST_ONLY_OBSERVE_ORIGINAL"))
+        forbidden.append(spy)
+        monkeypatch.setattr(env.runtime.gateway, name, spy)
+
+    stopped = env.resume({"selected_option_id": option_id(paused, "重新核对预算")})
+
+    assert stopped.status is TaskStatus.CANCELLED, stopped.message
+    assert env.runtime.gateway.get_freeze(env.who, result.receipt.freeze_id).data.remaining_fen == 0
+    assert cross_state(env)["birthday"]["freeze"]["operation_id"] == str(replacement.operation_id)
+    assert cross_state(env)["birthday"]["freeze_submission_operation_id"] is None
+    assert env.runtime.application.list_adopted_budgets("U1", "D1") == []
+    assert bank_orders(env.runtime) == [] and paid_amounts(env) == []
+    assert release.call_count == 1 and all(spy.call_count == 0 for spy in forbidden)
+    assert env.resume({"choice": "cancel"}).status is TaskStatus.CANCELLED
+    assert release.call_count == 1 and all(spy.call_count == 0 for spy in forbidden)

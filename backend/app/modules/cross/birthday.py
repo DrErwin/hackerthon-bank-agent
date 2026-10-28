@@ -1567,7 +1567,7 @@ class BirthdayFlow:
         if self.b.get("stop_reason"):
             self.state["stop_reason"] = self.b["stop_reason"]
         pending = self.b.get("pending") or {}
-        if (pending.get("target") or [None])[0] == "freeze":
+        if pending and pending["target"][0] == "freeze":
             self.b["freeze_submission_operation_id"] = pending["operation_id"]
         if self.b.get("holding") in ("gate", "verify"):
             self.b["holding"] = None
