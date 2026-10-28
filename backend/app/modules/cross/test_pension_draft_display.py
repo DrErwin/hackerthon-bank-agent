@@ -58,7 +58,7 @@ def test_restored_amount_omits_its_old_draft_and_counts_earlier_success_once(
     # A synthetic local checkpoint represents an old amount question reopening.
     # It adds no editing option or bank result to the actual product.
     saved = entry.saver.get_tuple({"configurable": {
-        "thread_id": "PARENT", "checkpoint_ns": ""}})
+        "thread_id": entry.saver.thread_id, "checkpoint_ns": ""}})
     checkpoint = deepcopy(saved.checkpoint)
     checkpoint["id"] = str(uuid4())
     version = checkpoint["channel_versions"][plan.CHANNEL] + 1
