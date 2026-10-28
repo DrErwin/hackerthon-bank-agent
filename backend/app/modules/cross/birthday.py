@@ -1456,7 +1456,7 @@ class BirthdayFlow:
                 PersonalBudget(self.entry, self.state).close()
                 status = TaskStatus.CANCELLED if self.b.get("stop_reason") else TaskStatus.FAILED
                 return self.entry._done(trusted, self.state, status,
-                    f"原冻结银行已明确失败（{result.failure.code}），本次没有冻结、下单或付款；已结束办理。")
+                    "银行已明确表示原冻结失败，本次没有冻结、下单或付款，已结束办理。")
             return self._holding_view(trusted)
         if self.b["holding"] in ("unknown_order", "unknown_capture"):
             holding_kind = self.b["holding"].split("_")[1]
@@ -1593,7 +1593,7 @@ class BirthdayFlow:
                     self.b["holding"] = "unknown_freeze"
                     return self._requery(trusted)
                 if submission != "not_submitted":
-                    raise BudgetPending("原冻结提交情况仍待核实，保留原编号和占用；核实前不关闭或重办。")
+                    raise BudgetPending("原冻结提交情况仍待核实，保留原操作与资金核实状态；核实前不结束或重办。")
                 self.b["freeze_submission_operation_id"] = None
             if hold:
                 budget.close()

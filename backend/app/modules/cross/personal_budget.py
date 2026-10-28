@@ -393,7 +393,7 @@ class PersonalBudget:
         # options must not masquerade as another dedicated budget adoption.
         if not (self.p.get("view") or {}).get("adopted"):
             self.p["view"] = None
-        return self.entry._ask(trusted, self.state, str(reason) + " 已暂停新增办理，原事实和占用保留。", choices)
+        return self.entry._ask(trusted, self.state, str(reason) + " 已暂停新增办理，原操作与核实状态保留。", choices)
 
     def _settlement_gap(self, trusted, record, transactions, commitments):
         gap = 0
