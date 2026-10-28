@@ -39,3 +39,29 @@
 `evidence/2026-10-28-session-recovery-09-closeout-after.xml`：FAILED分支不
 释放、不重冻，有预算的原占用关闭；无个人预算成功分支沿已保存的准确原号
 限定释放到零。两者重复cancel均无新增写，原银行操作回执不变。
+
+## 固定63d的定向及observe剩余P2
+
+机械同步主线 `58ab51584dfd9e8dc7289eb0924594c42fe21e03` 后固定源码
+`63d80a0219829fe7196e5c380132dc95ad9792f4`，20提交range-diff全`=`，本票
+生产和故障测试blob与重基前 `60c69da9` 相同。backend树
+`12644938a3d43694ce1968a4a9f42302d7efc595`，Cross树
+`9fbc933644333880c9281767c79532ae10e9d001`。
+
+必要定向 **26 passed /445.45s，0 failed/error/skipped**，
+`evidence/2026-10-28-session-recovery-09-targeted.xml`，SHA256
+`bb9e6a284caaf1f905d720da51479810084db6a6992313590f26d228b10b2f4e`。
+覆盖capture5、预算/无预算成功/FAILED/未知/重启/重复、旧取消/已付及六等待。
+本批不是完整Cross，不覆盖后续observe修补；不得借写成最终完整全绿。
+
+独立Spec新增正常入口：真实银行FAILED回执已保存，在网关返回点抛OSError，
+执行器发布unknown_freeze；首次S2恢复只读核实到原冻结FAILED，保持原占用。
+用户明确cancel并原号核实后却RUNNING、FREEZE_FAILED阻止释放，占用仍50000分。
+作者同真实链复现 **1 failed /26.58s**，原生产仍63d，原XML无损保存于
+`evidence/2026-10-28-session-recovery-09-observe-failed-before.xml.gz`。
+这不同于未通过平台SOURCE_UNAVAILABLE的S3探测，不绕平台来源门。
+
+拟只复用当前严格原号冻结FAILED/无回执/有failure证明到observe的明确停止
+支路：被动观察不关闭占用、不继续购买；明确停止且银行证据完整才close已有
+占用并取消。unknown/读失败保持原号等待，不调用任何银行写。根main后续
+`7d029a5d`仅docs、backend与58ab相同，不额外重基或重跑26。

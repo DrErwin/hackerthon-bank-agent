@@ -166,3 +166,62 @@ def test_unbudgeted_unknown_freeze_keeps_its_original_id_until_read_recovers(
     assert release.call_count == 1 and all(spy.call_count == 0 for spy in forbidden)
     assert env.resume({"choice": "cancel"}).status is TaskStatus.CANCELLED
     assert release.call_count == 1 and all(spy.call_count == 0 for spy in forbidden)
+
+
+def test_explicit_stop_closes_the_observed_original_failed_freeze(harness_env, monkeypatch):
+    """Real failed bank reply loss -> published unknown -> first S2 observation."""
+    env = harness_env
+    card = adopted_budget_freeze(env, ("鲜花", "蛋糕"))
+    original = env.runtime.confirmations.get(
+        env.runtime._context(env.who, None, None), card.interaction.record_ref)
+    approve_confirmation(env.runtime, env.who, card.interaction.record_ref)
+    verification = env.resume({"choice": "approve"})
+    answer_verification(env.runtime, env.who, "R1", verification.interaction.record_ref)
+    with connect(env.runtime.bank.store.path) as connection:
+        assert connection.execute(
+            "UPDATE accounts SET account_status='closed' WHERE user_id='U1' AND account_id='A1'").rowcount == 1
+    freeze = env.runtime.gateway.freeze_funds
+
+    def lost_failed_response(*args):
+        result = freeze(*args)
+        assert result.operation_status is OperationStatus.FAILED
+        assert result.receipt is None and result.failure.code == "ACCOUNT_UNAVAILABLE"
+        raise OSError("lost the real failed freeze response")
+
+    monkeypatch.setattr(env.runtime.gateway, "freeze_funds", lost_failed_response)
+    unknown = env.resume({"choice": "resume"})
+    assert unknown.status is TaskStatus.WAITING_INPUT, unknown.message
+    assert cross_state(env)["birthday"]["holding"] == "unknown_freeze"
+    original_fact = env.runtime.gateway.get_operation(env.who, original.operation_id)
+    assert original_fact.operation.operation_status is OperationStatus.FAILED
+    budget = env.runtime.application.list_adopted_budgets("U1", "D1")[0]
+    hold = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0]
+    assert hold.state == "unknown" and hold.unconsumed_fen == 50000
+    forbidden = []
+    for name in ("freeze_funds", "create_order", "capture_frozen", "release_frozen"):
+        spy = Mock(side_effect=AssertionError("FAILED_OBSERVATION_MUST_NOT_WRITE"))
+        forbidden.append(spy)
+        monkeypatch.setattr(env.runtime.gateway, name, spy)
+    caller = target_session(env)
+
+    observed = env.runtime.harness.recover_session(caller)
+
+    env.who = caller
+    assert observed.status is TaskStatus.WAITING_INPUT, observed.message
+    observation = cross_state(env)["birthday"]["session_observation"]
+    assert observation["operation_id"] == str(original.operation_id)
+    assert observation["status"] == "failed"
+    assert env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id)[0] == hold
+    assert all(spy.call_count == 0 for spy in forbidden)
+    stopped = env.resume({"choice": "cancel"})
+    if stopped.status is not TaskStatus.CANCELLED:
+        stopped = env.resume({"selected_option_id": option_id(stopped, "核实原操作")})
+    assert stopped.status is TaskStatus.CANCELLED, stopped.message
+    closed = env.runtime.application.list_budget_commitments("U1", "D1", budget.budget_id,
+        include_closed=True)[0]
+    assert closed.state == "closed" and closed.unconsumed_fen == 0
+    assert closed.operation_ids == hold.operation_ids == [original.operation_id]
+    assert bank_orders(env.runtime) == [] and paid_amounts(env) == []
+    assert env.runtime.gateway.get_operation(caller, original.operation_id) == original_fact
+    assert env.resume({"choice": "cancel"}).status is TaskStatus.CANCELLED
+    assert all(spy.call_count == 0 for spy in forbidden)
