@@ -1,6 +1,6 @@
 # Cross14: maintain the S05 public unknown-result assertion
 
-Status: in_progress
+Status: implemented_pending_review
 Owner: Erwin (v0.5); implementation: bank_reset_completion AI subagent
 Accepted by: Erwin through the user's continued non-material task and root's explicit assignment
 Accepted at: 2026-10-28
