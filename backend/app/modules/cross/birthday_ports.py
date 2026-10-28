@@ -81,6 +81,13 @@ class BirthdayPlan:
 class BirthdayPorts(Protocol):
     """Platform-supplied seam over the birthday gateway and security gate."""
 
+    def session_recovery_status(self, context: TrustedContext) -> dict | None:
+        """Owned recovery projection: fresh attempt or observe original only.
+
+        The platform proves retirement and links the replacement before this
+        read; Cross never creates operation IDs or reads the private proof.
+        """
+
     def products(self, context: TrustedContext, request: ListProductsInput):
         """B22 read: the bank's real candidate products for the goal."""
 
@@ -90,6 +97,14 @@ class BirthdayPorts(Protocol):
     def freeze_execute(self, context: TrustedContext,
                        plan: BirthdayPlan) -> WriteOutcome:
         """Submit the freeze; the outcome keeps its original operation id."""
+
+    def observe_freeze_submission(self, context: TrustedContext,
+                                  plan: BirthdayPlan, operation_id: str) -> str:
+        """Read not_submitted/submitted/unknown under the Harness task lock.
+
+        This observation grants no execution or release authority. Cross keeps
+        an uncertain reservation and uses the original operation for closure.
+        """
 
     def order_check(self, context: TrustedContext, plan: BirthdayPlan,
                     item: dict) -> GateAnswer:

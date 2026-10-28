@@ -1,0 +1,127 @@
+# Cross09 独立审查后的恢复断点
+
+范围仍为 `v05-cross-business/09`、Cross 目录与本组 scratch。原 208 唯一节点
+证据及原始 XML 保留，本次生产修补不借用旧整批作为修补后的通过结果。
+
+## P2：预算读取失败不能丢失原付款目标
+
+确认接缝是已有真实 Harness/G3 专用预算采用、恢复、确认/验证及模拟银行。
+受测生产 `ea8da3da4e6e24255410cba56add9e377b82c30b`：原 capture 确认等待，
+新会话 fresh 恢复时让真实银行 `list_transactions` 返回 BANK_UNAVAILABLE，
+恢复读取后选择“重新核对预算”。单商品必须重新展示 `bank.capture_frozen`，
+仍对原 `order_id` 付款；双商品必须先付原订单再办理下一件。两个原等待阶段
+（确认/验证）均须新确认、新版本、新会话，原订单、金额和历史不变。
+
+首个单商品确认等待红例 **1 failed / 17.08s**：预算重试错误返回 SUCCEEDED，
+原订单已创建但未付款，500 元未消费冻结被释放。原失败 XML 无损保留为
+`evidence/2026-10-27-session-recovery-09-review-capture-before.xml.gz`。
+
+当前优先解释是 fresh 清 pending 后丢了稳定 capture 目标，预算重试从订单
+总推进继续；预算参数漂移及平台替换到错误订单不符合已核实的暂停前原订单
+不变事实。最小修补在 Cross 保存尚未重新核对完成的 fresh 稳定目标，重试
+先回该目标的公开核对，成功取得新门后清除，不缓存旧卡或复用旧验证。
+
+修补后四组合（单/双商品 × 原确认/验证等待）**4 passed / 85.12s**，
+原失败节点未删、原终态断言未降级。均先显示原订单的新 `bank.capture_frozen`
+确认，再以真实新验证付款并完成全部原商品；下单数量没有增加。
+JUnit：`evidence/2026-10-27-session-recovery-09-review-capture-after.xml`。
+
+同一修补另经“预算仍不可读时取消、重放旧预算选项”**1 passed / 16.57s**：
+原已成单未付款事实不变，原冻结限定释放到零，待恢复目标清除，旧选项不重开付款。
+JUnit：`evidence/2026-10-27-session-recovery-09-review-capture-cancel.xml`。
+
+## 待核：新冻结写成功、Cross 快照前异常后的取消
+
+须经真实 Harness/G3、已采用个人预算、新会话 fresh、新确认及新验证，让
+新 freeze_execute 实际完成后抛错，再由真实恢复/取消接缝证明可达性。
+未跑通该链前不把静态 `operation_ids[0]` concern 写成产品失败；不以直接
+调用写端口并伪造快照替代真实链。
+
+真实链现已复现 **1 failed / 18.22s**，原生产 `f7204bdc`（只含上面的
+capture 修补），JUnit `evidence/2026-10-27-session-recovery-09-review-freeze-before.xml.gz`。
+新确认、新验证后，新冻结真实成功，紧接着在 `freeze_execute` 返回后抛 OSError，
+Cross 的 G3 published_ref 和旧验证快照未变。新的 cancel 实际可执行，返回
+CANCELLED；银行新冻结仍有 50000 分，旧操作 not_found，个人预算占用已关闭。
+这证明漏核实实际新冻结，但不是静态假设里的 `intent` 可见状态：该 intent
+只在缓冲中，故单改历史首项为末项不够。
+
+两条先前探测错误分别保存、不算产品红例：
+
+- `...-review-freeze-test-shape-error.xml.gz`，1 failed / 15.23s：测试作者
+  把 OperationFound 当 OperationResult，读取形状错，尚未检查取消。
+- `...-review-freeze-barrier-assumption.xml.gz`，1 failed / 16.86s：错误假设
+  中断后有持久 pending 会拒绝新 cancel。实际 result=None 时没有该持久
+  转换，新的 cancel 能进入。更正测试为核查真实银行剩余金额后取得上述红例。
+
+最小待核公开能力：`requery/bind_freeze == None` 既可能没 execution claim，
+也可能 claim 未决或银行不可读，不能据此宣称未提交。已向平台 owner 报明：
+取消无冻结快照的 pending hold 时需对准确末项原操作查只读提交事实；明确未
+提交才关闭，已完成绑定原冻结并按原授权收尾，未知保留占用。Cross 不读私有
+claim、平台 snapshot 或伪造 bank proof。确认现成能力或提供接缝后再消费。
+
+## P3：提交正文
+
+仅补 `656439d3` 与 `cfc039cb` 的 why 正文，保留所有文件树字节。基线仍为
+`aae8335394f79e30ebcabb9b57ba89cd950737c4`，没有借此次改消息同步新代码。
+
+消息重写前 `cf63c2b2f405a7a10f8235c541cd84b561e21d5a`，重写后
+`35d7ae7a1082c59bf10ea5b4a42b5f90cab0cd37`；整仓树均为
+`f39277006720bde4c63cf048f91286c2a91fd256`，两提交直接 diff 为空。
+12提交 range-diff 仅上述两条有提交正文差异，其余10条 `=`，文件补丁全不变。
+
+| 原来源 | 新来源 | 不变的证据范围 |
+|---|---|---|
+| `656439d3` | `56289d6a` | 原09的1fail/1pass与接缝说明 |
+| `cfc039cb` | `927fc8c1` | Draft和历史范围链接 |
+| `5e8c8ebb` | `6724f154` | capture单商品真实红例 |
+| `f7204bdc` | `2ae4bc45` | 稳定目标生产修补、capture四组合通过 |
+| `14117e64` | `c79f3bcf` | freeze真实红例、此前两条测试探测错误 |
+| `cf63c2b2` | `35d7ae7a` | capture预算暂停时取消与旧选项重放通过 |
+
+当前 backend 树 `6a338e7d05d7bcb268d32c7718a0f9c005289c69`，Cross 树
+`22c68c98c9fe10daedc1a12e32651fa617e17172`。此后只补本组说明/计数，
+不改变受测生产或测试体；不重跑未变化的旧整批。
+
+平台 owner 已委派平台23，拟提供只读 `observe_freeze_submission` 三态；待
+其固定签名和独立交付后另续消费。当前5项capture通过不包含freeze问题已修，
+也不写成当前完整Cross通过。根最终全backend及真实页面验收分开记录。
+
+本次推送仅本功能分支，以远端已核实
+`ea8da3da4e6e24255410cba56add9e377b82c30b` 为精确 lease。原 XML 无损 gzip
+的 SHA256、逐层计数及来源另存 `evidence/2026-10-27-session-recovery-09-review-summary.json`。
+
+## 平台23合入后的消费
+
+主线 `bec5621800dd58ec1c24ac224fd3008bba3f0ff4` 已含 PR #353 的只读三态
+`observe_freeze_submission(context, plan, operation_id)`。从 `eae1a32f` 机械
+重基到 `83db0b90fb01ecfff3fa7757827a7bcd53f54696`，14提交 range-diff 全 `=`，
+保留主线的具体子任务暂停说明、P01显式风险接线和所有原失败；这次组合变化
+不同于上节纯改消息，不沿用旧 backend 树等价声明。
+
+无freeze快照且有占用时，取历史末项准确原号，在既有 Harness 任务锁中探测。
+not_submitted 才沿取消关闭；submitted 转既有原号 bind/requery、限定 finalizer，
+不新建钱或订单；unknown、None及其他未证明状态抛 BudgetPending，保留占用。
+不以旧验证等待快照当作“没有提交”的证明，也不从历史首项找旧退休动作。
+
+原真实冻结取消红例不变，首次消费后 **1 passed / 18.52s**，
+JUnit：`evidence/2026-10-27-session-recovery-09-after23-freeze.xml`。
+银行只冻结一次、原已证实50000分冻结限定释放到零、占用关闭、旧新号历史不变。
+后续未决/故障与最终整组验证另记，不将此前5项或208批写成本次整组全过。
+
+新增定向 **11 passed / 161.60s**：
+
+- 原 capture 目标的单/双商品 × 确认/验证等待四项，其中单件验证等待经过真实
+  runtime 重启后再核对，证明目标来自持久发布状态。
+- capture 预算暂停时取消与旧选项重放一项。
+- 新冻结成功后Cross快照前异常：正常、银行get_operation不可读、provider读
+  返回None三项。后两项保留完整原占用和50000分实际冻结，恢复后原号限定释放，
+  只冻结一次、只释放一次；重复cancel无新写。
+- 显式注入 processing/unknown 执行claim且真实银行原号not_found两项：取消
+  和预算重试仍暂停，原占用完全不变，四个银行写入口调用数均为零。
+- 新替换号尚未确认、银行原号确无操作且无claim的一项：明确未提交才关闭，
+  旧退休号、新号及金额历史保留。
+
+上述11项的交易、Harness/G3、确认/验证和银行链均真实；claim状态与provider
+空返回为明示故障注入，未伪造银行成功/安全证明。JUnit：
+`evidence/2026-10-27-session-recovery-09-after23-faults.xml`。最终固定源码完整
+Cross及必要provider兼容将另单批运行、单独计算唯一用例，不累加此批重复节点。

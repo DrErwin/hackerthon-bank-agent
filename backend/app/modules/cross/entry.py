@@ -900,6 +900,7 @@ class CrossEntry:
             return None
         return trusted.model_copy(update={"session_id": state["session_id"]})
 
+    @serialized
     def recover_session(self, trusted: TrustedContext, *, source_session_id: str,
                         thread_id=None) -> ModuleResult:
         saved, state = self._load(trusted, thread_id)
@@ -907,7 +908,16 @@ class CrossEntry:
             raise PermissionError("ACCESS_DENIED")
         state["session_id"] = trusted.session_id
         if state.get("result", {}).get("status") not in _TERMINAL:
-            result = self._advance(trusted, state)
+            try:
+                if state.get("scenario") == CrossScenario.BIRTHDAY.value:
+                    if not self.birthday_ports_factory:
+                        raise ValueError("SESSION_RECOVERY_UNAVAILABLE")
+                    result = BirthdayFlow(
+                        self, state, self.birthday_ports_factory(trusted)).recover_session(trusted)
+                else:
+                    result = self._advance(trusted, state)
+            except BudgetPending as exc:
+                result = PersonalBudget(self, state).pause(trusted, exc)
         else:
             result = self._result(trusted, state)
         state["result"] = result.model_dump(mode="json")

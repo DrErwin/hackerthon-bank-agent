@@ -65,7 +65,9 @@ class BirthdayFlow:
         # v05-cross-business/08: one controlled edit in flight, its facts and the
         # verified "failed, no order" evidence that may justify a replacement.
         "edit": None, "edit_text_target": None,
-        "verified_failures": {}, "write_facts": {},
+        "verified_failures": {}, "write_facts": {}, "session_observation": None,
+        "session_recovery_target": None,
+        "freeze_submission_operation_id": None,
     }
 
     def __init__(self, entry, state: dict, ports):
@@ -267,8 +269,76 @@ class BirthdayFlow:
 
     # ------------------------------------------------------------------ advance
 
+    def recover_session(self, trusted) -> ModuleResult:
+        """Rebuild our wait only after the platform's owned recovery proof."""
+        pending = self.b.get("pending")
+        if not pending or self.b.get("holding") not in {"gate", "verify"}:
+            holding = self.b.get("holding")
+            if not self.b.get("session_observation") and holding in {
+                    "unknown_freeze", "unknown_order", "unknown_capture"}:
+                kind = holding.removeprefix("unknown_")
+                item = (self.b["freeze"] if kind == "freeze" else next(
+                    row for row in self.b["orders"] if row.get(kind) == "unknown"))
+                self.b["session_observation"] = {
+                    "target": [kind, None if kind == "freeze" else item_key(item)],
+                    "operation_id": item["operation_id" if kind == "freeze"
+                                         else kind + "_operation_id"],
+                }
+                return self._observe_session(trusted)
+            if self.b.get("holding"):
+                return self._holding_view(trusted)
+            return self.advance(trusted)
+        recovery = self.ports.session_recovery_status(trusted)
+        kind, key = pending["target"]
+        action = {"freeze": "bank.freeze_funds", "order": "bank.create_order",
+                  "capture": "bank.capture_frozen"}[kind]
+        if (not recovery or recovery["original_operation_id"] != pending["operation_id"]
+                or recovery["action_name"] != action):
+            raise ValueError("SESSION_RECOVERY_UNAVAILABLE")
+        self.b["pending"] = None
+        self.b["holding"] = None
+        if recovery["status"] == "observe":
+            # An execution claim or a bank effect wins over a fresh attempt.
+            # Keep that original identity even if its effect was not yet in
+            # our last checkpoint; neither a query nor recovery advances it.
+            self.b["session_observation"] = {
+                "target": [kind, key], "operation_id": pending["operation_id"],
+            }
+            self.b["holding"] = "unknown_" + kind
+            if kind == "freeze":
+                self.b["freeze"] = {"operation_id": pending["operation_id"],
+                    "amount_fen": self.b["budget_limit_fen"], "status": "unknown",
+                    "freeze_id": None, "authorization": "granted"}
+            else:
+                item = self._order(key)
+                item[kind] = "unknown"
+                item[kind + "_operation_id"] = pending["operation_id"]
+            return self._observe_session(trusted)
+        if recovery["status"] != "fresh":
+            raise ValueError("SESSION_RECOVERY_UNAVAILABLE")
+        if kind == "freeze":
+            PersonalBudget(self.entry, self.state).recover_pending_freeze(
+                recovery["original_operation_id"], recovery["replacement_operation_id"])
+        # Budget reads may pause before the new gate exists. Retain only the
+        # stable execution target, never the retired card or verification.
+        self.b["session_recovery_target"] = [kind, key]
+        return self._resume_session_target(trusted)
+
+    def _resume_session_target(self, trusted):
+        kind, key = self.b["session_recovery_target"]
+        if kind == "freeze":
+            result = self._run_freeze(trusted)
+        elif kind == "order":
+            result = self._run_order(trusted, self._order(key))
+        else:
+            result = self._run_capture(trusted, self._order(key))
+        self.b["session_recovery_target"] = None
+        return result
+
     def advance(self, trusted) -> ModuleResult:
         entry, state = self.entry, self.state
+        if self.b.get("session_recovery_target"):
+            return self._resume_session_target(trusted)
         if self.b.get("pending") and not self.b.get("holding"):
             PersonalBudget(entry, state).refresh(trusted)
             return self._pending_view(trusted)
@@ -1183,6 +1253,9 @@ class BirthdayFlow:
                 return self._finalize(trusted)
             return self._failed_stop(trusted)
         item = pending[0]
+        return self._run_order(trusted, item)
+
+    def _run_order(self, trusted, item):
         PersonalBudget(self.entry, self.state).refresh(trusted)
         # A changed or unavailable quote surfaces BEFORE its confirmation is
         # asked for; an old confirmation never approves new money (B03).
@@ -1300,6 +1373,18 @@ class BirthdayFlow:
 
     def _holding_view(self, trusted):
         kind = self.b.get("holding")
+        observation = self.b.get("session_observation")
+        if observation:
+            target = observation["target"][0]
+            label = {"freeze": "冻结", "order": "下单", "capture": "付款"}[target]
+            status = observation.get("status")
+            fact = {"completed": "已核实完成", "failed": "银行已明确失败"}.get(
+                status, "结果仍待核实")
+            return self._ask(trusted,
+                f"原{label}{fact}。会话已恢复，本步只核实原操作，不重复办理，"
+                "后续购买暂停；已冻结、已成单或已付款的原事实保留，已付款项不退。",
+                [("核实原操作", {"kind": "b_retry_query"}),
+                 ("停止新增办理，按原授权收尾", {"kind": "b_stop"})])
         prompts = {
             "gate": None,  # handled by answer_gate
             "unknown_freeze": ("冻结结果还待核实（原编号保留，不重复冻结）；"
@@ -1329,7 +1414,29 @@ class BirthdayFlow:
                    ("停止新增办理，按原授权收尾", {"kind": "b_stop"})]
         return self._ask(trusted, prompt, choices)
 
+    def _finish_failed_freeze(self, trusted, outcome):
+        """End only after the original bank freeze proves no effect."""
+        freeze = self.b["freeze"]
+        result = outcome.result if outcome is not None else None
+        if not (outcome is not None and outcome.state == "failed"
+                and isinstance(result, OperationResult)
+                and str(result.operation_id) == freeze["operation_id"]
+                and result.operation_type == "bank.freeze_funds"
+                and result.operation_status is OperationStatus.FAILED
+                and result.receipt is None and result.failure is not None):
+            return None
+        self._remember_write("freeze", None, outcome)
+        freeze["status"] = "failed"
+        self.b["holding"] = None
+        self.b["session_observation"] = None
+        PersonalBudget(self.entry, self.state).close()
+        status = TaskStatus.CANCELLED if self.b.get("stop_reason") else TaskStatus.FAILED
+        return self.entry._done(trusted, self.state, status,
+            "银行已明确表示原冻结失败，本次没有冻结、下单或付款，已结束办理。")
+
     def _requery(self, trusted):
+        if self.b.get("session_observation"):
+            return self._observe_session(trusted)
         kind = self.b.get("holding")
         if kind == "unknown_freeze":
             freeze = self.b["freeze"]
@@ -1354,6 +1461,11 @@ class BirthdayFlow:
                     return self._finalize(trusted)
                 self.b["phase"] = "orders"
                 return self._run_next_order(trusted)
+            outcome = self.ports.requery(trusted, self._plan(), "freeze",
+                                          freeze["operation_id"])
+            failed = self._finish_failed_freeze(trusted, outcome)
+            if failed is not None:
+                return failed
             return self._holding_view(trusted)
         if self.b["holding"] in ("unknown_order", "unknown_capture"):
             holding_kind = self.b["holding"].split("_")[1]
@@ -1392,6 +1504,46 @@ class BirthdayFlow:
             return self._holding_view(trusted)
         return self._holding_view(trusted)
 
+    def _observe_session(self, trusted):
+        observation = self.b["session_observation"]
+        kind, key = observation["target"]
+        operation_id = observation["operation_id"]
+        outcome = self.ports.requery(trusted, self._plan(), kind, operation_id)
+        if outcome is None or outcome.state not in {"completed", "failed"}:
+            return self._holding_view(trusted)
+        self._remember_write(kind, key, outcome)
+        observation["status"] = outcome.state
+        if kind == "freeze":
+            freeze = self.b["freeze"]
+            freeze["status"] = outcome.state
+            if outcome.state == "completed":
+                freeze_id = self.ports.bind_freeze(trusted, self._plan(), operation_id)
+                if not freeze_id:
+                    observation["status"] = "unknown"
+                    return self._holding_view(trusted)
+                freeze["freeze_id"] = freeze_id
+                self._register_commitment(freeze)
+        else:
+            item = self._order(key)
+            item[kind] = outcome.state
+            fact = self.b["write_facts"][f"{kind}:{key}"]
+            if outcome.state == "completed":
+                if kind == "order":
+                    item["order_id"] = fact.get("order_id")
+                else:
+                    item["transaction_id"] = fact.get("result_ref")
+                    self._consume_commitment(item)
+        # A user-requested stop can finish the original limited ending once
+        # its in-flight operation has actually settled. Recovery alone cannot.
+        if self.b.get("stop_reason"):
+            if kind == "freeze" and outcome.state == "failed":
+                failed = self._finish_failed_freeze(trusted, outcome)
+                return failed if failed is not None else self._holding_view(trusted)
+            self.b["holding"] = None
+            self.b["session_observation"] = None
+            return self._finalize(trusted)
+        return self._holding_view(trusted)
+
     # ------------------------------------------------------------------ budget seam
 
     def _register_commitment(self, freeze: dict) -> None:
@@ -1418,6 +1570,7 @@ class BirthdayFlow:
         return self._finalize(trusted)
 
     def stop(self, trusted, reason):
+        self.b["session_recovery_target"] = None
         self.b["stop_reason"] = reason
         return self._finalize(trusted)
 
@@ -1425,6 +1578,9 @@ class BirthdayFlow:
         self.b["phase"] = "finalize"
         if self.b.get("stop_reason"):
             self.state["stop_reason"] = self.b["stop_reason"]
+        pending = self.b.get("pending") or {}
+        if pending and pending["target"][0] == "freeze":
+            self.b["freeze_submission_operation_id"] = pending["operation_id"]
         if self.b.get("holding") in ("gate", "verify"):
             self.b["holding"] = None
             self.b["pending"] = None
@@ -1432,15 +1588,32 @@ class BirthdayFlow:
         if not freeze:
             budget = PersonalBudget(self.entry, self.state)
             hold = budget.own()
-            if hold and self.b.get("freeze_submission") == "intent":
-                self.b["freeze"] = {"operation_id": str(hold.operation_ids[0]),
-                    "amount_fen": hold.committed_fen, "status": "unknown", "freeze_id": None}
-                self.b["holding"] = "unknown_freeze"
-                return self._finalize(trusted)
+            operation_id = self.b.get("freeze_submission_operation_id")
+            if operation_id is None and hold:
+                operation_id = str(hold.operation_ids[-1])
+            if operation_id is not None:
+                # The visible verification card can precede a real freeze if
+                # execution was interrupted before its G3 checkpoint. History
+                # retains retired attempts; only its current last id is probed.
+                self.b["freeze_submission_operation_id"] = operation_id
+                submission = self.ports.observe_freeze_submission(
+                    trusted, self._plan(), operation_id)
+                if submission == "submitted":
+                    self.b["freeze"] = {"operation_id": operation_id,
+                        "amount_fen": self.b["budget_limit_fen"], "status": "unknown", "freeze_id": None}
+                    self.b["freeze_submission_operation_id"] = None
+                    self.b["holding"] = "unknown_freeze"
+                    return self._requery(trusted)
+                if submission != "not_submitted":
+                    raise BudgetPending("原冻结提交情况仍待核实，保留原操作与资金核实状态；核实前不结束或重办。")
+                self.b["freeze_submission_operation_id"] = None
             if hold:
-                budget.close()  # acknowledged verify_wait: the write was not submitted
+                budget.close()
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
                                     "已停止办理。本次没有冻结资金，也没有下单或付款。")
+        if (self.b.get("stop_reason") and self.b.get("session_observation")
+                and freeze.get("status") == "failed"):
+            return self._observe_session(trusted)
         unknown = self.b.get("holding") in (
             "unknown_freeze", "unknown_order", "unknown_capture", "unknown_release")
         if unknown:

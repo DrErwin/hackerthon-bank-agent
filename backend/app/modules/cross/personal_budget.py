@@ -214,7 +214,8 @@ class PersonalBudget:
             self.b.update(phase="budget", budget_limit_fen=None)
             return self.entry._birthday_flow(self.state)._ask_budget(trusted)
         if kind == "personal_review":
-            if self.b.get("pending") and not self.b.get("freeze"):
+            if ((self.b.get("pending") or self.b.get("freeze_submission_operation_id"))
+                    and not self.b.get("freeze")):
                 raise BudgetPending("原确认或验证尚未结束，先按原操作核实或停止，不替换预算候选。")
             records = [r for r in self.store.list_adopted_budgets(self.user, self.round) if self._applicable(r)]
             if len(records) != 1:
@@ -359,7 +360,8 @@ class PersonalBudget:
         return None
 
     def can_edit_cap(self):
-        return not self.b.get("freeze") and not self.b.get("pending") and self.own() is None
+        return (not self.b.get("freeze") and not self.b.get("pending")
+                and not self.b.get("freeze_submission_operation_id") and self.own() is None)
 
     def text(self, trusted, text):
         if self.p.get("mode") == "candidate":
@@ -381,7 +383,8 @@ class PersonalBudget:
 
     def pause(self, trusted, reason):
         choices = [("重新核对预算", {"kind": "personal_retry"})]
-        if not self.b.get("pending") or self.b.get("freeze"):
+        if ((not self.b.get("pending") or self.b.get("freeze"))
+                and not self.b.get("freeze_submission_operation_id")):
             choices.append(("查看当前个人预算候选", {"kind": "personal_review"}))
         if self.can_edit_cap():
             choices.append(("调整本次生日上限", {"kind": "personal_birthday_limit"}))
@@ -390,7 +393,7 @@ class PersonalBudget:
         # options must not masquerade as another dedicated budget adoption.
         if not (self.p.get("view") or {}).get("adopted"):
             self.p["view"] = None
-        return self.entry._ask(trusted, self.state, str(reason) + " 已暂停新增办理，原事实和占用保留。", choices)
+        return self.entry._ask(trusted, self.state, str(reason) + " 已暂停新增办理，原操作与核实状态保留。", choices)
 
     def _settlement_gap(self, trusted, record, transactions, commitments):
         gap = 0
@@ -505,7 +508,7 @@ class PersonalBudget:
         if existing is not None and (existing.state != "pending"
                 or existing.committed_fen != self.b["budget_limit_fen"]
                 or existing.unconsumed_fen != self.b["budget_limit_fen"]
-                or existing.operation_ids != [UUID(str(op))]):
+                or not existing.operation_ids or existing.operation_ids[-1] != UUID(str(op))):
             raise BudgetPending("原预留金额或操作已变化，不能沿用旧占用执行；请核实原操作或收尾。")
         if existing is None:
             hold = BudgetCommitment(budget_ref=BudgetRef(budget_id=record.budget_id, version=record.version),
@@ -519,6 +522,25 @@ class PersonalBudget:
             self.b["commitment_id"] = cid
         self.b["freeze_submission"] = "intent"
         self.entry._save(trusted, None, self.state)
+
+    def recover_pending_freeze(self, original_operation_id, replacement_operation_id):
+        """Move the unchanged reservation after the platform's fresh proof.
+
+        Keep the retired operation in history; a claim or an active/changed
+        commitment cannot be rebound to a new write by this path.
+        """
+        hold = self.own()
+        if hold is None:
+            return
+        original, replacement = UUID(original_operation_id), UUID(replacement_operation_id)
+        if (hold.state != "pending" or hold.freeze_id or hold.settled_transaction_ids
+                or hold.committed_fen != self.b["budget_limit_fen"]
+                or hold.unconsumed_fen != hold.committed_fen
+                or not hold.operation_ids or hold.operation_ids[-1] not in {original, replacement}):
+            raise BudgetPending("原预留已有执行或参数变化，不能接到新尝试；请先核实原操作。")
+        if hold.operation_ids[-1] == replacement:
+            return
+        self._update(hold.model_copy(update={"operation_ids": [*hold.operation_ids, replacement]}))
 
     def check_freeze_room(self, trusted):
         record, room = self.refresh(trusted)
