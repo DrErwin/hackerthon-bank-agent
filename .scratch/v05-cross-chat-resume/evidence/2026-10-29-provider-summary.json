@@ -1,0 +1,40 @@
+{
+  "base": "17f7ef2c2f2021c866ca4e1f1ce7757d31bace0b",
+  "production_source": "c8d476efd5c8511f85afc02dd4191bc09b09feb2",
+  "tested_source": "13469e6d24d6a3e57d0b38cc3fb3f45106d6bf18",
+  "backend_tree": "7aa78881cccb48d51c348a170a8247c60b2378c2",
+  "platform_tree": "597365c5057ece6f44b346c1a926308da9b76d3f",
+  "final_unique_tests": 124,
+  "separate_independent_spec_tests": 57,
+  "do_not_add_independent_overlap": true,
+  "artifacts": {
+    "2026-10-29-provider-before.xml.gz": {
+      "sha256_raw": "d08e3ff6188250b01590bd09ad2b446271b86f0876b1f01ef8af354a3dd70d2d",
+      "tests": 1,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-29-provider-final.xml": {
+      "sha256_raw": "9a9e3ce41e72039e006a1b463e167a04113352e9d559c6e18f7a69a2e248c52c",
+      "tests": 124,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-29-provider-first-green.xml": {
+      "sha256_raw": "5e34b70d7d126752ceb781c56de82e02170e957c898f62c65e8447257758f3c9",
+      "tests": 1,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "2026-10-29-provider-guard-fixture-before.xml.gz": {
+      "sha256_raw": "226e15745a57c8a10fb266e1ff33e6773c7d75249868f28cd6a3cdecb619ba91",
+      "tests": 124,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0
+    }
+  }
+}

@@ -6,7 +6,7 @@ Spec: [已授权规格](../spec.md)
 Type: 开发
 Owner: Erwin（platform_completion子代理）
 Directory: backend/app/agent_platform/
-Status: in_progress
+Status: ready_for_review — 作者124 passed；Spec固定13469e6d为0must，待根Standards/精确CI与合入
 Blocked by: None；基线origin/main17f7ef2c
 Accepted by: 用户本轮授权及中控明确分派
 Accepted at: 2026-10-29
@@ -23,3 +23,6 @@ Verification: 真实planner工具绑定+Harness验证、明确固定模型；不
 根原失败位于运行工作树 `.scratch/v05-control/ui-walkthrough-2026-10-29/`
 的51-reduction-continue-result.txt与cross-parent-snapshot.json；本票仅引用不改写。
 确定性红绿及固定head/JUnit随后续记，局部测试不算真实模型/页面通过。
+
+作者验证见[固定源码、124项与消费者接缝](../verification.md)。API consumer另作者
+独立PR依赖本票；本票不改API、不运行旧银行、不自行合并。
