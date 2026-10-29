@@ -736,6 +736,10 @@ class ApiService:
                         response = self.input_response(task, proposal)
                     elif proposal.action == "cancel":
                         response = {"query": True} if "query" in task.allowed_actions else {"cancel": True}
+                    elif proposal.action == "resume":
+                        if task.status != TaskStatus.RUNNING or task.interaction is not None:
+                            raise ApiProblem(409, "ACTION_UNAVAILABLE")
+                        response = {"choice": "resume"}
                     else:
                         response = {"query": True}
                     self.continue_task(identity, task.task_id, response, publish=False)
