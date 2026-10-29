@@ -1,0 +1,75 @@
+{
+  "baseline": "ed25ec08197ab1a6a95474f582c3519e8a1ef909",
+  "tested_source": "09134a2cc288a73c84cd478e2351c4b538f8a803",
+  "tested_backend_tree": "d6bd13c9aeb3a9fc0431920462ed3b02dad4132f",
+  "final_unique_nodes": 108,
+  "per_file": {
+    "app.modules.transfer.test_arrangement_conflict": 2,
+    "app.modules.transfer.test_payee_checkpoint": 9,
+    "app.modules.transfer.test_risk_pause_http": 2,
+    "app.modules.transfer.test_risk_pause_recovery": 20,
+    "app.modules.transfer.test_workflow": 49,
+    "app.agent_platform.test_transfer_runtime": 16,
+    "app.api.test_conversation_dispatch": 10
+  },
+  "batches": [
+    {
+      "file": "red.xml",
+      "sha256": "9ea3f3fe9b673bd96e0f13b0210b7083e5659572b6bd0c79e334ce3d2ed9c084",
+      "tests": 7,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0,
+      "junit_seconds": "2.352",
+      "archive": "red.xml.gz",
+      "gzip_sha256": "b77005c23dc09201e18da7939770f06c77b522b7bc2c88f92d6b94a9b1bf2799"
+    },
+    {
+      "file": "legacy-red.xml",
+      "sha256": "a8b088ddc5d55dfaa02a7f34d238d90d5478870069afe09e511edeae5b7c0fb6",
+      "tests": 15,
+      "failures": 4,
+      "errors": 0,
+      "skipped": 0,
+      "junit_seconds": "1.269",
+      "archive": "legacy-red.xml.gz",
+      "gzip_sha256": "70cfdb55acd2f618fe299abd20fdb745d8986923c3b54edfb9c032a4a1b84963"
+    },
+    {
+      "file": "first-green.xml",
+      "sha256": "74b34f2997e31a660faff97cb3c6b51e16c9e910bb7656f4579837fc851ef9ef",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "junit_seconds": "0.977",
+      "archive": "first-green.xml.gz",
+      "gzip_sha256": "20ed3a2b3c972020a4b8e2ec41b2704942415b5783f03bc94b526fc3aafa110e"
+    },
+    {
+      "file": "http-green.xml",
+      "sha256": "2c2b646cbd661421e39d8b540423ea81d6031d5e4f2a96783b2489ce108f67e6",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "junit_seconds": "17.308",
+      "archive": "http-green.xml.gz",
+      "gzip_sha256": "65b1b685a4c2040737ea82b2431f69099f60dc5edad9db9605035d6903435459"
+    },
+    {
+      "file": "final.xml",
+      "sha256": "091cced60380d9f0162d1d24ce195730657596fb6f87f714ffdcf8ccbb8fd21b",
+      "tests": 108,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "junit_seconds": "150.029",
+      "archive": "final.xml.gz",
+      "gzip_sha256": "fb8c53b99550bcf6b02962f1580cb5f726fcd7bad600424bfcf5e794161d53ec"
+    }
+  ],
+  "no_aggregate_across_batches": true,
+  "scope": "real Workflow/Harness/security/ASGI HTTP/isolated MockBank; planner and risk are declared substitutes; no actual model/browser/shared bank",
+  "raw_original_directory": "C:\\Users\\57652\\.codex\\worktrees\\v05-frontend-acceptance\\pytest-transfer-pause-raw-20261029"
+}

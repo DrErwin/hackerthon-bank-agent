@@ -9,7 +9,7 @@ Package: [v05-cross-linkage/packages/01-platform-bank](../v05-cross-linkage/pack
 
 实际页面把原500元转账的付款卡由A1改为A5后，安全检查因没有覆盖该组合的风险事实而正确暂停。但原任务的“查看原任务”只重复同一暂停卡，用户既不能改回付款卡，也不能取消未提交的草稿。
 
-根实际红例保存在其本轮页面证据中：`viewOriginal=1 / editTransfer=0 / cancelTransfer=0`。当前旧任务与银行原始记录不得修改或用新成功覆盖。
+根实际红例保存在其本轮页面证据中：`viewOriginal=1 / editTransfer=0 / cancelTransfer=0`。本票不直接修改根正在运行的任务或银行库；原暂停证据不以新成功覆盖。
 
 ## Solution
 
