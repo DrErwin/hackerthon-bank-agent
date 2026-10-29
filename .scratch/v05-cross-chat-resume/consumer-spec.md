@@ -1,10 +1,10 @@
 # 普通聊天继续原任务：API消费
 
-Status: in_progress
+Status: implemented_pending_merge
 Owner: Erwin（v0.5）；执行 transfer_pause_recovery AI 子代理
 Accepted at: 2026-10-29
 Package: [v05-cross-linkage/packages/01-platform-bank](../v05-cross-linkage/packages/01-platform-bank.md)
-Provider: [01：平台无字段继续建议](issues/01-provider.md)，明确依赖生产源c8d476efd5c8511f85afc02dd4191bc09b09feb2
+Provider: [01：平台无字段继续建议](issues/01-provider.md)，[PR #357](https://github.com/DrErwin/hackerthon-bank-agent/pull/357) 已合入基线 bbfb6fd045dd6070f2928d366519d492dfd37849；生产合同与原依赖 c8d476efd5c8511f85afc02dd4191bc09b09feb2 相同。
 
 ## 问题与目标
 
@@ -33,3 +33,5 @@ Provider: [01：平台无字段继续建议](issues/01-provider.md)，明确依�
 仅backend/app/api/和本票consumer文档/证据。原消息job receipt、专用验证中断恢复、身份与安全门不变，不修改公共字段、平台、Cross、安全、前端或共享演示库。新分支复用干净既有managed worktree；依赖在Git祖先中明确叠加，不把提供方文件放进本票差异。
 
 根已明确单票粒度、接缝和继续修补授权；已读取to-spec/to-tickets/implement/pr/code-review流程，禁用自动调用的技能不冒称工具调用。作者交回PR，根安排独立两轴、精确head CI、依赖合入顺序及原页面复验。
+
+实现与分层测试见[消费验证](consumer-verification.md)。本票只在 API 增加显式消费，未扩大用户已经批准的有限演示风险范围；真实模型与原页面回归仍由根继续。
