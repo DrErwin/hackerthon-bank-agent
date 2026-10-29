@@ -404,6 +404,8 @@ class AgentHarness:
                 if proposal.selected_option_id is not None:
                     valid = valid and proposal.selected_option_id in {
                         item.get("id") for item in interaction.get("options", [])}
+            elif proposal.action == "resume":
+                valid = valid and task.status == TaskStatus.RUNNING and not interaction
         if not valid:
             return ReplyOnly(message="任务状态已变化，请查看当前卡片后继续；确认和验证码必须使用专用入口。")
         for field in ("text", "payee_hint", "payer_account_id"):
