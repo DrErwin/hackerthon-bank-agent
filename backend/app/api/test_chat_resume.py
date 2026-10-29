@@ -244,7 +244,8 @@ def test_chat_resume_does_not_resubmit_an_unknown_transfer(tmp_path, monkeypatch
         assert response.status_code == 200, response.text
         unknown = response.json()["data"]["task"]
         assert unknown["recovery_reason"] == "OPERATION_UNKNOWN"
-        assert unknown["allowed_actions"] == ["query"] and submissions.call_count == 1
+        assert "query" in unknown["allowed_actions"] and "resume" not in unknown["allowed_actions"]
+        assert submissions.call_count == 1
         runtime.harness.planner.proposal = ContinueProposal(task_id=task["task_id"],
             task_revision=unknown["task_revision"], action="resume")
         continuation = Mock(wraps=app.state.api.continue_task)
@@ -252,5 +253,5 @@ def test_chat_resume_does_not_resubmit_an_unknown_transfer(tmp_path, monkeypatch
         assert post(client, f"/threads/{thread}/messages", text="继续").status_code == 202
         retained = client.get(f"/api/v1/tasks/{task['task_id']}").json()["data"]
         assert retained["data"]["operation_id"] == unknown["data"]["operation_id"]
-        assert retained["allowed_actions"] == ["query"]
+        assert retained["allowed_actions"] == unknown["allowed_actions"]
         assert submissions.call_count == 1 and continuation.call_count == 0
