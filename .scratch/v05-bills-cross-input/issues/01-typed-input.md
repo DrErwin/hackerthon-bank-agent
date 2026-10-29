@@ -6,7 +6,9 @@ Spec: [账单类型化输入入口](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/modules/bills/`
-Status: ready_for_merge — Erwin已批准本批及CI计费本地验证例外，待中控合入
+Status: merged — PR #284 已合入 `4d9bd577`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_merge — Erwin已批准本批及CI计费本地验证例外，待中控合入
 Blocked by: None（现行公共模型、PR #264 平台派发已合入）
 Accepted by: Erwin 授权执行对话
 Accepted at: 2026-10-25

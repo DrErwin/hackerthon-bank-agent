@@ -7,7 +7,7 @@ Source issue: [Issue #301](https://github.com/DrErwin/hackerthon-bank-agent/issu
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/agent_platform/`
-Status: developed / locally_verified / ai_reviewed — Draft PR303已回交；待CI、合入与真实页面复验，未最终接受。
+Status: merged — PR #303 已合入 `57a2fd7c`；后续真实批与页面减支已另记，原 S01 Failed 保留，完整验收未完成。CI 计费未启动。2026-10-29 核对。
 Accepted by / at: Erwin指派Codex；2026-10-25。
 Blocked by: None；Cross/订阅其他目录的必要缺口如实回交，不越界。
 Branch: codex/v05-platform301-routing；base 855497fa16616595eac8cfac9013ec701ffe942d。

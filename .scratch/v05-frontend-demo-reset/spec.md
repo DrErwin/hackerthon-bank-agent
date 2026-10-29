@@ -1,6 +1,8 @@
 # B26 管理重置前端
 
-Status: implemented_pending_review
+Status: merged — PR #331 已合入 `091032fa`；前台管理重置入口已交付，完整页面验收与接受另记。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：implemented_pending_review
 Owner: Erwin（v0.5）；执行：frontend_acceptance 子代理
 Accepted by: Erwin，通过 2026-10-27 非比赛资料任务授权及主代理明确后继分派
 Accepted at: 2026-10-27

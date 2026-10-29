@@ -12,7 +12,9 @@ Owner: Erwin
 
 Directory: `backend/app/agent_platform/`
 
-Status: in_review / merge_prepared — 已获Erwin第二批本PR合入及CI计费本地验证例外，完成等价同步；待中控核对并squash，尚未合入，不代表API/cross联调或最终安全接受
+Status: merged — PR #298 已合入 `6ce7fb03`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：in_review / merge_prepared — 已获Erwin第二批本PR合入及CI计费本地验证例外，完成等价同步；待中控核对并squash，尚未合入，不代表API/cross联调或最终安全接受
 
 Blocked by: None（289已合入，296已整理；无需新增storage表或等待#293接口变更）
 

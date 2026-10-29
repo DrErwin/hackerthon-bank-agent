@@ -5,7 +5,9 @@ Package: v05-cross-linkage/packages/01-platform-bank
 Type: 开发（仅测试维护）
 Owner: Erwin；执行 root AI
 Directory: `backend/app/agent_platform/`
-Status: ready_for_review — 既有提供方28项通过，待独立两轴及Cross09组合
+Status: merged — PR #339 已合入 `6b067e98`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review — 既有提供方28项通过，待独立两轴及Cross09组合
 Accepted by: 本对话 AI，依据用户完成非比赛资料任务授权及 Cross09 联调发现
 Accepted at: 2026-10-27
 Depends on: PR #335；Cross09 合入前的组合前置

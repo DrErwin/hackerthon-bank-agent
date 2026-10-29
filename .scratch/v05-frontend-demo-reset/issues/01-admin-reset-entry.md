@@ -6,7 +6,9 @@ Spec: [B26 管理重置前端](../spec.md)
 Type: 开发
 Owner: Erwin（v0.5）；执行 frontend_acceptance 子代理
 Directory: frontend/
-Status: implemented_pending_review
+Status: merged — PR #331 已合入 `091032fa`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented_pending_review
 Blocked by: None（公共模型 PR #326 已合；[PR #329：F30—F32 API 协调](https://github.com/DrErwin/hackerthon-bank-agent/pull/329) 已合入 87e30a94）
 Core scenarios: [R01—R06](../spec.md#user-stories--核心场景)
 Verification: 管理页 HTTP 边界交互测试、现有前端回归、真实 API/contract-demo 两构建；浏览器恢复后再由根代理安排真实 B26 联调

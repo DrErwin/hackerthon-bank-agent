@@ -6,7 +6,9 @@ Spec: [限定释放原确认只读来源](../release-confirmation-17.md)
 Type: 开发
 Owner: Erwin；Codex按用户完成非比赛资料任务及中控本轮分派实施
 Directory: `backend/app/security/`
-Status: developed — 47 targeted / 574 security tests passed; independent review/consumer integration pending
+Status: merged — PR #342 已合入 `dcb989a8`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：developed — 47 targeted / 574 security tests passed; independent review/consumer integration pending
 Accepted by: Erwin本轮中控明确分派；非本人最终安全接受
 Accepted at: 2026-10-27
 Blocked by: 无实施前置；335/main已含原会话退休及确认历史，平台16后继消费

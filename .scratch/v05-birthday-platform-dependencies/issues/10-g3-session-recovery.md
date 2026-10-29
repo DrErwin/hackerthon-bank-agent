@@ -6,7 +6,9 @@ Spec: [本组规格](../spec.md)，补充规格见下方
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/agent_platform/`
-Status: ready_for_review — provider 实现及平台目录 390 passed / 13 skipped，待中控两轴审查与合入；敏感等待消费方 SOP 另票。
+Status: merged — PR #323 已合入 `0b72b0a1`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review — provider 实现及平台目录 390 passed / 13 skipped，待中控两轴审查与合入；敏感等待消费方 SOP 另票。
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务的授权及中控委派
 Accepted at: 2026-10-27
 Blocked by: None（既有 G3 封存/发布、Cross 恢复入口和会话迁移已合入）

@@ -12,7 +12,7 @@ Owner: Erwin（本执行对话代行本票评测）
 
 Directory: `evals/cross/`
 
-Status: blocked — 2026-10-25最新指令暂停真实执行与完整专项，设计交Erwin后续手工跑；01—03及银行/安全/体验事实未被设计或局部成绩替代。
+Status: in_progress — 10-27 本人新授权后已有自动验证、真实接口及部分页面证据；26 变体完整页面、200%/读屏/真机、本人安全/体验接受未齐。模型超时及后续限流分别阻塞新增走查，见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。2026-10-29 核对。
 
 Accepted by: Erwin（授权本执行对话）
 

@@ -6,7 +6,9 @@ Spec: [限定释放原确认接线](../release-source-16.md)
 Owner: Erwin；root 按用户完成非比赛资料任务授权实施
 Type: 开发
 Directory: `backend/app/agent_platform/`
-Status: ready_for_review
+Status: merged — PR #343 已合入 `c760f0d0`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review
 Accepted at: 2026-10-27
 Blocked by: [v05-birthday-platform-dependencies/17：生日跨会话限定释放只读原确认](17-release-confirmation-origin.md)
 Source issue: [Issue #340](https://github.com/DrErwin/hackerthon-bank-agent/issues/340)，转给 Erwin

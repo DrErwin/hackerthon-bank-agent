@@ -1,6 +1,8 @@
 # v0.5 英文密码标签保护补口
 
-Status: implemented — Erwin 已批准合入及计费本地验证例外，待中控执行；CI 实际仍未启动，不记绿 CI
+Status: merged — PR #270 已合入 `b1382c2`；#271 已关闭，最终接受另记。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：implemented — Erwin 已批准合入及计费本地验证例外，待中控执行；CI 实际仍未启动，不记绿 CI
 Owner: Erwin（授权执行对话，AI 实施）
 Accepted by: Erwin（本轮授权：Issue #271，单目录实施）
 Accepted at: 2026-10-25

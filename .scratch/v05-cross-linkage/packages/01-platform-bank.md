@@ -4,9 +4,9 @@ Package: v05-cross-linkage/packages/01-platform-bank
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: in_progress — 平台 01/02/03/04/06/07/08 已合入；05/09 按业务及安全依赖继续，真实 E2E 另记。
+Status: in_progress — 2026-10-29 核对：原九票、银行轮次对象、预算来源、重置及后续平台/API 修补已合入；完整验收与 #160 生产未知维度仍待。最新证据见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
 
-Activation: Erwin 已于 2026-10-24 接包；后续已交付七票，本次统一承担本阶段剩余工作。
+Activation: Erwin 于 2026-10-24 接包并统一承担本阶段剩余工作；实际追加票与交付按项目跟踪记录。
 
 Accepted by: Erwin
 

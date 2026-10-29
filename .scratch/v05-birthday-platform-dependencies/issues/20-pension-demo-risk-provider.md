@@ -6,7 +6,9 @@ Spec: [P01明确标注的有限演示风险](../pension-demo-risk-20.md)
 Type: 开发
 Owner: Erwin；Codex按中控本轮分派实施
 Directory: backend/app/security/
-Status: developed — 82 targeted / 656 security tests passed；独立两轴审查及平台集成待完成
+Status: merged — PR #347 已合入 `189a9eb9`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：developed — 82 targeted / 656 security tests passed；独立两轴审查及平台集成待完成
 Accepted by: Erwin本轮中控分派，转达用户明确批准两笔限定演示范围；非最终真人安全接受
 Accepted at: 2026-10-27
 Blocked by: 无局部实施前置；真实来源依赖平台19，显式opt-in依赖后继平台21

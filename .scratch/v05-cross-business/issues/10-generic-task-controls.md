@@ -6,7 +6,7 @@ Spec: [通用任务操作最小规格](../generic-controls-10.md)
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/modules/cross/`
-Status: ready_for_review — Spec P2补修红转绿，含API329的main组合Cross127 passed（7HTTP）；待原Spec限定复审及中控合入
+Status: merged — PR #332 已合入 `9b54d4e3`；原定向、复审及后续 S01 原号续办事实见[实际记录](../../v05-control/http-completed-2026-10-27.md)。聊天“继续”的后续 #357/#358 接缝与页面复验另记，不代完整接受。2026-10-29 核对。
 Blocked by: None（API F11/F13 已发布，父计划消费缺口）
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27

@@ -6,7 +6,9 @@ Spec: [银行重置接缝](../spec.md)
 Type: 开发
 Owner: Erwin；Codex 按中控明确分派实施
 Directory: `backend/app/services/`
-Status: implemented — review/acceptance pending
+Status: merged — PR #325 已合入 `20d13476`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented — review/acceptance pending
 Accepted by: Erwin，经本轮中控分派
 Accepted at: 2026-10-27
 Blocked by: [v05-bank-reset/01：受控原子银行重置与原号查询](01-bank-reset-services.md)（PR #322 已合入）

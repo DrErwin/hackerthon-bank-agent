@@ -1,6 +1,8 @@
 # F30—F32 演示整体重置协调
 
-Status: implemented_pending_review
+Status: merged — PR #329 已合入 `87e30a94`；整体重置与新轮再转账另有实际接口批，完整页面验收另记。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：implemented_pending_review
 Owner: Erwin（v0.5）；执行：API 重置子代理
 Accepted by: Erwin，通过 2026-10-27 全部非比赛资料任务授权及主代理明确分派
 Accepted at: 2026-10-27

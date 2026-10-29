@@ -6,7 +6,9 @@ Spec: [有限演示转账语序修复](../spec.md)
 Type: 开发
 Owner: Erwin；Codex 按本轮已授权子任务实施
 Directory: `backend/app/security/`
-Status: implemented — review/acceptance pending
+Status: merged — PR #324 已合入 `16487651`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented — review/acceptance pending
 Blocked by: None
 Core scenarios: [RP01–RP04](../spec.md#user-stories--core-scenarios)
 Source issue: [Issue #160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)

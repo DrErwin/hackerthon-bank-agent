@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 本阶段统一负责）
 
 Directory: `evals/security/`
 
-Status: blocked — 后端准备与局部专项已交付草稿PR #291，34节点通过；完整专项等待前端02/业务05及真实故障观察入口。原152/1失败保留；续派归因修正过时评测后全目录155通过/0失败，真实模型/页面未运行。
+Status: in_progress — PR #291 已合入 `9a6f756`，原失败和局部修正证据保留。后续真实模型安全 B/C 及生日恢复/银行局部批已记录；B 的 3 Failed/9 Blocked、C 的 6 Blocked、完整页面专项与本人安全接受仍待。2026-10-29 核对，见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
 
 Package accepted by: Erwin
 

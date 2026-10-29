@@ -6,7 +6,7 @@ Spec: [票11最小规格](../pension-source-11.md)
 Type: 开发
 Owner: Erwin（v0.5）；执行 frontend_acceptance 子代理
 Directory: backend/app/modules/cross/
-Status: implemented_pending_review
+Status: merged — PR #334 已合入 `33c2bf18`；来源文案已有后续实际 HTTP 核对，见[实际记录](../../v05-control/http-completed-2026-10-27.md)。2026-10-29 核对，完整页面及接受另记。
 Blocked by: None（前票10已随 PR #332 合入 main9b54d4e3）
 Accepted by: Erwin，通过用户非比赛资料任务授权与中控明确分派
 Accepted at: 2026-10-27

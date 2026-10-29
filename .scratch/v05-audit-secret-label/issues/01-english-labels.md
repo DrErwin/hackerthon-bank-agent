@@ -8,7 +8,9 @@ Verification: 三公共入口一致性、无值提醒、审计落盘与回放、
 Type: 开发
 Owner: Erwin（授权执行对话，AI 实施）
 Directory: backend/app/audit/
-Status: implemented — Erwin 已批准合入及计费本地验证例外，待中控执行；CI 实际仍未启动，不记绿 CI
+Status: merged — PR #270 已合入 `b1382c29`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented — Erwin 已批准合入及计费本地验证例外，待中控执行；CI 实际仍未启动，不记绿 CI
 Blocked by: None
 Source issue: [Issue #271](https://github.com/DrErwin/hackerthon-bank-agent/issues/271)
 Claimed by: Erwin（授权执行对话）

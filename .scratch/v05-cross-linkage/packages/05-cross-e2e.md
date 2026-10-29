@@ -4,7 +4,7 @@ Package: v05-cross-linkage/packages/05-cross-e2e
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: in_progress — 2026-10-25 中控委派启动E2E准备；按主线依赖启动真实运行；未验收
+Status: in_progress — 2026-10-29 核对：原 S01 Failed 保留；后续减支/生日/P01 接口闭环及部分页面已记录。完整页面及 26 变体未齐，当前模型诊断遇超时及后续限流，未联合接受。见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
 
 Activation: 2026-10-25 Erwin授权中控分发剩余任务；本包由Erwin委派AI执行，非验收接受。
 

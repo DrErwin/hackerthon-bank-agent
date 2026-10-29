@@ -12,7 +12,9 @@ Owner: Erwin
 
 Directory: `backend/app/api/`
 
-Status: delivered_api_seam — [PR #299](https://github.com/DrErwin/hackerthon-bank-agent/pull/299)草稿已附加，API接缝/定向93项/双轴审查完成，交中控排队；CI账号账务受阻，不自动豁免。真实cross06/#293采用及完整E2E仍待下游，不代表合入或真人安全批准。
+Status: merged — PR #299 已合入 `1b3afec5`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：delivered_api_seam — [PR #299](https://github.com/DrErwin/hackerthon-bank-agent/pull/299)草稿已附加，API接缝/定向93项/双轴审查完成，交中控排队；CI账号账务受阻，不自动豁免。真实cross06/#293采用及完整E2E仍待下游，不代表合入或真人安全批准。
 
 Blocked by: None（平台01已实际合入，中控开始信号已收到）；真实cross06/AdoptedBudget及完整生日验收仍属后续依赖。
 

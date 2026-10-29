@@ -1,6 +1,8 @@
 # F10 个人预算采用来源：最小前置设计
 
-Status: implementation_dispatched — 双轴设计审查通过；中控依既有委派授权激活平台01，API02等01稳定合入后顺序派发。尚无实现或E2E完成证据。
+Status: merged — 平台 PR #298 与 API PR #299 已分别合入 `6ce7fb0` / `1b3afec`；后续 Cross06 消费及实际采用批已有证据。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：implementation_dispatched — 双轴设计审查通过；中控依既有委派授权激活平台01，API02等01稳定合入后顺序派发。尚无实现或E2E完成证据。
 
 Owner: Erwin（中控授权本执行对话调查与设计）
 

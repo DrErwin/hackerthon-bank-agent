@@ -12,7 +12,7 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/agent_platform/`
 
-Status: developed — 本地回归及独立双轴审查通过；[PR #289](https://github.com/DrErwin/hackerthon-bank-agent/pull/289) 交中控排队合并，未合入/未真人接受。CI 因账户计费未启动。
+Status: merged — [PR #289](https://github.com/DrErwin/hackerthon-bank-agent/pull/289) 已合入 `31e9f274`；原本地验证与双轴审查保留，CI 计费未启动，真人接受另记。2026-10-29 核对。
 
 Blocked by: None（[v05-cross-platform/09：生日工具、权限与演示装配](09-birthday-runtime-wiring.md)，PR #279 已合入）
 

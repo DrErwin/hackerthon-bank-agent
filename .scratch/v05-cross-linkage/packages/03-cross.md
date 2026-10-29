@@ -4,9 +4,9 @@ Package: v05-cross-linkage/packages/03-cross
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: blocked — Erwin 已接包并完成三票细化；平台子调用输入支持缺口、安全审查及各票前置尚待满足，业务代码未启动。
+Status: in_progress — 2026-10-29 核对：三目标、个人预算、生日编辑/跨会话恢复及后续修补已合入；真实接口已有局部闭环，完整页面与最终接受仍待。证据见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
 
-Activation: 2026-10-24 Erwin 明确将本阶段包 03/05 转给自己，并领取包 03、要求开始拆票。本轮为规格及票据细化，未启动代码实施。
+Activation: 2026-10-24 Erwin 明确将本阶段包 03/05 转给自己，并领取包 03、要求开始拆票；后续实施与真实验收授权按项目跟踪记录。
 
 Accepted by: Erwin
 

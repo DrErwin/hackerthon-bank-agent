@@ -13,11 +13,11 @@
 
 ## 范围
 
-- **跨场景联动**（v0.4 移至）：2026-10-24 PM 确认三个生活目标——**养老金到账后的本月安排、找出并减少不必要开销、家人生日安排**；按[联动 PRD](../../prd/06-跨场景联动-PRD-2026-09-23.md)实现业务编排、评测与前端接入。AI 自主规划、Harness 任务承接和确定性业务规则分别定义。生日仍在本期范围，模拟生活服务、冻结/核销/释放和公共接缝为前置依赖，不能以只读建议替代交付。**PRD 与[共享规格](../../../.scratch/v05-cross-linkage/spec.md)已完成规划；PM 已确认并发布[六包及 21 张独立票](../../../.scratch/v05-cross-linkage/ticket-proposal.md)。平台包已有 7/9 票合入（证据见 completion）；本阶段六包统一由 Erwin 承担，实际进度以 completion 和项目跟踪为准；减支已合入、养老金待交付，生日、安全、页面与 E2E 按真实依赖推进。**
+- **跨场景联动**（v0.4 移至）：2026-10-24 PM 确认三个生活目标——**养老金到账后的本月安排、找出并减少不必要开销、家人生日安排**；按[联动 PRD](../../prd/06-跨场景联动-PRD-2026-09-23.md)实现业务编排、评测与前端接入。AI 自主规划、Harness 任务承接和确定性业务规则分别定义。生日仍在本期范围，模拟生活服务、冻结/核销/释放和公共接缝为前置依赖，不能以只读建议替代交付。范围按[共享规格](../../../.scratch/v05-cross-linkage/spec.md)与[六包划分](../../../.scratch/v05-cross-linkage/ticket-proposal.md)，实际实现、追加票与验收状态统一查[完成情况](completion.md)，本需求页不缓存实施计数。
 - **任务评测与安全评测**：跑三场景任务评测与安全评测；生产检测器装配（[#160](https://github.com/DrErwin/hackerthon-bank-agent/issues/160)）按实际排期推进；样例扩充（[#215](https://github.com/DrErwin/hackerthon-bank-agent/issues/215)）**PM 2026-10-24 决定只扩充样例、不再做候选模型比较**。
 - **跨模块集成测试与缺陷修复**；核对审计证据、恢复、防重复和用户状态表达。
 - **管理端审计导出 F35 与 F24 audit 分支**（来源 [Issue #121](https://github.com/DrErwin/hackerthon-bank-agent/issues/121)，2026-10-13 PM 决定挂 v0.5）：**已交付**——[v05-platform/01](../../../.scratch/v05-platform/issues/01-audit-export.md)（[PR #214](https://github.com/DrErwin/hackerthon-bank-agent/pull/214) `b01ceb9`）；管理前端入口按 PM 决定不做（已知限制），历史轮次导出维持与 F33/F34 一致的当前轮次口径。
-- **可信观察接缝与四项体验能力**（[Issue #216](https://github.com/DrErwin/hackerthon-bank-agent/issues/216)，PM 2026-10-22 决定当日实施）：**已交付**——[v05-observer-seams](../../../.scratch/v05-observer-seams/spec.md) 十票合入：工具返回与用户资料以不可信数据块进模型提示、F37/F38 记忆查看/删除、输出侧敏感信息探针；v0.4 例外 E7 部分解除。未做：前端粘贴框/记忆管理页（另开前端票）、生产检测器装配、真实页面粘贴走查、批次 B/C 全量。
+- **可信观察接缝与四项体验能力**（[Issue #216](https://github.com/DrErwin/hackerthon-bank-agent/issues/216)，PM 2026-10-22 决定当日实施）：工具返回与用户资料以不可信数据块进模型提示、F37/F38 记忆查看/删除、输出侧敏感信息探针；前端粘贴/记忆管理入口、生产装配及真实专项各按完成情况记录，接缝实现不替代安全接受。
 - **关键演示路径与适老化交互打磨**：卡片版式与连续办理已交付（#252/#253/#254）；200% 缩放与完整读屏待做。
 - **前端剩余范围**：v0.4 已交付的转账插槽（[PR #142](https://github.com/DrErwin/hackerthon-bank-agent/pull/142) `92ee700`）与账单插槽/主入口替换（#199/#201）不回退；**订阅场景 05 前端插槽已交付**（清单/退订/回执/刷新，#230–#232、#247、#253/#254 真实页面验证）。剩余为已知非阻塞项（如旧会话历史条目逐条 F14/F16 刷新返回 409 `SESSION_RECONFIRMATION_REQUIRED`；F39 视图已直接渲染、页面无缺失）与适老化细节（200%/读屏）。票据与证据入口：[`.scratch/liangshuang-frontend-complete/`](../../../.scratch/liangshuang-frontend-complete/spec.md)、[Issue #89](https://github.com/DrErwin/hackerthon-bank-agent/issues/89)。
 - **形成核心能力验收记录**：按实际证据记录，不写"全部通过"；例外与缺口如实登记。

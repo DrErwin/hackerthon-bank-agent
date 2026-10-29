@@ -1,6 +1,8 @@
 # 演示风险数据说明
 
-Status: implemented_pending_review
+Status: merged — PR #348 已合入 `35fd849d`；预设演示风险说明已交付，#160 生产未知维度仍未收口。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：implemented_pending_review
 Owner: Erwin（v0.5）；执行 frontend_acceptance 子代理
 Accepted by: Erwin，通过 2026-10-27 非比赛资料授权、养老金两笔限定演示 profile 批准及中控明确分派
 Accepted at: 2026-10-27

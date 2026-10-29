@@ -6,7 +6,9 @@ Spec: [转账 D1 冲突呈现](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/modules/transfer/`
-Status: ready_for_merge — 本地复验通过；计费例外由Erwin批准，待中控合入
+Status: merged — PR #285 已合入 `7edb7b0e`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_merge — 本地复验通过；计费例外由Erwin批准，待中控合入
 Blocked by: None（D1 平台守卫 PR #258 已合入）
 Accepted by: Erwin 授权执行对话
 Accepted at: 2026-10-25

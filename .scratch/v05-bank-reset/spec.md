@@ -1,6 +1,8 @@
 # B26 银行重置接缝
 
-Status: implemented_pending_review — 银行服务与定向验证完成，待主代理独立两轴审查及合入；不代表整体 B26。
+Status: merged — PR #322/#325 已合入；银行原子重置、网关排空及逻辑时钟接缝已交付，整体重置另有实际接口批。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：implemented_pending_review — 银行服务与定向验证完成，待主代理独立两轴审查及合入；不代表整体 B26。
 Owner: Erwin（v0.5）；执行：bank_reset_completion 子代理。
 Accepted by: Erwin，通过 2026-10-27“除比赛资料外的任务完成”及主代理明确分派。
 Accepted at: 2026-10-27

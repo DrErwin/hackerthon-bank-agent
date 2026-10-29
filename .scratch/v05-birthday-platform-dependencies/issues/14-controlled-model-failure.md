@@ -6,7 +6,9 @@ Spec: [平台14规格](../model-failure-14.md)
 Type: 开发
 Owner: Erwin（v0.5统一负责）
 Directory: `backend/app/agent_platform/`
-Status: ready_for_review — 三条原回复及受控失败红绿完成，完整平台426 passed/13 skipped；待独立两轴与最终合入
+Status: merged — PR #337 已合入 `9f4b73b1`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review — 三条原回复及受控失败红绿完成，完整平台426 passed/13 skipped；待独立两轴与最终合入
 Blocked by: None（PR #335已合入）
 Accepted by: 本对话AI，依据用户全部非比赛资料授权与2026-10-27中控明确采用首选方案
 Accepted at: 2026-10-27

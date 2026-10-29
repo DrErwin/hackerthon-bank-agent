@@ -6,7 +6,7 @@ Spec: [子任务暂停的父卡说明](../paused-summary-12.md)
 Type: 开发
 Owner: Erwin（v0.5）；执行 merge_standards_review 子代理
 Directory: backend/app/modules/cross/
-Status: implemented_pending_review
+Status: merged — PR #349 已合入 `c45aa511`；后续 S05 旧断言由 PR #355 单独维护，证据见[最终集成记录](../../v05-control/integration-2026-10-28.md)。2026-10-29 核对，完整验收另记。
 Blocked by: None（现有公开子任务结果查询已在 main）
 Accepted by: Erwin，通过用户非比赛资料任务授权与中控明确分派
 Accepted at: 2026-10-27

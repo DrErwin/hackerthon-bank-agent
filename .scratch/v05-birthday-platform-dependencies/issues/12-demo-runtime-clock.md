@@ -6,7 +6,9 @@ Spec: [本组规格](../spec.md)，本票补充规格见下方
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/agent_platform/`
-Status: ready_for_review — 安全退役时间补修后定向 58 passed；补修前完整平台 393 passed / 13 skipped 保留，待中控独立复审与合入
+Status: merged — PR #328 已合入 `ff5b87c6`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review — 安全退役时间补修后定向 58 passed；补修前完整平台 393 passed / 13 skipped 保留，待中控独立复审与合入
 Blocked by: None（前置 [v05-bank-reset/02：银行重置排空与起点读取](../../v05-bank-reset/issues/02-gateway-drain-and-clock.md)、PR #323 均已合入）
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27

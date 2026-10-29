@@ -1,8 +1,10 @@
 # 生日数量与未执行修改：平台提供条件及最小规格
 
-Status: planned / blocked — 2026-10-25，仅只读核查、设计与最小拆票；未授权实施。
+Status: in_progress — 各实施票与后续提供方修补已合入；生日编辑、跨会话恢复、原号释放有实际接口证据，完整页面及最终接受仍待。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：planned / blocked — 2026-10-25，仅只读核查、设计与最小拆票；未授权实施。
 Owner: Erwin（v0.5统一负责）；Planning assignee: Codex，01a1718a-26a3-7523-a0bf-2591d8e83618。
-Implementation assignee / accepted at: 未领取。
+Implementation assignee / accepted at: 已按独立票执行；实际执行者、领取日期及合入证据见各票。下文原 planned/blocked 叙述保留最初设计时点。
 
 ## Problem Statement / 固定依据
 

@@ -6,7 +6,9 @@ Spec: [可信父风险来源](../risk-parent-source-19.md)
 Type: 开发
 Owner: Erwin；root 按用户完成非比赛资料任务授权顺序实施
 Directory: `backend/app/agent_platform/`
-Status: ready_for_review
+Status: merged — PR #346 已合入 `ed1596d5`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review
 Accepted at: 2026-10-27
 Blocked by: 无；已有持久父子关联与RiskConversation
 Source issue: [Issue #345](https://github.com/DrErwin/hackerthon-bank-agent/issues/345)，转给Erwin / Assignee DrErwin

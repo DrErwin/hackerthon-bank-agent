@@ -8,7 +8,9 @@ Source issue: [Issue #302](https://github.com/DrErwin/hackerthon-bank-agent/issu
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/modules/subscription/`
-Status: in_review — 开发及132项定向验证、双轴独立AI复核完成；PR304草稿已回交，CI账单阻断，待中控审查
+Status: merged — PR #304 已合入 `734c5b79`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：in_review — 开发及132项定向验证、双轴独立AI复核完成；PR304草稿已回交，CI账单阻断，待中控审查
 Blocked by: None；若需新平台信息，先回交平台提供方另票
 Core scenarios: 明确单项停止未来扣费、明确只读、取消目标不明/多候选/批量；不替代XL-S01
 Verification: 沿真实公开工厂使用隔离端口验证入口模式、消歧、确认/验证及零提前写入；修复后真实S01由原E2E线新批次另验

@@ -1,6 +1,8 @@
 # 已采用个人预算持久记录
 
-Status: ready-for-agent
+Status: merged — PR #293 已合入 `9d6d899`；采用链及个人预算真实批已有后续证据，历史 v6 回退限制仍按原记录。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：ready-for-agent
 
 Owner / Accepted by: Erwin（中控委派本执行对话）
 

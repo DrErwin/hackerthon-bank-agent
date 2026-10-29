@@ -12,9 +12,9 @@ Owner: Erwin（v0.5 统一承担）
 
 Directory: `backend/app/agent_platform/`
 
-Status: ready_for_merge — 284/298已合入；本批及CI计费本地例外已由Erwin批准，待中控合入
+Status: merged — PR #292 已合入 `e402bc4`；原定向组合及本批 CI 计费例外见[合入记录](../../v05-control/merge-batch-02.md)，不代页面与最终接受。2026-10-29 核对。
 
-Blocked by: [v05-bills-cross-input/01：账单公开工厂接收类型化输入](../../v05-bills-cross-input/issues/01-typed-input.md)，[Depends on PR #284](https://github.com/DrErwin/hackerthon-bank-agent/pull/284)。实施在其分支上做隔离组合，未将其写成已合入。
+Blocked by: None（原前置 [v05-bills-cross-input/01](../../v05-bills-cross-input/issues/01-typed-input.md) / [PR #284](https://github.com/DrErwin/hackerthon-bank-agent/pull/284) 已合入 `4d9bd577`；原隔离组合历史保留）。
 
 Execution assignee: Codex，运行装配遗留线
 

@@ -4,7 +4,7 @@ Package: v05-cross-linkage/packages/02-security
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: in_progress — Erwin 已领取并完成两票细化；票 01 可开始规则/接入核对，票 02 等装配与页面，代码及专项实跑未开始。
+Status: in_progress — 2026-10-29 核对：确认、恢复及限定释放规则、P01 明示演示范围已交付；安全专项和 B/C 实际结果已有记录，原 Failed/Blocked 保留。页面专项及本人安全接受未齐，见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
 
 Activation: 2026-10-24 Erwin 明确“登记我接收了包02”，授权本聊天拆票与交接，另由其他对话执行。
 

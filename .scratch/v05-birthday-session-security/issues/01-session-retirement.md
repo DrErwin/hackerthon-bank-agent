@@ -6,7 +6,9 @@ Spec: [跨会话安全撤离](../spec.md)
 Type: 开发
 Owner: Erwin；Codex 按中控明确分派实施
 Directory: `backend/app/security/`
-Status: implemented — independent review/acceptance pending
+Status: merged — PR #330 已合入 `d14677e6`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented — independent review/acceptance pending
 Accepted at: 2026-10-27
 Blocked by: None（G2已合入，跨会话proof与平台已对齐）
 Core scenarios: [SS01–SS06](../spec.md#核心场景)

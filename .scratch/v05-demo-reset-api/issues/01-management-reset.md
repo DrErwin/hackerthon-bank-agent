@@ -6,7 +6,9 @@ Spec: [规格](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/api/`
-Status: implemented_pending_review — 最终组合API246项+平台时钟5项通过；Standards独立审查0必须项，待Spec审查及合入
+Status: merged — PR #329 已合入 `87e30a94`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented_pending_review — 最终组合API246项+平台时钟5项通过；Standards独立审查0必须项，待Spec审查及合入
 Accepted by: Erwin，主代理明确分派
 Accepted at: 2026-10-27
 Depends on: PR #322 / #325 / #326 / #327 / #328；最终PR整理为纯API差异并核对受测树

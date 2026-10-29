@@ -6,7 +6,9 @@ Spec: [API父关联](../api-child-parent-22.md)
 Type: 开发
 Owner: Erwin；root按本轮用户授权实施
 Directory: `backend/app/api/`
-Status: ready_for_review
+Status: merged — PR #350 已合入 `ef8f9220`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review
 Accepted at: 2026-10-27
 Blocked by: 无；已有ApplicationStore.parent_of_task
 Source issue: [Issue #345](https://github.com/DrErwin/hackerthon-bank-agent/issues/345)，转给Erwin

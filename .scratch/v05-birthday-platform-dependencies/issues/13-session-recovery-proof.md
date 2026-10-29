@@ -6,7 +6,9 @@ Spec: [本票最小规格](../session-recovery-13.md)
 Type: 开发
 Owner: Erwin（v0.5 统一负责）
 Directory: `backend/app/agent_platform/`
-Status: ready_for_review — 完整agent_platform 423 passed / 13 skipped，待中控独立Spec复审与合入；Cross09生产消费未在本票完成
+Status: merged — PR #335 已合入 `30cbe740`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review — 完整agent_platform 423 passed / 13 skipped，待中控独立Spec复审与合入；Cross09生产消费未在本票完成
 Blocked by: None（安全330、平台323/328已合入）
 Accepted by: 本对话 AI，依据 2026-10-27 用户完成非比赛资料任务授权及中控委派
 Accepted at: 2026-10-27

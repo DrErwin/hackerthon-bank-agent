@@ -4,7 +4,7 @@ Package: v05-cross-linkage/packages/06-bank-eval
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: in_progress — 2026-10-25 中控委派启动银行事实与防重专项执行；未验收
+Status: delivered — 2026-10-29 核对：银行事实与跨轮次边界专项已交付，四项 strict xfail 已转正；实际业务银行批另有记录，包级 PM/安全接受与完整页面 E2E 仍待。见[银行专项规格](../../v05-cross-bank-eval/spec.md)及[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
 
 Activation: 2026-10-25 Erwin授权中控分发剩余任务；本包由Erwin委派AI执行，非验收接受。
 

@@ -4,7 +4,7 @@ Package: v05-cross-linkage/packages/04-frontend
 
 Owner: Erwin（v0.5 本阶段统一负责）
 
-Status: in_progress — 2026-10-25 票 01 实现已合入（#283，减支/养老金共用页面）；票 02 等业务票 05 后再走查；真实页面走查、200%/读屏与 E2E 未做。
+Status: in_progress — 2026-10-29 核对：01/02、新版前台及提示修补已合入；实际转账/减支页面有完成证据，生日/P01 完整页面、200%/读屏/真机及最终接受仍待。见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
 
 Activation: 2026-10-25 Erwin 明确“你把包4领了拆票，开个交接文档给别人做”；本轮登记接包和细化，实施交其他对话。
 
@@ -12,7 +12,7 @@ Accepted by: Erwin
 
 Accepted at: 2026-10-25
 
-Work spec: [共享规格](../spec.md)、[v05-cross-frontend 工作规格与独立票](../../v05-cross-frontend/spec.md)；已按本人接包指令细化，具体实施者待用户转交后登记。
+Work spec: [共享规格](../spec.md)、[v05-cross-frontend 工作规格与独立票](../../v05-cross-frontend/spec.md)；后续执行与验证由 Erwin 授权 AI 代行，接受单列。
 
 Directory boundaries: frontend/
 

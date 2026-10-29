@@ -1,6 +1,6 @@
 # 包 02：安全边界与专项核验工作规格
 
-Status: ticketed — 2026-10-24 Erwin 已领取；两票已细化供其他对话接续，代码和安全专项未运行。
+Status: in_progress — 2026-10-29 核对：规则实现及后续恢复/限定释放修补已交付，安全专项和 B/C 实际结果有记录；原 Failed/Blocked、页面专项及本人安全接受仍待。见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)，下文为规格范围。
 
 Owner: Erwin（v0.5 本阶段统一负责）
 

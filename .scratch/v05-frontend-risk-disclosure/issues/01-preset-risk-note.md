@@ -6,7 +6,9 @@ Spec: [演示风险数据说明](../spec.md)
 Type: 开发
 Owner: Erwin（v0.5）；执行 frontend_acceptance 子代理
 Directory: frontend/
-Status: implemented_pending_review
+Status: merged — PR #348 已合入 `35fd849d`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented_pending_review
 Blocked by: None（已有前台布局，限定演示 profile 已获用户批准；实际浏览器验收继续阻塞）
 Accepted by: Erwin，通过 2026-10-27 本轮非资料任务授权及中控明确分派
 Accepted at: 2026-10-27

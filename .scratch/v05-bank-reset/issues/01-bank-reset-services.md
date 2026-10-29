@@ -6,7 +6,9 @@ Spec: [银行重置规格](../spec.md)
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/services/`
-Status: implemented_pending_review — 149 项 services/银行专项通过；待主代理两轴独立审查、PR 合入及整体接线。
+Status: merged — PR #322 已合入 `aac4a5fb`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented_pending_review — 149 项 services/银行专项通过；待主代理两轴独立审查、PR 合入及整体接线。
 Accepted by: Erwin，主代理本轮授权分派
 Accepted at: 2026-10-27
 Blocked by: None（服务内部接缝已由主代理确认；整体流程另依赖 API/平台）

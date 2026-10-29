@@ -12,7 +12,7 @@ Owner: Erwin（授权执行对话代行）
 
 Directory: `backend/app/modules/cross/`
 
-Status: implemented / merge_prepared — 2026-10-25 第二批前四项已合入，Draft PR #297等价同步后交中控最终核对；完整E2E及风险事实仍未接受。
+Status: merged — PR #297 已合入 `2a070b9c`；后续获批限定演示 profile 的 P01 新批接口闭环见[实际记录](../../v05-control/http-completed-2026-10-27.md)，原风险暂停批保留。完整页面与最终接受仍待。2026-10-29 核对。
 
 Accepted by: Erwin（授权执行对话代行）
 

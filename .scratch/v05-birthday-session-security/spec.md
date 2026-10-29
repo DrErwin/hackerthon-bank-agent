@@ -1,6 +1,8 @@
 # 生日敏感动作的跨会话安全撤离
 
-Status: implemented — independent review/consumer integration pending
+Status: merged — PR #330 已合入 `d14677e6`；后续 Cross09 消费已合入，完整接受另记。2026-10-29 核对，最新结果见[v0.5 完成情况](../../docs/versions/v0.5.0/completion.md)。
+
+原规格状态（历史）：implemented — independent review/consumer integration pending
 Owner: Erwin；Codex 按本轮中控分派实施
 Directory: `backend/app/security/`
 Package: [v05-cross-linkage/packages/02-security：联动安全](../v05-cross-linkage/packages/02-security.md)

@@ -6,7 +6,9 @@ Spec: [P01显式profile与完整来源](../pension-profile-wiring-21.md)
 Type: 开发
 Owner: Erwin；Codex按中控分派
 Directory: backend/app/agent_platform/
-Status: developed — 483平台回归/13既有skip、189安全边界、API22后6项准确组合通过；待两轴与CI，非真人接受
+Status: merged — PR #351 已合入 `5278f870`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：developed — 483平台回归/13既有skip、189安全边界、API22后6项准确组合通过；待两轴与CI，非真人接受
 Accepted at: 2026-10-27
 Accepted by: Erwin本轮分派；用户已明确批准两笔限定演示范围，非最终安全接受
 Blocked by: 无当前实施前置；19/20及实际发现的API22均已合；真实模型/页面验收由中控后继

@@ -6,7 +6,9 @@ Spec: [安全分层验收](../spec.md)
 Type: 评测（含运行器开发）
 Owner: Erwin；Codex 按本轮授权实施
 Directory: `evals/security/`
-Status: implemented — fixed batch complete; independent review/acceptance pending
+Status: merged — PR #333 已合入 `e1c36479`；2026-10-29 核对。原验证与审查按各批记录，CI 计费未启动；实际结果与待接受项见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：implemented — fixed batch complete; independent review/acceptance pending
 Blocked by: None（B26与生日安全提供前置已交付，96真实批获准）
 Core scenarios: [SA01](../spec.md#solution--core-scenarios)
 

@@ -6,7 +6,9 @@ Spec: [平台18最小规格](../budget-g3-18.md)
 Type: 开发
 Owner: Erwin（v0.5统一负责）
 Directory: `backend/app/agent_platform/`
-Status: ready_for_merge — 精确a45407e3完整平台445 passed/13 skipped，Standards/Spec独立0必须项；最终CI/合入交中控
+Status: merged — PR #344 已合入 `ab61cc91`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_merge — 精确a45407e3完整平台445 passed/13 skipped，Standards/Spec独立0必须项；最终CI/合入交中控
 Blocked by: None（335已合入）
 Accepted by: 本对话AI，用户全部非比赛资料授权与中控明确分派
 Accepted at: 2026-10-27

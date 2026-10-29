@@ -6,7 +6,9 @@ Spec: [原规格](../spec.md)；[本轮授权与分派](../../v05-control/non-ma
 Type: 开发
 Owner: Erwin
 Directory: `backend/app/api/`
-Status: ready_for_review — 独立审查两项P2已补修，精确提交9项通过；原API目录232项仅属补修前，待最终组合回归、两轴复审与合入
+Status: merged — PR #327 已合入 `e4f0fe50`；2026-10-29 核对。原验证及审查按各批记录，CI 计费未启动；真实业务/页面和本人接受另见[v0.5 完成情况](../../../docs/versions/v0.5.0/completion.md)。
+
+原交付时状态（历史）：ready_for_review — 独立审查两项P2已补修，精确提交9项通过；原API目录232项仅属补修前，待最终组合回归、两轴复审与合入
 Accepted by: 本对话 AI，依据用户 2026-10-27 明确要求完成非资料任务
 Accepted at: 2026-10-27
 Blocked by: v05-birthday-platform-dependencies/10 的原输入转换只读查询接缝
