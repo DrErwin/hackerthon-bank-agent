@@ -1,0 +1,238 @@
+{
+  "prepared_at_utc": "2026-10-29T05:52:10.557513+00:00",
+  "ticket": "v05-cross-e2e/02; root-authorized 2026-10-29 UI continuation fixture preparation only",
+  "source_root": "C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent",
+  "initial_facts": {
+    "source_commit": "17f7ef2c2f2021c866ca4e1f1ce7757d31bace0b",
+    "backend_tree": "d6bd13c9aeb3a9fc0431920462ed3b02dad4132f",
+    "frontend_tree": "3fe1279c8e17b7e3b59ee441949958085f556cd4",
+    "round_id": "ui-goals-20261029-1c7aedbe7f42",
+    "data_directory": "C:\\Users\\57652\\AppData\\Local\\Temp\\ui-goals-20261029-1c7aedbe7f42-2807j68q",
+    "logical_at": "2026-10-29T13:48:02.281457+08:00",
+    "api_pid": 135144,
+    "api_executable": "D:\\hackerthon-bank-agent\\backend\\.venv\\Scripts\\python.exe",
+    "api_script": "C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\.mnemon\\v05-ui-goals-20261029\\serve.py",
+    "api_port": 5201,
+    "origins": [
+      "http://127.0.0.1:5200",
+      "http://localhost:5200"
+    ],
+    "pension_demo_profile": "p01-marked-demo-v1",
+    "seed_method": "existing session.py P01 BankAccount500000 + evals.cross.case_runner.seed_case",
+    "seed_fixture_sha256": "bb64beff884079e08bf7db1f9f6557fc22c04a26b36476027295aef329b7f5fa",
+    "seed_runner_sha256": "b0676a30bf52380908977f3c4625503dbcfdd3c3e3cc2428845adcf3b4e1f6de",
+    "seed_balance_note": "P01 fixture initial A1=5000; canonical A1=60000 is not used; this is initialization, not a runtime deposit or transfer",
+    "accounts": [
+      {
+        "account_id": "A1",
+        "account_status": "active",
+        "book_balance_fen": 500000,
+        "available_balance_fen": 500000,
+        "frozen_balance_fen": 0
+      },
+      {
+        "account_id": "A5",
+        "account_status": "active",
+        "book_balance_fen": 0,
+        "available_balance_fen": 0,
+        "frozen_balance_fen": 0
+      }
+    ],
+    "pension_this_month": [
+      {
+        "transaction_id": "SEED-A1-20261001-cross-pension",
+        "account_id": "A1",
+        "amount_fen": 500000,
+        "direction": "inflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-01T00:00:00+08:00",
+        "summary": "养老金到账"
+      }
+    ],
+    "limits": {
+      "single_limit_fen": 5000000,
+      "daily_remaining_fen": 5000000
+    },
+    "mandates": [
+      {
+        "mandate_id": "cross_keep",
+        "account_id": "A1",
+        "amount_fen": 2000,
+        "status": "active"
+      },
+      {
+        "mandate_id": "sub_001",
+        "account_id": "A1",
+        "amount_fen": 2500,
+        "status": "active"
+      },
+      {
+        "mandate_id": "sub_002",
+        "account_id": "A1",
+        "amount_fen": 3900,
+        "status": "active"
+      },
+      {
+        "mandate_id": "sub_003",
+        "account_id": "A1",
+        "amount_fen": 1500,
+        "status": "cancelled"
+      }
+    ],
+    "family_payee_id_present": "A4",
+    "gateway_inflight_drained": true,
+    "no_model_or_user_money_actions_run": true,
+    "page_or_business_acceptance": "NOT_RUN; preparation only"
+  },
+  "frontend": {
+    "source_commit": "17f7ef2c2f2021c866ca4e1f1ce7757d31bace0b",
+    "pid": 130664,
+    "executable": "C:\\Program Files\\nodejs\\node.exe",
+    "script": "C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\.mnemon\\v05-ui-goals-20261029\\frontend.mjs",
+    "source_root": "C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\frontend",
+    "dependencies_root": "C:/Users/57652/.codex/worktrees/bank-frontend-design-system/hackerthon-bank-agent/frontend/node_modules",
+    "mode": "real-api",
+    "proxy": "http://127.0.0.1:5201",
+    "port": 5200,
+    "package_install": false,
+    "browser_or_business": "NOT_RUN"
+  },
+  "processes": [
+    {
+      "ProcessId": 52124,
+      "ParentProcessId": 123372,
+      "ExecutablePath": "D:\\hackerthon-bank-agent\\backend\\.venv\\Scripts\\python.exe",
+      "CommandLine": "\"D:\\hackerthon-bank-agent\\backend\\.venv\\Scripts\\python.exe\" -u C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\.mnemon\\v05-ui-goals-20261029\\serve.py",
+      "CreationDate": "2026-10-29T13:47:52.610598+08:00",
+      "command_sha256": "fcae3edc93ddebc03b643fe5f77d7330e62330ae1fccacbe767fae5744162b63"
+    },
+    {
+      "ProcessId": 130664,
+      "ParentProcessId": 123372,
+      "ExecutablePath": "C:\\Program Files\\nodejs\\node.exe",
+      "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\.mnemon\\v05-ui-goals-20261029\\frontend.mjs",
+      "CreationDate": "2026-10-29T13:47:52.634499+08:00",
+      "command_sha256": "a6ebc6857f11d770c3ac3ef583ab00b7e6a62590670276659701d6207ce3687f"
+    },
+    {
+      "ProcessId": 135144,
+      "ParentProcessId": 52124,
+      "ExecutablePath": "C:\\Users\\57652\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "CommandLine": "\"C:\\Users\\57652\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -u C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\.mnemon\\v05-ui-goals-20261029\\serve.py",
+      "CreationDate": "2026-10-29T13:47:52.702343+08:00",
+      "command_sha256": "27ddbcc0dd2bed19f3e36551571defa270ad73da31a381e165b86b73488ce6dd"
+    }
+  ],
+  "listeners": [
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 5201,
+      "OwningProcess": 135144
+    },
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 5200,
+      "OwningProcess": 130664
+    }
+  ],
+  "launch_method": "Start-Process -WindowStyle Hidden; no exec session id; API launcher PID52124 child PID135144, frontend PID130664",
+  "http_readiness_only": [
+    {
+      "label": "api-session",
+      "status": 401,
+      "allow_origin": null,
+      "set_cookie": false,
+      "error_code": "AUTH_REQUIRED"
+    },
+    {
+      "label": "frontend-index",
+      "status": 200,
+      "allow_origin": "http://127.0.0.1:5200",
+      "set_cookie": false
+    },
+    {
+      "label": "proxy-session",
+      "status": 401,
+      "allow_origin": "http://127.0.0.1:5200",
+      "set_cookie": false,
+      "error_code": "AUTH_REQUIRED"
+    },
+    {
+      "label": "frontend-entry-transform",
+      "status": 200,
+      "allow_origin": "http://127.0.0.1:5200",
+      "set_cookie": false
+    },
+    {
+      "label": "frontend-css-transform",
+      "status": 200,
+      "allow_origin": "http://127.0.0.1:5200",
+      "set_cookie": false
+    }
+  ],
+  "ignored_artifacts_directory": "C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\.mnemon\\v05-ui-goals-20261029",
+  "artifact_hashes_at_handoff": {
+    "api.stderr.log": {
+      "sha256": "373c918655eee2b3e4765ee081a1464a9f04ebd393d1c3f0a0788184019816a8",
+      "bytes": 203
+    },
+    "api.stdout.log": {
+      "sha256": "621dd31443991130463b023ae674179133ec85a8d2c7d7cccc1e0de87581bb62",
+      "bytes": 165
+    },
+    "frontend-ready.json": {
+      "sha256": "a0d17eb2d3d9680a733b09f9eb0d7cdfbbd621cc0fb193c608dc67bcf2574ccf",
+      "bytes": 663
+    },
+    "frontend.mjs": {
+      "sha256": "e140d9e47f5f5c5bb95268605768daf65540ad2865cd5f68ed193927fd803f6b",
+      "bytes": 2368
+    },
+    "frontend.stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "frontend.stdout.log": {
+      "sha256": "2c30b1824326b9f0f411cbb5a56b678760ad99ab4771732084a2e2dae633744a",
+      "bytes": 121
+    },
+    "http-readiness.json": {
+      "sha256": "0a4845ec4f2184ac9bceaf39bb11cc5e20f7f9b798b2cd2b5d73990d7f685a7e",
+      "bytes": 708
+    },
+    "initial-facts.json": {
+      "sha256": "a206ca4a034b0936bb80a2a7ced64b0bbd9020eb1327aaa28f17af377e7b89c5",
+      "bytes": 2653
+    },
+    "launcher-pids.json": {
+      "sha256": "afc93ce27e3f513b1aaff805e9a84b0b0746d90b79352cd7ee0b41ad136dd0c2",
+      "bytes": 469
+    },
+    "listeners.json": {
+      "sha256": "c7ca97edbbb03e0d641a5f250a91058715f80a919f93529d0b23015b49918dd3",
+      "bytes": 201
+    },
+    "processes.json": {
+      "sha256": "b3e215410c568dbbc18bbb73a94bb4eec6a1a5d37e488e9d4a5cb2af82721b00",
+      "bytes": 1268
+    },
+    "serve.py": {
+      "sha256": "dc27127e9a34d678dce322412366155827337d6133ebcf012cf21dee0d3da6f7",
+      "bytes": 6375
+    }
+  },
+  "log_hash_note": "live log hashes are startup/handoff snapshots; future root actions may append",
+  "private_config_handling": "existing private config read only inside API child; no printed or copied configuration; no secrets in this whitelist",
+  "initialization_vs_business": "existing accepted P01 fixture, not a user deposit/transfer/cancellation; expected later 1500 only if root actually executes approved 2500+1000 from this initial5000",
+  "scope": {
+    "browser_used": false,
+    "model_called": false,
+    "session_login_or_cookie_set": false,
+    "user_money_actions": false,
+    "page_or_business_acceptance": "NOT_RUN",
+    "original_5190_5191_or_bank_touched": false,
+    "package_install_or_source_modification": false,
+    "new_worktree_or_pr": false
+  },
+  "root_handoff_hosts": "root plans finish all old bank tasks first, then localhost:5200 user / 127.0.0.1:5200 admin; cookies share host across ports, not independent cookie jars"
+}

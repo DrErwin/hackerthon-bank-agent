@@ -1,0 +1,113 @@
+{
+  "schema_version": "fresh-restart-pension-audit-erratum-1",
+  "read_started_at": "2026-10-29T14:43:28.178803+08:00",
+  "read_finished_at": "2026-10-29T14:43:28.225594+08:00",
+  "source_commit": "ffa42936c172f3114fa0a826f99ea4373f39058a",
+  "round_id": "ui-goals-20261029-1c7aedbe7f42",
+  "data_directory": "C:\\Users\\57652\\AppData\\Local\\Temp\\ui-goals-20261029-1c7aedbe7f42-2807j68q",
+  "replaces_only_audit_interpretation_of_field": "restart-readiness.json/readiness_checks/exact_original_month_pension_once",
+  "original_json_sha256": "552d1e133b8eedd39754ed777873b3b601a3bc147cf9ade33209388d6861cd05",
+  "original_md_sha256": "712795efc25d44068524ed4823c2fd867b7d495e4db2427b539824504081f494",
+  "original_error": "Observer incorrectly required category=pension. The source contract uses counterparty_id=PENSION plus inflow/current month, and checks amount=500000. nature/category=transfer is valid.",
+  "correct_contract_source": ".mnemon/v05-ui-goals-20261029/serve.py:52-58",
+  "correct_predicate": {
+    "user_id": "U1",
+    "account_id": "A1",
+    "counterparty_id": "PENSION",
+    "direction": "inflow",
+    "month_start_inclusive": "2026-10-01",
+    "month_end_exclusive": "2026-11-01",
+    "row_count_required": 1,
+    "amount_fen_required": 500000,
+    "nature_or_category_required_to_equal_pension": false
+  },
+  "actual_pension_rows": [
+    {
+      "transaction_id": "SEED-A1-20261001-cross-pension",
+      "account_id": "A1",
+      "operation_id": "seed:SEED-A1-20261001-cross-pension",
+      "counterparty_id": "PENSION",
+      "amount_fen": 500000,
+      "direction": "inflow",
+      "nature": "transfer",
+      "category": "transfer",
+      "occurred_at": "2026-10-01T00:00:00+08:00"
+    }
+  ],
+  "accounts": [
+    {
+      "account_id": "A1",
+      "book_balance_fen": 500000,
+      "frozen_balance_fen": 0,
+      "available_balance_fen": 500000
+    },
+    {
+      "account_id": "A5",
+      "book_balance_fen": 0,
+      "frozen_balance_fen": 0,
+      "available_balance_fen": 0
+    }
+  ],
+  "active_mandates": [
+    {
+      "mandate_id": "cross_keep",
+      "amount_fen": 2000,
+      "status": "active"
+    },
+    {
+      "mandate_id": "sub_001",
+      "amount_fen": 2500,
+      "status": "active"
+    },
+    {
+      "mandate_id": "sub_002",
+      "amount_fen": 3900,
+      "status": "active"
+    }
+  ],
+  "bank_table_counts": {
+    "bank_operations": 0,
+    "freezes": 0,
+    "orders": 0,
+    "order_payments": 0
+  },
+  "application_table_counts": {
+    "tasks": 0,
+    "api_tasks": 0,
+    "api_message_jobs": 0,
+    "security_executions": 0,
+    "security_verification_challenges": 0
+  },
+  "model_audit_event_count": 0,
+  "readiness_checks": {
+    "correct_contract_month_pension_once_500000": true,
+    "A1_500000_available_unfrozen": true,
+    "A5_zero_unfrozen": true,
+    "active_three_exact": true,
+    "no_bank_business_operations": true,
+    "no_app_tasks_jobs_execution_or_challenges": true,
+    "no_model_audit_events": true
+  },
+  "all_current_readiness_checks_pass": true,
+  "method": {
+    "sqlite_uri_mode": "ro",
+    "query_only": true,
+    "explicit_read_transactions": true,
+    "bank_total_changes": 0,
+    "application_total_changes": 0,
+    "no_http_or_runtime_or_check_model_browser": true,
+    "no_secret_or_otp_or_delivery_body": true
+  },
+  "immutable_original_files_sha256": {
+    "setup.json": "7c24a77e4796a14fe9bae349f62bd04bae90614ba65c15bba2e9be73e9fc5fa7",
+    "setup.md": "8dc2b0680ff28f44820e0bb5867c1ad47c735ec6c5bb4a20979160abadec6779",
+    "restart-readiness.json": "552d1e133b8eedd39754ed777873b3b601a3bc147cf9ade33209388d6861cd05",
+    "restart-readiness.md": "712795efc25d44068524ed4823c2fd867b7d495e4db2427b539824504081f494"
+  },
+  "original_initialfacts_sha256": "a206ca4a034b0936bb80a2a7ced64b0bbd9020eb1327aaa28f17af377e7b89c5",
+  "limits": [
+    "This corrects the observer query, not bank/fixture data.",
+    "No original sample, setup, helper or database was edited.",
+    "Persistent unused initialization is not page/business/P01 success or proof of all invisible network activity."
+  ]
+}

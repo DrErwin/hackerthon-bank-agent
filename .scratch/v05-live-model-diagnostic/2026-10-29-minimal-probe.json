@@ -1,0 +1,61 @@
+{
+  "start_utc": "2026-10-29T06:48:17.247471+00:00",
+  "source_commit": "ffa42936c172f3114fa0a826f99ea4373f39058a",
+  "config_path": "D:\\hackerthon-bank-agent\\.env.local-demo.json",
+  "model_name": "glm-5.3",
+  "base_url": "https://open.bigmodel.cn/api/coding/paas/v4/",
+  "client_parameters": {
+    "temperature": 0,
+    "max_retries": 0,
+    "timeout_seconds": 60,
+    "use_responses_api": false
+  },
+  "runtime_environment": {
+    "BANK_PENSION_DEMO_PROFILE": "p01-marked-demo-v1",
+    "proxy_environment_present": {
+      "HTTP_PROXY": false,
+      "HTTPS_PROXY": false,
+      "ALL_PROXY": false,
+      "NO_PROXY": false
+    }
+  },
+  "bank_or_runtime_constructed": false,
+  "business_tools_or_user_intent_sent": false,
+  "provider_response_body_or_credentials_persisted": false,
+  "minimal_model_invoke": {
+    "start_utc": "2026-10-29T06:48:17.383889+00:00",
+    "scope": "single configured model.invoke; no tools or user banking data",
+    "outcome": "failed",
+    "error_chain": [
+      {
+        "class": "langchain_openai.chat_models.base.OpenAITimeoutError"
+      },
+      {
+        "class": "openai.APITimeoutError"
+      },
+      {
+        "class": "httpx2.ReadTimeout"
+      },
+      {
+        "class": "httpcore2.ReadTimeout"
+      },
+      {
+        "class": "builtins.TimeoutError"
+      }
+    ],
+    "end_utc": "2026-10-29T06:49:17.942014+00:00",
+    "duration_ms": 60562
+  },
+  "models_get": {
+    "start_utc": "2026-10-29T06:48:17.384890+00:00",
+    "scope": "one authenticated GET models; no banking data; endpoint may be unsupported",
+    "outcome": "http_response",
+    "status_code": 200,
+    "listed_count": 11,
+    "configured_model_listed": true,
+    "end_utc": "2026-10-29T06:48:17.965625+00:00",
+    "duration_ms": 578
+  },
+  "config_file_unchanged": true,
+  "end_utc": "2026-10-29T06:49:17.942531+00:00"
+}

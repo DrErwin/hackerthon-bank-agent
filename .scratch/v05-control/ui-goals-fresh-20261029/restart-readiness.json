@@ -1,0 +1,211 @@
+{
+  "schema_version": "fresh-goals-restart-readiness-1",
+  "read_started_at": "2026-10-29T14:39:43.763914+08:00",
+  "read_finished_at": "2026-10-29T14:39:49.101708+08:00",
+  "source_commit_observed": "ffa42936c172f3114fa0a826f99ea4373f39058a",
+  "backend_tree_observed": "d27249f6d2fd9bd5b568630f59c45b6f93c027cd",
+  "original_setup_source_commit": "17f7ef2c2f2021c866ca4e1f1ce7757d31bace0b",
+  "round_id": "ui-goals-20261029-1c7aedbe7f42",
+  "data_directory": "C:\\Users\\57652\\AppData\\Local\\Temp\\ui-goals-20261029-1c7aedbe7f42-2807j68q",
+  "listener": {
+    "LocalAddress": "127.0.0.1",
+    "LocalPort": 5201,
+    "State": 2,
+    "OwningProcess": 32956
+  },
+  "current_api_process_observed": {
+    "ProcessId": 32956,
+    "ParentProcessId": 80016,
+    "ExecutablePath": "C:\\Users\\57652\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "CreationDate": "/Date(1793255801059)/",
+    "CommandLine": "\"C:\\Users\\57652\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -u .mnemon\\v05-ui-goals-20261029\\resume.py ffa42936c172f3114fa0a826f99ea4373f39058a",
+    "command_sha256": "251f437f62fb67d022fcd7b2a920ab31cbd95cb62a02fedea99029e00e6b9eb5"
+  },
+  "current_exec_session_reported_by_root": 95469,
+  "original_pid135144_current_observation": null,
+  "original_process_stop": "root reports verified serve.py identity before stopping; this observer did not stop a process and only observed old PID absent afterward",
+  "restart_method_static_evidence": {
+    "helper": "resume.py",
+    "reuses_literal_round_and_existing_data": true,
+    "helper_git_head_assertion": true,
+    "seed_flow_history_patch": "with patch.object(MockBankService, seed_flow_history, lambda _bank: 0) surrounding build_runtime",
+    "no_new_prepare_case_or_seed_case_call_in_helper": true,
+    "private_config": "load_config in running child; this audit did not read or copy its contents",
+    "current_profile_option": "not independently read from live process environment; original initial-facts declares p01-marked-demo-v1"
+  },
+  "method": {
+    "sqlite_uri_mode": "ro",
+    "query_only": true,
+    "explicit_read_transactions": true,
+    "no_runtime_or_api_calls": true,
+    "no_model_or_browser_or_process_mutation": true,
+    "no_sensitive_json_paths_or_secret_values_read": true
+  },
+  "read_windows": {
+    "application": {
+      "started_at": "2026-10-29T14:39:49.095804+08:00",
+      "total_changes": 0,
+      "finished_at": "2026-10-29T14:39:49.099055+08:00"
+    },
+    "bank": {
+      "started_at": "2026-10-29T14:39:49.099055+08:00",
+      "total_changes": 0,
+      "finished_at": "2026-10-29T14:39:49.101173+08:00"
+    }
+  },
+  "bank": {
+    "accounts": [
+      {
+        "account_id": "A1",
+        "user_id": "U1",
+        "account_status": "active",
+        "book_balance_fen": 500000,
+        "frozen_balance_fen": 0,
+        "available_balance_fen": 500000,
+        "version": 0
+      },
+      {
+        "account_id": "A5",
+        "user_id": "U1",
+        "account_status": "active",
+        "book_balance_fen": 0,
+        "frozen_balance_fen": 0,
+        "available_balance_fen": 0,
+        "version": 0
+      }
+    ],
+    "mandates": [
+      {
+        "mandate_id": "cross_keep",
+        "account_id": "A1",
+        "amount_fen": 2000,
+        "cycle": "monthly",
+        "status": "active",
+        "next_billing_at": "2026-11-05T13:48:01.264805+08:00",
+        "cancelled_at": null,
+        "cancel_operation_id": null
+      },
+      {
+        "mandate_id": "sub_001",
+        "account_id": "A1",
+        "amount_fen": 2500,
+        "cycle": "monthly",
+        "status": "active",
+        "next_billing_at": "2026-11-03T09:00:00+08:00",
+        "cancelled_at": null,
+        "cancel_operation_id": null
+      },
+      {
+        "mandate_id": "sub_002",
+        "account_id": "A1",
+        "amount_fen": 3900,
+        "cycle": "monthly",
+        "status": "active",
+        "next_billing_at": "2026-11-10T09:00:00+08:00",
+        "cancelled_at": null,
+        "cancel_operation_id": null
+      },
+      {
+        "mandate_id": "sub_003",
+        "account_id": "A1",
+        "amount_fen": 1500,
+        "cycle": "monthly",
+        "status": "cancelled",
+        "next_billing_at": null,
+        "cancelled_at": "2026-08-29T09:00:00+08:00",
+        "cancel_operation_id": "c81d5e3f-4a2b-4c7d-8e9f-0a1b2c3d4e5f"
+      }
+    ],
+    "exact_pension_seed_rows": [
+      {
+        "transaction_id": "SEED-A1-20261001-cross-pension",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20261001-cross-pension",
+        "amount_fen": 500000,
+        "direction": "inflow",
+        "nature": "transfer",
+        "category": "transfer",
+        "occurred_at": "2026-10-01T00:00:00+08:00"
+      }
+    ],
+    "month_pension_category_rows": [],
+    "table_counts": {
+      "bank_operations": 0,
+      "bank_operation_scopes": 0,
+      "freezes": 0,
+      "orders": 0,
+      "order_payments": 0,
+      "bank_management_operations": 0
+    }
+  },
+  "application": {
+    "table_counts": {
+      "tasks": 0,
+      "api_tasks": 0,
+      "api_message_jobs": 0,
+      "api_sessions": 0,
+      "security_executions": 0,
+      "security_verification_challenges": 0,
+      "agent_transfer_results": 0,
+      "task_relations": 0,
+      "risk_conversation": 0
+    },
+    "model_audit_event_count": 0,
+    "verification_challenge_status_counts": [],
+    "message_job_status_counts": [],
+    "pending_verification_task_marker_count": 0
+  },
+  "readiness_checks": {
+    "A1_initial_5000_unfrozen": true,
+    "A5_initial_zero_unfrozen": true,
+    "exact_original_month_pension_once": false,
+    "three_active_mandates": true,
+    "zero_bank_operations": true,
+    "zero_application_tasks": true,
+    "zero_message_jobs": true,
+    "zero_security_executions": true,
+    "zero_verification_challenges": true,
+    "zero_pending_verification_task_markers": true,
+    "zero_model_audit_events": true,
+    "zero_freeze_order_payment": true
+  },
+  "artifact_preservation": {
+    "setup.json": {
+      "sha256": "7c24a77e4796a14fe9bae349f62bd04bae90614ba65c15bba2e9be73e9fc5fa7",
+      "preserved": true
+    },
+    "setup.md": {
+      "sha256": "8dc2b0680ff28f44820e0bb5867c1ad47c735ec6c5bb4a20979160abadec6779",
+      "preserved": true
+    },
+    "initial-facts.json": {
+      "sha256": "a206ca4a034b0936bb80a2a7ced64b0bbd9020eb1327aaa28f17af377e7b89c5",
+      "original_handoff_sha256": {
+        "sha256": "a206ca4a034b0936bb80a2a7ced64b0bbd9020eb1327aaa28f17af377e7b89c5",
+        "bytes": 2653
+      },
+      "matches_original_handoff": true
+    },
+    "serve.py": {
+      "sha256": "dc27127e9a34d678dce322412366155827337d6133ebcf012cf21dee0d3da6f7",
+      "original_handoff_sha256": {
+        "sha256": "dc27127e9a34d678dce322412366155827337d6133ebcf012cf21dee0d3da6f7",
+        "bytes": 6375
+      },
+      "not_used_for_restart": "root report and current resume.py command",
+      "matches_original_handoff": true
+    },
+    "resume.py": {
+      "sha256": "d13bc2448497836f0036e9a49828b3b8c5000975d530390b21b56bef9089a8fa",
+      "path": "C:\\Users\\57652\\.codex\\worktrees\\demo-pr-merge-20261027\\hackerthon-bank-agent\\.mnemon\\v05-ui-goals-20261029\\resume.py"
+    }
+  },
+  "scope_and_limits": [
+    "Initial A1 balance and pension ledger are authorized fixture initialization, not a user deposit or transfer.",
+    "Persistent zero tasks/operations/executions/jobs/challenges and no model audit events support unused initial state; they do not attest invisible provider calls or an instantaneous gateway executor queue.",
+    "Both database windows are independent, not a cross-database atomic snapshot.",
+    "No page/business/P01 acceptance is claimed.",
+    "Old 5190/5191 bank is distinct and was not read or changed by this audit.",
+    "Fresh setup files, helper source, source tree, and runtime databases were not modified."
+  ]
+}

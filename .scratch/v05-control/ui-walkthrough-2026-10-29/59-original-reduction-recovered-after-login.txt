@@ -1,0 +1,271 @@
+- link "跳到对话内容":
+  - /url: "#sh-main"
+- banner:
+  - heading "银行小助手" [level=1]
+  - paragraph: 演示用户
+  - button "记录":
+    - text: 记录
+  - button "大字":
+    - text: 大字
+  - status "已连接":
+    - generic: 已连接
+- note: 演示数据：部分风险判断采用预设场景，转账仍需确认和验证。
+- navigation "当前办理":
+  - button "正在办 减少用不上的扣费 接着办":
+    - generic: 正在办
+    - strong: 减少用不上的扣费
+    - text: 接着办
+- status: 已有 27 条助手回复。1 项等您补充，0 项需要您确认或验证，10 项已结束。请在对话中查看。
+- main:
+  - article:
+    - heading "您好，今天想办什么？" [level=2]
+  - article:
+    - generic: 您说：
+    - paragraph: 你好，我想看看这个月都花了多少钱，主要花在哪儿。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 请选择要查询的本人账户，不会替你默认选择。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 本人账户共 7 笔记录，消费支出 84.00 元，退款 0.00 元，净消费 84.00 元；转出 3500.00 元、转入 7500.00 元单列。
+    - time: 12:29
+  - article:
+    - button "账单汇总 已办结 展开":
+      - generic: 账单汇总
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - button "其他明细 已办结 展开":
+      - generic: 其他明细
+      - generic: 已办结
+      - generic: 展开
+    - text: ＋ ＋ ＋
+  - article:
+    - generic: 您说：
+    - paragraph: 我想给妈妈转500元。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请先选择转出账户。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:34
+  - article:
+    - generic: 您说：
+    - paragraph: 金额改成500元。
+    - time: 12:34
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:35
+  - article:
+    - generic: 您说：
+    - paragraph: 我有哪些收款人？
+    - time: 12:37
+  - article:
+    - generic: 助手说：
+    - paragraph: 已查到您保存的收款联系人。
+    - time: 12:37
+  - article:
+    - button "常用收款人 已办结 展开":
+      - generic: 常用收款人
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；现在不用重复点确认，也不用重新验证。
+    - time: 12:39
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；现在不用重复点确认，也不用重新验证。
+    - time: 12:39
+  - article:
+    - generic: 您说：
+    - paragraph: 我有哪些银行卡，余额还有多少？
+    - time: 12:52
+  - article:
+    - generic: 助手说：
+    - paragraph: 已查到您的本人账户与可用余额。
+    - time: 12:52
+  - article:
+    - button "我的银行卡 已办结 展开":
+      - generic: 我的银行卡
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 您说：
+    - paragraph: 查看我的订阅和自动扣费
+    - time: 12:55
+  - article:
+    - generic: 助手说：
+    - paragraph: 这些是您的自动扣费。点开一项，就能查看或办理。
+    - generic "查看完整说明"
+    - time: 12:55
+  - article:
+    - button "订阅和自动扣费 已办结 展开":
+      - generic: 订阅和自动扣费
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 助手说：
+    - paragraph: 已经停下了，没有提交退订，银行那边没有变化。
+    - time: 12:57
+  - article:
+    - button "退订办理 已取消 展开":
+      - generic: 退订办理
+      - generic: 已取消
+      - generic: 展开
+  - article:
+    - button "账单汇总 已办结 展开":
+      - generic: 账单汇总
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - button "账单汇总 已办结 展开":
+      - generic: 账单汇总
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 助手说：
+    - paragraph: 安全核对还没完成，这笔转账没有提交。已填资料保留，您可以修改资料或取消。
+    - time: 13:16
+  - article:
+    - generic: 助手说：
+    - paragraph: 安全核对还没完成，这笔转账没有提交。已填资料保留，您可以修改资料或取消。
+    - time: 13:17
+  - article:
+    - generic: 助手说：
+    - paragraph: 安全核对还没完成，这笔转账没有提交。已填资料保留，您可以修改资料或取消。
+    - time: 13:18
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账尚未提交，已取消。
+    - time: 13:21
+  - article:
+    - button "转给妈妈 · 500.00 元 已取消 展开":
+      - generic: 转给妈妈 · 500.00 元
+      - generic: 已取消
+      - generic: 展开
+  - article:
+    - generic: 您说：
+    - paragraph: 我想给妈妈转500元。
+    - time: 13:22
+  - article:
+    - generic: 助手说：
+    - paragraph: 请先选择转出账户。
+    - time: 13:22
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 13:23
+  - article:
+    - generic: 助手说：
+    - paragraph: 请完成专用身份验证。
+    - time: 13:25
+  - article:
+    - generic: 助手说：
+    - paragraph: 请完成专用身份验证。
+    - time: 13:25
+  - article:
+    - generic: 助手说：
+    - paragraph: 银行返回转账成功，金额 500.00 元。交易编号 aecac55f-eefd-4f75-97c2-9c616073f46a。
+    - time: 13:27
+  - article:
+    - button "转给妈妈 · 500.00 元 已办结 展开":
+      - generic: 转给妈妈 · 500.00 元
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 您说：
+    - paragraph: 最近花销有点多，帮我看看原因，再看看有哪些不用的自动扣费可以停。通信套餐我还要用。
+    - time: 13:38
+  - article:
+    - generic: 助手说：
+    - paragraph: 最近一个完整月消费净额 284.00元，比上月多花 100.00元。支出最多的类别：购物 200.00元、其他 84.00元。以下签约是银行记录的自动扣费。 当前可在线退订的签约：优酷视频·优酷 VIP 连续包月（25.00元/每月）、模拟通信·仍在使用的通信套餐（20.00元/每月）。 想退订的项目请逐项选择；每项退订前还会有一次确认。
+    - time: 13:38
+  - article:
+    - generic: 助手说：
+    - paragraph: 「优酷 VIP 连续包月」需要您在确认单上确认或验证（在对应任务卡片上操作）。
+    - time: 13:45
+  - article:
+    - generic: 助手说：
+    - paragraph: 请填写银行发给您的短信验证码；验证通过后马上办理退订，验证码不要告诉任何人。
+    - time: 13:46
+  - article:
+    - generic: 助手说：
+    - paragraph: 「优酷视频（优酷 VIP 连续包月）」已经退了。从下一期（2026-11-01）起不会再自动扣费；之前已经扣掉的钱不退。
+    - time: 13:46
+  - article:
+    - generic: 您说：
+    - paragraph: 继续
+    - time: 13:49
+  - article:
+    - generic: 助手说：
+    - paragraph: 任务状态已变化，请查看当前卡片后继续；确认和验证码必须使用专用入口。
+    - time: 13:49
+  - article:
+    - generic: 助手说：
+    - paragraph: 最近一个完整月消费净额 284.00元，比上月多花 100.00元。支出最多的类别：购物 200.00元、其他 84.00元。以下签约是银行记录的自动扣费。 当前可在线退订的签约：模拟通信·仍在使用的通信套餐（20.00元/每月）。
+    - time: 14:37
+  - article:
+    - button "减少用不上的扣费 等您补充" [disabled] [expanded]:
+      - generic: 减少用不上的扣费
+      - generic: 等您补充
+    - region "已找回这项办理":
+      - heading "已找回这项办理" [level=3]
+      - paragraph: 已找回上次的办理资料，请查看当前进度。
+    - region "减少用不上的扣费安排":
+      - heading "减少用不上的扣费" [level=3]
+      - generic: 4 / 4 项已办好
+      - progressbar "安排进度"
+      - paragraph: 按下面的步骤办理，需要确认时会逐项请您核对。
+      - list:
+        - listitem "第 1 步，查看您的账户，已办结":
+          - generic: "1"
+          - strong: 查看您的账户
+          - text: 已办结
+          - generic "查看之前的办理"
+        - listitem "第 2 步，核对正在扣费的签约，已办结":
+          - generic: "2"
+          - strong: 核对正在扣费的签约
+          - text: 已办结
+          - generic "查看之前的办理"
+        - listitem "第 3 步，查看最近的账单，已办结":
+          - generic: "3"
+          - strong: 查看最近的账单
+          - text: 已办结
+          - generic "查看之前的办理"
+        - listitem "第 4 步，取消不需要的签约，已办结":
+          - generic: "4"
+          - strong: 取消不需要的签约
+          - text: 已办结
+          - generic "查看之前的办理"
+      - paragraph: 已办好 4 项，共 4 项。
+    - region "最近一个完整月消费净额 284.00元，比上月多花 100.00元。支出最多的类别：购物 200.00元、其他 84.00元。以下签约是银行记录的自动扣费。 当前可在线退订的签约：模拟通信·仍在使用的通信套餐（20.00元/每月）。":
+      - heading "最近一个完整月消费净额 284.00元，比上月多花 100.00元。支出最多的类别：购物 200.00元、其他 84.00元。以下签约是银行记录的自动扣费。 当前可在线退订的签约：模拟通信·仍在使用的通信套餐（20.00元/每月）。" [level=3]
+      - text: 等您补充
+      - button "退订 模拟通信·仍在使用的通信套餐（20.00元/每月，****0001）":
+        - generic: 退订 模拟通信·仍在使用的通信套餐（20.00元/每月，****0001）
+      - button "保留其余项目，出总回执":
+        - generic: 保留其余项目，出总回执
+      - generic: 填写您的回答
+      - textbox "填写您的回答"
+      - button "填好了，继续" [disabled]
+      - paragraph: 也可以在下方对话框里告诉我。
+    - button "取消这次办理"
+- button "查资料 / 办业务":
+  - text: 查资料 / 办业务
+- generic: 转钱前，请您亲自确认
+- generic: 输入您想办的事
+- textbox "输入您想办的事":
+  - /placeholder: 想办什么，直接告诉我
+- button "发送" [disabled]
+- region "提示 alt+T"

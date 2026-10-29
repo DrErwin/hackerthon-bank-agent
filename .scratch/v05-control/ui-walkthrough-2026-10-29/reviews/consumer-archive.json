@@ -1,0 +1,24 @@
+{
+  "files": [
+    {
+      "artifact": "consumer-standards.md",
+      "raw_sha256": "0ea1e2b69b7391b8759dbd11d69dd96710756c04c0f2e2f95590822c207961c8",
+      "saved_sha256": "0ea1e2b69b7391b8759dbd11d69dd96710756c04c0f2e2f95590822c207961c8"
+    },
+    {
+      "artifact": "consumer-standards-test-update.md",
+      "raw_sha256": "1c781f6cd04b1bb3b0882b8afe5d0f71729453b43c1a569a9511c7321554e42c",
+      "saved_sha256": "1c781f6cd04b1bb3b0882b8afe5d0f71729453b43c1a569a9511c7321554e42c"
+    },
+    {
+      "artifact": "consumer-independent-unknown.xml.gz",
+      "raw_sha256": "53e0754812a8c6dc5f2ecf55e46425080a7bf8003a5d74f75d50e147c76ae375",
+      "saved_sha256": "1d596d3fb4ed1cc96ceac6c0056b90723f50988b8853bc23dfd607109f171936"
+    },
+    {
+      "artifact": "consumer-independent-original.xml.gz",
+      "raw_sha256": "fba8c7648d3e9a8280f252588131077d55f44e11f01d7aae2b8eb42f3de9d2e7",
+      "saved_sha256": "8c051b297932bd95ad33d98faf2fbf8002a14066da5353524c7728c969ae28a3"
+    }
+  ]
+}

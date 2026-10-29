@@ -1,0 +1,77 @@
+- link "跳到对话内容":
+  - /url: "#sh-main"
+- banner:
+  - heading "银行小助手" [level=1]
+  - paragraph: 演示用户
+  - button "记录":
+    - text: 记录
+  - button "大字":
+    - text: 大字
+  - status "已连接":
+    - generic: 已连接
+- note: 演示数据：部分风险判断采用预设场景，转账仍需确认和验证。
+- status: 已有 2 条助手回复。0 项等您补充，0 项需要您确认或验证，1 项已结束。请在对话中查看。
+- main [active]:
+  - article:
+    - heading "您好，今天想办什么？" [level=2]
+  - article:
+    - generic: 您说：
+    - paragraph: 你好，我想看看这个月都花了多少钱，主要花在哪儿。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 请选择要查询的本人账户，不会替你默认选择。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 本人账户共 7 笔记录，消费支出 84.00 元，退款 0.00 元，净消费 84.00 元；转出 3500.00 元、转入 7500.00 元单列。
+    - time: 12:29
+  - article:
+    - button "账单汇总 已办结 收起" [expanded]:
+      - generic: 账单汇总
+      - generic: 已办结
+      - generic: 收起
+    - generic "查看之前补充的信息"
+    - region "这段时间花了多少钱":
+      - heading "这段时间花了多少钱" [level=3]
+      - paragraph: 2026/10/1 至 2026/10/31 · 2 张卡
+      - generic: 消费扣除退款后
+      - strong: ¥84.00
+      - paragraph: 共 7 笔记录
+      - generic "换一个月份"
+      - button "查看转账明细":
+        - generic: 查看转账明细
+        - strong: ¥3500.00
+      - button "查看其他明细":
+        - generic: 查看其他明细
+        - strong: ¥84.00
+      - button "查看餐饮明细":
+        - generic: 查看餐饮明细
+        - strong: ¥0.00
+      - button "查看交通明细":
+        - generic: 查看交通明细
+        - strong: ¥0.00
+      - button "查看医疗明细":
+        - generic: 查看医疗明细
+        - strong: ¥0.00
+      - button "查看购物明细":
+        - generic: 查看购物明细
+        - strong: ¥0.00
+      - button "查看居住明细":
+        - generic: 查看居住明细
+        - strong: ¥0.00
+      - button "核对陌生扣款":
+        - generic: 核对陌生扣款
+      - button "查看完整账单说明"
+      - paragraph: 查询日期：2026/10/29
+      - button "重新查询最新资料":
+        - text: 重新查询最新资料
+- button "回到最新消息 ↓"
+- button "查资料 / 办业务":
+  - text: 查资料 / 办业务
+- generic: 转钱前，请您亲自确认
+- generic: 输入您想办的事
+- textbox "输入您想办的事":
+  - /placeholder: 想办什么，直接告诉我
+- button "发送" [disabled]
+- region "提示 alt+T"

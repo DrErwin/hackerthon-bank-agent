@@ -7,7 +7,7 @@ Core scenarios: C201—C205
 Type: 开发
 Owner: Erwin（v0.5）；执行 transfer_pause_recovery AI 子代理
 Directory: backend/app/api/
-Status: implemented_pending_merge
+Status: merged — PR358 / ffa42936c172f3114fa0a826f99ea4373f39058a；普通聊天resume实际页面待续
 Blocked by: [v05-cross-chat-resume/01：平台无字段继续建议](01-provider.md)，[PR #357](https://github.com/DrErwin/hackerthon-bank-agent/pull/357) 已合入 bbfb6fd045dd6070f2928d366519d492dfd37849，本票已重放到该主线基线
 Accepted by: 根明确委派，依据用户本轮完成非比赛资料与真实页面走查修补授权
 Accepted at: 2026-10-29
@@ -23,3 +23,5 @@ Evidence: [消费验证](../consumer-verification.md)、[原始结果及逐项�
 ## 交付事实
 
 固定生产源 affd96d289f60841396b05e5e6729c960a3de2b1；新测试断言修正源 7d9d817ee4d29251d8cdf31094be2413a261ece9。必要组合原批 43 pass / 1 新断言错误，同一失败节点修正后 1 pass；支持 44 个唯一节点，并非一次 44 全绿。独立 Spec 已报 0 剩余必须项；Standards、精确 PR head CI、合入与原页面复验按各自记录判定。
+
+根亲核最终API树与受测7d9一致，两位非作者Spec/Standards均0必须项；精确head CI因账号计费未启动，仍Blocked。已普通精确head squash合入，[原记录](../../v05-control/ui-walkthrough-2026-10-29/code-review-and-merges.md)。原父会话恢复和总回执实际完成，走专用F11；普通聊天resume真实页面仍待，不用固定模型测试或F11结果代替。

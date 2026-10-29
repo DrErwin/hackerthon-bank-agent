@@ -1,0 +1,659 @@
+{
+  "files": [
+    {
+      "path": ".scratch/v05-control/ui-goals-fresh-20261029/restart-readiness-pension-erratum.json",
+      "size": 4064,
+      "sha256": "9f19ffe49a70f9de62e04d8dbaabba4d6ae8f463e15ad18fd57bbcfc222cecb1"
+    },
+    {
+      "path": ".scratch/v05-control/ui-goals-fresh-20261029/restart-readiness-pension-erratum.md",
+      "size": 1433,
+      "sha256": "e5811cc3bdf674018163411028eb0ae7a147788d04848a29613f648df8aaf844"
+    },
+    {
+      "path": ".scratch/v05-control/ui-goals-fresh-20261029/restart-readiness.json",
+      "size": 7853,
+      "sha256": "552d1e133b8eedd39754ed777873b3b601a3bc147cf9ade33209388d6861cd05"
+    },
+    {
+      "path": ".scratch/v05-control/ui-goals-fresh-20261029/restart-readiness.md",
+      "size": 2148,
+      "sha256": "712795efc25d44068524ed4823c2fd867b7d495e4db2427b539824504081f494"
+    },
+    {
+      "path": ".scratch/v05-control/ui-goals-fresh-20261029/setup.json",
+      "size": 9320,
+      "sha256": "7c24a77e4796a14fe9bae349f62bd04bae90614ba65c15bba2e9be73e9fc5fa7"
+    },
+    {
+      "path": ".scratch/v05-control/ui-goals-fresh-20261029/setup.md",
+      "size": 4471,
+      "sha256": "8dc2b0680ff28f44820e0bb5867c1ad47c735ec6c5bb4a20979160abadec6779"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/01-blank-conversation.jpg",
+      "size": 39957,
+      "sha256": "60f6a9364913c43bd9f37397b79a94776118a653ada4982e292a4be27649bf45"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/02-monthly-bill-summary.jpg",
+      "size": 39935,
+      "sha256": "a77095c9accc0935d8f6d06a0ca97f387efc41c1c96bfb30d4f7575f9303373c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/02-monthly-bill-summary.txt",
+      "size": 2775,
+      "sha256": "93092216b70b0614b5f034108d960dd1678194ecac793eeef18df33da45a4123"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/03-bill-summary-keyboard-home.jpg",
+      "size": 44203,
+      "sha256": "9bbfe8135e697cb87b76397c340ab6f6d58d34517ee9e257a876d4c0ad5a70d3"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/03-bill-summary-keyboard-home.txt",
+      "size": 2818,
+      "sha256": "94a130ded695916c82ae1433af7f28a4015009fe8fcbe12883c7ee059e802f65"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/04-transfer-account-choices.txt",
+      "size": 2723,
+      "sha256": "77348ef5393c5d3507ee7473a0b527a7d0322d987641da5c37e64f0368476a43"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/05-transfer-bank-cards.jpg",
+      "size": 47873,
+      "sha256": "15a274d0078a7e889a5af78144f743117608bb17f94a3e06451f22ac0d9a834d"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/05-transfer-bank-cards.txt",
+      "size": 2723,
+      "sha256": "77348ef5393c5d3507ee7473a0b527a7d0322d987641da5c37e64f0368476a43"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/06-transfer-payee-choice.txt",
+      "size": 3083,
+      "sha256": "71694f5ad5bb468fa95c99cf96e76737d4ae174de6e733a0b99961a5d140b4d6"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/07-transfer-edit-open.txt",
+      "size": 3461,
+      "sha256": "1317b136d6cbb109edc25fc484c8b725cacc5249d73510c1e024201200196113"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/08-transfer-edit-amount.txt",
+      "size": 3819,
+      "sha256": "459b91905713699de15c349656a5a9531191587b055425deac7eb2a9e0244ff4"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/09-transfer-revised-600.txt",
+      "size": 3249,
+      "sha256": "f589086443a7a19d6f973f0112860f7059683deb0121a0c3663bc671eb474828"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/10a-transfer-chat-revision-pending.txt",
+      "size": 3452,
+      "sha256": "c1c6c07c96cfcfa75eb8c5d658e68f1f19be57b29394717d01d35b17a511a743"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/10c-transfer-chat-revision-current.txt",
+      "size": 3500,
+      "sha256": "5067d7d1d72ff9a328bade64f3ebaa9bc2eb039f658b7766bddb5daccbc23364"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/11-payee-query-during-confirmation.txt",
+      "size": 5364,
+      "sha256": "e46be0f5211f69cdb09a2ac2f9fccdd74492d972502e938f7086f01aacfc184c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/12-confirmation-after-chat.jpg",
+      "size": 45126,
+      "sha256": "d44eba737427e4be202aef9db0e50ae0bc2f6e82828e433d1e143e5760d52e01"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/12-confirmation-after-chat.txt",
+      "size": 5364,
+      "sha256": "e46be0f5211f69cdb09a2ac2f9fccdd74492d972502e938f7086f01aacfc184c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/13-change-funding-card.txt",
+      "size": 6237,
+      "sha256": "1df0f983fa214a58aa605740d07eef0717357c45c560f053dbcda5d7cb569b2f"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/14-unapproved-funding-source-pauses.txt",
+      "size": 4005,
+      "sha256": "37b0f29f16e505141a1b75ecfcbe37fd44c69e494d2d1c4aaf92a6eaf3387bc7"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/15-return-original-paused-transfer.txt",
+      "size": 3973,
+      "sha256": "e7317b97ed29e4f4f2944b3db676fd1d33dee168f827891c1860d3e9515cf657"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/16-paused-transfer-loop-before-fix.jpg",
+      "size": 55240,
+      "sha256": "fbc60d7a9649271a8dd0b63f5f3b6924562f75d4d5618a128f94d324089383b1"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/16-paused-transfer-loop-before-fix.txt",
+      "size": 3973,
+      "sha256": "e7317b97ed29e4f4f2944b3db676fd1d33dee168f827891c1860d3e9515cf657"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/16-recovery-controls-before.json",
+      "size": 68,
+      "sha256": "d5f6a179d8805e2b7c5b768654259795fb08aa24910eecb4084b6a682f8cf703"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/17-large-text-layout.jpg",
+      "size": 67196,
+      "sha256": "958439b0439a5172c505939fbaa901c1b41b96923951527757662fbb0eb7e717"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/17-large-text-layout.txt",
+      "size": 4069,
+      "sha256": "73c5ca19124571e68430500266de24a27aa35c67699c80263d1fb18ffaf07b88"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/17-large-text-state.txt",
+      "size": 4069,
+      "sha256": "73c5ca19124571e68430500266de24a27aa35c67699c80263d1fb18ffaf07b88"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/18-narrow-viewport-large-text.jpg",
+      "size": 51086,
+      "sha256": "26951b236bfa26c6179b341841cfd9b31ca03ea4d4090fa15bae9e14c2e7db38"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/18-narrow-viewport-large-text.txt",
+      "size": 3879,
+      "sha256": "b48a4aff9a62c597655890e55e4f28eaf7e37d7e43fa2c246bddcde3688c5291"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/18-narrow-viewport-layout.json",
+      "size": 200,
+      "sha256": "fb63a3618625895207fe5d14acdc8e2b319fadc6aa1c08f05383b0e9b40caf6f"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/19-dialog-keyboard-settled.json",
+      "size": 278,
+      "sha256": "fac3c91eeb40cbd7e5d6d7dedc627a94672454ad535d202404d9c2b345764f8b"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/19-dialog-keyboard.json",
+      "size": 71,
+      "sha256": "b921187882ce14994c110c6f08c309b68c3729eb89c7ec59fde0b145a4c348dd"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/19-mobile-pending-records.jpg",
+      "size": 41351,
+      "sha256": "31cb956e56f8f213e0323a145aede0b1f191f065370ab9b6ef7f35b2b9a45eb5"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/19-mobile-pending-records.txt",
+      "size": 4090,
+      "sha256": "5d1698d7bf159b84c0a8644f5609b7c3772e60b05e774fe448c1c4fa942c1a39"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/20-default-layout-restored.txt",
+      "size": 4093,
+      "sha256": "311e4b59c57c91ab34145dced8eac77cdcb415cc74d20c4c7b98274d19311bcf"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/21-account-query-during-paused-task.txt",
+      "size": 4915,
+      "sha256": "ebc790e58c245e5e8e756410357df1dd480ddbeba93e43400d523b46a0cda59e"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/22-account-balances-actual.jpg",
+      "size": 52190,
+      "sha256": "738b888eccc4db6d494ea8b90409514fc31a6c2e502eb47a1c85806cbbc08d75"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/22-account-balances-actual.txt",
+      "size": 4915,
+      "sha256": "ebc790e58c245e5e8e756410357df1dd480ddbeba93e43400d523b46a0cda59e"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/23-current-subscriptions-query.txt",
+      "size": 6016,
+      "sha256": "41906c3708bb589d209092810dafa190363b0040f2fd00ad8f59a133417ed98a"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/24-subscription-cancel-confirmation.txt",
+      "size": 6885,
+      "sha256": "9c08706c4e0c2473bf012ab6645cff004167628193c9a70f90befa89b6905efd"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/25-subscription-consequence-before-cancel.jpg",
+      "size": 55596,
+      "sha256": "a78d63d498981a2b981cc4c08cc334f610a29b4d61ea0a625208e8a1f3bad485"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/25-subscription-consequence-before-cancel.txt",
+      "size": 6885,
+      "sha256": "22945269c463d896877ee8d15e8f3d4e74e0195fa153c488a8a66e2143d9f626"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/26-subscription-user-cancelled.txt",
+      "size": 6439,
+      "sha256": "e1fef991e5f411c4d6f3a31f73f8396f0c3aedc0e20f305f56e7a1df8f5b537b"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/27-bill-month-picker.txt",
+      "size": 7900,
+      "sha256": "8f139c49b83cb3a3ba05e3a7d614bb09f6a8129ab46f72af9c68759b98ae3d90"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/28-bill-september-result.txt",
+      "size": 7900,
+      "sha256": "cfaaf72136d0ce9bf5bc51555d3ad8ce87f0591621ab903cbf449b2175109993"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/29-bill-october-restored.txt",
+      "size": 7902,
+      "sha256": "5d7c407c74edcdece7166d5132ea1a3a8932b479bdcf0146a349b13ae5ee0532"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/30-bill-current-summary-context.jpg",
+      "size": 56449,
+      "sha256": "1e60d5d192326ba8e54ebedff85d39998409f6a44e29c4388b39accd1e6ad1e1"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/30-bill-current-summary-context.txt",
+      "size": 7911,
+      "sha256": "d910f9743482ef6fd38755d6304cce27cbabef44c60269b4024c05317bff728a"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/31-bill-amount-and-range.jpg",
+      "size": 47820,
+      "sha256": "219a598f942b7bbc2087a9784530694c1a7f06f1f2323ffed62a1c538bb89af2"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/31-bill-amount-and-range.txt",
+      "size": 7911,
+      "sha256": "352b994012a1008b0d8744031e6e923be12db3ee3660de7b8f96ceb75eb738a3"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/32-original-pause-restored-after-356.txt",
+      "size": 5790,
+      "sha256": "3afa8bf25da43cb1b6a7dd7b46c7a27f4cb9ac7b1dddb41814e3b6b4c766c3d4"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/32-recovery-controls-after.json",
+      "size": 63,
+      "sha256": "1ca06a7ae203de4767365a267c01ede678a501f016abea92f8bf7d983642b068"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/33-original-card-still-pauses-without-risk-facts.txt",
+      "size": 5800,
+      "sha256": "d0f338deda661ffcffcaaed5efb72380a61afd4d72a12a034b5b7465e478ff51"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/34a-original-task-after-return-a1.txt",
+      "size": 6996,
+      "sha256": "293a74495d076c26c83c9dff41a6e4e9776312b0c2e4c6e4ba65ac37c72c2025"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/35-original-transfer-can-cancel-after-recovery.jpg",
+      "size": 48414,
+      "sha256": "cf5d5cfa4b6d5fad03698ea4d0e4af391533ae54500c6cbef08f937107a2bcd7"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/35-original-transfer-can-cancel-after-recovery.txt",
+      "size": 6473,
+      "sha256": "96a3822999f4dacad16b3a05660c3c6b1cb1ae949b0a5aa3722c74d1c9d4f95a"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/36-original-transfer-cancelled.txt",
+      "size": 5695,
+      "sha256": "56a621247d11400a244c675e4b15398dbcf269e22cfe96184005396c4a512d96"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/37-new-transfer-request.txt",
+      "size": 6103,
+      "sha256": "e23d734d9d16e3d3bb5418710b4610afee694ef6151ed7726e021e887c187d63"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/38-new-transfer-confirmation.txt",
+      "size": 6463,
+      "sha256": "b2df7e2b9e0e19730d515b948f5c577742a99277a6987dc9512829ed0778b6b4"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/39-new-transfer-confirmation.jpg",
+      "size": 53408,
+      "sha256": "494b247dc5bee6b9c4d5e6e5fb77a8cef322c0c1028adf2a8d2e507371638a6d"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/39-new-transfer-confirmation.txt",
+      "size": 6463,
+      "sha256": "b2df7e2b9e0e19730d515b948f5c577742a99277a6987dc9512829ed0778b6b4"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/40-transfer-verification-start.txt",
+      "size": 6865,
+      "sha256": "f733da9ae00fdb71588545ebbd52c219316e20823d13ad3732acbdcd6aec1ac8"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/41-code-passed.txt",
+      "size": 6689,
+      "sha256": "4ab36ccd47187fcba5b1a4201e261db5c68445f8f01268f4f456ac433d95c43f"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/42-code-passed-face-waiting.jpg",
+      "size": 51621,
+      "sha256": "66b9c1d8492e9755e9c11641d1fb77a365bfc2e831c27bcbe4c2ce580c3fae35"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/42-code-passed-face-waiting.txt",
+      "size": 7049,
+      "sha256": "fc0ab503bf2eec9be5fc3ec309af37af7235eaacfae5b862445c8b06c5930b70"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/43-admin-face-result.txt",
+      "size": 21782,
+      "sha256": "7519824c7ae051fffb1a9d967673d802acf40e87d41ff27f8a0a44ebca78010b"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/43-transfer-bank-result.txt",
+      "size": 6353,
+      "sha256": "ab7fc46e61319b20d2c77a1d830fbdb90428398cc881fee17691e88e35294ec0"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/44-transfer-success.jpg",
+      "size": 42539,
+      "sha256": "cd96149114865b1c969f01bcd6e7e59406c764e8665f31c913f4ea575063b730"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/44-transfer-success.txt",
+      "size": 6353,
+      "sha256": "ab7fc46e61319b20d2c77a1d830fbdb90428398cc881fee17691e88e35294ec0"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/45-transfer-receipt-drawer.txt",
+      "size": 6249,
+      "sha256": "4de541d3970ead1ad6419d702024d7f60309dd9b7435240881b15efc8dc5ae68"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/46-success-after-refresh.jpg",
+      "size": 42539,
+      "sha256": "cd96149114865b1c969f01bcd6e7e59406c764e8665f31c913f4ea575063b730"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/46-success-after-refresh.txt",
+      "size": 6353,
+      "sha256": "ab7fc46e61319b20d2c77a1d830fbdb90428398cc881fee17691e88e35294ec0"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/47-browser-zoom-capability-probe.json",
+      "size": 323,
+      "sha256": "5a27798c877cd9cefa7289d1a1d25d2e1021f75706de47309a3fe4f9c9115cc4"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/48-expense-reduction-entry.txt",
+      "size": 9171,
+      "sha256": "4b669830d0a44179b2da811a2e1fb8eef678496ac5818b0ef6ab0998b15d14d3"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/49-reduction-video-confirmation.txt",
+      "size": 9421,
+      "sha256": "7627c9cf9f7f57d7eceea9e6c99aafcaf6bb070f08da54a71851f00c9611910c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/50-reduction-video-cancelled.txt",
+      "size": 9601,
+      "sha256": "8314072b6c513f08b371cd9c4ded94e9ffe747b7121af71038aa5d91e9c101e2"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/50b-reduction-parent-after-child.txt",
+      "size": 9601,
+      "sha256": "8314072b6c513f08b371cd9c4ded94e9ffe747b7121af71038aa5d91e9c101e2"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/51-reduction-continue-result.txt",
+      "size": 9826,
+      "sha256": "8c53f305b560fc74b242e58e3c82d330760b866dfc6098de9528f2af48f49ca7"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/52-reduction-parent-continuation-blocked.jpg",
+      "size": 53177,
+      "sha256": "bb0f17a5d71423f01d2235213b94a3aa843bfd7098651768db45ba9f19352f2f"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/52-reduction-parent-continuation-blocked.txt",
+      "size": 9826,
+      "sha256": "8c53f305b560fc74b242e58e3c82d330760b866dfc6098de9528f2af48f49ca7"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/53-reduction-video-result-pending-parent.jpg",
+      "size": 49588,
+      "sha256": "e542cc67dcae2071ed982ecd82d90e384ff17a2c4e016e04560ff758010ac4d8"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/53-reduction-video-result-pending-parent.txt",
+      "size": 9860,
+      "sha256": "1f33ae96da4d2d8b9b01e1c16fe1a7442e91a714269297bcc808926179842601"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/54-video-subscription-success.jpg",
+      "size": 57534,
+      "sha256": "74793230529e3d71a8481738f1b59a7481703d8afff6cc126b86776610953e06"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/54-video-subscription-success.txt",
+      "size": 9860,
+      "sha256": "1f33ae96da4d2d8b9b01e1c16fe1a7442e91a714269297bcc808926179842601"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/55-complete-parent-card-before-resume-fix.jpg",
+      "size": 76247,
+      "sha256": "2928f8e6147a4982da479fa23eeb01506dc2a7e5e6d7e7ee5af436977bfa2a46"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/55-complete-parent-card-before-resume-fix.txt",
+      "size": 9860,
+      "sha256": "1f33ae96da4d2d8b9b01e1c16fe1a7442e91a714269297bcc808926179842601"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/56-transfer-success-receipt-readable.jpg",
+      "size": 73542,
+      "sha256": "f19dcc138a054bde60364d6dae057ee018bb9fd17de3554624c9a345d49dbeec"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/56-transfer-success-receipt-readable.txt",
+      "size": 10465,
+      "sha256": "ae75c7f4be1161511f817f0ac73bf0f14d7e56fb3c20bd58cf6b3ea2cf2af166"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/57-session-expired-before-service-update.txt",
+      "size": 10619,
+      "sha256": "a06227ce92fefaadd188d20207ec97499b8a13346d33f85f2d986ff872d6a12f"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/57-session-expired-disabled-input.jpg",
+      "size": 81067,
+      "sha256": "76b1a0aeaf8ed43df18485f3b5e62a594c728657007d2419d51d99271c7b0234"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/57-session-expired-disabled-input.txt",
+      "size": 10619,
+      "sha256": "a06227ce92fefaadd188d20207ec97499b8a13346d33f85f2d986ff872d6a12f"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/58-new-session-original-task-recovery-gate.txt",
+      "size": 8646,
+      "sha256": "8bcbc56bb64ff79a452a74abdb9147935cdb109152bc0cf10941084c8aa41db0"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/59-original-reduction-recovered-after-login.txt",
+      "size": 11027,
+      "sha256": "7b9cc5f8b338d2afb9bba7b48bf63d182a2ae06e94dd7c451f7d851c2a76e8ee"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/60-reduction-plan-completed-after-session-recovery.jpg",
+      "size": 103696,
+      "sha256": "a6be33246d386fd9df4afd54e9f39a815a4a34956cc41e0942b9a1ad3e7ace3a"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/60-reduction-plan-completed-after-session-recovery.txt",
+      "size": 10046,
+      "sha256": "05fa2a3649e8bcdeb5f54cc0eedc2c39666097c4659f8a94d25c3389ba9afa69"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/61-birthday-initial-model-failure.jpg",
+      "size": 75537,
+      "sha256": "444c46372f72ffce4eb0fdc2724dbfe117d83d36f9c2a63ae23f6fb931f02e7c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/61-birthday-initial-model-failure.txt",
+      "size": 10591,
+      "sha256": "cac2b53e93ef1a904b4fd61bd573fd506c064794667a3bb1cb553c55034a30bb"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/62-birthday-explicit-date-model-failure.jpg",
+      "size": 81931,
+      "sha256": "c342876609b0e52fc95f8cf65cc3c302ca8b5c53a9ef184eb2880ac46e137100"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/62-birthday-explicit-date-model-failure.txt",
+      "size": 10943,
+      "sha256": "dbb1e24c3cbad777bb540d1b30c15a6680c5f8096882f74023dc28647677fc1c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/63-final-default-view-with-failure-recovery.txt",
+      "size": 10943,
+      "sha256": "dbb1e24c3cbad777bb540d1b30c15a6680c5f8096882f74023dc28647677fc1c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/64-final-restored-original-viewport.txt",
+      "size": 10943,
+      "sha256": "dbb1e24c3cbad777bb540d1b30c15a6680c5f8096882f74023dc28647677fc1c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/bank-after-reduction-and-birthday-errors.json",
+      "size": 18284,
+      "sha256": "7ddc032e927143c08de7cdef5afc35cb3a3d669f6a38c83a4f2f9da67980c7d1"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/bank-after-refresh.json",
+      "size": 23721,
+      "sha256": "e7cb188f8e1348b5fc5c3d92b49cf119e2948eeb3e1033a4cfbf67fa8523dbd7"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/bank-baseline.json",
+      "size": 14621,
+      "sha256": "52f5c427425ff74be97098669078441dbbf2324258e84914687a15a5b8402b84"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/bank-before-refresh.json",
+      "size": 25549,
+      "sha256": "1fbff0d3c266d7c9acbda1af9dad0016d69c2b5325b7d15e27fa31b971b0056a"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/bank-before-resume-fix.json",
+      "size": 21157,
+      "sha256": "14df0497f9029811d584f30629fa092f83fec613a6d9318f0006e425916c1ac3"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/bank-observations.md",
+      "size": 47901,
+      "sha256": "8a783d65e925d7e609e2de31fd17a321222f3b75603a12ad9b5feda44591cf39"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/code-review-and-merges.md",
+      "size": 5088,
+      "sha256": "0139c4e6d13f8f67aa8387cf19133a3bc85e9ffbd964eca02cbe6d42ef5012ce"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/cross-parent-snapshot.json",
+      "size": 15244,
+      "sha256": "73925e6bf8eeeaa5a7939092e7f55d402aa6cfa6e71e7d5d13782020ede08bf2"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/fresh-conversation-setup.json",
+      "size": 996,
+      "sha256": "dccc88d342263189da86c3e92aa8f90d106780afbe6b3d0107d93046096abb77"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/link-checks.json",
+      "size": 199,
+      "sha256": "e67cf850f691ab8589474b4c8a30890b3b414fcf819fb87bd566a8f244d96ae6"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/reviews/consumer-archive.json",
+      "size": 1017,
+      "sha256": "a6e74aab72701342205e609a54707470f5838c03ae544c4193dd79b264e5a516"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/reviews/consumer-independent-original.xml.gz",
+      "size": 689,
+      "sha256": "8c051b297932bd95ad33d98faf2fbf8002a14066da5353524c7728c969ae28a3"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/reviews/consumer-independent-unknown.xml.gz",
+      "size": 247,
+      "sha256": "1d596d3fb4ed1cc96ceac6c0056b90723f50988b8853bc23dfd607109f171936"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/reviews/consumer-standards-test-update.md",
+      "size": 1196,
+      "sha256": "1c781f6cd04b1bb3b0882b8afe5d0f71729453b43c1a569a9511c7321554e42c"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/reviews/consumer-standards.md",
+      "size": 2217,
+      "sha256": "0ea1e2b69b7391b8759dbd11d69dd96710756c04c0f2e2f95590822c207961c8"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/reviews/provider-independent-spec.xml",
+      "size": 9199,
+      "sha256": "85e37af53d4117e043ba4eacbeb2e20db36d227104b01a41f8cd9290106f44b0"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/reviews/provider-standards.md",
+      "size": 1760,
+      "sha256": "b07ca1803a04813f689e2d25b2c2d9020d3909ec11e461158daace1c8ed536f6"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/screenshots.jsonl",
+      "size": 15230,
+      "sha256": "6ebb944600fb83fcb04a87ff54dd7017c13f0a40c268033f436f6f8abf69db4e"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/states.jsonl",
+      "size": 4038,
+      "sha256": "240a43892dd7fa0e7d13e3b32606237b642bf5979ebf6a30247905fe0e63c92b"
+    },
+    {
+      "path": ".scratch/v05-control/ui-walkthrough-2026-10-29/walkthrough.md",
+      "size": 11684,
+      "sha256": "f866314a0038bffc1e80f6c5bb69897733fed97ae024515db6ec061598bb42e1"
+    },
+    {
+      "path": ".scratch/v05-live-model-diagnostic/2026-10-29-minimal-probe.json",
+      "size": 1837,
+      "sha256": "4447ca93473744bd8644454dcc74ab758f4b65ca2401e2c5bde28f5743547e2b"
+    },
+    {
+      "path": ".scratch/v05-live-model-diagnostic/2026-10-29-stream-probe.json",
+      "size": 1843,
+      "sha256": "71606ed28ea3dc66ce57e39a0ff46e0da85061c25de98ac89a57001de75f0b14"
+    },
+    {
+      "path": ".scratch/v05-live-model-diagnostic/diagnosis.md",
+      "size": 4001,
+      "sha256": "a7ed0a6a59be6ba3bcf95b1cae6a2eb14fa903ba45260b6a600a32df58a6e167"
+    },
+    {
+      "path": ".scratch/v05-live-model-diagnostic/README.md",
+      "size": 1094,
+      "sha256": "244b06680374f2a063f82c5c5ae80a5812aeb746eea3d087f5d81847bb165b1c"
+    },
+    {
+      "path": ".scratch/v05-live-model-diagnostic/streaming-diagnosis.md",
+      "size": 3312,
+      "sha256": "f04ddbd507f1b5b1ee4dc8c63b13215bce35387308d306e9b9befb10d4e06204"
+    }
+  ]
+}

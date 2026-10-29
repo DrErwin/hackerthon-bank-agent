@@ -1,0 +1,170 @@
+- link "跳到对话内容":
+  - /url: "#sh-main"
+- banner:
+  - heading "银行小助手" [level=1]
+  - paragraph: 演示用户
+  - button "记录":
+    - text: 记录
+  - button "大字":
+    - text: 大字
+  - status "已连接":
+    - generic: 已连接
+- note: 演示数据：部分风险判断采用预设场景，转账仍需确认和验证。
+- navigation "当前办理":
+  - button "正在办 转给妈妈 · 500.00 元 接着办":
+    - generic: 正在办
+    - strong: 转给妈妈 · 500.00 元
+    - text: 接着办
+- status: 已有 7 条助手回复。0 项等您补充，1 项需要您确认或验证，3 项已结束。请在对话中查看。
+- main:
+  - article:
+    - heading "您好，今天想办什么？" [level=2]
+  - article:
+    - generic: 您说：
+    - paragraph: 你好，我想看看这个月都花了多少钱，主要花在哪儿。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 请选择要查询的本人账户，不会替你默认选择。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 本人账户共 7 笔记录，消费支出 84.00 元，退款 0.00 元，净消费 84.00 元；转出 3500.00 元、转入 7500.00 元单列。
+    - time: 12:29
+  - article:
+    - button "账单汇总 已办结 展开":
+      - generic: 账单汇总
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 您说：
+    - paragraph: 我想给妈妈转500元。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请先选择转出账户。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:34
+  - article:
+    - generic: 您说：
+    - paragraph: 金额改成500元。
+    - time: 12:34
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:35
+  - article:
+    - button "转给妈妈 · 500.00 元 等您确认" [disabled] [expanded]:
+      - generic: 转给妈妈 · 500.00 元
+      - generic: 等您确认
+    - region "用哪张银行卡？":
+      - heading "用哪张银行卡？" [level=3]
+      - button "修改转账资料" [expanded]
+      - term: 付款卡
+      - definition: 主账户 · 尾号 0001
+      - button "修改付款卡" [active]: 修改
+      - term: 转给谁
+      - definition: 妈妈 · 模拟合作银行 · ****0002
+      - button "修改转给谁": 修改
+      - term: 金额
+      - definition: ¥500.00
+      - button "修改金额": 修改
+      - generic "选择付款账户":
+        - button "主账户 · 尾号 0001 模拟银行 · 可用余额 ¥1500.00" [pressed]:
+          - strong: 主账户 · 尾号 0001
+          - generic: 模拟银行 · 可用余额 ¥1500.00
+        - button "储蓄账户 · 尾号 0005 模拟银行 · 可用余额 ¥2500.00":
+          - strong: 储蓄账户 · 尾号 0005
+          - generic: 模拟银行 · 可用余额 ¥2500.00
+        - paragraph: 可用余额以银行办理时为准。
+      - button "收起修改"
+    - status: 资料已更新，请核对一下。
+    - generic "查看之前的确认内容"
+    - region "请确认这笔转账":
+      - heading "请确认这笔转账" [level=3]
+      - text: 等您确认
+      - term: 转出账户
+      - definition: 主账户 尾号 0001
+      - term: 金额
+      - definition: 500.00 元
+      - term: 收款人
+      - definition: 王** ****0002
+      - term: 收款银行
+      - definition: 模拟合作银行
+      - term: 手续费
+      - definition: 0.00 元
+      - term: 到账方式
+      - definition: 即时到账
+      - term: 风险提示
+      - definition: 中风险；需验证码和模拟人脸双因子验证。
+      - paragraph: 核对好后，请点「确认办理」。这份确认单在 13:35 前有效。
+      - button "确认办理":
+        - text: 确认办理
+      - button "取消"
+  - article:
+    - generic: 您说：
+    - paragraph: 我有哪些收款人？
+    - time: 12:37
+  - article:
+    - generic: 助手说：
+    - paragraph: 已查到您保存的收款联系人。
+    - time: 12:37
+  - article:
+    - button "常用收款人 已办结 收起" [expanded]:
+      - generic: 常用收款人
+      - generic: 已办结
+      - generic: 收起
+    - region "常用收款人":
+      - heading "常用收款人" [level=3]
+      - generic: 找收款人（姓名、备注或尾号）
+      - searchbox "找收款人（姓名、备注或尾号）"
+      - strong:
+        - text: 妈妈
+      - paragraph: 王** · 模拟合作银行 · ****0002
+      - button "选择妈妈 · 转给妈妈 · 500.00 元"
+      - strong:
+        - text: 房东
+      - paragraph: 李** · 模拟合作银行 · ****0003
+      - button "选择房东 · 转给妈妈 · 500.00 元"
+      - strong:
+        - text: 家庭
+      - paragraph: 家*** · 模拟银行 · ****0004
+      - button "选择家庭 · 转给妈妈 · 500.00 元"
+      - strong:
+        - text: 张*
+      - paragraph: 张* · 中国工商银行 · ****1111
+      - button "选择张* · 转给妈妈 · 500.00 元"
+      - strong:
+        - text: 张*
+      - paragraph: 张* · 招商银行 · ****2222
+      - button "选择张* · 转给妈妈 · 500.00 元"
+      - strong:
+        - text: 李*
+      - paragraph: 李* · 模拟银行 · ****3333
+      - button "选择李* · 转给妈妈 · 500.00 元"
+      - strong:
+        - text: 李*
+      - paragraph: 李* · 模拟银行 · ****4444
+      - button "选择李* · 转给妈妈 · 500.00 元"
+      - strong:
+        - text: 赵*
+      - paragraph: 赵* · 模拟银行 · ****0012
+      - button "选择赵* · 转给妈妈 · 500.00 元"
+      - button "重新查询最新资料":
+        - text: 重新查询最新资料
+- button "回到最新消息 ↓"
+- button "查资料 / 办业务":
+  - text: 查资料 / 办业务
+- generic: 转钱前，请您亲自确认
+- generic: 输入您想办的事
+- textbox "输入您想办的事":
+  - /placeholder: 想办什么，直接告诉我
+- button "发送" [disabled]
+- region "提示 alt+T"

@@ -1,0 +1,416 @@
+{
+  "schema_version": "ui-bank-baseline-1",
+  "baseline_read_started_at": "2026-10-29T12:37:02.390200+08:00",
+  "baseline_read_finished_at": "2026-10-29T12:37:02.451144+08:00",
+  "workspace_commit_observed": "ed25ec08197ab1a6a95474f582c3519e8a1ef909",
+  "running_process_code_commit": "not independently attested by SQLite; service/directory binding supplied by root",
+  "service_binding_from_root": {
+    "frontend_port": 5190,
+    "backend_port": 5191,
+    "data_directory": "C:\\Users\\57652\\AppData\\Local\\Temp\\http-live-40cedee160da-__xiyfdx"
+  },
+  "method": {
+    "sqlite_uri_mode": "ro",
+    "query_only": true,
+    "explicit_read_transactions": true,
+    "read_scope": "U1; allowlisted money/operation/task metadata only",
+    "excluded_values": "credentials, cookies, authorization headers, verification codes, verification payloads, controlled delivery contents, chat text"
+  },
+  "read_windows": {
+    "bank": {
+      "started_at": "2026-10-29T12:37:02.443632+08:00",
+      "finished_at": "2026-10-29T12:37:02.447145+08:00",
+      "data_version_before": 2,
+      "data_version_after": 2,
+      "query_only": 1,
+      "connection_total_changes": 0
+    },
+    "application": {
+      "started_at": "2026-10-29T12:37:02.448143+08:00",
+      "finished_at": "2026-10-29T12:37:02.451144+08:00",
+      "data_version_before": 2,
+      "data_version_after": 2,
+      "query_only": 1,
+      "connection_total_changes": 0
+    }
+  },
+  "initial_probe_before_new_thread_observation": {
+    "explicit_timestamp_captured": false,
+    "bank_operation_count": 3,
+    "task_status_counts": {
+      "succeeded": 11
+    },
+    "note": "Earlier read-only probe, not a frozen empty-history bank. The later timestamped capture may include root new-thread read tasks."
+  },
+  "bank": {
+    "scope_user_id": "U1",
+    "accounts": [
+      {
+        "account_id": "A1",
+        "user_id": "U1",
+        "account_status": "active",
+        "book_balance_fen": 150000,
+        "frozen_balance_fen": 0,
+        "version": 2
+      },
+      {
+        "account_id": "A5",
+        "user_id": "U1",
+        "account_status": "active",
+        "book_balance_fen": 250000,
+        "frozen_balance_fen": 0,
+        "version": 1
+      }
+    ],
+    "operations": [
+      {
+        "operation_id": "e7185730-ebea-48e0-836a-5a6630ac4d28",
+        "action_name": "bank.cancel_subscription",
+        "status": "succeeded",
+        "recorded_at": "2026-10-27T20:00:35.525182+08:00",
+        "updated_at": "2026-10-27T20:00:35.525182+08:00",
+        "demo_round_id": "http-live-40cedee160da"
+      },
+      {
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "action_name": "bank.submit_transfer",
+        "status": "succeeded",
+        "recorded_at": "2026-10-27T20:06:37.076515+08:00",
+        "updated_at": "2026-10-27T20:06:37.076515+08:00",
+        "demo_round_id": "http-live-40cedee160da"
+      },
+      {
+        "operation_id": "a2069e51-ed86-4440-9f99-18c42dccfe55",
+        "action_name": "bank.submit_transfer",
+        "status": "succeeded",
+        "recorded_at": "2026-10-27T20:07:02.749622+08:00",
+        "updated_at": "2026-10-27T20:07:02.749622+08:00",
+        "demo_round_id": "http-live-40cedee160da"
+      }
+    ],
+    "freezes": [],
+    "orders": [],
+    "payments": [],
+    "mandates": [
+      {
+        "mandate_id": "cross_keep",
+        "account_id": "A1",
+        "service_name": "仍在使用的通信套餐",
+        "amount_fen": 2000,
+        "cycle": "monthly",
+        "status": "active",
+        "cancel_operation_id": null,
+        "next_billing_at": "2026-11-03T19:55:35.701795+08:00"
+      },
+      {
+        "mandate_id": "sub_001",
+        "account_id": "A1",
+        "service_name": "优酷 VIP 连续包月",
+        "amount_fen": 2500,
+        "cycle": "monthly",
+        "status": "active",
+        "cancel_operation_id": null,
+        "next_billing_at": "2026-11-01T09:00:00+08:00"
+      },
+      {
+        "mandate_id": "sub_002",
+        "account_id": "A1",
+        "service_name": "超级会员连续包月",
+        "amount_fen": 3900,
+        "cycle": "monthly",
+        "status": "cancelled",
+        "cancel_operation_id": "e7185730-ebea-48e0-836a-5a6630ac4d28",
+        "next_billing_at": null
+      },
+      {
+        "mandate_id": "sub_003",
+        "account_id": "A1",
+        "service_name": "巅峰会员连续包月",
+        "amount_fen": 1500,
+        "cycle": "monthly",
+        "status": "cancelled",
+        "cancel_operation_id": "c81d5e3f-4a2b-4c7d-8e9f-0a1b2c3d4e5f",
+        "next_billing_at": null
+      }
+    ],
+    "non_seed_ledger": [
+      {
+        "transaction_id": "3ca044f6-bd9d-4d02-8119-34ea2000e187",
+        "account_id": "A5",
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "amount_fen": 250000,
+        "direction": "inflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-27T20:06:37.084518+08:00"
+      },
+      {
+        "transaction_id": "723e3c26-e8ff-426a-bb89-21976fc539e2",
+        "account_id": "A1",
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "amount_fen": 250000,
+        "direction": "outflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-27T20:06:37.084518+08:00"
+      },
+      {
+        "transaction_id": "b0a40f94-200e-4459-940a-7c207a58e9d8",
+        "account_id": "A1",
+        "operation_id": "a2069e51-ed86-4440-9f99-18c42dccfe55",
+        "amount_fen": 100000,
+        "direction": "outflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-27T20:07:02.756616+08:00"
+      }
+    ],
+    "reset_marker": []
+  },
+  "application": {
+    "scope_user_id": "U1",
+    "demo_state": [
+      {
+        "demo_round_id": "http-live-40cedee160da",
+        "initial_logical_at": "2026-10-27T19:55:36.101851+08:00",
+        "logical_at": "2026-10-27T19:55:36.101851+08:00",
+        "reset_state": "idle",
+        "management_operation_id": null
+      }
+    ],
+    "task_status_counts": {
+      "succeeded": 12,
+      "waiting_approval": 1
+    },
+    "nonterminal_tasks": [
+      {
+        "task_id": "fdf2090d-ef3b-4808-bc2e-def20c2bc267",
+        "demo_round_id": "http-live-40cedee160da",
+        "status": "waiting_approval",
+        "revision": 5,
+        "thread_id": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+        "capability_name": "transfer.start_transfer",
+        "public_status": "waiting_approval",
+        "recovery_required": false,
+        "recovery_reason": null
+      }
+    ],
+    "new_walkthrough_thread": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+    "new_thread_task_records": [
+      {
+        "task_id": "cc9d3b8a-2561-4fdb-89bf-cce4a291f208",
+        "demo_round_id": "http-live-40cedee160da",
+        "status": "succeeded",
+        "revision": 3,
+        "thread_id": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+        "capability_name": "bills.summarize",
+        "public_status": "succeeded",
+        "recovery_required": false,
+        "recovery_reason": null
+      },
+      {
+        "task_id": "c34a4b88-edef-58ea-9ed6-316581a1e66b",
+        "demo_round_id": "http-live-40cedee160da",
+        "status": "succeeded",
+        "revision": 2,
+        "thread_id": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+        "capability_name": "bills.summarize",
+        "public_status": "succeeded",
+        "recovery_required": false,
+        "recovery_reason": null
+      },
+      {
+        "task_id": "fdf2090d-ef3b-4808-bc2e-def20c2bc267",
+        "demo_round_id": "http-live-40cedee160da",
+        "status": "waiting_approval",
+        "revision": 5,
+        "thread_id": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+        "capability_name": "transfer.start_transfer",
+        "public_status": "waiting_approval",
+        "recovery_required": false,
+        "recovery_reason": null
+      }
+    ],
+    "tool_reservations": [
+      {
+        "operation_id": "e7185730-ebea-48e0-836a-5a6630ac4d28",
+        "task_id": "f6b7d5f6-71ac-4cd2-be21-136d8dd6010e",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "subscription.bank.cancel_subscription",
+        "state": "reserved",
+        "bank_status": "succeeded",
+        "execution_state": "completed",
+        "task_status": "succeeded"
+      },
+      {
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "task_id": "1975d3cc-380a-471a-ad1e-8090feb7b739",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "bank.submit_transfer",
+        "state": "reserved",
+        "bank_status": "succeeded",
+        "execution_state": "completed",
+        "task_status": "succeeded"
+      },
+      {
+        "operation_id": "a2069e51-ed86-4440-9f99-18c42dccfe55",
+        "task_id": "00e19a79-3590-4378-b74b-5bb6591c410a",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "bank.submit_transfer",
+        "state": "reserved",
+        "bank_status": "succeeded",
+        "execution_state": "completed",
+        "task_status": "succeeded"
+      },
+      {
+        "operation_id": "6b20da58-e924-4100-929e-fbc0e717a5cd",
+        "task_id": "fdf2090d-ef3b-4808-bc2e-def20c2bc267",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "bank.submit_transfer",
+        "state": "reserved",
+        "bank_status": null,
+        "execution_state": null,
+        "task_status": "waiting_approval"
+      },
+      {
+        "operation_id": "ac760603-bbad-402e-8ff5-61ab2f468d97",
+        "task_id": "fdf2090d-ef3b-4808-bc2e-def20c2bc267",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "bank.submit_transfer",
+        "state": "reserved",
+        "bank_status": null,
+        "execution_state": null,
+        "task_status": "waiting_approval"
+      },
+      {
+        "operation_id": "0763ed4e-3fa1-4749-945f-36e3e4a6aac7",
+        "task_id": "fdf2090d-ef3b-4808-bc2e-def20c2bc267",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "bank.submit_transfer",
+        "state": "reserved",
+        "bank_status": null,
+        "execution_state": null,
+        "task_status": "waiting_approval"
+      }
+    ],
+    "executions": [
+      {
+        "operation_id": "e7185730-ebea-48e0-836a-5a6630ac4d28",
+        "task_id": "f6b7d5f6-71ac-4cd2-be21-136d8dd6010e",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "subscription.bank.cancel_subscription",
+        "state": "completed"
+      },
+      {
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "task_id": "1975d3cc-380a-471a-ad1e-8090feb7b739",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "bank.submit_transfer",
+        "state": "completed"
+      },
+      {
+        "operation_id": "a2069e51-ed86-4440-9f99-18c42dccfe55",
+        "task_id": "00e19a79-3590-4378-b74b-5bb6591c410a",
+        "demo_round_id": "http-live-40cedee160da",
+        "action_name": "bank.submit_transfer",
+        "state": "completed"
+      }
+    ],
+    "arrangements": [
+      {
+        "arrangement_id": "arr_d0f09440-3ee4-4816-8b26-1088dddea3c5",
+        "payer_account_id": "A1",
+        "source_task_id": "d0f09440-3ee4-4816-8b26-1088dddea3c5",
+        "demo_round_id": "http-live-40cedee160da",
+        "status": "closed"
+      }
+    ],
+    "adopted_budgets": [],
+    "budget_commitments": [],
+    "release_authorizations": [],
+    "message_job_status_counts": [
+      {
+        "status": "task_completed",
+        "count": 4
+      }
+    ]
+  },
+  "persistent_pending_money": {
+    "nonterminal_bank_operations": [],
+    "noncompleted_security_executions": [],
+    "nonzero_freezes": [],
+    "unpaid_orders": [],
+    "active_budget_commitments": []
+  },
+  "new_bank_operation_ids_since_initial_probe": [],
+  "historical_completed_reference_operation_ids": [
+    "a2069e51-ed86-4440-9f99-18c42dccfe55",
+    "e5d6885a-6ec4-4426-be11-fef26d400462",
+    "e7185730-ebea-48e0-836a-5a6630ac4d28"
+  ],
+  "standalone_mother_demo_whitelist": {
+    "source_path": "D:\\hackerthon-bank-agent\\.env.local-demo.json",
+    "read_at": "2026-10-29T12:37:02.451144+08:00",
+    "facts_version": "fictional-demo-v1",
+    "fixtures": [
+      {
+        "fixture_id": "mom-500-low",
+        "payer_account_id": "A1",
+        "payee_id": "A2",
+        "amount_fen": 50000,
+        "fictional_signals": [
+          "familiar_payee",
+          "familiar_device",
+          "usual_amount_range",
+          "clear_request"
+        ],
+        "checked_signal_count": 14
+      },
+      {
+        "fixture_id": "mom-501-medium",
+        "payer_account_id": "A1",
+        "payee_id": "A2",
+        "amount_fen": 50100,
+        "fictional_signals": [
+          "unusual_amount"
+        ],
+        "checked_signal_count": 14
+      },
+      {
+        "fixture_id": "mom-502-high",
+        "payer_account_id": "A1",
+        "payee_id": "A2",
+        "amount_fen": 50200,
+        "fictional_signals": [
+          "secrecy_or_urgent_pressure"
+        ],
+        "checked_signal_count": 14
+      },
+      {
+        "fixture_id": "mom-600-low",
+        "payer_account_id": "A1",
+        "payee_id": "A2",
+        "amount_fen": 60000,
+        "fictional_signals": [
+          "familiar_payee",
+          "familiar_device",
+          "usual_amount_range",
+          "clear_request"
+        ],
+        "checked_signal_count": 14
+      }
+    ]
+  },
+  "interpretation": {
+    "no_persisted_inflight_observed": true,
+    "tool_reserved_is_not_inflight_evidence": "The three existing reserved operation IDs match succeeded bank operations, completed security executions and terminal tasks. No resubmission is indicated by the reservation label alone.",
+    "legacy_bank_reset_marker": "No bank_demo_state row; effective round and operation scopes are present in application/operation records. This capture did not reset anything.",
+    "sub_003": "Pre-cancelled seed mandate with seed cancel_operation_id, from mock_bank/seeds/subscriptions.json; not a new bank_operations record or a newly unknown write.",
+    "new_read_tasks_are_not_bank_writes": true
+  },
+  "limits": [
+    "Two separate per-database snapshots; not one atomic snapshot across databases.",
+    "This is persisted state only, not a BankGateway.wait_for_inflight or live executor drain proof.",
+    "No browser, test, model call, bank mutation, reset or session/chat deletion was performed.",
+    "No enabled-profile or model-connectivity claim is inferred from historical successes or config facts.",
+    "No 26-scenario page pass, accessibility pass, owner acceptance or human security sign-off is asserted."
+  ],
+  "bank_selected_rows_sha256": "55c1c25120463ec83c262cceea382dabc13f3371cdf69dbdced22dd1c2cd35f8"
+}

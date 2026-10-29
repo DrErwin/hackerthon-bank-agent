@@ -1,0 +1,136 @@
+- link "跳到对话内容":
+  - /url: "#sh-main"
+- banner:
+  - heading "银行小助手" [level=1]
+  - paragraph: 演示用户
+  - button "记录":
+    - text: 记录
+  - button "大字":
+    - text: 大字
+  - status "已连接":
+    - generic: 已连接
+- note: 演示数据：部分风险判断采用预设场景，转账仍需确认和验证。
+- navigation "当前办理":
+  - button "待查看 转给妈妈 · 500.00 元 查看进度":
+    - generic: 待查看
+    - strong: 转给妈妈 · 500.00 元
+    - text: 查看进度
+- status: 已有 10 条助手回复。0 项等您补充，0 项需要您确认或验证，4 项已结束。请在对话中查看。
+- main:
+  - article:
+    - heading "您好，今天想办什么？" [level=2]
+  - article:
+    - generic: 您说：
+    - paragraph: 你好，我想看看这个月都花了多少钱，主要花在哪儿。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 请选择要查询的本人账户，不会替你默认选择。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 本人账户共 7 笔记录，消费支出 84.00 元，退款 0.00 元，净消费 84.00 元；转出 3500.00 元、转入 7500.00 元单列。
+    - time: 12:29
+  - article:
+    - button "账单汇总 已办结 展开":
+      - generic: 账单汇总
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 您说：
+    - paragraph: 我想给妈妈转500元。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请先选择转出账户。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:34
+  - article:
+    - generic: 您说：
+    - paragraph: 金额改成500元。
+    - time: 12:34
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:35
+  - article:
+    - generic: 您说：
+    - paragraph: 我有哪些收款人？
+    - time: 12:37
+  - article:
+    - generic: 助手说：
+    - paragraph: 已查到您保存的收款联系人。
+    - time: 12:37
+  - article:
+    - button "常用收款人 已办结 展开":
+      - generic: 常用收款人
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；现在不用重复点确认，也不用重新验证。
+    - time: 12:39
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；现在不用重复点确认，也不用重新验证。
+    - time: 12:39
+  - article:
+    - button "转给妈妈 · 500.00 元 安全核对暂停" [disabled] [expanded]:
+      - generic: 转给妈妈 · 500.00 元
+      - generic: 安全核对暂停
+    - region "这项还没办完":
+      - heading "这项还没办完" [level=3]
+      - text: 待您查看
+      - paragraph: 办理资料已保留，先查看最新进度。
+      - term: 收款人
+      - definition: 王**（****0002）
+      - term: 金额
+      - definition: ¥500.00
+      - term: 当时状态
+      - definition: 安全核对暂停
+      - paragraph: 这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；现在不用重复点确认，也不用重新验证。
+      - button "查看原任务"
+  - article:
+    - generic: 您说：
+    - paragraph: 我有哪些银行卡，余额还有多少？
+    - time: 12:52
+  - article:
+    - generic: 助手说：
+    - paragraph: 已查到您的本人账户与可用余额。
+    - time: 12:52
+  - article:
+    - button "我的银行卡 已办结 收起" [expanded]:
+      - generic: 我的银行卡
+      - generic: 已办结
+      - generic: 收起
+    - region "我的账户":
+      - heading "我的账户" [level=3]
+      - paragraph: 查询时可用余额 · 2 张银行卡
+      - generic: 找银行卡
+      - searchbox "找银行卡"
+      - strong:
+        - text: 主账户
+      - strong: ¥1500.00
+      - paragraph: 模拟银行 · 尾号 0001
+      - strong:
+        - text: 储蓄账户
+      - strong: ¥2500.00
+      - paragraph: 模拟银行 · 尾号 0005
+      - button "重新查询最新资料":
+        - text: 重新查询最新资料
+- button "回到最新消息 ↓"
+- button "查资料 / 办业务":
+  - text: 查资料 / 办业务
+- generic: 转钱前，请您亲自确认
+- generic: 输入您想办的事
+- textbox "输入您想办的事":
+  - /placeholder: 想办什么，直接告诉我
+- button "发送" [disabled]
+- region "提示 alt+T"

@@ -1,0 +1,494 @@
+- main:
+  - link "跳到主要内容":
+    - /url: "#main-content"
+  - generic: 管
+  - paragraph: 审计、模拟核验与演示管理
+  - heading "管理员演示入口" [level=1]
+  - generic: 演示管理员
+  - link "返回普通页面":
+    - /url: http://127.0.0.1:5190/
+  - region "演示整体重置":
+    - heading "演示整体重置" [level=2]
+    - paragraph:
+      - text: 先核对实际影响，再确认重置。当前管理员会话轮次：
+      - code: http-live-40cedee160da
+      - text: 。
+    - status
+    - button "查看重置影响"
+  - paragraph: 仅处理当前模拟挑战
+  - heading "模拟人脸核验" [level=2]
+  - generic: 管理员
+  - paragraph: 本入口只回答服务端已经发起的模拟人脸等待。通过或失败由服务器校验当前轮次、挑战状态和管理员权限。
+  - text: 任务编号
+  - textbox "任务编号":
+    - /placeholder: 从普通用户任务卡带入
+    - text: 0046b191-c405-49c2-80e7-8d5736335bf8
+  - text: 验证编号
+  - textbox "验证编号":
+    - /placeholder: 从普通用户等待卡带入
+    - text: 0b218a3a-2077-4aa5-b41d-c2445a2b362e
+  - text: 演示轮次
+  - textbox "演示轮次":
+    - /placeholder: 由服务端返回
+    - text: http-live-40cedee160da
+  - button "模拟通过" [disabled]
+  - button "模拟未通过"
+  - status: 模拟人脸通过；服务端报告银行操作成功。请在普通页面核对任务和银行回执。
+  - paragraph: 不做真实人脸识别。重复或过期挑战会由后端拒绝。
+  - paragraph: 脱敏、只读
+  - heading "运行时间线" [level=2]
+  - generic: F33 / F34
+  - generic: 按任务编号查看
+  - textbox "按任务编号查看":
+    - /placeholder: 任务编号
+    - text: 0046b191-c405-49c2-80e7-8d5736335bf8
+  - button "读取时间线"
+  - list:
+    - button "context.changed agent_platform · succeeded 2026/10/29 13:22:17":
+      - strong: context.changed
+      - generic: agent_platform · succeeded
+      - time: 2026/10/29 13:22:17
+    - button "model.started agent_platform · started 2026/10/29 13:22:17":
+      - strong: model.started
+      - generic: agent_platform · started
+      - time: 2026/10/29 13:22:17
+    - button "model.finished agent_platform · succeeded 2026/10/29 13:22:26":
+      - strong: model.finished
+      - generic: agent_platform · succeeded
+      - time: 2026/10/29 13:22:26
+    - button "task.transition transfer · started 2026/10/29 13:22:26":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:22:26
+    - button "security.decided security · succeeded 2026/10/29 13:22:26":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:26
+    - button "tool.started transfer · started 2026/10/29 13:22:26":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:22:26
+    - button "security.decided security · succeeded 2026/10/29 13:22:26":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:26
+    - button "tool.finished transfer · succeeded 2026/10/29 13:22:26":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:22:26
+    - button "task.transition transfer · succeeded 2026/10/29 13:22:26":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:22:26
+    - button "task.transition transfer · started 2026/10/29 13:22:26":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:22:26
+    - button "task.transition transfer · waiting 2026/10/29 13:22:26":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:22:26
+    - button "task.transition agent_platform · waiting 2026/10/29 13:22:26":
+      - strong: task.transition
+      - generic: agent_platform · waiting
+      - time: 2026/10/29 13:22:26
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "tool.started transfer · started 2026/10/29 13:22:27":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:22:27
+    - button "tool.started transfer · started 2026/10/29 13:22:27":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:22:27
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "tool.started transfer · started 2026/10/29 13:22:27":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:22:27
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "tool.finished transfer · succeeded 2026/10/29 13:22:27":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "tool.started transfer · started 2026/10/29 13:22:27":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:22:27
+    - button "tool.finished transfer · succeeded 2026/10/29 13:22:27":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "tool.finished transfer · succeeded 2026/10/29 13:22:27":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "security.decided security · succeeded 2026/10/29 13:22:27":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "tool.finished transfer · succeeded 2026/10/29 13:22:27":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:22:27
+    - button "task.transition transfer · started 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · waiting 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · started 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · succeeded 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · started 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · succeeded 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · started 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.started transfer · started 2026/10/29 13:23:03":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.finished transfer · succeeded 2026/10/29 13:23:03":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.started transfer · started 2026/10/29 13:23:03":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.finished transfer · succeeded 2026/10/29 13:23:03":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · succeeded 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · started 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.started transfer · started 2026/10/29 13:23:03":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.finished transfer · succeeded 2026/10/29 13:23:03":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · succeeded 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · started 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.started transfer · started 2026/10/29 13:23:03":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · succeeded 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "tool.finished transfer · succeeded 2026/10/29 13:23:03":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · succeeded 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · started 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:03
+    - button "confirmation.changed security · waiting 2026/10/29 13:23:03":
+      - strong: confirmation.changed
+      - generic: security · waiting
+      - time: 2026/10/29 13:23:03
+    - button "security.decided security · denied 2026/10/29 13:23:03":
+      - strong: security.decided
+      - generic: security · denied
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · succeeded 2026/10/29 13:23:03":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:23:03
+    - button "task.transition transfer · started 2026/10/29 13:23:04":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:23:04
+    - button "task.transition transfer · waiting 2026/10/29 13:23:04":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:23:04
+    - button "recovery.checked agent_platform · succeeded 2026/10/29 13:23:04":
+      - strong: recovery.checked
+      - generic: agent_platform · succeeded
+      - time: 2026/10/29 13:23:04
+    - button "task.transition agent_platform · waiting 2026/10/29 13:23:04":
+      - strong: task.transition
+      - generic: agent_platform · waiting
+      - time: 2026/10/29 13:23:04
+    - button "confirmation.changed security · succeeded 2026/10/29 13:25:08":
+      - strong: confirmation.changed
+      - generic: security · succeeded
+      - time: 2026/10/29 13:25:08
+    - button "task.transition transfer · started 2026/10/29 13:25:08":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:08
+    - button "task.transition transfer · waiting 2026/10/29 13:25:08":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:25:08
+    - button "task.transition transfer · started 2026/10/29 13:25:08":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:08
+    - button "task.transition transfer · succeeded 2026/10/29 13:25:08":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:25:08
+    - button "task.transition transfer · started 2026/10/29 13:25:08":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:08
+    - button "verification.changed bank_gateway · waiting 2026/10/29 13:25:09":
+      - strong: verification.changed
+      - generic: bank_gateway · waiting
+      - time: 2026/10/29 13:25:09
+    - button "security.decided security · denied 2026/10/29 13:25:09":
+      - strong: security.decided
+      - generic: security · denied
+      - time: 2026/10/29 13:25:09
+    - button "task.transition transfer · succeeded 2026/10/29 13:25:09":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:25:09
+    - button "task.transition transfer · started 2026/10/29 13:25:09":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:09
+    - button "task.transition transfer · waiting 2026/10/29 13:25:09":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:25:09
+    - button "recovery.checked agent_platform · succeeded 2026/10/29 13:25:09":
+      - strong: recovery.checked
+      - generic: agent_platform · succeeded
+      - time: 2026/10/29 13:25:09
+    - button "task.transition agent_platform · waiting 2026/10/29 13:25:09":
+      - strong: task.transition
+      - generic: agent_platform · waiting
+      - time: 2026/10/29 13:25:09
+    - button "task.transition api · started 2026/10/29 13:25:39":
+      - strong: task.transition
+      - generic: api · started
+      - time: 2026/10/29 13:25:39
+    - button "verification.changed api · succeeded 2026/10/29 13:25:39":
+      - strong: verification.changed
+      - generic: api · succeeded
+      - time: 2026/10/29 13:25:39
+    - button "task.transition transfer · started 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:40
+    - button "task.transition transfer · waiting 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:25:40
+    - button "task.transition transfer · started 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:40
+    - button "task.transition transfer · succeeded 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:25:40
+    - button "task.transition transfer · started 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:40
+    - button "verification.changed bank_gateway · waiting 2026/10/29 13:25:40":
+      - strong: verification.changed
+      - generic: bank_gateway · waiting
+      - time: 2026/10/29 13:25:40
+    - button "security.decided security · denied 2026/10/29 13:25:40":
+      - strong: security.decided
+      - generic: security · denied
+      - time: 2026/10/29 13:25:40
+    - button "task.transition transfer · succeeded 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:25:40
+    - button "task.transition transfer · started 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:25:40
+    - button "task.transition transfer · waiting 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:25:40
+    - button "recovery.checked agent_platform · succeeded 2026/10/29 13:25:40":
+      - strong: recovery.checked
+      - generic: agent_platform · succeeded
+      - time: 2026/10/29 13:25:40
+    - button "task.transition agent_platform · waiting 2026/10/29 13:25:40":
+      - strong: task.transition
+      - generic: agent_platform · waiting
+      - time: 2026/10/29 13:25:40
+    - button "task.transition api · started 2026/10/29 13:26:28":
+      - strong: task.transition
+      - generic: api · started
+      - time: 2026/10/29 13:26:28
+    - button "task.transition api · started 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: api · started
+      - time: 2026/10/29 13:27:23
+    - button "verification.changed api · succeeded 2026/10/29 13:27:23":
+      - strong: verification.changed
+      - generic: api · succeeded
+      - time: 2026/10/29 13:27:23
+    - button "verification.changed bank_gateway · succeeded 2026/10/29 13:27:23":
+      - strong: verification.changed
+      - generic: bank_gateway · succeeded
+      - time: 2026/10/29 13:27:23
+    - button "task.transition transfer · started 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:27:23
+    - button "task.transition transfer · waiting 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: transfer · waiting
+      - time: 2026/10/29 13:27:23
+    - button "task.transition transfer · started 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:27:23
+    - button "task.transition transfer · succeeded 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:27:23
+    - button "task.transition transfer · started 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:27:23
+    - button "security.decided security · succeeded 2026/10/29 13:27:23":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:27:23
+    - button "task.transition transfer · succeeded 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:27:23
+    - button "task.transition transfer · started 2026/10/29 13:27:23":
+      - strong: task.transition
+      - generic: transfer · started
+      - time: 2026/10/29 13:27:23
+    - button "security.decided security · succeeded 2026/10/29 13:27:24":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:27:24
+    - button "tool.started transfer · started 2026/10/29 13:27:24":
+      - strong: tool.started
+      - generic: transfer · started
+      - time: 2026/10/29 13:27:24
+    - button "security.decided security · succeeded 2026/10/29 13:27:24":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:27:24
+    - button "security.decided security · succeeded 2026/10/29 13:27:24":
+      - strong: security.decided
+      - generic: security · succeeded
+      - time: 2026/10/29 13:27:24
+    - button "bank.observed bank_gateway · succeeded 2026/10/29 13:27:24":
+      - strong: bank.observed
+      - generic: bank_gateway · succeeded
+      - time: 2026/10/29 13:27:24
+    - button "tool.finished transfer · succeeded 2026/10/29 13:27:24":
+      - strong: tool.finished
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:27:24
+    - button "task.transition transfer · succeeded 2026/10/29 13:27:24":
+      - strong: task.transition
+      - generic: transfer · succeeded
+      - time: 2026/10/29 13:27:24
+    - button "recovery.checked agent_platform · succeeded 2026/10/29 13:27:24":
+      - strong: recovery.checked
+      - generic: agent_platform · succeeded
+      - time: 2026/10/29 13:27:24
+    - button "task.transition agent_platform · succeeded 2026/10/29 13:27:24":
+      - strong: task.transition
+      - generic: agent_platform · succeeded
+      - time: 2026/10/29 13:27:24

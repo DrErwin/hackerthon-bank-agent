@@ -1,0 +1,170 @@
+- link "跳到对话内容":
+  - /url: "#sh-main"
+- banner:
+  - heading "银行小助手" [level=1]
+  - paragraph: 演示用户
+  - button "记录":
+    - text: 记录
+  - button "大字":
+    - text: 大字
+  - status "已连接":
+    - generic: 已连接
+- note: 演示数据：部分风险判断采用预设场景，转账仍需确认和验证。
+- navigation "当前办理":
+  - button "正在办 转账办理 · 500.00 元 接着办":
+    - generic: 正在办
+    - strong: 转账办理 · 500.00 元
+    - text: 接着办
+- status: 已有 17 条助手回复。1 项等您补充，0 项需要您确认或验证，9 项已结束。请在对话中查看。
+- main:
+  - article:
+    - heading "您好，今天想办什么？" [level=2]
+  - article:
+    - generic: 您说：
+    - paragraph: 你好，我想看看这个月都花了多少钱，主要花在哪儿。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 请选择要查询的本人账户，不会替你默认选择。
+    - time: 12:28
+  - article:
+    - generic: 助手说：
+    - paragraph: 本人账户共 7 笔记录，消费支出 84.00 元，退款 0.00 元，净消费 84.00 元；转出 3500.00 元、转入 7500.00 元单列。
+    - time: 12:29
+  - article:
+    - button "账单汇总 已办结 展开":
+      - generic: 账单汇总
+      - generic: 已办结
+      - generic: 展开
+    - text: ＋ ＋ ＋
+  - article:
+    - generic: 您说：
+    - paragraph: 我想给妈妈转500元。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请先选择转出账户。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:32
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:34
+  - article:
+    - generic: 您说：
+    - paragraph: 金额改成500元。
+    - time: 12:34
+  - article:
+    - generic: 助手说：
+    - paragraph: 请核对并点击当前确认单的按钮。
+    - time: 12:35
+  - article:
+    - generic: 您说：
+    - paragraph: 我有哪些收款人？
+    - time: 12:37
+  - article:
+    - generic: 助手说：
+    - paragraph: 已查到您保存的收款联系人。
+    - time: 12:37
+  - article:
+    - button "常用收款人 已办结 展开":
+      - generic: 常用收款人
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；现在不用重复点确认，也不用重新验证。
+    - time: 12:39
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账先暂停，钱还在账上，没有提交给银行。安全核对这次没有做完，稍后可以重新发起；现在不用重复点确认，也不用重新验证。
+    - time: 12:39
+  - article:
+    - generic: 您说：
+    - paragraph: 我有哪些银行卡，余额还有多少？
+    - time: 12:52
+  - article:
+    - generic: 助手说：
+    - paragraph: 已查到您的本人账户与可用余额。
+    - time: 12:52
+  - article:
+    - button "我的银行卡 已办结 展开":
+      - generic: 我的银行卡
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 您说：
+    - paragraph: 查看我的订阅和自动扣费
+    - time: 12:55
+  - article:
+    - generic: 助手说：
+    - paragraph: 这些是您的自动扣费。点开一项，就能查看或办理。
+    - generic "查看完整说明"
+    - time: 12:55
+  - article:
+    - button "订阅和自动扣费 已办结 展开":
+      - generic: 订阅和自动扣费
+      - generic: 已办结
+      - generic: 展开
+  - article:
+    - generic: 助手说：
+    - paragraph: 已经停下了，没有提交退订，银行那边没有变化。
+    - time: 12:57
+  - article:
+    - generic: 助手说：
+    - paragraph: 安全核对还没完成，这笔转账没有提交。已填资料保留，您可以修改资料或取消。
+    - time: 13:16
+  - article:
+    - generic: 助手说：
+    - paragraph: 安全核对还没完成，这笔转账没有提交。已填资料保留，您可以修改资料或取消。
+    - time: 13:17
+  - article:
+    - generic: 助手说：
+    - paragraph: 安全核对还没完成，这笔转账没有提交。已填资料保留，您可以修改资料或取消。
+    - time: 13:18
+  - article:
+    - generic: 助手说：
+    - paragraph: 这笔转账尚未提交，已取消。
+    - time: 13:21
+  - article:
+    - button "转给妈妈 · 500.00 元 已取消 展开":
+      - generic: 转给妈妈 · 500.00 元
+      - generic: 已取消
+      - generic: 展开
+  - article:
+    - generic: 您说：
+    - paragraph: 我想给妈妈转500元。
+    - time: 13:22
+  - article:
+    - generic: 助手说：
+    - paragraph: 请先选择转出账户。
+    - time: 13:22
+  - article:
+    - button "转账办理 · 500.00 元 等您补充" [disabled] [expanded]:
+      - generic: 转账办理 · 500.00 元
+      - generic: 等您补充
+    - region "用哪张银行卡？":
+      - heading "用哪张银行卡？" [level=3]
+      - term: 金额
+      - definition: ¥500.00
+      - button "修改金额": 修改
+      - generic "选择付款账户":
+        - button "主账户 · 尾号 0001 模拟银行 · 可用余额 ¥1500.00":
+          - strong: 主账户 · 尾号 0001
+          - generic: 模拟银行 · 可用余额 ¥1500.00
+        - button "储蓄账户 · 尾号 0005 模拟银行 · 可用余额 ¥2500.00":
+          - strong: 储蓄账户 · 尾号 0005
+          - generic: 模拟银行 · 可用余额 ¥2500.00
+        - paragraph: 可用余额以银行办理时为准。
+    - button "取消这次办理"
+- button "查资料 / 办业务":
+  - text: 查资料 / 办业务
+- generic: 转钱前，请您亲自确认
+- generic: 输入您想办的事
+- textbox "输入您想办的事":
+  - /placeholder: 想办什么，直接告诉我
+- button "发送" [disabled]
+- region "提示 alt+T"

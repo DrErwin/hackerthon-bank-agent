@@ -1,0 +1,489 @@
+{
+  "schema_version": "old-bank-after-reduction-birthday-errors-1",
+  "read_started_at": "2026-10-29T14:48:42.192954+08:00",
+  "read_finished_at": "2026-10-29T14:48:42.249727+08:00",
+  "workspace_commit_observed": "ffa42936c172f3114fa0a826f99ea4373f39058a",
+  "runtime_commit_reported_by_root": "ffa42936c172f3114fa0a826f99ea4373f39058a",
+  "runtime_commit_independently_process_attested": false,
+  "data_directory": "C:\\Users\\57652\\AppData\\Local\\Temp\\http-live-40cedee160da-__xiyfdx",
+  "round_id": "http-live-40cedee160da",
+  "thread_id": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+  "method": {
+    "sqlite_uri_mode": "ro",
+    "query_only": true,
+    "explicit_read_transactions": true,
+    "no_runtime_http_query_post_check_model_or_browser": true,
+    "no_pickle": true,
+    "no_credentials_otp_or_delivery_data_selected": true
+  },
+  "read_windows": {
+    "application": {
+      "started_at": "2026-10-29T14:48:42.192954+08:00",
+      "total_changes": 0,
+      "finished_at": "2026-10-29T14:48:42.198469+08:00"
+    },
+    "bank": {
+      "started_at": "2026-10-29T14:48:42.198469+08:00",
+      "total_changes": 0,
+      "finished_at": "2026-10-29T14:48:42.199976+08:00"
+    }
+  },
+  "birthday_message_jobs": [
+    {
+      "job_id": "5e319622-4d01-4c7f-a47b-6412e572ec25",
+      "run_id": "a5e7f1df-84e3-4fa9-991e-2c039afe1919",
+      "request_id": "e742a002-e6b3-4490-b45a-03ca9dab3f34",
+      "created_at": "2026-10-29T06:38:44.197707+00:00",
+      "status": "error_completed",
+      "task_id": null,
+      "candidate_task_id": "2e73b216-1dba-43c5-bca2-b6aecc8e7658",
+      "parent_task_id": null,
+      "error_event_id": "6f4553e6-b7c6-4b6f-81c3-af561bac4eec",
+      "continuation_json_present": false,
+      "candidate_task_record_count": 0,
+      "api_task_record_count": 0,
+      "audit_events": [
+        {
+          "event_id": "18dc92f3-34c2-4403-9b59-81ec7f08bf58",
+          "event_type": "model.started",
+          "timestamp": "2026-10-29T06:38:44.307610Z",
+          "run_id": "a5e7f1df-84e3-4fa9-991e-2c039afe1919",
+          "task_id": "2e73b216-1dba-43c5-bca2-b6aecc8e7658",
+          "outcome": "started",
+          "model_call_id": "bc18581e-52b6-4864-bfae-7f89c2c179ee",
+          "duration_ms": null,
+          "response_ref": null,
+          "error": null
+        },
+        {
+          "event_id": "4b9a1037-d247-4371-aebb-832bdf0630b8",
+          "event_type": "model.finished",
+          "timestamp": "2026-10-29T06:39:44.708210Z",
+          "run_id": "a5e7f1df-84e3-4fa9-991e-2c039afe1919",
+          "task_id": "2e73b216-1dba-43c5-bca2-b6aecc8e7658",
+          "outcome": "failed",
+          "model_call_id": "bc18581e-52b6-4864-bfae-7f89c2c179ee",
+          "duration_ms": 60390,
+          "response_ref": null,
+          "error": {
+            "code": "MODEL_UNDERSTANDING_FAILED",
+            "source": "platform",
+            "field": null,
+            "upstream_code": null
+          }
+        }
+      ],
+      "model_duration_ms": [
+        60390
+      ],
+      "tool_or_security_audit_count": 0,
+      "actual_api_error_event": {
+        "exists": true,
+        "event_type": "stream_error",
+        "occurred_at": "2026-10-29T06:39:44.740143Z",
+        "classification": {
+          "code": "MODEL_PROPOSAL_FAILED",
+          "source": "platform",
+          "field": null,
+          "upstream_code": null
+        }
+      },
+      "interpretation": "Model understanding/proposal failure before business task creation; not a bank response, risk verdict, or unknown money operation."
+    },
+    {
+      "job_id": "48415554-b2b8-465d-b1cd-6666a521b003",
+      "run_id": "d916d03a-b49f-4a33-b659-05255e8c70d0",
+      "request_id": "982fa4c9-9d76-45de-adc5-6f0e48167c3d",
+      "created_at": "2026-10-29T06:42:58.387748+00:00",
+      "status": "error_completed",
+      "task_id": null,
+      "candidate_task_id": "1ced1d98-bea0-45cf-b976-092541a7b628",
+      "parent_task_id": null,
+      "error_event_id": "47c987e4-38c1-42ec-8b23-4d07be3f1808",
+      "continuation_json_present": false,
+      "candidate_task_record_count": 0,
+      "api_task_record_count": 0,
+      "audit_events": [
+        {
+          "event_id": "9e6f5e75-e4b4-46ef-8923-2c026213ca3e",
+          "event_type": "model.started",
+          "timestamp": "2026-10-29T06:42:58.461515Z",
+          "run_id": "d916d03a-b49f-4a33-b659-05255e8c70d0",
+          "task_id": "1ced1d98-bea0-45cf-b976-092541a7b628",
+          "outcome": "started",
+          "model_call_id": "86ac27f9-de94-4f27-b863-7847736cea84",
+          "duration_ms": null,
+          "response_ref": null,
+          "error": null
+        },
+        {
+          "event_id": "8107728b-2fd9-4cf2-b1fa-a6746a3f1940",
+          "event_type": "model.finished",
+          "timestamp": "2026-10-29T06:43:58.650455Z",
+          "run_id": "d916d03a-b49f-4a33-b659-05255e8c70d0",
+          "task_id": "1ced1d98-bea0-45cf-b976-092541a7b628",
+          "outcome": "failed",
+          "model_call_id": "86ac27f9-de94-4f27-b863-7847736cea84",
+          "duration_ms": 60172,
+          "response_ref": null,
+          "error": {
+            "code": "MODEL_UNDERSTANDING_FAILED",
+            "source": "platform",
+            "field": null,
+            "upstream_code": null
+          }
+        }
+      ],
+      "model_duration_ms": [
+        60172
+      ],
+      "tool_or_security_audit_count": 0,
+      "actual_api_error_event": {
+        "exists": true,
+        "event_type": "stream_error",
+        "occurred_at": "2026-10-29T06:43:58.710394Z",
+        "classification": {
+          "code": "MODEL_PROPOSAL_FAILED",
+          "source": "platform",
+          "field": null,
+          "upstream_code": null
+        }
+      },
+      "interpretation": "Model understanding/proposal failure before business task creation; not a bank response, risk verdict, or unknown money operation."
+    }
+  ],
+  "reduction_parent": {
+    "task_id": "6cd432bf-5e21-49f2-8c3f-40b9dce75bb5",
+    "user_id": "U1",
+    "session_id": "6d4a7319-ab4e-4de4-a120-3b4397bf2856",
+    "demo_round_id": "http-live-40cedee160da",
+    "run_id": "ccef85e2-0d03-4c1a-a606-877bcafa59d4",
+    "status": "succeeded",
+    "revision": 9,
+    "allowed_actions": [
+      "query"
+    ],
+    "recovery_required": false,
+    "recovery_reason": null,
+    "plan_revision": 2,
+    "steps": [
+      {
+        "step_id": "accounts",
+        "action": "transfer.list_accounts",
+        "child_task_id": "06bfd353-ada7-490e-94fc-7f6ce043a165",
+        "operation_id": null,
+        "status": "succeeded",
+        "amount_fen": null,
+        "result_ref": null
+      },
+      {
+        "step_id": "subscriptions",
+        "action": "subscription.list_subscriptions",
+        "child_task_id": "a8de2f5b-d855-4a03-9dd8-91ba82f98bb7",
+        "operation_id": null,
+        "status": "succeeded",
+        "amount_fen": null,
+        "result_ref": null
+      },
+      {
+        "step_id": "bills_compare",
+        "action": "bills.summarize",
+        "child_task_id": "8354f16c-3c55-4db1-a47d-9abfa7c89d50",
+        "operation_id": null,
+        "status": "succeeded",
+        "amount_fen": null,
+        "result_ref": null
+      },
+      {
+        "step_id": "cancel:sub_001",
+        "action": "subscription.cancel_subscription",
+        "child_task_id": "49743c6e-4b46-4cad-88a8-26a080672a80",
+        "operation_id": null,
+        "status": "succeeded",
+        "amount_fen": 2500,
+        "result_ref": null
+      }
+    ],
+    "succeeded_steps_count": 4,
+    "steps_count": 4
+  },
+  "video_child": {
+    "task_id": "49743c6e-4b46-4cad-88a8-26a080672a80",
+    "status": "succeeded",
+    "revision": 3,
+    "operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859",
+    "operation_status": "succeeded"
+  },
+  "birthday_task_count": 0,
+  "bank": {
+    "operations": [
+      {
+        "operation_id": "e7185730-ebea-48e0-836a-5a6630ac4d28",
+        "action_name": "bank.cancel_subscription",
+        "status": "succeeded",
+        "recorded_at": "2026-10-27T20:00:35.525182+08:00",
+        "updated_at": "2026-10-27T20:00:35.525182+08:00"
+      },
+      {
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "action_name": "bank.submit_transfer",
+        "status": "succeeded",
+        "recorded_at": "2026-10-27T20:06:37.076515+08:00",
+        "updated_at": "2026-10-27T20:06:37.076515+08:00"
+      },
+      {
+        "operation_id": "a2069e51-ed86-4440-9f99-18c42dccfe55",
+        "action_name": "bank.submit_transfer",
+        "status": "succeeded",
+        "recorded_at": "2026-10-27T20:07:02.749622+08:00",
+        "updated_at": "2026-10-27T20:07:02.749622+08:00"
+      },
+      {
+        "operation_id": "53c008d4-4851-4ec6-8ef2-179aba31858d",
+        "action_name": "bank.submit_transfer",
+        "status": "succeeded",
+        "recorded_at": "2026-10-29T13:27:24.341675+08:00",
+        "updated_at": "2026-10-29T13:27:24.341675+08:00"
+      },
+      {
+        "operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859",
+        "action_name": "bank.cancel_subscription",
+        "status": "succeeded",
+        "recorded_at": "2026-10-29T13:46:43.732028+08:00",
+        "updated_at": "2026-10-29T13:46:43.732028+08:00"
+      }
+    ],
+    "accounts": [
+      {
+        "account_id": "A1",
+        "book_balance_fen": 100000,
+        "frozen_balance_fen": 0,
+        "available_balance_fen": 100000,
+        "version": 3
+      },
+      {
+        "account_id": "A5",
+        "book_balance_fen": 250000,
+        "frozen_balance_fen": 0,
+        "available_balance_fen": 250000,
+        "version": 1
+      }
+    ],
+    "birthday_table_counts": {
+      "freezes": 0,
+      "orders": 0,
+      "order_payments": 0
+    },
+    "video_and_communication_mandates": [
+      {
+        "mandate_id": "cross_keep",
+        "amount_fen": 2000,
+        "status": "active",
+        "next_billing_at": "2026-11-03T19:55:35.701795+08:00",
+        "cancelled_at": null,
+        "cancel_operation_id": null
+      },
+      {
+        "mandate_id": "sub_001",
+        "amount_fen": 2500,
+        "status": "cancelled",
+        "next_billing_at": null,
+        "cancelled_at": "2026-10-29T13:46:43.732028+08:00",
+        "cancel_operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859"
+      }
+    ],
+    "video_operation_row_count": 1,
+    "video_operation_subscription_requests": [
+      {
+        "operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859",
+        "user_id": "U1",
+        "mandate_id": "sub_001"
+      }
+    ],
+    "wide_ledger_including_seed": [
+      {
+        "transaction_id": "SEED-A1-20260801-cross-drive-2",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260801-cross-drive-2",
+        "amount_fen": 3900,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-08-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20260801-cross-grocery-2",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260801-cross-grocery-2",
+        "amount_fen": 10000,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-08-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20260801-cross-phone-2",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260801-cross-phone-2",
+        "amount_fen": 2000,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-08-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20260801-cross-uyun-2",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260801-cross-uyun-2",
+        "amount_fen": 2500,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-08-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20260901-cross-drive-1",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260901-cross-drive-1",
+        "amount_fen": 3900,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-09-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20260901-cross-grocery-1",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260901-cross-grocery-1",
+        "amount_fen": 20000,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-09-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20260901-cross-phone-1",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260901-cross-phone-1",
+        "amount_fen": 2000,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-09-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20260901-cross-uyun-1",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20260901-cross-uyun-1",
+        "amount_fen": 2500,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-09-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20261001-cross-drive-0",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20261001-cross-drive-0",
+        "amount_fen": 3900,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-10-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20261001-cross-pension",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20261001-cross-pension",
+        "amount_fen": 500000,
+        "direction": "inflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20261001-cross-phone-0",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20261001-cross-phone-0",
+        "amount_fen": 2000,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-10-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "SEED-A1-20261001-cross-uyun-0",
+        "account_id": "A1",
+        "operation_id": "seed:SEED-A1-20261001-cross-uyun-0",
+        "amount_fen": 2500,
+        "direction": "outflow",
+        "nature": "consumption",
+        "occurred_at": "2026-10-01T00:00:00+08:00"
+      },
+      {
+        "transaction_id": "3ca044f6-bd9d-4d02-8119-34ea2000e187",
+        "account_id": "A5",
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "amount_fen": 250000,
+        "direction": "inflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-27T20:06:37.084518+08:00"
+      },
+      {
+        "transaction_id": "723e3c26-e8ff-426a-bb89-21976fc539e2",
+        "account_id": "A1",
+        "operation_id": "e5d6885a-6ec4-4426-be11-fef26d400462",
+        "amount_fen": 250000,
+        "direction": "outflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-27T20:06:37.084518+08:00"
+      },
+      {
+        "transaction_id": "b0a40f94-200e-4459-940a-7c207a58e9d8",
+        "account_id": "A1",
+        "operation_id": "a2069e51-ed86-4440-9f99-18c42dccfe55",
+        "amount_fen": 100000,
+        "direction": "outflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-27T20:07:02.756616+08:00"
+      },
+      {
+        "transaction_id": "aecac55f-eefd-4f75-97c2-9c616073f46a",
+        "account_id": "A1",
+        "operation_id": "53c008d4-4851-4ec6-8ef2-179aba31858d",
+        "amount_fen": 50000,
+        "direction": "outflow",
+        "nature": "transfer",
+        "occurred_at": "2026-10-29T13:27:24.349191+08:00"
+      }
+    ]
+  },
+  "checks": {
+    "both_jobs_error_completed": true,
+    "both_api_errors_model_proposal_failed": true,
+    "both_candidate_tasks_absent": true,
+    "both_without_tool_or_security_dispatch": true,
+    "parent_succeeded_rev9_4of4": true,
+    "bank_five_operations_unchanged": true,
+    "account_money_unchanged": true,
+    "ledger_unchanged": true,
+    "no_birthday_freeze_order_or_payment": true,
+    "original_video_effect_one_operation": true,
+    "communication_mandate_active": true
+  },
+  "comparison_source": "bank-before-resume-fix.json",
+  "comparison_source_sha256": "14df0497f9029811d584f30629fa092f83fec613a6d9318f0006e425916c1ac3",
+  "protected_old_json_sha256": {
+    "16-recovery-controls-before.json": "d5f6a179d8805e2b7c5b768654259795fb08aa24910eecb4084b6a682f8cf703",
+    "18-narrow-viewport-layout.json": "fb63a3618625895207fe5d14acdc8e2b319fadc6aa1c08f05383b0e9b40caf6f",
+    "19-dialog-keyboard-settled.json": "fac3c91eeb40cbd7e5d6d7dedc627a94672454ad535d202404d9c2b345764f8b",
+    "19-dialog-keyboard.json": "b921187882ce14994c110c6f08c309b68c3729eb89c7ec59fde0b145a4c348dd",
+    "32-recovery-controls-after.json": "1ca06a7ae203de4767365a267c01ede678a501f016abea92f8bf7d983642b068",
+    "47-browser-zoom-capability-probe.json": "5a27798c877cd9cefa7289d1a1d25d2e1021f75706de47309a3fe4f9c9115cc4",
+    "artifact-checks.json": "368145e6b98e051bb6c05974a28783d18133bc7be9baf39027319ec4cb6f45b9",
+    "artifact-manifest.json": "a5ecda33a595836c30e25506ef5039d6708da8f233c2ba725c94a6b257556813",
+    "bank-after-refresh.json": "e7cb188f8e1348b5fc5c3d92b49cf119e2948eeb3e1033a4cfbf67fa8523dbd7",
+    "bank-baseline.json": "52f5c427425ff74be97098669078441dbbf2324258e84914687a15a5b8402b84",
+    "bank-before-refresh.json": "1fbff0d3c266d7c9acbda1af9dad0016d69c2b5325b7d15e27fa31b971b0056a",
+    "bank-before-resume-fix.json": "14df0497f9029811d584f30629fa092f83fec613a6d9318f0006e425916c1ac3",
+    "cross-parent-snapshot.json": "73925e6bf8eeeaa5a7939092e7f55d402aa6cfa6e71e7d5d13782020ede08bf2",
+    "fresh-conversation-setup.json": "dccc88d342263189da86c3e92aa8f90d106780afbe6b3d0107d93046096abb77"
+  },
+  "scope_limits": [
+    "Two failed jobs remain separate actual observations; no retry was triggered by this observer.",
+    "Model duration is the persisted platform observation, not proof of a particular provider transport error or number of HTTP attempts.",
+    "Bank operation cardinality and request-table rows prove persisted effects/identities, not all lower-level attempts.",
+    "Application and bank snapshots use separate transactions; not cross-database atomic.",
+    "Root reported actual dedicated relogin/F11 recovery/keep-communication choice; this audit only observes resulting persistence.",
+    "Fresh5201 was not read by this task."
+  ]
+}

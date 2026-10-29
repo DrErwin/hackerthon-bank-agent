@@ -1,0 +1,12 @@
+{
+  "afterShiftTab": {
+    "focusInsideDialog": true,
+    "focusedText": "查看办理进度"
+  },
+  "immediateDialogVisibleAfterEscape": true,
+  "settledDialogVisibleAfterEscape": false,
+  "focusAfterEscape": {
+    "focusInsideDialog": false,
+    "focusedText": "记录"
+  }
+}

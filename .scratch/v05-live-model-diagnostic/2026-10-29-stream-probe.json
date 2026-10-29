@@ -1,0 +1,54 @@
+{
+  "start_utc": "2026-10-29T06:59:23.446830+00:00",
+  "source_commit": "ffa42936c172f3114fa0a826f99ea4373f39058a",
+  "config_path": "D:\\hackerthon-bank-agent\\.env.local-demo.json",
+  "model_name": "glm-5.3",
+  "base_url": "https://open.bigmodel.cn/api/coding/paas/v4/",
+  "client_parameters": {
+    "temperature": 0,
+    "max_retries": 0,
+    "timeout_seconds": 60,
+    "use_responses_api": false
+  },
+  "single_request": true,
+  "bank_or_runtime_constructed": false,
+  "business_tools_or_user_intent_sent": false,
+  "provider_response_body_or_credentials_persisted": false,
+  "comparison_limit": "Prior minimal call was sync invoke; this is async stream. No diagnosis of SDK root cause from this alone.",
+  "stream": {
+    "start_utc": "2026-10-29T06:59:23.909125+00:00",
+    "api": "ChatOpenAI.astream",
+    "instrumentation": "response event hook on this diagnostic instance only",
+    "transport_class": "langchain_openai.chat_models._client_utils._AsyncHttpxClientWrapper",
+    "overall_budget_seconds": 60,
+    "http_status": 429,
+    "response_headers_ms": 672,
+    "first_chunk_ms": null,
+    "first_nonempty_event_ms": null,
+    "first_visible_content_ms": null,
+    "chunk_count": 0,
+    "completed": false,
+    "finish_reason": null,
+    "response_body_or_reasoning_persisted": false,
+    "outcome": "failed",
+    "error_chain": [
+      {
+        "class": "langchain_openai.chat_models.base.OpenAIRateLimitError",
+        "status_code": 429,
+        "provider_code": "1302"
+      },
+      {
+        "class": "openai.RateLimitError",
+        "status_code": 429,
+        "provider_code": "1302"
+      },
+      {
+        "class": "httpx2.HTTPStatusError"
+      }
+    ],
+    "end_utc": "2026-10-29T06:59:24.584002+00:00",
+    "duration_ms": 672
+  },
+  "config_file_unchanged": true,
+  "end_utc": "2026-10-29T06:59:24.587040+00:00"
+}

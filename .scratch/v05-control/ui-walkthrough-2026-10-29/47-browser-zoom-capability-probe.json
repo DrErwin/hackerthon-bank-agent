@@ -1,0 +1,17 @@
+{
+  "before": {
+    "cssZoom": "1",
+    "dpr": 1.5,
+    "height": 764,
+    "visualScale": 1,
+    "width": 865
+  },
+  "afterOneBrowserZoomKey": {
+    "cssZoom": "1",
+    "dpr": 1.5,
+    "height": 764,
+    "visualScale": 1,
+    "width": 865
+  },
+  "method": "documented browser key Control+Equal; no CSS/DOM zoom mutation"
+}

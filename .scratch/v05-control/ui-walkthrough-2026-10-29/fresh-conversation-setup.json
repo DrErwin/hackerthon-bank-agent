@@ -1,0 +1,22 @@
+{
+  "at_utc": "2026-10-29T04:27:52.343665+00:00",
+  "purpose": "Start browser walkthrough with a blank current conversation. Existing conversation and financial evidence are retained; no deletion endpoint or UI is available.",
+  "ui_url": "http://127.0.0.1:5190/",
+  "api_url": "http://127.0.0.1:5191/api/v1",
+  "demo_round_id": "http-live-40cedee160da",
+  "old_thread_id": "3bc17b15-5db1-46af-9ac2-8ec50ebbb737",
+  "old_message_count_up_to_100": 27,
+  "new_thread": {
+    "thread_id": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+    "title": "新对话",
+    "created_at": "2026-10-29T04:27:52.236521+00:00",
+    "updated_at": "2026-10-29T04:27:52.236521+00:00",
+    "demo_round_id": "http-live-40cedee160da"
+  },
+  "request_id": "0bae96a3-216a-44d4-9d3a-fef8593aa0e6",
+  "new_message_count": 0,
+  "new_task_count": 0,
+  "bank_reset": false,
+  "production_changes": false,
+  "setup_layer": "public HTTP API; browser reload and visual blank-state verification still required"
+}

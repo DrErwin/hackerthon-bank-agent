@@ -1,0 +1,412 @@
+{
+  "schema_version": "ui-cross-parent-readonly-1",
+  "read_started_at": "2026-10-29T13:57:38.056298+08:00",
+  "read_finished_at": "2026-10-29T13:57:38.101389+08:00",
+  "workspace_commit_observed": "17f7ef2c2f2021c866ca4e1f1ce7757d31bace0b",
+  "running_process_code_source": "17f7ef2c as reported by root, not independently process-attested",
+  "thread_id": "2c73cc0b-5449-436f-b67d-7ef60977b618",
+  "data_directory": "C:\\Users\\57652\\AppData\\Local\\Temp\\http-live-40cedee160da-__xiyfdx",
+  "method": {
+    "sqlite_uri_mode": "ro",
+    "query_only": true,
+    "explicit_read_transactions": true,
+    "no_runtime_api_or_check_invoked": true,
+    "no_pickle": true,
+    "excludes": "secret credentials, OTP, free chat body and controlled delivery data"
+  },
+  "read_windows": {
+    "application": {
+      "started_at": "2026-10-29T13:57:38.056298+08:00",
+      "total_changes": 0,
+      "finished_at": "2026-10-29T13:57:38.061742+08:00"
+    },
+    "bank": {
+      "started_at": "2026-10-29T13:57:38.061742+08:00",
+      "total_changes": 0,
+      "finished_at": "2026-10-29T13:57:38.062798+08:00"
+    }
+  },
+  "parent_task": {
+    "task_id": "6cd432bf-5e21-49f2-8c3f-40b9dce75bb5",
+    "user_id": "U1",
+    "session_id": "7dab922f-dd95-41fb-a8f5-440f315dbd63",
+    "demo_round_id": "http-live-40cedee160da",
+    "run_id": "3437f80a-5d9f-4ac8-b2f5-ecb422918a74",
+    "status": "running",
+    "revision": 3,
+    "capability_name": "cross.start_task",
+    "allowed_actions": [
+      "resume",
+      "cancel"
+    ],
+    "recovery_required": false,
+    "recovery_reason": null,
+    "interaction_kind": null,
+    "error_code": null,
+    "view": {
+      "scenario": "expense_reduction",
+      "plan_revision": 2,
+      "plan_step_ids": [
+        "accounts",
+        "subscriptions",
+        "bills_compare",
+        "cancel:sub_001"
+      ],
+      "active_step_id": "cancel:sub_001",
+      "interaction_task_id": "49743c6e-4b46-4cad-88a8-26a080672a80",
+      "stop_reason": null,
+      "steps": [
+        {
+          "step_id": "accounts",
+          "action": "transfer.list_accounts",
+          "child_task_id": "06bfd353-ada7-490e-94fc-7f6ce043a165",
+          "operation_id": null,
+          "status": "succeeded",
+          "amount_fen": null,
+          "order_id": null,
+          "payment_status": null,
+          "result_ref": null,
+          "depends_on": []
+        },
+        {
+          "step_id": "subscriptions",
+          "action": "subscription.list_subscriptions",
+          "child_task_id": "a8de2f5b-d855-4a03-9dd8-91ba82f98bb7",
+          "operation_id": null,
+          "status": "succeeded",
+          "amount_fen": null,
+          "order_id": null,
+          "payment_status": null,
+          "result_ref": null,
+          "depends_on": []
+        },
+        {
+          "step_id": "bills_compare",
+          "action": "bills.summarize",
+          "child_task_id": "8354f16c-3c55-4db1-a47d-9abfa7c89d50",
+          "operation_id": null,
+          "status": "succeeded",
+          "amount_fen": null,
+          "order_id": null,
+          "payment_status": null,
+          "result_ref": null,
+          "depends_on": [
+            "accounts"
+          ]
+        },
+        {
+          "step_id": "cancel:sub_001",
+          "action": "subscription.cancel_subscription",
+          "child_task_id": "49743c6e-4b46-4cad-88a8-26a080672a80",
+          "operation_id": null,
+          "status": "waiting_approval",
+          "amount_fen": 2500,
+          "order_id": null,
+          "payment_status": null,
+          "result_ref": null,
+          "depends_on": []
+        }
+      ]
+    }
+  },
+  "child_task": {
+    "task_id": "49743c6e-4b46-4cad-88a8-26a080672a80",
+    "user_id": "U1",
+    "session_id": "7dab922f-dd95-41fb-a8f5-440f315dbd63",
+    "demo_round_id": "http-live-40cedee160da",
+    "run_id": "7775fda7-f6fb-484e-8a4d-af13b6c556b3",
+    "status": "succeeded",
+    "revision": 3,
+    "capability_name": "subscription.cancel_subscription",
+    "allowed_actions": [],
+    "recovery_required": false,
+    "recovery_reason": null,
+    "interaction_kind": null,
+    "error_code": null,
+    "view": {
+      "operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859",
+      "operation": {
+        "operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859",
+        "operation_type": "bank.cancel_subscription",
+        "operation_status": "succeeded",
+        "recorded_at": "2026-10-29T13:46:43.732028+08:00",
+        "updated_at": "2026-10-29T13:46:43.732028+08:00"
+      },
+      "receipt": {
+        "mandate_id": "sub_001",
+        "account_id": "A1",
+        "amount_fen": 2500,
+        "cycle": "monthly",
+        "previous_next_billing_at": "2026-11-01T09:00:00+08:00",
+        "effective_stop_at": "2026-11-01T09:00:00+08:00",
+        "status": "cancelled",
+        "cancelled_at": "2026-10-29T13:46:43.732028+08:00"
+      }
+    }
+  },
+  "relations": [
+    {
+      "parent_task_id": "6cd432bf-5e21-49f2-8c3f-40b9dce75bb5",
+      "child_task_id": "06bfd353-ada7-490e-94fc-7f6ce043a165",
+      "user_id": "U1",
+      "demo_round_id": "http-live-40cedee160da",
+      "step_id": "accounts",
+      "plan_revision": 1,
+      "linked_at": "2026-10-29T05:38:31.081836+00:00"
+    },
+    {
+      "parent_task_id": "6cd432bf-5e21-49f2-8c3f-40b9dce75bb5",
+      "child_task_id": "49743c6e-4b46-4cad-88a8-26a080672a80",
+      "user_id": "U1",
+      "demo_round_id": "http-live-40cedee160da",
+      "step_id": "cancel:sub_001",
+      "plan_revision": 2,
+      "linked_at": "2026-10-29T05:45:26.562283+00:00"
+    },
+    {
+      "parent_task_id": "6cd432bf-5e21-49f2-8c3f-40b9dce75bb5",
+      "child_task_id": "8354f16c-3c55-4db1-a47d-9abfa7c89d50",
+      "user_id": "U1",
+      "demo_round_id": "http-live-40cedee160da",
+      "step_id": "bills_compare",
+      "plan_revision": 1,
+      "linked_at": "2026-10-29T05:38:32.630747+00:00"
+    },
+    {
+      "parent_task_id": "6cd432bf-5e21-49f2-8c3f-40b9dce75bb5",
+      "child_task_id": "a8de2f5b-d855-4a03-9dd8-91ba82f98bb7",
+      "user_id": "U1",
+      "demo_round_id": "http-live-40cedee160da",
+      "step_id": "subscriptions",
+      "plan_revision": 1,
+      "linked_at": "2026-10-29T05:38:31.552345+00:00"
+    }
+  ],
+  "cached_parent_public_taskviews": [
+    {
+      "request_id": "b5a498f8-0f89-46b9-8e1e-4f35c5914c04",
+      "endpoint": "/api/v1/tasks/6cd432bf-5e21-49f2-8c3f-40b9dce75bb5/inputs",
+      "task_id": "6cd432bf-5e21-49f2-8c3f-40b9dce75bb5",
+      "task_revision": 3,
+      "status": "running",
+      "allowed_actions": [
+        "resume",
+        "cancel"
+      ],
+      "recovery_required": false,
+      "recovery_reason": null,
+      "plan_revision": 2,
+      "active_step_id": "cancel:sub_001",
+      "interaction_task_id": "49743c6e-4b46-4cad-88a8-26a080672a80"
+    }
+  ],
+  "message_job_1349": {
+    "job_id": "ecf3cf33-81e4-4a8a-aae3-b8f6de454933",
+    "run_id": "c8b92656-71b2-4b39-8cfd-478939966a78",
+    "request_id": "f40e1b94-a62a-426c-85d8-1b0cbae06e12",
+    "candidate_task_id": "08d0d027-aae9-4d38-8841-0ace5db23621",
+    "parent_task_id": "8354f16c-3c55-4db1-a47d-9abfa7c89d50",
+    "task_id": null,
+    "status": "reply_completed",
+    "created_at": "2026-10-29T05:49:00.713033+00:00",
+    "assistant_event_id": "b19ab338-f0f0-4a48-b985-e9bdbb400ff2",
+    "task_updated_event_id": "153a53f9-a69f-44fc-bc97-4ee7e3c720cd",
+    "error_event_id": "39097340-426f-4b69-ad77-ffb3b46ec7f5",
+    "continuation_json_present": false,
+    "candidate_task_record_exists": false,
+    "raw_business_continuation_candidate": {
+      "task_id": null,
+      "task_revision": null,
+      "action": null,
+      "parameters_or_selected_option_ref": null,
+      "availability": "not persisted; no continuation_json; model audit stores only validated ReplyOnly"
+    },
+    "event_presence": {
+      "assistant_event_id": true,
+      "task_updated_event_id": false,
+      "error_event_id": false
+    },
+    "message_continuation_receipt_count": 0
+  },
+  "message_job_audit": [
+    {
+      "event_id": "18bd3f0d-a07a-4292-8c81-6f165b2cce85",
+      "event_type": "context.changed",
+      "timestamp": "2026-10-29T05:49:00.832041Z",
+      "task_id": "08d0d027-aae9-4d38-8841-0ace5db23621",
+      "run_id": "c8b92656-71b2-4b39-8cfd-478939966a78",
+      "outcome": "succeeded",
+      "evidence_ref": "c9be9ac9-7bc7-4c81-b910-b2a2b47e784e",
+      "payload": {},
+      "error_code": null
+    },
+    {
+      "event_id": "77be26e7-57ab-4562-b526-f0b80cf9727b",
+      "event_type": "model.started",
+      "timestamp": "2026-10-29T05:49:00.844999Z",
+      "task_id": "08d0d027-aae9-4d38-8841-0ace5db23621",
+      "run_id": "c8b92656-71b2-4b39-8cfd-478939966a78",
+      "outcome": "started",
+      "evidence_ref": null,
+      "payload": {
+        "model_call_id": "16c88d69-028f-45e5-8d04-06201fd0e239",
+        "request_ref": "e9e9246f-1148-4cd8-a55c-be0d26474b4f"
+      },
+      "error_code": null
+    },
+    {
+      "event_id": "0e9f6cf0-80f7-45df-96ce-3dfa5ceffec2",
+      "event_type": "model.finished",
+      "timestamp": "2026-10-29T05:49:32.003600Z",
+      "task_id": "08d0d027-aae9-4d38-8841-0ace5db23621",
+      "run_id": "c8b92656-71b2-4b39-8cfd-478939966a78",
+      "outcome": "succeeded",
+      "evidence_ref": "fc524ee9-e3f4-40eb-9f4d-1b73a2a55cb3",
+      "payload": {
+        "model_call_id": "16c88d69-028f-45e5-8d04-06201fd0e239",
+        "response_ref": "fc524ee9-e3f4-40eb-9f4d-1b73a2a55cb3",
+        "duration_ms": 31155
+      },
+      "error_code": null
+    }
+  ],
+  "message_job_audit_content_metadata": [
+    {
+      "evidence_ref": "c9be9ac9-7bc7-4c81-b910-b2a2b47e784e",
+      "content_sha256": "b5a65872f376d7f0100f6d49a1aa395b0b31cfefaa6c3312398a2d2f4bb4a29b",
+      "parsed_type": "list",
+      "item_count": 3
+    },
+    {
+      "evidence_ref": "fc524ee9-e3f4-40eb-9f4d-1b73a2a55cb3",
+      "content_sha256": "0517ea9c1620c56befb763e85bb747fe22b80d1c2ce405f92a34fd3237572d53",
+      "parsed_type": "dict",
+      "item_count": 2,
+      "keys": [
+        "outcome",
+        "response"
+      ],
+      "outcome": "reply_only",
+      "proposal_present": false,
+      "matches_controlled_state_changed_reply": true
+    }
+  ],
+  "message_job_money_dispatch_or_check_audit_count": 0,
+  "child_security_execution": [
+    {
+      "operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859",
+      "task_id": "49743c6e-4b46-4cad-88a8-26a080672a80",
+      "action_name": "subscription.bank.cancel_subscription",
+      "action_revision": 1,
+      "parameters_ref": "sub-ref-82a4b8dbe8422f02fb885adb",
+      "state": "completed",
+      "result_ref": "9f1f2e96-ab03-4254-a988-35949ee4b859"
+    }
+  ],
+  "bank_cancellation": {
+    "operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859",
+    "operation_type": "bank.cancel_subscription",
+    "operation_status": "succeeded",
+    "recorded_at": "2026-10-29T13:46:43.732028+08:00",
+    "updated_at": "2026-10-29T13:46:43.732028+08:00",
+    "receipt": {
+      "mandate_id": "sub_001",
+      "account_id": "A1",
+      "amount_fen": 2500,
+      "cycle": "monthly",
+      "previous_next_billing_at": "2026-11-01T09:00:00+08:00",
+      "effective_stop_at": "2026-11-01T09:00:00+08:00",
+      "status": "cancelled",
+      "cancelled_at": "2026-10-29T13:46:43.732028+08:00"
+    }
+  },
+  "bank_subscription": [
+    {
+      "mandate_id": "sub_001",
+      "user_id": "U1",
+      "account_id": "A1",
+      "amount_fen": 2500,
+      "cycle": "monthly",
+      "next_billing_at": null,
+      "status": "cancelled",
+      "cancelled_at": "2026-10-29T13:46:43.732028+08:00",
+      "cancel_operation_id": "9f1f2e96-ab03-4254-a988-35949ee4b859"
+    }
+  ],
+  "accounts": [
+    {
+      "account_id": "A1",
+      "user_id": "U1",
+      "account_status": "active",
+      "book_balance_fen": 100000,
+      "frozen_balance_fen": 0,
+      "version": 3,
+      "available_balance_fen": 100000
+    },
+    {
+      "account_id": "A5",
+      "user_id": "U1",
+      "account_status": "active",
+      "book_balance_fen": 250000,
+      "frozen_balance_fen": 0,
+      "version": 1,
+      "available_balance_fen": 250000
+    }
+  ],
+  "bank_delta_since_finished_transfer_refresh": {
+    "bank_operation_count": 5,
+    "new_operation_ids_since_after_refresh": [
+      "9f1f2e96-ab03-4254-a988-35949ee4b859"
+    ],
+    "prior_four_operation_metadata_unchanged": {
+      "e7185730-ebea-48e0-836a-5a6630ac4d28": true,
+      "e5d6885a-6ec4-4426-be11-fef26d400462": true,
+      "a2069e51-ed86-4440-9f99-18c42dccfe55": true,
+      "53c008d4-4851-4ec6-8ef2-179aba31858d": true
+    },
+    "accounts_unchanged_since_after_refresh": true,
+    "wide_ledger_unchanged_since_after_refresh": true,
+    "new_cancellation_linked_ledger_count": 0,
+    "prior_transfer_operation_id": "53c008d4-4851-4ec6-8ef2-179aba31858d",
+    "prior_transfer_metadata_unchanged": true
+  },
+  "static_source_evidence": [
+    {
+      "path": "backend/app/modules/cross/entry.py",
+      "lines": "142-153,282-296",
+      "finding": "Running parent exposes resume/cancel; non-birthday choice=resume advances/reconciles the same plan."
+    },
+    {
+      "path": "backend/app/api/app.py",
+      "lines": "381-408",
+      "finding": "Public POST parent resume checks owned link and delegates choice=resume; not called in this audit."
+    },
+    {
+      "path": "backend/app/agent_platform/model.py",
+      "lines": "60-66",
+      "finding": "ContinueProposal.action excludes resume: provide_input/revise/query/cancel only."
+    },
+    {
+      "path": "backend/app/agent_platform/harness.py",
+      "lines": "383-408,601-627",
+      "finding": "Continuation validates exact task/revision/action; persisted model.finished evidence follows that validation, so rejected raw proposal fields are unavailable."
+    },
+    {
+      "path": "frontend/src/shell/components/TaskBlock.tsx",
+      "lines": "49-84,127-133",
+      "finding": "Resume recovery action is rendered inside gated branch (bootRecovery or recovery_required); normal running Cross plan passes only child query callback, with no parent resume callback."
+    }
+  ],
+  "interpretation": {
+    "observed": "Parent persisted revision3 is running with 3 succeeded steps and cancellation step waiting_approval, while its same linked child is actually succeeded. Public parent resume is advertised; no such parent resume was executed by this agent.",
+    "chat_contract_gap": "Chat continuation action enum cannot express advertised resume. Exact rejected raw action/task/version is not retained, so cannot prove stale revision or wrong target from this snapshot.",
+    "job_parent_field_limit": "job.parent_task_id is bills context source, not evidence of a ContinueProposal target; candidate_task_id is the provisional message task ID.",
+    "not_a_second_transfer": "Bank now has five operations; the only new operation since transfer refresh is explicit sub_001 cancellation, with unchanged funds/ledger.",
+    "transport_limit": "No lower-level HTTP attempt count is inferred from bank cardinality or these audit events."
+  },
+  "protected_evidence_sha256": {
+    "bank-baseline.json": "52f5c427425ff74be97098669078441dbbf2324258e84914687a15a5b8402b84",
+    "bank-before-refresh.json": "1fbff0d3c266d7c9acbda1af9dad0016d69c2b5325b7d15e27fa31b971b0056a",
+    "bank-after-refresh.json": "e7cb188f8e1348b5fc5c3d92b49cf119e2948eeb3e1033a4cfbf67fa8523dbd7"
+  }
+}
