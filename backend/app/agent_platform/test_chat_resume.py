@@ -129,19 +129,27 @@ def test_chat_resume_rejects_changed_ambiguous_and_protected_tasks(tmp_path, mod
 
 @pytest.mark.parametrize("scope", ["user", "session", "round"])
 def test_resume_cannot_target_another_owner_session_or_round(tmp_path, scope):
+    from datetime import datetime, timedelta, timezone
+
     runtime, model, trusted = running_parent(tmp_path)
     try:
         parent = runtime.application.get_task("U1", "D1", "PARENT")
         user = "U2" if scope == "user" else "U1"
-        session = "S2" if scope == "session" else "S1"
+        session = "S2"
         demo_round = "D2" if scope == "round" else "D1"
+        now = datetime.now(timezone.utc)
+        runtime.application.create_session(session, user, demo_round, now.isoformat(),
+            (now + timedelta(days=1)).isoformat())
         foreign = runtime.application.create_task("FOREIGN", user, session, demo_round,
             "FOREIGN-RUN", TaskStatus.RUNNING, parent.snapshot)
-        model.target, model.revision = foreign.task_id, foreign.revision + 1
+        foreign = runtime.application.update_task(user, demo_round, foreign.task_id, foreign.revision,
+            foreign.run_id, foreign.status, None, foreign.snapshot)
+        model.target, model.revision = foreign.task_id, foreign.revision
 
         result = runtime.harness.handle_message(trusted, uuid4(), "继续", allow_continuation=True)
 
         assert isinstance(result, ReplyOnly)
+        assert "task_id=FOREIGN" not in model.prompt
         assert runtime.application.get_task("U1", "D1", "PARENT") == parent
         assert runtime.application.get_task(user, demo_round, foreign.task_id) == foreign
     finally:
