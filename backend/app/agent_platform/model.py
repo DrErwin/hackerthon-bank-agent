@@ -63,7 +63,7 @@ class ContinueProposal(_TransferFields):
     kind: Literal["continue_task"] = "continue_task"
     task_id: str = Field(min_length=1)
     task_revision: int = Field(gt=0)
-    action: Literal["provide_input", "revise", "query", "cancel"]
+    action: Literal["provide_input", "revise", "resume", "query", "cancel"]
     text: str | None = Field(default=None, max_length=2000)
     selected_option_id: str | None = None
 
@@ -71,6 +71,8 @@ class ContinueProposal(_TransferFields):
     def action_payload(self):
         fields = any(value is not None for value in
                      (self.payee_hint, self.amount_fen, self.payer_account_id))
+        if self.action == "resume" and (fields or self.text is not None or self.selected_option_id is not None):
+            raise ValueError("resume takes no payload")
         if self.action in {"cancel", "query"} and (fields or self.text or self.selected_option_id):
             raise ValueError("unexpected action payload")
         if self.action == "revise" and (not fields or self.text or self.selected_option_id):
@@ -155,10 +157,11 @@ class DeepAgentPlanner:
                                  selected_option_id: str | None = None,
                                  payee_hint: str | None = None, amount_fen: int | None = None,
                                  payer_account_id: str | None = None) -> str:
-            """Suggest input, draft revision, query or cancel for the one identified existing task.
+            """Suggest input, draft revision, resume, query or cancel for one existing task.
 
             Copy task_id and task_revision from system context. Never approve or verify.
             Use text or selected_option_id for input, only changed transfer fields for revise.
+            Resume takes no payload and only continues an allowed non-interactive running task.
             """
             outcomes.append(ContinueProposal(
                 task_id=task_id, task_revision=task_revision, action=action,
@@ -222,8 +225,10 @@ class DeepAgentPlanner:
             f"当前可办理的业务能力（只能从中选择）：{capability_list}。\n"
             "意图：只有确定用户发起符合当前能力范围的独立新业务时，才调用 propose_transfer，"
             "并在 capability_name 中精确填写所选能力名；字段缺失或不确定仍是该业务意图，"
-            "由原任务追问补齐。明确补充、修改、查询或取消唯一已有任务时，调用 propose_continuation，"
+            "由原任务追问补齐。明确补充、修改、继续、查询或取消唯一已有任务时，调用 propose_continuation，"
             "准确引用摘要中的任务和版本；多个任务或意图不明确时调用 reply_only 请求选择，不能猜测目标。"
+            "当前唯一任务办理中、没有等待输入/确认/验证且allowed_actions明确含resume时，"
+            "用户要求继续可提action=resume，不附带字段、文本或选项；只是核实原进度，不代表授权。"
             "办理中的信息查询仍选择相应只读能力；求助先解释，不把问句当作待填字段，也不丢弃原任务。"
             "回复使用简短日常用语，说明当前结果和下一步，不展示能力编号或内部流程术语。"
             "确认、验证必须使用专用卡片，口头确认、继续、重试不能当成授权，也不能另起新业务。"
