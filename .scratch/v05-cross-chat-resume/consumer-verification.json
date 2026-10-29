@@ -1,0 +1,345 @@
+{
+  "ticket": "v05-cross-chat-resume/02",
+  "base": "bbfb6fd045dd6070f2928d366519d492dfd37849",
+  "fixed_source": "7d9d817ee4d29251d8cdf31094be2413a261ece9",
+  "production_source": "affd96d289f60841396b05e5e6729c960a3de2b1",
+  "production_and_test_proof": {
+    "before": "affd96d289f60841396b05e5e6729c960a3de2b1",
+    "after": "7d9d817ee4d29251d8cdf31094be2413a261ece9",
+    "only_changed_backend_paths": [
+      "backend/app/api/test_chat_resume.py"
+    ],
+    "unchanged_backend_entries": 274,
+    "unchanged_manifest_sha256": "dd7fb99a81fbec9298452322183811771afacd13a4a1d3ea1c9d3a89a8b2bd88",
+    "service_blob": "bea0cf2b3df63c93e0f61cdfb9724d6a313ab94f",
+    "same_service_blob": true,
+    "final_api_tree": "9bd64f4dbe33fbf7b2df286034a5053775ad5e50",
+    "final_backend_tree": "d27249f6d2fd9bd5b568630f59c45b6f93c027cd"
+  },
+  "runs": [
+    {
+      "name": "consumer-fixture-error",
+      "source": "badd54573600ecda652e50f7be53dbb12b4b8afd",
+      "layer": "initial_fixture_error",
+      "xml_gzip": "consumer-fixture-error.xml.gz",
+      "raw_xml_sha256": "5b670219eca210d181d8121e0a05831c852f8004ae592ac0d84945e08e259f00",
+      "gzip_sha256": "6eaaa6671f58a15fd0159a5a62524767c909cbe884a4a622c6cf1e0f6728563b",
+      "raw_bytes": 6893,
+      "tests": 2,
+      "failures": 0,
+      "errors": 2,
+      "skipped": 0,
+      "suite_seconds": 18.271,
+      "cases": [
+        {
+          "node": "app.api.test_chat_resume.test_public_resume_contract_advances_original_cross_parent",
+          "outcome": "error"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_and_duplicate_receipt_advance_original_parent_once",
+          "outcome": "error"
+        }
+      ],
+      "passed": 0
+    },
+    {
+      "name": "consumer-red",
+      "source": "c55fa2e17e17f2e9ca7267ddb81951e0fbc42db5",
+      "layer": "product_red",
+      "xml_gzip": "consumer-red.xml.gz",
+      "raw_xml_sha256": "9725f04d870be39ca8b2f1e7ae155853fea6e8258a6c81cb52d5ab58743abb2f",
+      "gzip_sha256": "5c7fd7e4d65bed25e0f654ff1d2bf48ae43e05149ea5e58a94e6a80ef6e60dc9",
+      "raw_bytes": 1712,
+      "tests": 2,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "suite_seconds": 18.046,
+      "cases": [
+        {
+          "node": "app.api.test_chat_resume.test_public_resume_contract_advances_original_cross_parent",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_and_duplicate_receipt_advance_original_parent_once",
+          "outcome": "failure"
+        }
+      ],
+      "passed": 1
+    },
+    {
+      "name": "consumer-guard-red",
+      "source": "04a31f70588cda1a9404c97fcb3ff17b6cd60a9c",
+      "layer": "guard_red",
+      "xml_gzip": "consumer-guard-red.xml.gz",
+      "raw_xml_sha256": "c017ebf6818473665a9b617cc0fcc7b10fcedb7ceac5322dd99dfabee8a05172",
+      "gzip_sha256": "94e5ccbbe4bc427d6918e2d32e88a3ba6c2dc7b9e26358c13b1b414669b94df4",
+      "raw_bytes": 4741,
+      "tests": 2,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0,
+      "suite_seconds": 18.638,
+      "cases": [
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_and_duplicate_receipt_advance_original_parent_once",
+          "outcome": "failure"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_dispatch_rechecks_latest_projection_after_planner_approved_resume",
+          "outcome": "failure"
+        }
+      ],
+      "passed": 0
+    },
+    {
+      "name": "consumer-combination-original",
+      "source": "affd96d289f60841396b05e5e6729c960a3de2b1",
+      "layer": "necessary_combination_original",
+      "xml_gzip": "consumer-combination-original.xml.gz",
+      "raw_xml_sha256": "8cf5bd32e144ebcc32ea6aa78baf0a14f35a5c897915223a8c6a99166c0c8c72",
+      "gzip_sha256": "0c7bdc69e1fc922787080d3dbe50378b890304a55e1b016578d9beb8e41e528d",
+      "raw_bytes": 8474,
+      "tests": 44,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "suite_seconds": 104.181,
+      "cases": [
+        {
+          "node": "app.api.test_chat_resume.test_public_resume_contract_advances_original_cross_parent",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_and_duplicate_receipt_advance_original_parent_once",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_interrupted_resume_receipt_reads_original_without_advancing_again",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_dispatch_rechecks_latest_projection_after_planner_approved_resume",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_cannot_target_another_thread",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_rechecks_revision_after_an_explicit_card_action",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_saved_chat_resume_cannot_recover_authority_in_a_new_session",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_does_not_resubmit_an_unknown_transfer",
+          "outcome": "failure"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_failed_message_is_readable_without_stream_and_not_duplicated[planner]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_failed_message_is_readable_without_stream_and_not_duplicated[pipeline]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_chat_supplies_amount_account_then_revises_same_task",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_interrupted_after_mutation_reads_original_without_replanning_or_reapplying",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_rechecks_version_after_planning_before_dispatch",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_a_candidate_cannot_target_another_thread",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_secret_free_safety_question_is_answered_but_values_never_persist",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_invalid_chat_revision_does_not_change_task[0]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_invalid_chat_revision_does_not_change_task[-100]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_conversation_dispatch.test_saved_continuation_cannot_carry_authority_into_a_new_session",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.api.test_child_parent_context.test_child_confirmation_and_code_keep_parent_and_one_original_bank_effect",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_real_planner_tool_proposes_plain_resume_without_executing",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload0]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload1]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload2]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload3]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload4]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload5]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload6]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_schema_rejects_every_payload[payload7]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[stale_revision]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[multiple]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[not_allowed]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[recovery]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[input]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[confirmation]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[verification]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[running_input]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[running_confirmation]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[succeeded]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[failed]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[cancelled]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_chat_resume_rejects_changed_ambiguous_and_protected_tasks[partially_succeeded]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_cannot_target_another_owner_session_or_round[user]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_cannot_target_another_owner_session_or_round[session]",
+          "outcome": "passed"
+        },
+        {
+          "node": "app.agent_platform.test_chat_resume.test_resume_cannot_target_another_owner_session_or_round[round]",
+          "outcome": "passed"
+        }
+      ],
+      "passed": 43
+    },
+    {
+      "name": "consumer-unknown-recheck",
+      "source": "7d9d817ee4d29251d8cdf31094be2413a261ece9",
+      "layer": "corrected_same_node_recheck",
+      "xml_gzip": "consumer-unknown-recheck.xml.gz",
+      "raw_xml_sha256": "9b4c438320ab8e1bd358ebe92357abd6b3463dcdca189149028b16119f83ceec",
+      "gzip_sha256": "1f0f1d90c2896e19f30e10c03e03a3790508f0353e16b0a4de7a3fd25efb56d5",
+      "raw_bytes": 369,
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suite_seconds": 18.954,
+      "cases": [
+        {
+          "node": "app.api.test_chat_resume.test_chat_resume_does_not_resubmit_an_unknown_transfer",
+          "outcome": "passed"
+        }
+      ],
+      "passed": 1
+    }
+  ],
+  "necessary_combination": {
+    "original_command": "python -m pytest -q app/api/test_chat_resume.py app/api/test_conversation_dispatch.py app/api/test_child_parent_context.py app/agent_platform/test_chat_resume.py --basetemp=C:\\Users\\57652\\.codex\\worktrees\\v05-frontend-acceptance\\pytest-chat-resume-consumer-final-20261029 --junitxml=../.scratch/v05-cross-chat-resume/consumer-final.xml",
+    "original_workdir": "backend",
+    "recheck_command": "python -m pytest -q backend/app/api/test_chat_resume.py::test_chat_resume_does_not_resubmit_an_unknown_transfer --basetemp=C:\\Users\\57652\\.codex\\worktrees\\v05-frontend-acceptance\\pytest-chat-resume-consumer-unknown-recheck-20261029 --junitxml=.scratch/v05-cross-chat-resume/consumer-unknown-recheck.xml",
+    "recheck_workdir": ".",
+    "passing_unique_nodes_across_original_and_same_node_recheck": 44,
+    "new_test_file_unique_nodes": 8,
+    "single_all_green_batch": false,
+    "independent_reviewer_runs_added_to_author_count": false
+  },
+  "boundaries": {
+    "real_local": [
+      "ASGI HTTP API",
+      "Cross",
+      "Harness",
+      "security executor",
+      "MockBank",
+      "isolated temporary SQLite"
+    ],
+    "test_substitutes": [
+      "planner output",
+      "five latest typed API projections after provider validation",
+      "B14 timeout query failure",
+      "receipt write interruptions"
+    ],
+    "not_claimed": [
+      "live model",
+      "running page",
+      "original walkthrough bank",
+      "production bank",
+      "human security signoff",
+      "CI pass",
+      "merge or owner acceptance"
+    ]
+  }
+}

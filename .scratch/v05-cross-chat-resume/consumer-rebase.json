@@ -1,0 +1,21 @@
+{
+  "old_provider": "c8d476efd5c8511f85afc02dd4191bc09b09feb2",
+  "merged_provider": "bbfb6fd045dd6070f2928d366519d492dfd37849",
+  "old_consumer_source": "b1ed7b920330ca57c6669df14c25dc432784bd0a",
+  "rebased_source": "affd96d289f60841396b05e5e6729c960a3de2b1",
+  "old_backend_tree": "ba5eb1bd0fb509ace4abc20fdaeaa4bd9bef7bf6",
+  "rebased_backend_tree": "4a48fb693b3a4454b20d20bb66dc86a76478c5d6",
+  "api_tree": "808951ea79c9081fe2a6dfd1762feb504999ea72",
+  "whole_backend_tree_is_equal": false,
+  "provider_only_changed_path": "backend/app/agent_platform/test_chat_resume.py",
+  "unchanged_backend_entries_excluding_provider_test": 274,
+  "unchanged_manifest_sha256": "e0ee2a181a4de4b5b69b5357ca6dece78910b390929638f57c85d3548f76f989",
+  "range_diff": "1:  badd5457 = 1:  998b34cc test(api): 复现聊天继续被误作查询的原任务分流\n2:  c55fa2e1 = 2:  55aefa81 test(api): 按本地运行时实际银行路径读取只读基线\n3:  04a31f70 = 3:  ac9ad961 test(api): 固定继续候选的当前状态与回执边界\n4:  b1ed7b92 = 4:  affd96d2 fix(api): 显式继续当前原任务而不误作结果查询",
+  "rebased_commits": [
+    "998b34ccf1ab0c25cca425ededb7d6fd939cde7b test(api): 复现聊天继续被误作查询的原任务分流",
+    "55aefa81fa8ea14eb2a8c51f35cd1326d35ac577 test(api): 按本地运行时实际银行路径读取只读基线",
+    "ac9ad961cb247f1750873a2aab4b7aae21747684 test(api): 固定继续候选的当前状态与回执边界",
+    "affd96d289f60841396b05e5e6729c960a3de2b1 fix(api): 显式继续当前原任务而不误作结果查询"
+  ],
+  "note": "Whole-backend trees differ because provider added only guard tests. API and all other backend entries are identical; final tests run on the rebased source."
+}

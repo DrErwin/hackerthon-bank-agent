@@ -69,6 +69,8 @@ $env:BANK_API_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000'
 
 POST `/threads/{id}/messages` 在意图理解前返回 202，`MessageAccepted.task_id` 此时为空。API 原子保存用户消息和待处理消息记录，再调用 Harness 的公开 `handle_message()` 结果：`ReplyOnly` 只保存关联为空的助手消息；转账结果才创建 API 任务链接，并通过同一消息历史和 SSE 发布任务状态。普通闲聊、聊天中的“确认”及外部指令不经过 API 关键词规则，也不创建确认或验证入口。
 
+普通聊天继续（[v05-cross-chat-resume/02](../../../.scratch/v05-cross-chat-resume/issues/02-consumer.md)）：消费平台无字段的`resume`建议时，API在原消息receipt和身份/线程/版本/recovery/allowed门后，再核当前为running且无交互卡，明确传 `{"choice":"resume"}` 给既有continue_task，不误作query、不启用会话恢复。当前菜单、确认、验证或未知资金不能由这句聊天替代专用操作；同原request UUID及已推进后中断的receipt只回看原任务，不重新推进。
+
 每个 POST 都带 `request_id:UUID`。同用户、轮次、入口同号同内容返回原响应；异内容 409。API 回执只保存 HMAC 比较值和受控响应，不保存验证码明文。验证码另外带 `submission_id`；中断后相同提交通过银行的原记录恢复，不重新理解消息或创建资金动作。其他处理中断的请求不会自动重放，改为查询并显式恢复原任务。消息作业保存稳定的内部候选任务编号；服务重启后，同号重试只恢复这条作业，Harness 已生成转账任务时沿原任务结果补齐 API 关联。
 
 SSE 的 id 为 event_id。先连流，再拉取 messages / tasks 快照；按 event_id 去重，以 task_revision 拒绝更旧状态。新会话恢复前，旧会话的 `task_updated` 和 `interaction_required` 不会重放给当前会话；恢复成功后发布新会话任务状态。游标不存在或属于其他对话返回 409，客户端改用历史与任务补齐。GET 和事件重连不会提交资金。会话到期后停止流，发送 session_expired；后续请求返回 401。
