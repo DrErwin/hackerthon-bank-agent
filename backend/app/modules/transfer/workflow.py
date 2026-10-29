@@ -12,7 +12,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
 from app.contracts.bank import BankError, OperationResult, PayeeInput, QueryFailure
-from app.contracts.common import RiskLevel, SecurityDecisionCode, TaskStatus
+from app.contracts.common import Phase, RiskLevel, SecurityDecisionCode, TaskStatus
 from app.contracts.platform import StartTransferInput, TrustedContext
 from app.contracts.security import ActionDescriptor, ExecutionSecurityContext, SecurityDecision
 from app.contracts.tasks import (
@@ -365,7 +365,36 @@ class TransferWorkflow:
     def _security(self, state: TransferState) -> dict:
         with self._within_action(state):
             decision = self.ports.check(self._trusted(state), self._action(state))
-        return self._security_decision(decision)
+        editable_pause = self._unsubmitted_risk_pause(state, decision)
+        return editable_pause if editable_pause is not None else {
+            "error": None, "recovery_required": False, "recovery_reason": None,
+            **self._security_decision(decision),
+        }
+
+    def _unsubmitted_risk_pause(self, state: TransferState, decision: SecurityDecision) -> dict | None:
+        # Only the admission call site (or its exact persisted predecessor) proves
+        # this draft never entered submit. An execution outcome cannot use it.
+        if (state["trusted"].get("parent_task_id") is not None
+                or decision.phase != Phase.ADMISSION
+                or decision.decision != SecurityDecisionCode.PAUSE
+                or decision.reason_codes != ["DEPENDENCY_UNAVAILABLE"]
+                or decision.rule_ids != ["risk-signal-coverage-required"]
+                or str(decision.operation_id) != state.get("operation_id")
+                or decision.action_revision != state.get("action_revision")
+                or decision.parameters_ref != state.get("parameters_ref")):
+            return None
+        message = "安全核对还没完成，这笔转账没有提交。已填资料保留，您可以修改资料或取消。"
+        return {
+            "status": TaskStatus.WAITING_INPUT.value,
+            "interaction": self._interaction("修改资料后再核对，或取消这次办理。", [], [
+                InteractionOption(id="resume", label="重新核对"),
+                InteractionOption(id="cancel", label="取消"),
+            ]),
+            "wait_kind": "security", "next": "wait", "message": message,
+            "error": ModuleError(code="DEPENDENCY_UNAVAILABLE", source="security",
+                                 field=None, reason=message, upstream_code=None).model_dump(mode="json"),
+            "recovery_required": False, "recovery_reason": None,
+        }
 
     def _security_decision(self, decision: SecurityDecision, *, reused: bool = False) -> dict:
         if decision.decision == SecurityDecisionCode.ALLOW:
@@ -795,7 +824,8 @@ class TransferWorkflow:
         if not saved.values:
             raise ValueError("TASK_NOT_FOUND")
         if not saved.next:
-            return self._result(saved.values)
+            restored = self._restore_legacy_risk_pause(config, saved)
+            return restored if restored is not None else self._result(saved.values)
         # Command(resume=...) is persisted as a checkpoint write before _wait runs.
         # Replace dedicated raw material before constructing that command.
         fields = response.get("fields")
@@ -824,3 +854,49 @@ class TransferWorkflow:
         command = Command(resume=response) if any(task.interrupts for task in saved.tasks) else None
         result = self.graph.invoke(command, config)
         return self._result(result)
+
+    def _restore_legacy_risk_pause(self, config: dict, saved) -> ModuleResult[TransferTaskView] | None:
+        state = saved.values
+        if (state.get("status") != TaskStatus.NEEDS_ATTENTION.value
+                or state.get("recovery_reason") != "DEPENDENCY_UNAVAILABLE"
+                or state["trusted"].get("parent_task_id") is not None
+                or state.get("operation") is not None
+                or not state.get("operation_id") or not state.get("parameters_ref")):
+            return None
+
+        # Follow exact predecessors, allowing only run-id publication updates.
+        # Missing history or any other changed facts cannot prove admission.
+        ended = saved
+        while (ended.metadata or {}).get("source") == "update":
+            if not ended.parent_config:
+                return None
+            parent = self.graph.get_state(ended.parent_config)
+            if not parent.values or {
+                key: value for key, value in ended.values.items() if key != "trusted"
+            } != {key: value for key, value in parent.values.items() if key != "trusted"}:
+                return None
+            if {key: value for key, value in ended.values["trusted"].items() if key != "run_id"} != {
+                key: value for key, value in parent.values["trusted"].items() if key != "run_id"
+            }:
+                return None
+            ended = parent
+        if (ended.metadata or {}).get("source") != "loop" or not ended.parent_config:
+            return None
+        predecessor = self.graph.get_state(ended.parent_config)
+        if predecessor.next != ("security",):
+            return None
+        binding_fields = ("operation_id", "action_revision", "parameters_ref", "payer_account_id",
+                          "payee_input", "payee_display", "amount_fen", "operation")
+        if any(predecessor.values.get(key) != state.get(key) for key in binding_fields):
+            return None
+        if {key: value for key, value in predecessor.values.get("trusted", {}).items() if key != "run_id"} != {
+            key: value for key, value in state["trusted"].items() if key != "run_id"
+        }:
+            return None
+        with self._within_action(state):
+            decision = self.ports.check(self._trusted(state), self._action(state))
+        pause = self._unsubmitted_risk_pause(state, decision)
+        if pause is None:
+            return None
+        self.graph.update_state(config, pause, as_node="security")
+        return self._result(self.graph.invoke(None, config))
