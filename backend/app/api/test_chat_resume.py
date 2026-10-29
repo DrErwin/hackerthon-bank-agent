@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
+from pathlib import Path
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,7 +12,16 @@ from fastapi.testclient import TestClient
 from app.agent_platform.model import ContinueProposal, TransferProposal
 from app.agent_platform.test_local_demo import app_for, configuration
 
-from .test_app import approve, bank_counts, post, start
+from .test_app import approve, post, start
+
+
+def bank_counts(path):
+    connection = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
+    try:
+        return tuple(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                     for table in ("bank_operations", "ledger_entries"))
+    finally:
+        connection.close()
 
 
 @pytest.fixture
@@ -41,12 +52,12 @@ def running_expense(tmp_path, monkeypatch):
         parent = client.get(f"/api/v1/tasks/{parent['task_id']}").json()["data"]
         assert parent["status"] == "running" and parent["interaction"] is None
         assert "resume" in parent["allowed_actions"] and not parent["recovery_required"]
-        bank_before = bank_counts(tmp_path)
+        bank_before = bank_counts(runtime.bank.store.path)
         writes = Mock(wraps=runtime.gateway.cancel_subscription)
         monkeypatch.setattr(runtime.gateway, "cancel_subscription", writes)
         yield SimpleNamespace(app=app, api=app.state.api, client=client, parent=parent,
                               thread=thread, planner=planner, writes=writes,
-                              bank_before=bank_before, path=tmp_path)
+                              bank_before=bank_before, path=runtime.bank.store.path)
 
 
 def current_parent(env):
