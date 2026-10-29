@@ -1,11 +1,13 @@
 """Unsubmitted risk coverage pauses retain a usable owned draft, never funds authority."""
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
 from app.contracts.common import SecurityDecisionCode, TaskStatus
 from app.security import ExecutionOutcome
 
 from .test_workflow import Ports, request, trusted, workflow
+from .workflow import TransferWorkflow
 
 
 class CoveragePorts(Ports):
@@ -142,3 +144,86 @@ def test_unknown_bank_result_keeps_original_operation_and_query_only():
     assert unchanged.data.payer_account_id == "A1"
     assert unchanged.data.operation_id == original.data.operation_id
     assert unchanged.allowed_actions == ["query"] and ports.submissions == 1
+
+
+class LegacyPauseWorkflow(TransferWorkflow):
+    """The pre-fix call site, used only to create a genuine completed old graph step."""
+
+    def _security(self, state):
+        with self._within_action(state):
+            decision = self.ports.check(self._trusted(state), self._action(state))
+        return self._security_decision(decision)
+
+
+def legacy_pause():
+    ports, saver = CoveragePorts(), InMemorySaver()
+    old = LegacyPauseWorkflow(ports, saver)
+    old.start(trusted(), request())
+    ended = old.resume(trusted(), {"fields": {"payer_account_id": "A5"}})
+    assert ended.status == TaskStatus.NEEDS_ATTENTION and ended.allowed_actions == []
+    return TransferWorkflow(ports, saver), ports, ended
+
+
+@pytest.mark.parametrize("run", ["R1", "R2"])
+def test_exact_legacy_admission_predecessor_restores_same_unsubmitted_task(run):
+    flow, ports, ended = legacy_pause()
+    current = trusted().model_copy(update={"run_id": run})
+    restored = flow.resume(current, {})
+    assert_editable_pause(restored)
+    assert restored.task_id == ended.task_id
+    assert restored.data == ended.data
+    assert restored.run_id == run and ports.submissions == 0
+    cancelled = flow.resume(current, {"choice": "cancel"})
+    assert cancelled.status == TaskStatus.CANCELLED and ports.submissions == 0
+
+
+def test_legacy_pause_with_changed_action_data_is_not_restored():
+    flow, ports, ended = legacy_pause()
+    flow.graph.update_state(flow._config(trusted(), None), {"amount_fen": 20_000})
+    retained = flow.resume(trusted(), {})
+    assert retained.status == ended.status
+    assert retained.allowed_actions == [] and retained.recovery_required
+    assert ports.submissions == 0
+
+
+def test_legacy_pause_without_exact_predecessor_is_not_restored(monkeypatch):
+    flow, ports, ended = legacy_pause()
+    saved = flow.graph.get_state(flow._config(trusted(), None))
+    assert saved.parent_config
+    actual_get_state = flow.graph.get_state
+
+    def missing_parent(config, *args, **kwargs):
+        state = actual_get_state(config, *args, **kwargs)
+        return state._replace(parent_config=None) if state.config == saved.config else state
+
+    monkeypatch.setattr(flow.graph, "get_state", missing_parent)
+    retained = flow.resume(trusted(), {})
+    assert retained.status == ended.status
+    assert retained.allowed_actions == [] and ports.submissions == 0
+
+
+@pytest.mark.parametrize("decision", [SecurityDecisionCode.ALLOW, SecurityDecisionCode.REQUIRE_CONFIRMATION])
+def test_legacy_recovery_never_executes_from_a_changed_current_risk_decision(decision):
+    flow, ports, ended = legacy_pause()
+    ports.check = lambda owner, action: ports.decision(action, decision)
+    retained = flow.resume(trusted(), {})
+    assert retained.status == ended.status
+    assert retained.allowed_actions == [] and retained.data == ended.data
+    assert ports.submissions == 0
+
+
+def test_cross_child_risk_pause_is_not_made_editable():
+    flow, ports = workflow(CoveragePorts())
+    parented = trusted().model_copy(update={"parent_task_id": "PARENT"})
+    paused = flow.start(parented, request(payer_account_id="A5"))
+    assert paused.status == TaskStatus.NEEDS_ATTENTION
+    assert paused.allowed_actions == [] and paused.recovery_required
+    assert ports.submissions == 0
+
+
+def test_legacy_recovery_rejects_a_different_owner_before_rechecking():
+    flow, ports, _ended = legacy_pause()
+    checked = len(ports.checked_operations)
+    with pytest.raises(ValueError, match="ACCESS_DENIED"):
+        flow.resume(trusted(user="U2"), {}, thread_id="T1")
+    assert len(ports.checked_operations) == checked and ports.submissions == 0
