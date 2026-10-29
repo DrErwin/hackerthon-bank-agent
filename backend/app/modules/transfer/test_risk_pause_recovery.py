@@ -2,8 +2,9 @@
 
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
+from uuid import uuid4
 
-from app.contracts.common import SecurityDecisionCode, TaskStatus
+from app.contracts.common import Phase, SecurityDecisionCode, TaskStatus
 from app.security import ExecutionOutcome
 
 from .test_workflow import Ports, request, trusted, workflow
@@ -29,6 +30,7 @@ class CoveragePorts(Ports):
             return self.decision(action, SecurityDecisionCode.PAUSE).model_copy(update={
                 "reason_codes": ["DEPENDENCY_UNAVAILABLE"],
                 "rule_ids": ["risk-signal-coverage-required"],
+                "risk_level": None,
                 "interaction": None,
             })
         return self.decision(action, SecurityDecisionCode.ALLOW if action.operation_id
@@ -227,3 +229,31 @@ def test_legacy_recovery_rejects_a_different_owner_before_rechecking():
     with pytest.raises(ValueError, match="ACCESS_DENIED"):
         flow.resume(trusted(user="U2"), {}, thread_id="T1")
     assert len(ports.checked_operations) == checked and ports.submissions == 0
+
+
+@pytest.mark.parametrize("change", [
+    {"operation_id": uuid4()}, {"action_revision": 9}, {"parameters_ref": "OTHER"},
+    {"phase": Phase.EXECUTION},
+])
+def test_legacy_recovery_requires_the_current_decisions_exact_action_binding(change):
+    flow, ports, ended = legacy_pause()
+    check = ports.check
+    ports.check = lambda owner, action: check(owner, action).model_copy(update=change)
+    retained = flow.resume(trusted(), {})
+    assert retained.status == ended.status
+    assert retained.allowed_actions == [] and retained.data == ended.data
+    assert ports.submissions == 0
+
+
+def test_new_session_rechecks_paused_draft_without_spending_or_old_session_access():
+    flow, ports, original, paused = paused_after_card_change()
+    assert_editable_pause(paused)
+    current = trusted().model_copy(update={"session_id": "S2", "run_id": "R2"})
+    recovered = flow.recover_session(current, source_session_id="S1")
+    assert_editable_pause(recovered)
+    assert recovered.task_id == original.task_id
+    assert recovered.data == paused.data and ports.submissions == 0
+    with pytest.raises(ValueError, match="ACCESS_DENIED"):
+        flow.resume(trusted(), {"choice": "cancel"})
+    cancelled = flow.resume(current, {"choice": "cancel"})
+    assert cancelled.status == TaskStatus.CANCELLED and ports.submissions == 0

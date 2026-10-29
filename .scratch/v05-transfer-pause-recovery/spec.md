@@ -27,10 +27,10 @@ Package: [v05-cross-linkage/packages/01-platform-bank](../v05-cross-linkage/pack
 ## Implementation Decisions
 
 - 实施范围仅 `backend/app/modules/transfer/`，引用现有公共状态、交互和裁决字段，不改公共契约、安全提供方或白名单。
-- 只在工作流明确调用提交前检查的相位，对 `PAUSE / DEPENDENCY_UNAVAILABLE` 且风险覆盖规则为 `risk-signal-coverage-required` 的裁决，使用既有可等待输入与安全重核对路径。
+- 只在独立普通转账明确调用提交前检查的相位，对 `ADMISSION / PAUSE / DEPENDENCY_UNAVAILABLE`、恰为 `risk-signal-coverage-required` 且绑定当前操作/修订/参数的裁决，使用既有可等待输入与安全重核对路径。
 - 执行入口返回相同错误码或 `reused=False` 均不足以证明未提交，不能套用上述分支。
 - 原任务修改沿既有字段修订入口，新操作与修订使旧确认不适用；取消不调用银行。
-- 已持久化的旧END暂停不因缺回执或操作为空而自动迁移。只有可信持久相位证明存在时才研究兼容恢复，否则记录限制交根处理，不增加推断式回退。
+- 旧END兼容只沿准确parent_config；只穿过归属和其他全部状态未变的run_id更新，最终准确前驱必须是同一操作/修订/参数的security节点。当前检查仍为上述目标暂停才发布等待；ALLOW或其他结果不进入submit。缺链、资料变化、submit来源及Cross子任务均不迁移，不以缺回执推断。
 
 ## Testing Decisions
 
@@ -45,6 +45,7 @@ Package: [v05-cross-linkage/packages/01-platform-bank](../v05-cross-linkage/pack
 | PR05 | 执行相位相同暂停（含reused两种值）不提供新编辑路径 |
 | PR06 | 权限、任务状态来源、安排冲突、高风险以及未知/处理中保持原限制 |
 | PR07 | 重启/新会话读取当前等待不提交资金，原旧END记录保持其证据边界 |
+| PR08 | 公共HTTP真实Harness/安全/银行验证原等待可重核对、取消或修订；旧确认拒绝、新动作仍要求双因子 |
 
 ## Out of Scope
 

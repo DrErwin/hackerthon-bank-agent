@@ -40,3 +40,11 @@ Harness 在存储完成同一用户、同一演示轮次的任务归属转换后
 实施票：[v05-transfer-arrangement/01：D1 安排冲突信息透传](../../../../.scratch/v05-transfer-arrangement/issues/01-conflict-presentation.md)。平台对其他入口的冲突支出返回 PAUSE / ARRANGEMENT_CONFLICT 时，转账保留平台 message，并按公共契约第5.4节呈现 `source=platform`、`field=payer_account_id`、相同 `error.reason`。任务仍为 needs_attention / recovery_required，未新增可执行按钮或放行路径。其他安全暂停及重复执行记录的原文案保持原行为。
 
 `test_arrangement_conflict.py` 使用隔离 SQLite/种子银行及真实转账运行时，在原确认、验证码验证后核对冲突结果及持久任务快照，并检查无银行提交、无账户流水、余额不变；规划器与风险策略沿用运行时测试替身，不代表真实模型、HTTP、页面 E2E 或真人签核。
+
+## v0.5 提交前风险覆盖暂停
+
+实施票：[v05-transfer-pause-recovery/01：原任务修改和取消](../../../../.scratch/v05-transfer-pause-recovery/issues/01-unsubmitted-risk-pause.md)。仅独立普通转账在提交前的ADMISSION检查明确返回 `PAUSE / DEPENDENCY_UNAVAILABLE / risk-signal-coverage-required`，且裁决绑定当前操作、修订和参数时，保留原任务资料并进入已有输入等待。用户可修改资料、重新核对或取消；原样重核对仍缺证据就继续等待，不提交银行。修改后重做银行前检与安全检查，生成新动作并要求当前确认和验证，旧确认不适用。
+
+旧END暂停只在用户恢复原任务时研究兼容：准确的持久前驱必须是同一操作/修订/参数的security节点；仅可穿过其他状态和归属完全一致的run_id更新。缺链、资料变化、submit前驱、其他当前裁决、Cross子任务及权限来源故障不据此开放动作。即使当前检查变成ALLOW，该兼容入口也不进入submit。当前仍明确缺风险覆盖时才发布原任务输入等待。GET不迁移检查点，不以缺回执推断未提交。
+
+工具权限、副作用和逐动作确认声明不变，仍由同一安全门及执行器决定资金权。执行相位暂停（包括 `reused=False`）、未知/处理中、会话/权限恢复、安排冲突和高风险终止沿原边界处理；没有扩大演示事实配置。测试使用实际Workflow、Harness、安全门、HTTP与隔离模拟银行；规划和风险裁决明确使用替身，真实页面另由根复验。
