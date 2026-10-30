@@ -71,7 +71,8 @@ def test_confirmation_and_verification_show_bank_quote_and_backend_risk(tmp_path
     assert fields["bank"] == "模拟合作银行"
     assert fields["fee"] == "0.00 元"
     assert fields["arrival"] == "即时到账"
-    assert fields["risk"].startswith("低风险" if risk == RiskLevel.LOW else "中风险")
+    assert fields["risk"] == ("请核对收款人和金额。" if risk == RiskLevel.LOW
+                              else "为了安全，还要输入短信验证码，再刷一次脸。")
     assert "6222000000000002" not in str(fields)
     assert len(bank.store.list_ledger("U1", "A1")) == 0
     app.answer_confirmation(trusted(), ConfirmationAnswer(

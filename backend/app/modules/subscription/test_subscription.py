@@ -459,7 +459,7 @@ def test_cancel_before_confirmation_leaves_the_bank_untouched():
     bank, task = FakeBank(), entry()
     task.start(context(), start_request("把优酷视频的自动扣费退了"))
     result = task.resume(context(), {"choice": "cancel"})
-    assert result.status == TaskStatus.CANCELLED and "没有提交退订" in result.message
+    assert result.status == TaskStatus.CANCELLED and "仍会按原计划扣费" in result.message
     assert bank.cancel_calls == 0
     assert next(m for m in bank.mandates if m.mandate_id == "sub_001").status == "active"
 

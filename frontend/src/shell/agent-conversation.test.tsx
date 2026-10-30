@@ -106,7 +106,7 @@ it("opens folded groups when continuing a nested task, and opens finished record
   const parentItem = within(refreshedHistory).getByRole("heading", { name: "订阅和自动扣费" }).closest("li")!;
   fireEvent.click(within(parentItem).getByRole("button", { name: "查看这项记录" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(screen.getByRole("button", { name: "取消「音乐会员」" }));
+  fireEvent.click(screen.getByRole("button", { name: "退订「音乐会员」" }));
   await waitFor(() => expect(document.getElementById("task-stop")).toBeTruthy());
   expect(source.cardAction).not.toHaveBeenCalled();
 });

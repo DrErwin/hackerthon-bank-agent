@@ -106,8 +106,8 @@ def test_quantity_flows_to_confirmation_and_the_real_bank(tmp_path):
         assert fields["quantity"] == "2 件"
         assert fields["unit_price"] == "199.00 元"
         assert fields["amount"] == "398.00 元"
-        assert fields["deliver_by"] == NORMALIZED_DELIVER_BY
-        assert fields["account"] == "A1"
+        assert fields["deliver_by"] == "2026年11月30日前"
+        assert fields["account"] == "主账户（尾号 0001）"
         assert "邻里花店" in fields["item"]
 
         orders = bank_orders(runtime)

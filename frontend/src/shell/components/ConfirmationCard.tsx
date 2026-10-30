@@ -14,10 +14,13 @@ const DECISION_TEXT: Record<ConfirmationView["decision"], string> = {
   superseded: "已被新确认单替代",
 };
 
-export function ConfirmationCard({ view, title, emphasize, active, canConfirm, canCancel, busy, extraActions, options, onSelectOption, onAnswer, id }: {
+export function ConfirmationCard({ view, title, emphasize, active, canConfirm, canCancel, busy, extraActions, options, onSelectOption, onAnswer, confirmLabel = "确认办理", cancelLabel = "取消", id }: {
   view: ConfirmationView;
   title: string;
   emphasize?: string;
+  // Business wording for the two answers; the answers themselves never change.
+  confirmLabel?: string;
+  cancelLabel?: string;
   active: boolean;
   canConfirm: boolean;
   canCancel: boolean;
@@ -46,12 +49,12 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
       <FieldList fields={view.display_fields} emphasize={emphasize} />
       {live ? (
         <>
-          <p className="sh-hint">核对好后，请点「确认办理」。这份确认单在 {clockTime(view.expires_at)} 前有效。</p>
+          <p className="sh-hint">核对好后，请点「{confirmLabel}」。这份确认单在 {clockTime(view.expires_at)} 前有效。</p>
           <div className="sh-actions">
             {canConfirm && (
               <Button type="button" disabled={busy} onClick={() => onAnswer("approve")}>
                 <ShieldCheck aria-hidden="true" />
-                {busy ? "正在提交…" : "确认办理"}
+                {busy ? "正在提交…" : confirmLabel}
               </Button>
             )}
             {extraActions.map((action) => (
@@ -62,7 +65,7 @@ export function ConfirmationCard({ view, title, emphasize, active, canConfirm, c
                 onClick={() => onSelectOption?.(option.id, option.label)}>{option.label}</button>
             ))}
             {canCancel && (
-              <Button type="button" variant="outline" disabled={busy} onClick={() => onAnswer("cancel")}>取消</Button>
+              <Button type="button" variant="outline" disabled={busy} onClick={() => onAnswer("cancel")}>{cancelLabel}</Button>
             )}
           </div>
           {/* The page never matches an option by its label, so "the server published

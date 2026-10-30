@@ -7,7 +7,7 @@ import pytest
 
 from app.agent_platform.test_birthday_harness_publication import harness_env
 from app.agent_platform.test_birthday_runtime_wiring import (
-    DELIVERY_REF, answer_verification, approve_confirmation, option_id,
+    DELIVER_DATE, DELIVERY_REF, answer_verification, approve_confirmation, option_id,
 )
 from app.agent_platform.test_birthday_session_recovery import target_session
 from app.contracts.bank import BankError, QueryFailure
@@ -26,7 +26,7 @@ def adopted_budget_freeze(env, products):
         input_request_id=uuid4(), interaction_id=current.interaction.interaction_id,
         selected_option_id=option_id(current, "采用个人预算"))
     current = env.resume({"selected_option_id": option_id(adopted.result, "继续生日")})
-    for text in ("500元", "2026-10-30", DELIVERY_REF):
+    for text in ("500元", DELIVER_DATE, DELIVERY_REF):
         current = env.resume({"text": text})
     for product in products:
         current = env.resume({"selected_option_id": option_id(current, product)})

@@ -1,6 +1,6 @@
 import type { MessageView } from "../contracts";
 import type { CardSelection, ShellTask, TaskEnvelope } from "./types";
-import { isTerminal } from "./format";
+import { isTerminal, taskStatusLabel, type StatusLabel } from "./format";
 import { crossPlan, scenarioTitle } from "./cross";
 
 export interface CardLink { parentId: string; childId: string; selection: CardSelection; revision: number }
@@ -11,6 +11,36 @@ export function needsAttentionInTree(id: string, tasks: Map<string, TaskEnvelope
   return Boolean(task && (!isTerminal(task) || task.status === "failed" || task.recovery_required))
     || links.some((link) => link.parentId === id && needsAttentionInTree(link.childId, tasks, links, seen));
 }
+// How urgently a task needs the user: an answer first, then an unknown result.
+function urgency(task: ShellTask): number {
+  if (task.status === "waiting_approval" || task.status === "waiting_input") return 2;
+  return task.status === "needs_attention" ? 1 : 0;
+}
+
+/**
+ * The status a record heading shows for its whole card. A step nested inside it
+ * (a plan's current child or a card's opened child) that waits for the user
+ * outranks the outer task's own state, so the heading and the inner card agree.
+ */
+export function recordStatus(task: ShellTask, tasks: Map<string, TaskEnvelope>, links: CardLink[]): StatusLabel {
+  let chosen = task;
+  const seen = new Set<string>();
+  const visit = (current: ShellTask) => {
+    if (seen.has(current.task_id)) return;
+    seen.add(current.task_id);
+    if (urgency(current) > urgency(chosen)) chosen = current;
+    const childIds = links.filter((link) => link.parentId === current.task_id).map((link) => link.childId);
+    const planChild = crossPlan(current)?.interaction_task_id;
+    if (planChild) childIds.push(planChild);
+    for (const id of childIds) {
+      const child = tasks.get(id)?.task;
+      if (child) visit(child);
+    }
+  };
+  visit(task);
+  return taskStatusLabel(chosen);
+}
+
 export const selectionKey = (selection: CardSelection) => selection.action === "subscription_cancel"
   ? selection.action + ":" + selection.subscription_id
   : selection.action === "bill_details" ? selection.action + ":" + selection.category

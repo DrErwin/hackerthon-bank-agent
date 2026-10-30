@@ -7,7 +7,7 @@ from app.contracts.api import ProvideInputRequest
 from app.memory.adapter import MemoryContext
 
 from .store import ApiStore
-from .test_edit_entry import _build_world, demo, started_world, stored_task, submit_inputs
+from .test_edit_entry import DELIVER_DATE, _build_world, demo, started_world, stored_task, submit_inputs
 
 
 def answer(world, request_id, interaction_id, text="500元"):
@@ -147,7 +147,7 @@ def test_old_input_returns_its_winner_without_republishing_old_state(
     assert answer(world, request_id, interaction_id).status_code == 503
     original = stored_task(world)
     next_id = original.snapshot["result"]["interaction"]["interaction_id"]
-    later = answer(world, uuid4(), next_id, "2026-10-30")
+    later = answer(world, uuid4(), next_id, DELIVER_DATE)
     assert later.status_code == 200, later.text
     current = stored_task(world)
     before_recovery = counts(world)
@@ -220,7 +220,7 @@ def test_completion_save_failure_still_recovers_the_older_platform_winner(
     assert answer(world, request_id, interaction_id).status_code == 503
     original = world.runtime.birthday.handoff.find_input_conversion(world.who, request_id)
     next_id = stored_task(world).snapshot["result"]["interaction"]["interaction_id"]
-    assert answer(world, uuid4(), next_id, "2026-10-30").status_code == 200
+    assert answer(world, uuid4(), next_id, DELIVER_DATE).status_code == 200
     current = stored_task(world)
     before_recovery = counts(world)
 

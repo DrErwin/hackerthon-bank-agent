@@ -15,6 +15,7 @@ import { QUANTITY_HINT } from "../copy";
 import { asksForQuantity, CROSS_ANSWER_LABEL, crossPlan } from "../cross";
 import { GuidedTransfer, transferDraft } from "./GuidedTransfer";
 import { inputPrompt, needsAttentionInTree, taskTitle } from "../presentation";
+import { Button } from "@/components/ui/button";
 
 export function verificationAdminHref(taskId: string, challengeId: string, roundId: string, origin: DataOrigin): string {
   if (origin === "real-api") return administratorUrl({ taskId, challengeId, demoRoundId: roundId });
@@ -22,8 +23,8 @@ export function verificationAdminHref(taskId: string, challengeId: string, round
   return "/v04/admin?" + params.toString();
 }
 
-export function verificationAdminLabel(origin: DataOrigin): string {
-  return origin === "real-api" ? "打开独立管理员会话处理模拟人脸" : "演示用：在新窗口打开管理员演示入口";
+export function verificationAdminLabel(): string {
+  return "演示用：管理员入口";
 }
 
 export function TaskBlock({ envelope, slot, origin, conversation, renderChild }: {
@@ -34,7 +35,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   renderChild?: (id: string) => ReactNode;
 }) {
   const { task } = envelope;
-  const { actions, history, confirmations, verifications, bootRecovery, recovered, expired } = conversation;
+  const { actions, history, confirmations, verifications, bootRecovery, expired } = conversation;
   const busyKey = conversation.busy[task.task_id] ?? "";
   const busy = Boolean(busyKey) || expired;
   const guided = Boolean(conversation.readTransferChoices && transferDraft(task)
@@ -45,8 +46,8 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
   const showPlanCard = Boolean(plan) || (task.module === "cross" && !isTerminal(task));
   const facts = slot.summarize?.(task) ?? [];
   const status = taskStatusLabel(task);
-  const gated = bootRecovery.has(task.task_id) || task.recovery_required;
-  const outcome = recovered.get(task.task_id);
+  // A task that ended after the reload no longer asks to be continued.
+  const gated = task.recovery_required || bootRecovery.has(task.task_id) && !isTerminal(task);
   const entries = history[task.task_id] ?? [];
   const base = "task-" + task.task_id;
   let displayTask = task;
@@ -76,9 +77,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         <RecoveryCard
           id={base + "-recovery"}
           facts={facts}
-          statusText={status.text}
           reason={task.message || task.error?.reason || null}
-          resolved={false}
           canDiscard={task.allowed_actions.includes("cancel")}
           busy={busy}
           onResume={() => void actions.resume(task)}
@@ -102,33 +101,15 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
     && task.allowed_actions.includes("provide_input")
     && task.interaction?.kind === "input" && task.interaction.required_fields.includes("delivery");
   const showTaskCancel = !expired && !isTerminal(task) && task.allowed_actions.includes("cancel") && task.interaction?.kind !== "confirmation";
+  // A plan between steps (no answer pending on it or its child, no recovery) can
+  // be moved on by the same public resume command the chat "继续" uses. Birthday
+  // answers its own gates and has no generic "next step" resume on the server.
+  const planChild = plan?.interaction_task_id ? conversation.tasks.get(plan.interaction_task_id)?.task : undefined;
+  const canContinuePlan = Boolean(plan) && plan?.scenario !== "birthday" && !expired
+    && task.status === "running" && !task.interaction && task.allowed_actions.includes("resume")
+    && (!plan?.interaction_task_id || Boolean(planChild && isTerminal(planChild)));
 
-  return (
-    <div className="sh-task" id={base} data-task-id={task.task_id} tabIndex={-1}>
-      {outcome && (
-        <RecoveryCard
-          id={base + "-recovered"}
-          facts={[]}
-          statusText=""
-          reason={null}
-          resolved
-          resolvedText={outcome === "discarded" ? "这次办理已取消。" : undefined}
-          canDiscard={false}
-          busy
-          onResume={() => undefined}
-          onDiscard={() => undefined}
-        />
-      )}
-      {guided && <GuidedTransfer task={task} conversation={conversation} busy={busy} />}
-      {showPlanCard && <CrossPlanCard view={plan} task={task} renderChild={renderChild}
-        childTask={(id) => conversation.tasks.get(id)?.task}
-        onQueryChild={(id) => {
-          const child = conversation.tasks.get(id)?.task;
-          if (child?.allowed_actions.includes("query")) void actions.queryResult(child);
-        }} />}
-      {busyKey && <p role="status" className="sh-action-feedback">正在处理，请稍候…</p>}
-      {conversation.taskNotices?.[task.task_id] && <p role="status" className="sh-action-feedback">{conversation.taskNotices[task.task_id]}</p>}
-      {entries.map((entry) => {
+  const renderedEntries = entries.flatMap((entry) => {
         const isActive = entry.kind === "input"
           ? !expired && task.status === "waiting_input" && task.allowed_actions.includes("provide_input") && task.interaction?.interaction_id === entry.id
           : interactionActive && task.interaction?.record_ref === entry.id;
@@ -136,7 +117,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         // field picker and empty historic forms after every guided selection.
         if (conversation.readTransferChoices && transferDraft(task) && entry.kind === "input"
           && entry.interaction.required_fields.length > 0
-          && entry.interaction.required_fields.every((field) => ["amount_fen", "payer_account_id", "payee_hint"].includes(field))) return null;
+          && entry.interaction.required_fields.every((field) => ["amount_fen", "payer_account_id", "payee_hint"].includes(field))) return [];
         const content = (() => {
         const id = base + "-" + entry.id;
         if (entry.kind === "input") {
@@ -196,6 +177,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
                 options={isCurrent ? task.interaction?.options ?? [] : []}
                 onSelectOption={(optionId, label) => void actions.selectOption(task, optionId, label)}
                 onAnswer={(choice) => void actions.answerConfirmation(task, view, choice)}
+                {...((envelope.module ?? task.module) === "subscription" ? { confirmLabel: "确认退订", cancelLabel: "先不退了" } : {})}
               />
 
             </div>
@@ -212,19 +194,47 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
             canVerify={task.allowed_actions.includes("verify")}
             busy={busy}
             adminHref={verificationAdminHref(task.task_id, view.challenge_id, task.demo_round_id, origin)}
-            adminLabel={verificationAdminLabel(origin)}
+            adminLabel={verificationAdminLabel()}
             options={isCurrent ? task.interaction?.options ?? [] : []}
             onSelectOption={(optionId, label) => void actions.selectOption(task, optionId, label)}
             onSubmitCode={(code) => actions.submitCode(task, view, code)}
             onResend={() => void actions.resendCode(task, view)}
             onStartFace={() => void actions.startFace(task, view)}
             onShowDemoCode={() => actions.showDemoCode(view)}
+            canCancel={showTaskCancel}
           />
         );
         })();
-        return isActive ? <div key={entry.id}>{content}</div> :
-          <details key={entry.id} className="sh-disclosure sh-past-step"><summary>{entry.kind === "confirmation" ? "查看之前的确认内容" : entry.kind === "verification" ? "查看之前的验证记录" : "查看之前补充的信息"}</summary>{content}</details>;
-      })}
+        return [{ id: entry.id, active: isActive, content }];
+  });
+  // Earlier answers, confirmations and verifications fold into one record list,
+  // so the current step stays near the top of the card.
+  const pastEntries = renderedEntries.filter((item) => !item.active);
+  const currentEntries = renderedEntries.filter((item) => item.active);
+
+  return (
+    <div className="sh-task" id={base} data-task-id={task.task_id} tabIndex={-1}>
+      {guided && <GuidedTransfer task={task} conversation={conversation} busy={busy} />}
+      {showPlanCard && <CrossPlanCard view={plan} task={task} renderChild={renderChild}
+        childTask={(id) => conversation.tasks.get(id)?.task}
+        onQueryChild={(id) => {
+          const child = conversation.tasks.get(id)?.task;
+          if (child?.allowed_actions.includes("query")) void actions.queryResult(child);
+        }} />}
+      {canContinuePlan && (
+        <Button type="button" disabled={busy} onClick={() => void actions.continuePlan(task)}>
+          {busyKey ? "正在继续…" : "继续办理"}
+        </Button>
+      )}
+      {busyKey && <p role="status" className="sh-action-feedback">正在处理，请稍候…</p>}
+      {conversation.taskNotices?.[task.task_id] && !isTerminal(task) && <p role="status" className="sh-action-feedback">{conversation.taskNotices[task.task_id]}</p>}
+      {pastEntries.length > 0 && (
+        <details className="sh-disclosure sh-past-step">
+          <summary>{"之前的记录（" + pastEntries.length + " 条）"}</summary>
+          {pastEntries.map((item) => <div key={item.id}>{item.content}</div>)}
+        </details>
+      )}
+      {currentEntries.map((item) => <div key={item.id}>{item.content}</div>)}
 
       {task.status === "running" && <WaitingCard id={base + "-waiting"} message={task.message} facts={facts} />}
       {task.status === "needs_attention" && (
@@ -283,7 +293,7 @@ export function TaskBlock({ envelope, slot, origin, conversation, renderChild }:
         <Notice
           tone="warning"
           title="刚才的操作没有完成"
-          action={<button type="button" className="sh-link-btn" onClick={() => void actions.refreshTask(task.task_id)}>刷新这项任务的状态</button>}
+          action={<button type="button" className="sh-btn sh-btn-secondary" onClick={() => void actions.refreshTask(task.task_id)}>刷新</button>}
         >
           {conversation.taskErrors[task.task_id]}
         </Notice>

@@ -22,18 +22,18 @@ const STEP_TITLE: Record<string, string> = {
   "transfer.start_transfer": "转出一笔",
   // Birthday bank writes and the read-only freeze query (business/05). The names
   // stay neutral: they say what the bank does, not what the page promises.
-  "bank.freeze_funds": "冻结资金",
+  "bank.freeze_funds": "留出生日专款",
   "bank.create_order": "创建订单",
   "bank.capture_frozen": "付款",
-  "bank.release_frozen": "释放冻结资金",
-  "bank.get_freeze": "冻结资金",
+  "bank.release_frozen": "退回没花完的钱",
+  "bank.get_freeze": "留出生日专款",
 };
 
 // The two safe reads carry the same action; their step ids say which projected
 // bank fact each row is (consumed total, current frozen remainder).
 const BIRTHDAY_ROW_TITLE: Record<string, string> = {
-  "birthday-consumed": "已消费",
-  "birthday-remaining": "冻结余款",
+  "birthday-consumed": "已花",
+  "birthday-remaining": "专款还剩",
 };
 
 const BIRTHDAY_ACTIONS = new Set([
@@ -70,8 +70,8 @@ export function stepTitle(step: CrossStep): string {
 }
 
 /**
- * What one birthday step returned: its amount, the order it belongs to and the
- * payment state the bank reported. A missing amount on an unknown write says so
+ * What one birthday step returned: its amount and the payment state the bank
+ * reported (the order number stays in the records, not in the step row). A missing amount on an unknown write says so
  * instead of showing zero, and an order without a payment state claims nothing.
  */
 export function stepFacts(step: CrossStep): { amount: string | null; details: string[] } {
@@ -80,7 +80,6 @@ export function stepFacts(step: CrossStep): { amount: string | null; details: st
     ? yuan(step.amount_fen)
     : step.status === "succeeded" || step.status === "needs_attention" ? "金额待核实" : null;
   const details: string[] = [];
-  if (step.order_id) details.push("订单号 " + step.order_id);
   if (step.payment_status === "paid") details.push("已付款");
   if (step.payment_status === "unpaid") details.push("未付款");
   return { amount, details };

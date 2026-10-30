@@ -61,8 +61,8 @@ _UNTRUSTED_MATERIAL_REFUSAL = (
     "请先通过银行官方渠道核实来源，不要向陌生账户汇款，也不要向他人透露验证码。"
 )
 _PLANNING_FAILURE_NOTICE = (
-    "这次没能处理好您的消息，请换个说法。"
-    "如果是在继续之前的办理，请先查看原任务卡片。"
+    "抱歉，我这会儿没能处理好。您的钱和正在办的事都没有变动，"
+    "请再说一次，或直接点卡片上的按钮。"
 )
 # The audit output probe mirrors journal.redact's free-text rules, which do not
 # cover an English password/passwd/pwd label. A reply must not widen that gap into
@@ -535,10 +535,15 @@ class AgentHarness:
             interaction = result.get("interaction") or {}
             options = [{"id": item.get("id"), "label": redact(item.get("label", ""), free_text=True)}
                        for item in interaction.get("options", [])]
+            # The card's own question tells the planner what a short chat answer
+            # such as "500元" is answering; without it the reply is ambiguous.
+            prompt = " ".join(str(redact(str(interaction.get("prompt") or ""),
+                                         free_text=True)).split())[:200]
             meta = (f"task_id={task.task_id}, task_revision={task.revision}, "
                     f"capability={task.snapshot.get('capability_name')}, "
                     f"allowed_actions={result.get('allowed_actions', [])}, "
-                    f"required_fields={interaction.get('required_fields', [])}, options={options}")
+                    f"required_fields={interaction.get('required_fields', [])}, options={options}, "
+                    f"prompt={prompt}")
             lines.append(f"- {meta}；{phrase}：{intent}")
             if len(lines) >= self._SUMMARY_TASK_LIMIT:
                 break

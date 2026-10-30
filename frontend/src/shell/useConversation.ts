@@ -10,8 +10,6 @@ import type {
 const ENTERED_KEY = "fe-shell-entered";
 const historyKey = (threadId: string) => "fe-shell-history:" + threadId;
 
-export type RecoveryOutcome = "resumed" | "discarded";
-
 function readHistory(threadId: string): Record<string, HistoryEntry[]> {
   try {
     const raw = localStorage.getItem(historyKey(threadId));
@@ -78,8 +76,9 @@ function errorText(error: unknown): string {
   // step; the page shows it verbatim and writes no refusal of its own.
   if (error.reason) return error.reason;
   // A body without a reason (offline proxy or a mock source) keeps the server
-  // message and appends the next step that matches the public code.
-  if (REFRESH_BEFORE_RETRY.has(error.code)) return error.message + "请刷新这项任务后重试。";
+  // message and appends the next step that matches the public code. A 409 is
+  // followed by an automatic read of the task, so the page shows the latest state.
+  if (REFRESH_BEFORE_RETRY.has(error.code)) return error.message + "页面会显示最新进度。";
   if (error.code.startsWith("CROSS_") || error.code === "AUDIT_UNAVAILABLE" || error.code === "DEPENDENCY_UNAVAILABLE") {
     return error.message + "原任务结果待核实，请查询原任务。";
   }
@@ -105,7 +104,6 @@ export function useConversation(source: ShellDataSource) {
   const [confirmations, setConfirmations] = useState<Record<string, ConfirmationView>>({});
   const [verifications, setVerifications] = useState<Record<string, VerificationView>>({});
   const [bootRecovery, setBootRecovery] = useState<Set<string>>(new Set());
-  const [recovered, setRecovered] = useState<Map<string, RecoveryOutcome>>(new Map());
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [taskErrors, setTaskErrors] = useState<Record<string, string>>({});
   const [taskNotices, setTaskNotices] = useState<Record<string, string>>({});
@@ -265,7 +263,6 @@ export function useConversation(source: ShellDataSource) {
           setHistory(restored);
           fetched.current.clear();
           setBootRecovery(new Set(taskList.filter((envelope) => needsRecovery(envelope.task)).map((envelope) => envelope.task.task_id)));
-          setRecovered(new Map());
         } else if (recordLists.length > 0) {
           setHistory((previous) => {
             const restored = { ...previous };
@@ -466,7 +463,7 @@ export function useConversation(source: ShellDataSource) {
         request.catch((error: unknown) => {
           fetched.current.delete(key);
           if (error instanceof ApiError && error.status === 401) expire();
-          else setTaskErrors((current) => ({ ...current, [taskId]: "暂时没有读到确认或验证内容，请刷新这项任务的状态。" }));
+          else setTaskErrors((current) => ({ ...current, [taskId]: "暂时没有读到确认或验证内容，请点「刷新」。" }));
         });
       }
     }
@@ -477,6 +474,13 @@ export function useConversation(source: ShellDataSource) {
     try {
       const envelope = await source.getTask(taskId);
       upsertTask(envelope.task, envelope.module);
+      // A plan step that changed also moves its plan card: read the plan as well.
+      const parentId = childParents.current.get(taskId);
+      if (parentId) {
+        const parent = await source.getTask(parentId);
+        upsertTask(parent.task, parent.module);
+        await loadChildren(parentId);
+      }
       const priorReadError = refreshErrors.current.get(taskId);
       if (priorReadError) setTaskErrors((current) => current[taskId] === priorReadError ? { ...current, [taskId]: "" } : current);
       refreshErrors.current.delete(taskId);
@@ -488,7 +492,7 @@ export function useConversation(source: ShellDataSource) {
       setTaskErrors((current) => ({ ...current, [taskId]: message }));
       if (error instanceof ApiError && error.status === 401) expire();
     }
-  }, [expire, source, upsertTask]);
+  }, [expire, loadChildren, source, upsertTask]);
 
   async function act<T>(taskId: string, key: string, call: (requestId: string) => Promise<T>, onFailure?: (error: unknown) => void): Promise<T | null> {
     if (expired || inflight.current.has(taskId)) return null;
@@ -501,6 +505,8 @@ export function useConversation(source: ShellDataSource) {
     try {
       const result = await call(requestId);
       pendingIds.current.delete(key);
+      // A page-level warning describes an earlier failure; a successful step makes it stale.
+      setPageError("");
       return result;
     } catch (error) {
       onFailure?.(error);
@@ -695,6 +701,7 @@ export function useConversation(source: ShellDataSource) {
       const response = await source.submitCode(view.challenge_id, { request_id: newRequestId(), submission_id: newRequestId(), code });
       setVerifications((current) => ({ ...current, [response.verification.challenge_id]: response.verification }));
       upsertTask(response.task);
+      setPageError("");
       if (response.kind === "rejected" && response.verification.challenge_status === "pending") return "验证码不对，请再输一次。";
       return null;
     } catch (error) {
@@ -785,13 +792,12 @@ export function useConversation(source: ShellDataSource) {
     }
   }, [tasks, cardLinks, busy, expired, booting, source]);
 
-  function settleRecovery(taskId: string, outcome: RecoveryOutcome) {
+  function settleRecovery(taskId: string) {
     setBootRecovery((current) => {
       const next = new Set(current);
       next.delete(taskId);
       return next;
     });
-    setRecovered((current) => new Map(current).set(taskId, outcome));
   }
 
   async function resume(task: ShellTask) {
@@ -800,7 +806,17 @@ export function useConversation(source: ShellDataSource) {
       if (!result) return;
       upsertTask(result);
     }
-    settleRecovery(task.task_id, "resumed");
+    settleRecovery(task.task_id);
+  }
+
+  // A plan whose finished step waits for no answer moves on through the same
+  // public resume command the chat "继续" uses; the page decides nothing itself.
+  async function continuePlan(task: ShellTask) {
+    if (!task.allowed_actions.includes("resume") || task.interaction || task.recovery_required) return;
+    const result = await act(task.task_id, "resume:" + task.task_id + ":" + task.task_revision, (request_id) => source.resumeTask(task.task_id, { request_id }));
+    if (!result) return;
+    upsertTask(result);
+    await loadChildren(task.task_id);
   }
 
   async function cancel(task: ShellTask): Promise<boolean> {
@@ -812,7 +828,7 @@ export function useConversation(source: ShellDataSource) {
   }
 
   async function discard(task: ShellTask) {
-    if (await cancel(task)) settleRecovery(task.task_id, "discarded");
+    if (await cancel(task)) settleRecovery(task.task_id);
   }
 
   async function send(text: string): Promise<boolean> {
@@ -884,7 +900,6 @@ export function useConversation(source: ShellDataSource) {
     confirmations,
     verifications,
     bootRecovery,
-    recovered,
     busy,
     taskErrors,
     taskNotices,
@@ -897,7 +912,7 @@ export function useConversation(source: ShellDataSource) {
     supportsCardActions: Boolean(source.cardAction),
     supportsDetails: Boolean(source.submitDetails),
     readTransferChoices: source.readTransferChoices,
-    actions: { cardAction, send, provideText, reviseDraft, submitPayeeDetails, submitDelivery, continueDelivery, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, discard, cancel, reenter, refreshTask, refreshConversation },
+    actions: { cardAction, send, provideText, reviseDraft, submitPayeeDetails, submitDelivery, continueDelivery, selectOption, answerConfirmation, submitCode, resendCode, startFace, showDemoCode, queryResult, resume, continuePlan, discard, cancel, reenter, refreshTask, refreshConversation },
   };
 }
 

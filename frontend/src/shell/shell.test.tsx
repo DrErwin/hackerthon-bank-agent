@@ -44,7 +44,7 @@ async function passCode() {
   fireEvent.change(await screen.findByLabelText("请输入 6 位验证码"), { target: { value: "123456" } });
   fireEvent.click(screen.getByRole("button", { name: "提交验证码" }));
   fireEvent.click(await screen.findByRole("button", { name: "开始模拟人脸验证" }));
-  await screen.findByText("请在独立演示端完成模拟验证。");
+  await screen.findByText("请稍等，工作人员会帮您完成刷脸验证，完成后这里会自动更新。");
 }
 
 async function adminAnswer(backend: DemoBackend, result: "passed" | "failed") {
@@ -75,7 +75,7 @@ describe("v0.4 shell with stub data", () => {
   it("walks confirm → code → admin face → waiting → result and keeps finished cards read-only", async () => {
     const backend = makeBackend();
     renderPage(backend);
-    expect(await screen.findByText("演示数据（stub）")).toBeTruthy();
+    expect(await screen.findByText("演示数据")).toBeTruthy();
 
     await reachVerification();
     const confirmation = screen.getByRole("heading", { name: "确认单记录" }).closest("section")!;
@@ -230,13 +230,13 @@ describe("v0.4 shell with stub data", () => {
     const provide = vi.spyOn(reloaded.user, "provideInput");
     const answer = vi.spyOn(reloaded.user, "answerConfirmation");
     renderPage(reloaded);
-    expect(await screen.findByRole("heading", { name: "这项还没办完" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "接着上次的办理" })).toBeTruthy();
     expect(screen.queryByLabelText("请输入 6 位验证码")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
-    expect(await screen.findByText("已找回上次的办理资料，请查看当前进度。")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "继续办理" }));
     expect(await screen.findByText("已确认办理")).toBeTruthy();
     expect(await screen.findByLabelText("请输入 6 位验证码")).toBeTruthy();
+    expect(screen.queryByText("已找回上次的办理资料，请查看当前进度。")).toBeNull();
     expect(send).not.toHaveBeenCalled();
     expect(provide).not.toHaveBeenCalled();
     expect(answer).not.toHaveBeenCalled();
@@ -275,7 +275,7 @@ describe("v0.4 shell with stub data", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "点这里重新进入" }));
     expect(await screen.findByText(/登录已更换/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "查看原任务" }));
+    fireEvent.click(screen.getByRole("button", { name: "继续办理" }));
     expect(await screen.findByRole("button", { name: "确认办理" })).toBeTruthy();
     expect(await screen.findByText("已被新验证替代")).toBeTruthy();
     expect(screen.getByText("已确认办理")).toBeTruthy();

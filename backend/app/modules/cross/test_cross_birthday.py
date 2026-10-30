@@ -259,12 +259,12 @@ def store_delivery(application, ref="deliver-ref-0001"):
         NOW.isoformat())
 
 
-def run_to_freeze(entry, *, budget="500元", date="2026-10-30", ref="deliver-ref-0001",
+def run_to_freeze(entry, *, date="2026-10-30", ref="deliver-ref-0001",
                   picks=("康乃馨", "蛋糕")):
     started = entry.start(parent_trusted(), CrossStartInput(
         request_id=uuid4(), goal="500 元以内给妈妈安排花和蛋糕"))
     assert started.status is TaskStatus.WAITING_INPUT
-    current = entry.resume(parent_trusted(), {"text": budget})
+    # The goal already names the budget, so the first question is the date.
     current = entry.resume(parent_trusted(), {"text": date})
     current = entry.resume(parent_trusted(), {"text": ref})
     for pick in picks:
@@ -306,8 +306,8 @@ def test_b01_freeze_500_pay_199_268_release_33(tmp_path):
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "康乃馨花束：订单已创建并已付款 199.00 元" in done.message
     assert "六寸蛋糕：订单已创建并已付款 268.00 元" in done.message
-    assert "释放 33.00 元" in done.message
-    assert "不代表商品已送达" in done.message
+    assert "没花完的 33.00 元已退回原卡" in done.message
+    assert "送达情况请留意商家通知" in done.message
     assert ports.freeze_executes == 1
     assert ports.order_executes == ["P_FLOWER", "P_CAKE"]
     assert ports.capture_executes == ["P_FLOWER", "P_CAKE"]
@@ -371,7 +371,6 @@ def test_b02_over_budget_selection_stops_before_any_write(tmp_path):
     store_delivery(application)
     started = entry.start(parent_trusted(), CrossStartInput(
         request_id=uuid4(), goal="300 元以内给妈妈安排花和蛋糕"))
-    entry.resume(parent_trusted(), {"text": "300元"})
     entry.resume(parent_trusted(), {"text": "2026-10-30"})
     current = entry.resume(parent_trusted(), {"text": "deliver-ref-0001"})
     current = entry.resume(parent_trusted(),
@@ -396,7 +395,7 @@ def test_b02_flower_only_skips_the_mechanical_script(tmp_path):
     done = confirm_until_settled(entry)
     assert done.status is TaskStatus.SUCCEEDED
     assert "六寸蛋糕" not in done.message
-    assert "释放 301.00 元" in done.message
+    assert "没花完的 301.00 元已退回原卡" in done.message
     assert ports.order_executes == ["P_FLOWER"]
 
 
@@ -452,8 +451,7 @@ def test_b04_flower_paid_cake_order_failed_releases_301(tmp_path):
     assert done.status is TaskStatus.SUCCEEDED
     assert "康乃馨花束：订单已创建并已付款 199.00 元" in done.message
     assert "六寸蛋糕：下单未办成，未付款。" in done.message
-    assert "释放 301.00 元" in done.message
-    assert "已付款项不退" in done.message
+    assert "共花 199.00 元；没花完的 301.00 元已退回原卡" in done.message
 
 
 # ------------------------------------------------------------------- XL-B05
@@ -530,7 +528,8 @@ def test_b06_cancel_after_freeze_releases_whole_remainder(tmp_path):
     stopped = entry.resume(parent_trusted(), {"cancel": True})
     assert stopped.status is TaskStatus.CANCELLED
     assert "已停止办理" in stopped.message
-    assert "释放 500.00 元" in stopped.message
+    assert "留出的 500.00 元专款已全部退回原卡" in stopped.message
+    assert "没有下单，也没有付款" in stopped.message
     assert ports.order_executes == []
     assert ports.finalize_calls == ["user_cancelled"]
 
@@ -548,7 +547,7 @@ def test_b06_cancel_after_flower_paid_is_partial(tmp_path):
     assert stopped.status is TaskStatus.PARTIALLY_SUCCEEDED
     assert stopped.message.startswith("部分完成，后续已停止")
     assert "已付款 199.00 元" in stopped.message
-    assert "释放 301.00 元" in stopped.message
+    assert "没花完的 301.00 元已退回原卡" in stopped.message
 
 
 def test_b06_release_unknown_stays_pending(tmp_path):
@@ -559,8 +558,8 @@ def test_b06_release_unknown_stays_pending(tmp_path):
     entry.resume(parent_trusted(), {"choice": "approve"})
     stopped = entry.resume(parent_trusted(), {"cancel": True})
     assert stopped.status is TaskStatus.RUNNING
-    assert "释放结果待核实" in stopped.message
-    assert "不宣称已解冻" in stopped.message
+    assert "是否已退回原卡还在核实" in stopped.message
+    assert "核实前不能说已经退回" in stopped.message
 
 
 def test_b06_gate_block_writes_nothing(tmp_path):

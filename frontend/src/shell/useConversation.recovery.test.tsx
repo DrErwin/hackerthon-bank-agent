@@ -289,7 +289,7 @@ describe("shell recovery from server records", () => {
 
     expect(await screen.findByText("验证结果待核实，请使用原提交重试；这不是验证未通过。")).toBeTruthy();
     expect(await screen.findByText("这笔转账已被安全规则终止，没有提交给银行。")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "这项还没办完" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "接着上次的办理" })).toBeTruthy();
     expect(document.body.textContent).not.toContain("DEPENDENCY_UNAVAILABLE");
     expect(document.body.textContent).not.toContain("HIGH_RISK");
   });
@@ -307,7 +307,7 @@ describe("shell recovery from server records", () => {
     const resume = vi.spyOn(harness.source, "resumeTask");
 
     render(<AssistantPage source={harness.source} slots={slots} />);
-    fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+    fireEvent.click(await screen.findByRole("button", { name: "继续办理" }));
 
     expect(await screen.findByRole("heading", { name: "这项办理暂时停下了" })).toBeTruthy();
     expect(screen.queryByText(/可以接着办/)).toBeNull();
@@ -346,7 +346,7 @@ describe("real-api admin entry", () => {
   it("switches the administrator host and reuses the shared API mode", () => {
     expect(shellUsesContractDemo("contract-demo")).toBe(true);
     expect(shellUsesContractDemo("real-api")).toBe(false);
-    expect(verificationAdminLabel("real-api")).toBe("打开独立管理员会话处理模拟人脸");
+    expect(verificationAdminLabel()).toBe("演示用：管理员入口");
     expect(verificationAdminHref("task-1", "challenge-1", "round-1", "stub")).toBe(
       "/v04/admin?task_id=task-1&challenge_id=challenge-1&demo_round_id=round-1",
     );

@@ -482,7 +482,7 @@ class ApiService:
             if view.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
                 view.recovery_reason = "SESSION_RECONFIRMATION_REQUIRED"
                 view.recovery_required = True
-                view.message = "原任务已保留；请通过恢复入口在当前会话重新确认或查询。"
+                view.message = "上次的办理资料还在，点「继续办理」就能接着办。"
         return view
 
     def stream_event(self, identity, thread_id, event_type, payload, task=None, event_id=None):

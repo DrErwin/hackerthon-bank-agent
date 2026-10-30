@@ -41,10 +41,10 @@ def test_details_keep_account_and_dates_and_recheck_permissions(env):
 
 
 @pytest.mark.parametrize("text,wait", [
-    ("最近一周餐饮明细", "月份"), ("换个账户看看餐饮明细", "账户"),
+    ("最近一周餐饮明细", "月份"), ("换个账户看看餐饮明细", "哪张卡"),
     ("今天餐饮明细", "月份"), ("2026-09-01餐饮明细", "月份"),
     ("上星期餐饮明细", "月份"), ("上礼拜餐饮明细", "月份"),
-    ("换张卡看看餐饮明细", "账户"), ("第二张卡餐饮明细", "账户"),
+    ("换张卡看看餐饮明细", "哪张卡"), ("第二张卡餐饮明细", "哪张卡"),
 ])
 def test_new_constraints_are_not_replaced_by_old_scope(env, text, wait):
     scope = payload(env.harness.start(trusted(), uuid4(), "2026年9月所有账户账单")).scope

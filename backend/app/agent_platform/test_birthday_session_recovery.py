@@ -16,7 +16,7 @@ from .birthday_edit import BirthdayEditError
 from .test_birthday_harness_publication import (
     drive_to_freeze_confirmation, harness_env,
 )
-from .test_birthday_runtime_wiring import approve_confirmation
+from .test_birthday_runtime_wiring import DELIVER_DATE, approve_confirmation
 from .test_cross_runtime_wiring import submitted_ledger_count
 
 
@@ -127,7 +127,7 @@ def test_exact_input_conversion_query_does_not_accept_another_request(harness_en
     publication = handoff.find_input_conversion(env.who, request_id)
     assert publication.result.interaction.interaction_id == result.interaction.interaction_id
     revision = publication.task_revision
-    env.resume({"text": "2026-10-30"})
+    env.resume({"text": DELIVER_DATE})
     before = env.task()
 
     publication = handoff.find_input_conversion(env.who, request_id)
@@ -267,10 +267,10 @@ def test_original_input_retries_a_seal_storage_failure(harness_env, monkeypatch,
     env = harness_env
     current = env.start()
     if adopt:
-        from .test_birthday_runtime_wiring import DELIVERY_REF, option_id
+        from .test_birthday_runtime_wiring import DELIVER_DATE, DELIVERY_REF, option_id
 
         current = env.resume({"text": "500元"})
-        current = env.resume({"text": "2026-10-30"})
+        current = env.resume({"text": DELIVER_DATE})
         current = env.resume({"text": DELIVERY_REF})
         current = env.resume({"selected_option_id": option_id(current, "鲜花")})
         current = env.resume({"selected_option_id": option_id(current, "就选这些")})

@@ -369,8 +369,8 @@
         "requires_confirmation": true,
         "verification": null,
         "required_text": [
-          "已经停下了",
-          "银行那边没有变化"
+          "没有退订",
+          "仍会按原计划扣费"
         ],
         "forbidden_text": [
           "会员可用至",
@@ -1524,8 +1524,8 @@
           "mock_face": false
         },
         "required_text": [
-          "已经停下了",
-          "银行那边没有变化"
+          "没有退订",
+          "仍会按原计划扣费"
         ],
         "forbidden_text": [
           "会员可用至",
@@ -1848,8 +1848,8 @@
         "verification": null,
         "required_text": [
           "每次只能退订一项",
-          "已经停下了",
-          "银行那边没有变化"
+          "没有退订",
+          "仍会按原计划扣费"
         ],
         "forbidden_text": [
           "会员可用至",

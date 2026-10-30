@@ -152,7 +152,7 @@ export function BusinessCards({ task, busy, enabled, onAction, links, renderChil
           </div>
           {status === "suspected" && <p className="sh-hint">这笔扣款看起来会重复发生，请到商户核实。{item.external_cancel_guide}</p>}
           {enabled && item.status === "active" && item.source_type === "mandate" && item.can_cancel_in_bank &&
-            <ActionButton label={"取消「" + item.service_name + "」"} busy={busy}
+            <ActionButton label={"退订「" + item.service_name + "」"} busy={busy}
               selection={{ action: "subscription_cancel", subscription_id: item.subscription_id }} onAction={onAction} links={links} renderChild={renderChild} activeChildren={activeChildren} />}
         </div>)}
         </details>

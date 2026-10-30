@@ -46,7 +46,7 @@ from .birthday_edit import (
     CrossCandidate, publish_edit_option,
 )
 from .test_birthday_runtime_wiring import (
-    DELIVERY_REF, _all_freezes, answer_verification, approve_confirmation,
+    DELIVER_DATE, DELIVERY_REF, _all_freezes, answer_verification, approve_confirmation,
     composition, option_id, trusted,
 )
 
@@ -222,7 +222,7 @@ def _freeze_confirmation(env: Environment):
         request_id=uuid4(), intent_text=INTENT_TEXT))
     assert started.status is TaskStatus.WAITING_INPUT, started.message
     current = entry.resume(env.who, {"text": "500元"})
-    current = entry.resume(env.who, {"text": "2026-10-30"})
+    current = entry.resume(env.who, {"text": DELIVER_DATE})
     current = entry.resume(env.who, {"text": DELIVERY_REF})
     current = entry.resume(env.who, {"selected_option_id": option_id(current, "鲜花")})
     current = entry.resume(env.who, {"selected_option_id": option_id(current, "蛋糕")})

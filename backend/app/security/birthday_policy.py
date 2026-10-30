@@ -24,8 +24,8 @@ from app.security.gate import RiskAssessment, RiskFactsUnavailable
 
 
 FREEZE_RELEASE_CLAUSE = (
-    "本任务结束（完成、取消或安全终止）时，仅释放这笔冻结中未消费的余额回原账户；"
-    "不会继续下单、付款，也不会退回已消费资金。"
+    "这次安排结束时（办完、您取消或因安全原因停止），没花完的钱会退回原卡；"
+    "结束后不会再下单或付款，已经付掉的钱不退。"
 )
 RELEASE_CLAUSE_FIELD = "release_clause"
 
@@ -35,7 +35,7 @@ def with_release_clause(fields: list[DisplayField]) -> list[DisplayField]:
     if any(field.name == RELEASE_CLAUSE_FIELD for field in fields):
         raise ValueError("release clause already present")
     return [*fields, DisplayField(
-        name=RELEASE_CLAUSE_FIELD, label="结束释放条款", value_text=FREEZE_RELEASE_CLAUSE,
+        name=RELEASE_CLAUSE_FIELD, label="没花完的钱怎么办", value_text=FREEZE_RELEASE_CLAUSE,
     )]
 
 

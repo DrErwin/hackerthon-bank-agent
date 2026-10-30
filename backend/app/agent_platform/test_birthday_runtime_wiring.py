@@ -22,9 +22,12 @@ from .test_cross_runtime_wiring import submitted_ledger_count
 
 
 NOW = datetime.now(timezone.utc)
+# Deliveries must stay reachable for the bank's lead times (flowers +24h, cake
+# +48h), so the date is relative to today instead of a fixed day that expires.
+DELIVER_DATE = (NOW.astimezone(timezone(timedelta(hours=8))) + timedelta(days=7)).date().isoformat()
 DELIVERY_REF = "deliver-birthday-0001"
 RAW_DELIVERY = {"recipient_name": "妈妈", "phone": "13800000000",
-                "address": "幸福小区 1 号", "deliver_by": "2026-10-30T18:00:00+08:00"}
+                "address": "幸福小区 1 号", "deliver_by": DELIVER_DATE + "T18:00:00+08:00"}
 
 
 class NoopModel(ConnectorTestModel):
@@ -117,7 +120,7 @@ def run_to_freeze_question(entry):
                                              intent_text="给妈妈过生日，安排花和蛋糕"))
     assert started.status is TaskStatus.WAITING_INPUT
     current = entry.resume(trusted(entry.harness.application), {"text": "500元"})
-    current = entry.resume(trusted(entry.harness.application), {"text": "2026-10-30"})
+    current = entry.resume(trusted(entry.harness.application), {"text": DELIVER_DATE})
     current = entry.resume(trusted(entry.harness.application), {"text": DELIVERY_REF})
     current = entry.resume(trusted(entry.harness.application),
                            {"selected_option_id": option_id(current, "鲜花")})
@@ -144,7 +147,7 @@ def test_full_birthday_chain_on_the_real_bank(tmp_path):
     record = runtime.confirmations.get(runtime._context(who, None, None), confirmation_ref)
     clause = [field.value_text for field in record.display_fields
               if field.name == "release_clause"]
-    assert clause and "仅释放" in clause[0] and "未消费" in clause[0]
+    assert clause and "没花完的钱会退回原卡" in clause[0] and "已经付掉的钱不退" in clause[0]
     amounts = [field.value_text for field in record.display_fields
                if field.name == "amount"]
     assert amounts == ["500.00 元"]

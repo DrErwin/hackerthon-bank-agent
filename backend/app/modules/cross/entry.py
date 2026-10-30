@@ -446,11 +446,10 @@ class CrossEntry:
                               f"{message or '请查看对应任务卡片的处理说明。'}"
                               "处理完成前不会继续办理其他项目。",
                               active=holding, child_id=child_id)
-        verb = "需要您在对应卡片上补充信息" if status is TaskStatus.WAITING_INPUT \
-            else "需要您在确认单上确认或验证"
+        verb = "还需要您在这一步的卡片上补充信息" if status is TaskStatus.WAITING_INPUT \
+            else "还需要您在这一步的确认单上核对确认"
         return self._view(trusted, state,
-                          f"「{record.get('label') or holding['step_id']}」{verb}"
-                          "（在对应任务卡片上操作）。",
+                          f"「{record.get('label') or holding['step_id']}」{verb}。",
                           active=holding, child_id=child_id)
 
     @staticmethod
@@ -562,11 +561,6 @@ class CrossEntry:
         return [item for item in state["inventory"]
                 if item.get("can_cancel_in_bank") and item.get("status") == "active"]
 
-    @staticmethod
-    def _suspected(state: dict) -> list[dict]:
-        return [item for item in state["inventory"]
-                if item.get("source_type") == "suspected_ledger"]
-
     def _already_cancelled(self, state: dict) -> list[str]:
         done = {receipt["subscription_id"] for receipt in state["receipts"]}
         done |= {entry["subscription_id"] for entry in state["unknown"]}
@@ -582,7 +576,6 @@ class CrossEntry:
         done = set(self._already_cancelled(state))
         remaining = [item for item in self._cancellable(state)
                      if item["subscription_id"] not in done]
-        suspected = self._suspected(state)
         lines = ["以下可退订项目来自银行签约盘点。" if pension_mode
                  else self._evidence_line(state)]
         if remaining:
@@ -616,14 +609,8 @@ class CrossEntry:
             if pension_mode:
                 return self._advance_pension(trusted, state)
             return self._receipt(trusted, state)
-        extra = []
-        if suspected:
-            names = "、".join(f"{item['merchant_name']}（疑似，银行无签约记录）"
-                             for item in suspected)
-            extra.append(f"另有疑似周期扣费线索：{names}。这些没有银行签约记录，"
-                         "不能在线退订，如需处理请到对应商户渠道。")
         return self._done(trusted, state, TaskStatus.SUCCEEDED,
-                          "\n".join(lines + extra + ["当前没有可在线退订的签约。"]))
+                          "\n".join(lines + ["当前没有可在线退订的签约。"]))
 
     def _evidence_line(self, state: dict) -> str:
         accounts_record = plan.step_state(state, "accounts")
@@ -682,8 +669,7 @@ class CrossEntry:
                 lines.append(f"已转给 {name} {money(amount)} 元。")
             elif status is TaskStatus.NEEDS_ATTENTION:
                 unknown = True
-                lines.append(f"转给 {name} {money(amount)} 元的结果待核实"
-                             f"（原任务 {(record.get('child_task_id') or '')[:8]}…），"
+                lines.append(f"转给 {name} {money(amount)} 元的结果还在核实，"
                              "核实前不继续其他转账。")
             elif status is TaskStatus.FAILED:
                 lines.append(f"转给 {name} {money(amount)} 元没有办成"
@@ -800,14 +786,8 @@ class CrossEntry:
             if receipt["cycle"] == "monthly":
                 monthly_total += receipt["amount_fen"]
         for entry in state["unknown"]:
-            lines.append(f"{entry['merchant_name']}·{entry['service_name']} 的退订结果还待核实"
-                         f"（原任务 {entry['child_task_id'][:8]}…），"
+            lines.append(f"{entry['merchant_name']}·{entry['service_name']} 的退订结果还在核实，"
                          "核实前不计入已确定的少扣金额。")
-        suspected = self._suspected(state)
-        if suspected:
-            names = "、".join(f"{item['merchant_name']}（疑似，银行无签约记录）" for item in suspected)
-            lines.append(f"另有疑似周期扣费线索：{names}。这些没有银行签约，不能在线退订，"
-                         "如需处理请到对应商户渠道。")
         if monthly_total:
             lines.append(f"从下期起每月合计少扣 {money(monthly_total)}元。已扣过的费用不退。")
         if stopped:

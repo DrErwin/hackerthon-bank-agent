@@ -39,7 +39,7 @@ from app.agent_platform.birthday_edit import (
 )
 from app.agent_platform.model import TransferProposal
 from app.agent_platform.test_birthday_runtime_wiring import (
-    RAW_DELIVERY, approve_confirmation, option_id,
+    DELIVER_DATE, RAW_DELIVERY, approve_confirmation, option_id,
 )
 from app.agent_platform.test_local_demo import app_for, configuration
 from app.contracts.common import (
@@ -236,7 +236,7 @@ def _resume(world: World, response: dict, *, request_id=None) -> ModuleResult:
 
 def _freeze_card(world: World) -> ModuleResult:
     current = _resume(world, {"text": "500元"})
-    current = _resume(world, {"text": "2026-10-30"})
+    current = _resume(world, {"text": DELIVER_DATE})
     current = _resume(world, {"text": world.delivery_ref})
     current = _resume(
         world, {"selected_option_id": option_id(current, "鲜花")})
