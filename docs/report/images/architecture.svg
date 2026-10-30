@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
+  <!-- 系统架构图源文件。导出：Edge 无头模式截图，窗口 2560x1440，输出 architecture.png -->
+  <style>
+    text { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; }
+    .gray  { fill: #F3F4F6; stroke: #9AA1AB; stroke-width: 3; }
+    .agent { fill: #FCEBDC; stroke: #C8641E; stroke-width: 4; }
+    .prog  { fill: #E5EDF8; stroke: #2A5DA8; stroke-width: 3; }
+    .gate  { fill: #2A5DA8; stroke: #1E4A8A; stroke-width: 3; }
+    .pill  { fill: #FFFFFF; stroke: #9AA1AB; stroke-width: 3; }
+    .wrap  { fill: #FAFAFB; stroke: #B3B9C2; stroke-width: 3; stroke-dasharray: 14 10; }
+    .wrapb { fill: #F5F8FD; stroke: #2A5DA8; stroke-width: 3; }
+    .h  { font-size: 48px; font-weight: 700; fill: #2B2F36; }
+    .d  { font-size: 40px; fill: #4A505A; }
+    .lab { font-size: 40px; font-weight: 700; fill: #5B616B; }
+    .ho { fill: #8A4312; }
+    .hb { fill: #173F78; }
+    .db { fill: #2D4F80; }
+    .w  { fill: #FFFFFF; }
+    .arr  { stroke: #7A818C; stroke-width: 4; fill: none; }
+    .loop { stroke: #2A5DA8; stroke-width: 6; fill: none; }
+    .data { stroke: #9AA1AB; stroke-width: 3; stroke-dasharray: 10 8; fill: none; }
+    .vt { font-size: 40px; font-weight: 700; fill: #2A5DA8; }
+  </style>
+  <defs>
+    <marker id="ag" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#7A818C"/>
+    </marker>
+    <marker id="ab" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="4.5" markerHeight="4.5" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#2A5DA8"/>
+    </marker>
+  </defs>
+
+  <rect width="2560" height="1440" fill="#FFFFFF"/>
+
+  <!-- 图例 -->
+  <rect x="330" y="40" width="50" height="40" rx="6" class="agent"/>
+  <text x="396" y="74" class="d">Agent 自由发挥区：理解、规划、解释</text>
+  <rect x="1290" y="40" width="50" height="40" rx="6" class="prog"/>
+  <text x="1356" y="74" class="d">程序把关区：流程、执行门、银行</text>
+
+  <!-- 1 用户 -->
+  <rect x="330" y="110" width="2195" height="100" rx="18" class="gray"/>
+  <text x="721" y="177" class="h">用户</text>
+  <rect x="873" y="128" width="420" height="64" rx="32" class="pill"/>
+  <text x="1083" y="176" text-anchor="middle" class="h" style="font-size:46px">聊天（主入口）</text>
+  <rect x="1333" y="128" width="860" height="64" rx="32" class="pill"/>
+  <text x="1763" y="175" text-anchor="middle" class="d" style="font-size:42px">卡片：确认单 · 计划卡 · 回执 · 恢复卡</text>
+
+  <line x1="1400" y1="214" x2="1400" y2="256" class="arr" marker-end="url(#ag)"/>
+  <line x1="1455" y1="256" x2="1455" y2="214" class="arr" marker-end="url(#ag)"/>
+
+  <!-- 2 前端 -->
+  <rect x="330" y="260" width="2195" height="84" rx="16" class="gray"/>
+  <text x="1427" y="319" text-anchor="middle"><tspan class="h">前端 React</tspan><tspan class="d" dx="36">大字 · 手机宽度</tspan></text>
+
+  <line x1="1400" y1="348" x2="1400" y2="390" class="arr" marker-end="url(#ag)"/>
+  <line x1="1455" y1="390" x2="1455" y2="348" class="arr" marker-end="url(#ag)"/>
+
+  <!-- 3 后端入口 -->
+  <rect x="330" y="394" width="2195" height="84" rx="16" class="gray"/>
+  <text x="1427" y="453" text-anchor="middle"><tspan class="h">后端入口 FastAPI</tspan><tspan class="d" dx="36">身份 · 会话 · 事件推送（SSE）</tspan></text>
+
+  <!-- 4 Agent 平台 -->
+  <rect x="330" y="528" width="1670" height="202" rx="18" class="wrap"/>
+  <text x="360" y="572" class="lab">Agent 平台</text>
+  <line x1="1105" y1="482" x2="1105" y2="586" class="arr" marker-end="url(#ag)"/>
+
+  <rect x="360" y="590" width="400" height="124" rx="14" class="gray"/>
+  <text x="560" y="642" text-anchor="middle" class="h">上下文与记忆</text>
+  <text x="560" y="694" text-anchor="middle" class="d">受控摘要 · 长期记忆</text>
+  <line x1="760" y1="652" x2="800" y2="652" stroke="#9AA1AB" stroke-width="4"/>
+
+  <rect x="800" y="590" width="610" height="124" rx="14" class="agent"/>
+  <text x="1105" y="642" text-anchor="middle" class="h ho" style="font-size:46px">Deep Agents · GLM-5.3</text>
+  <text x="1105" y="694" text-anchor="middle" class="d ho">听懂、规划、解释；只能提议</text>
+
+  <line x1="1414" y1="636" x2="1486" y2="636" class="arr" marker-end="url(#ag)"/>
+
+  <rect x="1490" y="590" width="480" height="124" rx="14" class="prog"/>
+  <text x="1730" y="642" text-anchor="middle" class="h hb">能力目录（白名单）</text>
+  <text x="1730" y="694" text-anchor="middle" class="d db">模型只能从中选</text>
+
+  <line x1="1730" y1="718" x2="1730" y2="774" class="arr" marker-end="url(#ag)"/>
+
+  <!-- 5 业务流程 -->
+  <rect x="330" y="778" width="1670" height="176" rx="18" class="wrapb"/>
+  <text x="360" y="822" class="lab hb">业务流程 · LangGraph：有状态、能暂停、能续办</text>
+  <rect x="360" y="840" width="300" height="100" rx="14" class="prog"/>
+  <text x="510" y="906" text-anchor="middle" class="h hb" style="font-size:48px">转账</text>
+  <rect x="684" y="840" width="300" height="100" rx="14" class="prog"/>
+  <text x="834" y="906" text-anchor="middle" class="h hb" style="font-size:48px">账单</text>
+  <rect x="1008" y="840" width="330" height="100" rx="14" class="prog"/>
+  <text x="1173" y="906" text-anchor="middle" class="h hb" style="font-size:48px">订阅 / 代扣</text>
+  <rect x="1362" y="840" width="608" height="100" rx="14" class="prog"/>
+  <text x="1666" y="906" text-anchor="middle"><tspan class="h hb" style="font-size:48px">跨场景联动</tspan><tspan class="d db">（生日、养老金）</tspan></text>
+
+  <line x1="1165" y1="958" x2="1165" y2="1000" class="arr" marker-end="url(#ag)"/>
+
+  <!-- 6 统一安全执行门 -->
+  <rect x="330" y="1004" width="1670" height="96" rx="16" class="gate"/>
+  <text x="1165" y="1069" text-anchor="middle"><tspan class="h w" style="font-size:52px">统一安全执行门</tspan><tspan class="d w" dx="40" style="font-size:42px">权限 · 参数校验 · 确认单 · 验证码/刷脸 · 审计</tspan></text>
+
+  <line x1="1165" y1="1104" x2="1165" y2="1146" class="arr" marker-end="url(#ag)"/>
+
+  <!-- 7 银行接入层 -->
+  <rect x="330" y="1150" width="2195" height="80" rx="16" class="prog"/>
+  <text x="1427" y="1206" text-anchor="middle"><tspan class="h hb">银行接入层</tspan><tspan class="d db" dx="36">可信身份 · 操作编号 · 只做格式转换</tspan></text>
+
+  <line x1="965" y1="1234" x2="965" y2="1276" class="arr" marker-end="url(#ag)"/>
+  <line x1="2082" y1="1234" x2="2082" y2="1276" class="arr" marker-end="url(#ag)"/>
+
+  <!-- 8 模拟银行 + 外部生活服务模拟 -->
+  <rect x="330" y="1280" width="1270" height="124" rx="16" class="prog"/>
+  <text x="965" y="1358" text-anchor="middle"><tspan class="h hb">模拟银行</tspan><tspan class="d db" dx="36">余额 · 限额 · 风控 · 去重 · 办理结果</tspan></text>
+  <rect x="1640" y="1280" width="885" height="124" rx="16" class="prog"/>
+  <text x="2082" y="1358" text-anchor="middle"><tspan class="h hb">外部生活服务模拟</tspan><tspan class="d db" dx="36">花店 · 蛋糕店</tspan></text>
+
+  <!-- 数据 -->
+  <rect x="2045" y="528" width="480" height="592" rx="18" class="wrap"/>
+  <text x="2075" y="572" class="lab">数据</text>
+  <rect x="2075" y="590" width="420" height="124" rx="14" class="gray"/>
+  <text x="2285" y="668" text-anchor="middle" class="h">任务记录</text>
+  <rect x="2075" y="840" width="420" height="100" rx="14" class="gray"/>
+  <text x="2285" y="906" text-anchor="middle"><tspan class="h">检查点</tspan><tspan class="d" style="font-size:36px">（中断恢复）</tspan></text>
+  <rect x="2075" y="1014" width="420" height="84" rx="14" class="gray"/>
+  <text x="2285" y="1072" text-anchor="middle" class="h">审计日志</text>
+  <line x1="2000" y1="652" x2="2075" y2="652" class="data"/>
+  <line x1="2000" y1="890" x2="2075" y2="890" class="data"/>
+  <line x1="2000" y1="1054" x2="2075" y2="1054" class="data"/>
+
+  <!-- 确认回环：执行门暂停 → 前端确认/验证 → 沿原任务继续 -->
+  <rect x="60" y="128" width="236" height="64" rx="32" fill="#FFFFFF" stroke="#2A5DA8" stroke-width="4"/>
+  <text x="178" y="174" text-anchor="middle" class="vt" style="font-size:42px">确认回环</text>
+  <path d="M330,1052 H95 V292 H328" class="loop" marker-end="url(#ab)"/>
+  <path d="M330,322 H255 V889 H328" class="loop" marker-end="url(#ab)"/>
+  <text x="137" class="vt" text-anchor="middle">
+    <tspan x="137" y="780">暂</tspan><tspan x="137" y="824">停</tspan>
+    <tspan x="137" y="890">出</tspan><tspan x="137" y="934">确</tspan><tspan x="137" y="978">认</tspan><tspan x="137" y="1022">单</tspan>
+  </text>
+  <text x="213" class="vt" text-anchor="middle">
+    <tspan x="213" y="400">确</tspan><tspan x="213" y="444">认</tspan><tspan x="213" y="488">后</tspan>
+    <tspan x="213" y="554">沿</tspan><tspan x="213" y="598">原</tspan><tspan x="213" y="642">任</tspan><tspan x="213" y="686">务</tspan><tspan x="213" y="730">继</tspan><tspan x="213" y="774">续</tspan>
+  </text>
+</svg>
