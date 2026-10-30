@@ -177,7 +177,7 @@ class BillsService:
                 else:
                     message = (f"本人账户共 {amount.record_count} 笔记录，消费支出 {money(amount.gross)} 元，"
                         f"退款 {money(amount.refund)} 元，净消费 {money(amount.net)} 元；"
-                        f"转出 {money(amount.transfer_out)} 元、转入 {money(amount.transfer_in)} 元单列。")
+                        f"转出 {money(amount.transfer_out)} 元、转入 {money(amount.transfer_in)} 元另外列出，不算在消费里。")
                 if comparison is not None:
                     message += f"与对照期净消费相差 {money(comparison.delta_fen)} 元。"
                     if comparison.change_bps is None:

@@ -276,8 +276,8 @@ def test_q01_two_flowers_are_398_on_one_stable_item(tmp_path):
     assert "单价 199.00 元" in page(current)
     assert "小计 398.00 元" in page(current)
     assert "合计 398.00 元" in page(current)
-    assert "2026-10-30" in page(current)
-    assert "A1" in page(current)
+    assert "2026年10月30日前" in page(current)
+    assert "主账户（尾号 0001）" in page(current)
 
     freeze_card = select(entry, current, "采用并开始办理")
     assert freeze_card.interaction.kind == "confirmation"
@@ -293,7 +293,7 @@ def test_q01_two_flowers_are_398_on_one_stable_item(tmp_path):
     done = entry.resume(parent_trusted(), {"choice": "approve"})
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "康乃馨花束 ×2" in done.message and "398.00 元" in done.message
-    assert "释放 102.00 元" in done.message
+    assert "没花完的 102.00 元已退回原卡" in done.message
     assert len({item["item_id"] for item in ports.capture_items}) == 1
     stored = birthday_state(entry)
     item_id = flower["item_id"]
@@ -413,7 +413,7 @@ def test_edit_from_order_confirmation_recomputes_and_reconfirms(tmp_path):
     done = entry.resume(parent_trusted(), {"choice": "approve"})  # finalize
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "康乃馨花束 ×2" in done.message and "398.00 元" in done.message
-    assert "释放 134.00 元" in done.message
+    assert "没花完的 134.00 元已退回原卡" in done.message
 
     # The edited row keeps its stable item id and the recomputed amount.
     after = birthday_state(entry)
@@ -460,7 +460,7 @@ def test_edit_from_capture_wait_keeps_the_created_order(tmp_path):
     done = entry.resume(parent_trusted(), {"choice": "approve"})
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "保温杯 ×2" in done.message
-    assert "释放 135.00 元" in done.message
+    assert "没花完的 135.00 元已退回原卡" in done.message
     after = birthday_state(entry)
     assert after["orders"][1]["item_id"] == cake_row["item_id"]
     assert after["orders"][1]["quantity"] == 1
@@ -548,7 +548,7 @@ def test_paid_and_created_unpaid_items_are_preserved_by_an_edit(tmp_path):
     done = entry.resume(parent_trusted(), {"choice": "approve"})
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "六寸蛋糕：订单已创建，未付款" in done.message
-    assert "释放 403.00 元" in done.message
+    assert "没花完的 403.00 元已退回原卡" in done.message
 
     after = birthday_state(entry)
     assert fact(after, "order", cake_row) == cake_order
@@ -690,7 +690,7 @@ def test_same_product_replacement_gets_a_new_item_and_new_payment(tmp_path):
     current = entry.resume(parent_trusted(), {"choice": "approve"})  # capture
     done = entry.resume(parent_trusted(), {"choice": "approve"})
     assert done.status is TaskStatus.SUCCEEDED, done.message
-    assert "释放 402.00 元" in done.message
+    assert "没花完的 402.00 元已退回原卡" in done.message
 
     after = birthday_state(entry)
     order_facts = {key: value for key, value in after["write_facts"].items()
@@ -744,7 +744,7 @@ def test_verified_order_failure_offers_an_ordinary_replacement(tmp_path):
     done = entry.resume(parent_trusted(), {"choice": "approve"})
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "六寸蛋糕：订单已创建并已付款 268.00 元" in done.message
-    assert "释放 33.00 元" in done.message
+    assert "没花完的 33.00 元已退回原卡" in done.message
 
     after = birthday_state(entry)
     assert fact(after, "order", failed_row) == failed_fact  # failure never rewritten
@@ -793,7 +793,7 @@ def test_unverified_failure_never_builds_a_replacement(tmp_path):
     # behaviour: the failed row stays unsubmitted, no replacement is invented.
     assert current.status is TaskStatus.SUCCEEDED, current.message
     assert "下单未办成" in current.message
-    assert "释放 301.00 元" in current.message
+    assert "没花完的 301.00 元已退回原卡" in current.message
     assert ports.requery_ids[-1] == ports.failed_orders[0]
     assert len(ports.order_items) == 2  # the replacement was never attempted
     assert [item for item in ports.order_items

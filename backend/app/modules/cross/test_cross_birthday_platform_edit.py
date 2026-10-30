@@ -27,7 +27,7 @@ import pytest
 
 from app.agent_platform.birthday_edit import EDIT_OPTION_LABEL
 from app.agent_platform.test_birthday_runtime_wiring import (
-    DELIVERY_REF, answer_verification, approve_confirmation, composition, option_id,
+    DELIVER_DATE, DELIVERY_REF, answer_verification, approve_confirmation, composition, option_id,
     trusted,
 )
 from app.contracts.common import TaskStatus
@@ -101,7 +101,7 @@ def start_to_freeze(env, *, budget="500元"):
     assert current.status is TaskStatus.WAITING_INPUT, current.message
     assert "预算" in current.message
     current = env.resume({"text": budget})
-    current = env.resume({"text": "2026-10-30"})
+    current = env.resume({"text": DELIVER_DATE})
     current = env.resume({"text": DELIVERY_REF})
     current = env.resume({"selected_option_id": option_id(current, "鲜花")})
     current = env.resume({"selected_option_id": option_id(current, "蛋糕")})
@@ -274,8 +274,8 @@ def test_quantity_edit_after_the_freeze_reaches_the_bank(env):
     assert fields["quantity"] == "2 件"
     assert fields["unit_price"] == "199.00 元"
     assert fields["amount"] == "398.00 元"
-    assert fields["account"] == "A1"
-    assert fields["deliver_by"].startswith("2026-10-30")
+    assert fields["account"] == "主账户（尾号 0001）"
+    assert fields["deliver_by"].startswith(f"{int(DELIVER_DATE[:4])}年{int(DELIVER_DATE[5:7])}月{int(DELIVER_DATE[8:])}日")
 
     # The new confirmation is a new attempt for the same stable item.
     row_ids = {row["item_id"] for row in cross_state(env)["birthday"]["orders"]}
@@ -303,7 +303,7 @@ def test_quantity_edit_after_the_freeze_reaches_the_bank(env):
     done = settle_confirmation(env, paid)  # cake paid, remainder released
     assert done.status is TaskStatus.SUCCEEDED, done.message
     assert "鲜花礼盒 ×2" in done.message
-    assert "释放 134.00 元" in done.message
+    assert "没花完的 134.00 元已退回原卡" in done.message
     assert paid_amounts(env) == [39800, 26800]
     freeze = freezes(env)
     assert len(freeze) == 1
@@ -339,7 +339,7 @@ def test_same_product_replacement_is_a_new_item_and_a_new_payment(env):
     capture_card = settle_confirmation(env, current)  # new flower ordered
     done = settle_confirmation(env, capture_card)  # new flower paid
     assert done.status is TaskStatus.SUCCEEDED, done.message
-    assert "释放 402.00 元" in done.message
+    assert "没花完的 402.00 元已退回原卡" in done.message
     bank_orders = orders(env)
     assert len(bank_orders) == 2
     assert {row["quantity"] for row in bank_orders} == {1}
@@ -487,7 +487,7 @@ def drive_entry_to_freeze(entry, who):
         request_id=uuid4(), intent_text=INTENT))
     assert started.status is TaskStatus.WAITING_INPUT, started.message
     current = entry.resume(who, {"text": "500元"})
-    current = entry.resume(who, {"text": "2026-10-30"})
+    current = entry.resume(who, {"text": DELIVER_DATE})
     current = entry.resume(who, {"text": DELIVERY_REF})
     current = entry.resume(who, {"selected_option_id": option_id(current, "鲜花")})
     current = entry.resume(who, {"selected_option_id": option_id(current, "蛋糕")})

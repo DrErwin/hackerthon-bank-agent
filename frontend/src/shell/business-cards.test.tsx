@@ -50,7 +50,7 @@ it("groups subscriptions and binds the clicked row, with no action on suspected 
   render(<BusinessCards task={{ ...task, data: subscription }} enabled busy={false} onAction={onAction} />);
   expect(within(screen.getByRole("region", { name: "疑似周期扣款" })).queryByRole("button")).toBeNull();
   expect(within(screen.getByRole("region", { name: "已退订" })).queryByRole("button")).toBeNull();
-  const button = screen.getByRole("button", { name: "取消「音乐会员」" });
+  const button = screen.getByRole("button", { name: "退订「音乐会员」" });
   button.focus();
   expect(document.activeElement).toBe(button);
   fireEvent.click(button);

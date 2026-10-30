@@ -25,6 +25,8 @@ type Phase = "choose" | "confirm" | "verify" | "submitting" | "bank" | "settled"
 
 interface StubTask {
   task: ShellTask<TransferTaskView>;
+  // Transfer unless set; the demo bill summary is a finished bills task.
+  module?: string;
   phase: Phase;
   phaseUntil: number | null;
   visibleAt: number;
@@ -46,6 +48,19 @@ interface StubState {
 }
 
 const PAYER_LABEL = "主账户（尾号 1234）";
+const OPENING_BALANCE_FEN = 100_000;
+
+// Demo month spending, by category (fen). Transfers are listed separately.
+const DEMO_SPENDING: { category: "dining" | "medical" | "shopping" | "transport"; fen: number }[] = [
+  { category: "dining", fen: 42_000 },
+  { category: "medical", fen: 31_300 },
+  { category: "shopping", fen: 12_900 },
+  { category: "transport", fen: 6_800 },
+];
+
+function yuanText(fen: number): string {
+  return (fen / 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+}
 const PAYEES: Record<string, PayeeDisplay> = {
   "demo-payee-mom": { payee_id: "demo-payee-mom", name_masked: "妈妈", account_masked: "尾号 6688", remark: "妈妈", bank_name: "演示银行" },
   "demo-payee-zhang": { payee_id: "demo-payee-zhang", name_masked: "张阿姨", account_masked: "尾号 3166", remark: "张阿姨", bank_name: "演示银行" },
@@ -200,9 +215,43 @@ export function createDemoBackend(options: StubOptions = {}) {
     }
   }
 
-  function receipt(record: StubTask) {
+  // One demo account: its balance is the opening balance minus every demo
+  // transfer the bank reported as done, so the receipt and a balance query agree.
+  function availableFen(state: StubState): number {
+    return OPENING_BALANCE_FEN - Object.values(state.tasks).reduce((total, record) =>
+      record.task.data?.operation?.operation_status === "succeeded" ? total + (record.task.data.amount_fen ?? 0) : total, 0);
+  }
+
+  function billSummary(state: StubState) {
+    const local = new Date(clock() + 8 * 60 * MINUTE);
+    const year = local.getUTCFullYear();
+    const month = local.getUTCMonth() + 1;
+    const start = year + "-" + String(month).padStart(2, "0") + "-01T00:00:00+08:00";
+    const end = (month === 12 ? year + 1 : year) + "-" + String(month === 12 ? 1 : month + 1).padStart(2, "0") + "-01T00:00:00+08:00";
+    const total = DEMO_SPENDING.reduce((sum, item) => sum + item.fen, 0);
+    const at = iso();
+    return {
+      scope: { account_ids: ["demo-acct-1234"], start_at: start, end_at: end },
+      as_of: at,
+      source_as_of: [{ account_id: "demo-acct-1234", as_of: at }],
+      transaction_count: 9,
+      consumption_gross_fen: total,
+      consumption_refund_fen: 0,
+      consumption_net_fen: total,
+      transfer_out_fen: OPENING_BALANCE_FEN - availableFen(state),
+      transfer_in_fen: 0,
+      categories: DEMO_SPENDING.map((item, index) => ({
+        category: item.category, outflow_fen: item.fen, refund_fen: 0, net_fen: item.fen,
+        share_bps: Math.round(item.fen / total * 10_000), rank: index + 1,
+      })),
+      comparison: null,
+    };
+  }
+
+  function receipt(state: StubState, record: StubTask) {
     const at = iso();
     const data = record.task.data!;
+    const available = availableFen(state) - (data.amount_fen ?? 0);
     return {
       operation_id: data.operation_id!,
       operation_type: "bank.submit_transfer",
@@ -220,9 +269,9 @@ export function createDemoBackend(options: StubOptions = {}) {
         completed_at: at,
         balance: {
           account_id: "demo-acct-1234",
-          book_balance_fen: 0,
+          book_balance_fen: available,
           frozen_balance_fen: 0,
-          available_balance_fen: 0,
+          available_balance_fen: available,
           as_of: at,
         },
       },
@@ -230,7 +279,7 @@ export function createDemoBackend(options: StubOptions = {}) {
   }
 
   function settleSucceeded(state: StubState, record: StubTask, message: string): void {
-    const operation = receipt(record);
+    const operation = receipt(state, record);
     record.phase = "settled";
     record.phaseUntil = null;
     bump(record, {
@@ -333,7 +382,8 @@ export function createDemoBackend(options: StubOptions = {}) {
   }
 
   function envelope(record: StubTask): TaskEnvelope {
-    return { task: { ...record.task, module: MODULE } as ShellTask, module: MODULE };
+    const module = record.module ?? MODULE;
+    return { task: { ...record.task, module } as ShellTask, module };
   }
 
   function makeVerificationResponse(verification: VerificationView, record: StubTask, error: ShellTask["error"]): ShellVerificationResponse {
@@ -392,7 +442,7 @@ export function createDemoBackend(options: StubOptions = {}) {
         if (task.thread_id !== listener.threadId || record.visibleAt > now) continue;
         if (listener.seenTasks.get(task.task_id) === task.task_revision) continue;
         listener.seenTasks.set(task.task_id, task.task_revision);
-        listener.onEvent({ ...base, event_id: "evt-" + task.task_id + "-" + task.task_revision, task_id: task.task_id, run_id: task.run_id, event_type: "task_updated", payload: clone(task) });
+        listener.onEvent({ ...base, module: record.module ?? MODULE, event_id: "evt-" + task.task_id + "-" + task.task_revision, task_id: task.task_id, run_id: task.run_id, event_type: "task_updated", payload: clone(task) });
       }
     }
   }
@@ -556,8 +606,41 @@ export function createDemoBackend(options: StubOptions = {}) {
           taskId = record.task.task_id;
           updateDraft(state, record, { request_id, task_revision: record.task.task_revision, amount_fen: Math.round(Number(changedAmount[1]) * 100) });
           addMessage(state, "assistant", "金额改好了，请核对当前转账单。", [taskId], replyDelay);
+        } else if (/丢|挂失|盗刷|被盗/.test(text)) {
+          addMessage(state, "assistant", "别着急。请您尽快拨打银行卡背面的客服电话挂失。我这里暂时不能办理挂失。", [], replyDelay);
+        } else if (/理财|基金|股票|保险/.test(text)) {
+          addMessage(state, "assistant", "买理财我这里暂时办不了。需要的话，可以拨打银行卡背面的客服电话，或者去网点问问。", [], replyDelay);
+        } else if (/账单|花了多少/.test(text) && !/转|汇/.test(text)) {
+          taskId = nextId(state, "demo-task");
+          const now = clock();
+          state.tasks[taskId] = {
+            module: "bills",
+            phase: "settled",
+            phaseUntil: null,
+            visibleAt: now + replyDelay,
+            createdAt: now,
+            task: {
+              task_id: taskId,
+              run_id: nextId(state, "demo-run"),
+              status: "succeeded",
+              // The stub record type is transfer-shaped; this task carries a bills summary.
+              data: billSummary(state) as unknown as TransferTaskView,
+              message: "这是您这个月的花费。",
+              interaction: null,
+              error: null,
+              allowed_actions: [],
+              recovery_required: false,
+              recovery_reason: null,
+              thread_id: threadId,
+              demo_round_id: DEMO_ROUND,
+              snapshot_at: iso(now + replyDelay),
+              task_revision: 0,
+              cancel_requested: false,
+            },
+          };
+          addMessage(state, "assistant", "这是您这个月的花费，餐饮花得最多。", [taskId], replyDelay);
         } else if (/账户|余额|银行卡/.test(text) && !/转|汇/.test(text)) {
-          addMessage(state, "assistant", "您的演示账户尾号 1234，可用余额 1,000 元。" + (pending.length ? "点上方「接着办」，可以继续转账。" : ""), [], replyDelay);
+          addMessage(state, "assistant", "您的演示账户尾号 1234，可用余额 " + yuanText(availableFen(state)) + " 元。" + (pending.length ? "点上方「接着办」，可以继续转账。" : ""), [], replyDelay);
         } else if (/有哪些收款人|有什么收款人/.test(text)) {
           addMessage(state, "assistant", "您有两位常用收款人：妈妈（尾号 6688）、张阿姨（尾号 3166）。转账时可以直接点选。", [], replyDelay);
         } else if (/转|汇/.test(text)) {
@@ -600,7 +683,7 @@ export function createDemoBackend(options: StubOptions = {}) {
         } else if (/确认/.test(text)) {
           addMessage(state, "assistant", "请核对转账单，再点「确认办理」。", [], replyDelay);
         } else {
-          addMessage(state, "assistant", "这份演示可以体验转账。试着告诉我「转给妈妈 500 元」，办理中也可以查余额或改金额。", [], replyDelay);
+          addMessage(state, "assistant", "这份演示可以体验转账和查看本月账单。试着告诉我「转给妈妈 500 元」，办理中也可以查余额或改金额。", [], replyDelay);
         }
         return { message_id: userMessage.message_id, thread_id: threadId, accepted_at: userMessage.created_at, task_id: taskId };
       });
@@ -622,7 +705,9 @@ export function createDemoBackend(options: StubOptions = {}) {
       });
     }),
 
-    readTransferChoices: async (_taskId, kind) => kind === "payees" ? { payees: Object.values(PAYEES).map((item) => ({ ...item, last_transfer_at: null })) } : { accounts: [{ account_id: "demo-acct-1234", account_type: "class_i", display_name: "演示账户", account_masked: "****1234", bank_name: "模拟银行", available_balance_fen: 100000 }] },
+    readTransferChoices: (_taskId, kind) => query((state) => kind === "payees"
+      ? { payees: Object.values(PAYEES).map((item) => ({ ...item, last_transfer_at: null })) }
+      : { accounts: [{ account_id: "demo-acct-1234", account_type: "class_i" as const, display_name: "演示账户", account_masked: "****1234", bank_name: "模拟银行", available_balance_fen: availableFen(state) }] }),
 
     reviseDraft: (taskId, { request_id, task_revision, ...fields }) => mutate((state) => {
       requireUser(state);

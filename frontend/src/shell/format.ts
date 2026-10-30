@@ -57,6 +57,5 @@ export function isTerminal(task: ShellTask): boolean {
 
 export function originLabel(origin: string): string {
   if (origin === "real-api") return "";
-  if (origin === "contract-demo") return "契约演示数据";
-  return "演示数据（stub）";
+  return "演示数据";
 }

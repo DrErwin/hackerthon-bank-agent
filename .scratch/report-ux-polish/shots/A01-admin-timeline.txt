@@ -1,0 +1,536 @@
+跳到主要内容
+管
+
+审计、模拟核验与演示管理
+
+管理员演示入口
+演示管理员
+返回普通页面
+演示整体重置
+
+先核对实际影响，再确认重置。当前管理员会话轮次：report-main-93e0aca43bf0。
+
+查看重置影响
+
+仅处理当前模拟挑战
+
+模拟人脸核验
+管理员
+
+本入口只回答服务端已经发起的模拟人脸等待。通过或失败由服务器校验当前轮次、挑战状态和管理员权限。
+
+任务编号
+验证编号
+演示轮次
+模拟通过
+模拟未通过
+
+不做真实人脸识别。重复或过期挑战会由后端拒绝。
+
+脱敏、只读
+
+运行时间线
+F33 / F34
+按任务编号查看
+读取时间线
+model.started
+agent_platform · started
+2026/10/30 04:01:59
+model.finished
+agent_platform · succeeded
+2026/10/30 04:02:05
+task.transition
+transfer · started
+2026/10/30 04:02:05
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.started
+transfer · started
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.finished
+transfer · succeeded
+2026/10/30 04:02:06
+task.transition
+transfer · succeeded
+2026/10/30 04:02:06
+task.transition
+transfer · started
+2026/10/30 04:02:06
+task.transition
+transfer · waiting
+2026/10/30 04:02:06
+task.transition
+agent_platform · waiting
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.started
+transfer · started
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.started
+transfer · started
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.started
+transfer · started
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.started
+transfer · started
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.finished
+transfer · succeeded
+2026/10/30 04:02:06
+tool.finished
+transfer · succeeded
+2026/10/30 04:02:06
+security.decided
+security · succeeded
+2026/10/30 04:02:06
+tool.finished
+transfer · succeeded
+2026/10/30 04:02:06
+tool.finished
+transfer · succeeded
+2026/10/30 04:02:06
+task.transition
+transfer · started
+2026/10/30 04:07:19
+task.transition
+transfer · waiting
+2026/10/30 04:07:19
+task.transition
+transfer · started
+2026/10/30 04:07:19
+task.transition
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · started
+2026/10/30 04:07:19
+task.transition
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · started
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.started
+transfer · started
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.finished
+transfer · succeeded
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.started
+transfer · started
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.finished
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · started
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.started
+transfer · started
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.finished
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · started
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.started
+transfer · started
+2026/10/30 04:07:19
+security.decided
+security · succeeded
+2026/10/30 04:07:19
+tool.finished
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · succeeded
+2026/10/30 04:07:19
+task.transition
+transfer · started
+2026/10/30 04:07:20
+confirmation.changed
+security · waiting
+2026/10/30 04:07:20
+security.decided
+security · denied
+2026/10/30 04:07:20
+task.transition
+transfer · succeeded
+2026/10/30 04:07:20
+task.transition
+transfer · started
+2026/10/30 04:07:20
+task.transition
+transfer · waiting
+2026/10/30 04:07:20
+recovery.checked
+agent_platform · succeeded
+2026/10/30 04:07:20
+task.transition
+agent_platform · waiting
+2026/10/30 04:07:20
+task.transition
+transfer · started
+2026/10/30 04:09:00
+task.transition
+transfer · waiting
+2026/10/30 04:09:00
+task.transition
+transfer · started
+2026/10/30 04:09:00
+task.transition
+transfer · succeeded
+2026/10/30 04:09:00
+task.transition
+transfer · started
+2026/10/30 04:09:00
+task.transition
+transfer · succeeded
+2026/10/30 04:09:00
+task.transition
+transfer · started
+2026/10/30 04:09:00
+task.transition
+transfer · succeeded
+2026/10/30 04:09:00
+task.transition
+transfer · started
+2026/10/30 04:09:00
+security.decided
+security · succeeded
+2026/10/30 04:09:00
+tool.started
+transfer · started
+2026/10/30 04:09:01
+security.decided
+security · succeeded
+2026/10/30 04:09:01
+tool.finished
+transfer · succeeded
+2026/10/30 04:09:01
+task.transition
+transfer · succeeded
+2026/10/30 04:09:01
+task.transition
+transfer · started
+2026/10/30 04:09:01
+security.decided
+security · succeeded
+2026/10/30 04:09:01
+tool.started
+transfer · started
+2026/10/30 04:09:01
+security.decided
+security · succeeded
+2026/10/30 04:09:01
+tool.finished
+transfer · succeeded
+2026/10/30 04:09:01
+task.transition
+transfer · succeeded
+2026/10/30 04:09:01
+task.transition
+transfer · started
+2026/10/30 04:09:01
+confirmation.changed
+security · waiting
+2026/10/30 04:09:01
+security.decided
+security · denied
+2026/10/30 04:09:01
+task.transition
+transfer · succeeded
+2026/10/30 04:09:01
+task.transition
+transfer · started
+2026/10/30 04:09:01
+task.transition
+transfer · waiting
+2026/10/30 04:09:01
+recovery.checked
+agent_platform · succeeded
+2026/10/30 04:09:01
+task.transition
+agent_platform · waiting
+2026/10/30 04:09:01
+task.transition
+transfer · started
+2026/10/30 04:09:57
+task.transition
+transfer · waiting
+2026/10/30 04:09:57
+task.transition
+transfer · started
+2026/10/30 04:09:57
+task.transition
+transfer · succeeded
+2026/10/30 04:09:57
+task.transition
+transfer · started
+2026/10/30 04:09:57
+task.transition
+transfer · succeeded
+2026/10/30 04:09:57
+task.transition
+transfer · started
+2026/10/30 04:09:57
+task.transition
+transfer · succeeded
+2026/10/30 04:09:57
+task.transition
+transfer · started
+2026/10/30 04:09:57
+security.decided
+security · succeeded
+2026/10/30 04:09:58
+tool.started
+transfer · started
+2026/10/30 04:09:58
+security.decided
+security · succeeded
+2026/10/30 04:09:58
+tool.finished
+transfer · succeeded
+2026/10/30 04:09:58
+task.transition
+transfer · succeeded
+2026/10/30 04:09:58
+task.transition
+transfer · started
+2026/10/30 04:09:58
+security.decided
+security · succeeded
+2026/10/30 04:09:58
+tool.started
+transfer · started
+2026/10/30 04:09:58
+security.decided
+security · succeeded
+2026/10/30 04:09:58
+tool.finished
+transfer · succeeded
+2026/10/30 04:09:58
+task.transition
+transfer · succeeded
+2026/10/30 04:09:58
+task.transition
+transfer · started
+2026/10/30 04:09:58
+confirmation.changed
+security · waiting
+2026/10/30 04:09:58
+security.decided
+security · denied
+2026/10/30 04:09:58
+task.transition
+transfer · succeeded
+2026/10/30 04:09:58
+task.transition
+transfer · started
+2026/10/30 04:09:58
+task.transition
+transfer · waiting
+2026/10/30 04:09:58
+recovery.checked
+agent_platform · succeeded
+2026/10/30 04:09:58
+task.transition
+agent_platform · waiting
+2026/10/30 04:09:58
+confirmation.changed
+security · succeeded
+2026/10/30 04:10:15
+task.transition
+transfer · started
+2026/10/30 04:10:15
+task.transition
+transfer · waiting
+2026/10/30 04:10:15
+task.transition
+transfer · started
+2026/10/30 04:10:15
+task.transition
+transfer · succeeded
+2026/10/30 04:10:15
+task.transition
+transfer · started
+2026/10/30 04:10:15
+verification.changed
+bank_gateway · waiting
+2026/10/30 04:10:16
+security.decided
+security · denied
+2026/10/30 04:10:16
+task.transition
+transfer · succeeded
+2026/10/30 04:10:16
+task.transition
+transfer · started
+2026/10/30 04:10:16
+task.transition
+transfer · waiting
+2026/10/30 04:10:16
+recovery.checked
+agent_platform · succeeded
+2026/10/30 04:10:16
+task.transition
+agent_platform · waiting
+2026/10/30 04:10:16
+task.transition
+api · started
+2026/10/30 04:10:39
+verification.changed
+api · succeeded
+2026/10/30 04:10:39
+task.transition
+transfer · started
+2026/10/30 04:10:39
+task.transition
+transfer · waiting
+2026/10/30 04:10:39
+task.transition
+transfer · started
+2026/10/30 04:10:39
+task.transition
+transfer · succeeded
+2026/10/30 04:10:39
+task.transition
+transfer · started
+2026/10/30 04:10:39
+verification.changed
+bank_gateway · waiting
+2026/10/30 04:10:39
+security.decided
+security · denied
+2026/10/30 04:10:39
+task.transition
+transfer · succeeded
+2026/10/30 04:10:39
+task.transition
+transfer · started
+2026/10/30 04:10:39
+task.transition
+transfer · waiting
+2026/10/30 04:10:39
+recovery.checked
+agent_platform · succeeded
+2026/10/30 04:10:39
+task.transition
+agent_platform · waiting
+2026/10/30 04:10:39
+task.transition
+api · started
+2026/10/30 04:10:57
+task.transition
+api · started
+2026/10/30 04:11:03
+verification.changed
+api · succeeded
+2026/10/30 04:11:03
+verification.changed
+bank_gateway · succeeded
+2026/10/30 04:11:03
+task.transition
+transfer · started
+2026/10/30 04:11:04
+task.transition
+transfer · waiting
+2026/10/30 04:11:04
+task.transition
+transfer · started
+2026/10/30 04:11:04
+task.transition
+transfer · succeeded
+2026/10/30 04:11:04
+task.transition
+transfer · started
+2026/10/30 04:11:04
+security.decided
+security · succeeded
+2026/10/30 04:11:04
+task.transition
+transfer · succeeded
+2026/10/30 04:11:04
+task.transition
+transfer · started
+2026/10/30 04:11:04
+security.decided
+security · succeeded
+2026/10/30 04:11:04
+tool.started
+transfer · started
+2026/10/30 04:11:04
+security.decided
+security · succeeded
+2026/10/30 04:11:04
+security.decided
+security · succeeded
+2026/10/30 04:11:04
+bank.observed
+bank_gateway · succeeded
+2026/10/30 04:11:04
+tool.finished
+transfer · succeeded
+2026/10/30 04:11:04
+task.transition
+transfer · succeeded
+2026/10/30 04:11:04
+recovery.checked
+agent_platform · succeeded
+2026/10/30 04:11:04
+task.transition
+agent_platform · succeeded
+2026/10/30 04:11:04

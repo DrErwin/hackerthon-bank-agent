@@ -15,14 +15,14 @@ from app.security.test_retirement import insert_claim_row
 from app.storage.database import connect
 
 from .test_birthday_harness_publication import drive_to_freeze_confirmation, harness_env
-from .test_birthday_runtime_wiring import DELIVERY_REF, answer_verification, approve_confirmation
+from .test_birthday_runtime_wiring import DELIVER_DATE, DELIVERY_REF, answer_verification, approve_confirmation
 
 
 @pytest.fixture()
 def waiting(harness_env):
     env = harness_env
     card = drive_to_freeze_confirmation(env)
-    plan = BirthdayPlan("A1", None, None, 50000, 50000, "2026-10-30", DELIVERY_REF)
+    plan = BirthdayPlan("A1", None, None, 50000, 50000, DELIVER_DATE, DELIVERY_REF)
     return env, env.runtime.birthday.ports_factory(env.who), plan, card
 
 

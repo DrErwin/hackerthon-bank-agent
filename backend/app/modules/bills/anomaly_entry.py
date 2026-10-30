@@ -192,7 +192,7 @@ class BillsAnomalyEntry:
                 return self._failure(context, state, result)
             return result
         if state["mode"] is None:
-            return self._wait(context, state, "你想核对哪类账单问题？",
+            return self._wait(context, state, "您想核对哪类账单问题？",
                 [("核对一笔交易", {"mode": "locate"}), ("检查周期扣款", {"mode": "scan"})], "mode")
         if state["period"] is None:
             return self._wait(context, state, "请明确银行查询范围。当前对话支持完整月份，请选择下列范围，或在新请求中注明具体年月。",

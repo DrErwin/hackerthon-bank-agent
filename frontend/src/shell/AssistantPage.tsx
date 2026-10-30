@@ -8,9 +8,9 @@ import type { SlotRegistry } from "./slots";
 import type { ShellDataSource, TaskEnvelope } from "./types";
 import { useConversation } from "./useConversation";
 
-import { buildTimeline, needsAttentionInTree, taskTitle } from "./presentation";
+import { buildTimeline, needsAttentionInTree, recordStatus, taskTitle } from "./presentation";
 import { TaskRecord } from "./components/TaskRecord";
-import { isTerminal, taskStatusLabel } from "./format";
+import { isTerminal } from "./format";
 import { ConversationStarters, ConversationTools } from "./components/ConversationTools";
 import { DetailsDrawer } from "./components/DetailsDrawer";
 import { History, ArrowUpRight } from "lucide-react";
@@ -130,7 +130,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
           </div>}
           {visibleRecords.length === 0 ? <p className="sh-empty">{historyFilter === "pending" ? "当前没有待继续的事项。" : "办过的事情会留在这里，方便您回看。"}</p> : <ol className="sh-history-list">
             {[...visibleRecords].reverse().map(({ task, module }) => <li key={task.task_id}>
-              <h3>{taskTitle(task)}</h3><p>{taskStatusLabel(task).text}</p>
+              <h3>{taskTitle(task)}</h3><p>{recordStatus(task, tasks, conversation.cardLinks).text}</p>
               <dl>{(slots.resolve(module).summarize?.(task) ?? []).map((field, i) => <div key={i}><dt>{field.label}</dt><dd>{field.value_text}</dd></div>)}</dl>
               <button className="sh-btn sh-btn-secondary" onClick={() => { historyTarget.current = task.task_id; setHistoryOpen(false); }}>{isTerminal(task) ? "查看这项记录" : task.recovery_required || conversation.bootRecovery.has(task.task_id) || task.status === "needs_attention" ? "查看办理进度" : "继续这项办理"}</button>
             </li>)}
@@ -161,7 +161,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
             <article className={"sh-welcome" + (messages.length || topTasks.length ? " sh-welcome-compact" : "")}>
               <h2>您好，今天想办什么？</h2>
               {!messages.length && !topTasks.length && <><p>告诉我您的想法，我陪您一步步办。</p>
-                <ConversationStarters disabled={!canStart} onChoose={(text) => void send(text)} />
+                <ConversationStarters disabled={!canStart} onChoose={(text) => void send(text)} arrangements={source.origin === "real-api"} />
                 <p className="sh-hint">也可以在下面直接打字。</p></>}
             </article>
             {booting && <div className="sh-history-loading" role="status"><p className="sh-hint">正在读取对话记录…</p><div aria-hidden="true"><Skeleton /><Skeleton /></div></div>}
@@ -169,6 +169,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
               ? <MessageBubble key={item.message.message_id} message={item.message} cardSummary={cardMessageSummary(item.message, tasks)} />
               : <TaskRecord key={item.envelope.task.task_id} task={item.envelope.task} messages={item.messages}
                   latest={item.envelope.task.task_id === latestTaskId}
+                  status={recordStatus(item.envelope.task, tasks, conversation.cardLinks)}
                   expanded={expandedRecords[item.envelope.task.task_id]}
                   onExpandedChange={(open) => setExpandedRecords((current) => ({ ...current, [item.envelope.task.task_id]: open }))}
                   hasActiveChild={conversation.cardLinks.some((link) => link.parentId === item.envelope.task.task_id
@@ -190,7 +191,7 @@ export function AssistantPage({ source, slots }: { source: ShellDataSource; slot
         sending={sending}
         pendingText={pendingMessage?.text ?? null}
         onSend={send}
-        tools={<ConversationTools disabled={!canStart} onChoose={(text) => void send(text)} />}
+        tools={<ConversationTools disabled={!canStart} onChoose={(text) => void send(text)} arrangements={source.origin === "real-api"} />}
       />
       <Toaster />
     </div>

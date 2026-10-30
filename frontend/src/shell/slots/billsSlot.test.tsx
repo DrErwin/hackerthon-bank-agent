@@ -83,7 +83,6 @@ const conversation = {
   confirmations: {},
   verifications: {},
   bootRecovery: new Set<string>(),
-  recovered: new Map(),
   expired: false,
   busy: {},
   taskErrors: {},

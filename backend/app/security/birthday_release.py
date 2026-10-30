@@ -877,13 +877,9 @@ class LimitedReleaseFinalizer:
                 )
             released_fen = receipt.released_amount_fen if receipt else None
             receipt_remaining = receipt.remaining_fen if receipt else None
-            message = "已按限定授权释放未消费冻结余额。"
+            message = "没花完的钱已退回原卡。"
             if receipt is not None:
-                message = (
-                    f"已按限定授权释放未消费冻结余额：已消费 {_yuan(consumed)}，"
-                    f"已释放 {_yuan(receipt.released_amount_fen)}，"
-                    f"仍冻结 {_yuan(receipt.remaining_fen)}。"
-                )
+                message = f"没花完的 {_yuan(receipt.released_amount_fen)}已退回原卡。"
             return self._stop(
                 context, action, authorization, status="released",
                 code=SecurityDecisionCode.ALLOW, reasons=["SECURITY_CHECK_PASSED"],

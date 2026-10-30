@@ -632,17 +632,20 @@ class TransferRuntime:
         assessed = self.assess_risk(context, action, declaration)
         risk = RiskLevel(assessed.risk_level if isinstance(assessed, RiskAssessment) else assessed)
         risk_message = {
-            RiskLevel.LOW: "低风险；请核对收款人和金额。",
-            RiskLevel.MEDIUM: "中风险；需验证码和模拟人脸双因子验证。",
-            RiskLevel.HIGH: "高风险；停止办理。",
+            RiskLevel.LOW: "请核对收款人和金额。",
+            RiskLevel.MEDIUM: "为了安全，还要输入短信验证码，再刷一次脸。",
+            RiskLevel.HIGH: "为了您的资金安全，这笔转账不能办理。",
         }[risk]
+        # "备注（户名，尾号 xxxx）", or "户名（尾号 xxxx）" without a remark.
+        tail = f"尾号 {payee.account_masked[-4:]}"
+        payee_text = (f"{payee.remark}（{payee.name_masked}，{tail}）" if payee.remark
+                      else f"{payee.name_masked}（{tail}）")
         fields = [
             DisplayField(name="payer_account_id", label="转出账户",
                          value_text=f"{payer.data.display_name} {payer.data.account_masked}"),
             DisplayField(name="amount", label="金额",
                          value_text=f"{payload['amount_fen'] / 100:.2f} 元"),
-            DisplayField(name="payee", label="收款人",
-                         value_text=f"{payee.name_masked} {payee.account_masked}"),
+            DisplayField(name="payee", label="收款人", value_text=payee_text),
             DisplayField(name="bank", label="收款银行", value_text=payee.bank_name),
             DisplayField(name="fee", label="手续费", value_text=f"{quote.data.fee_fen / 100:.2f} 元"),
             DisplayField(name="arrival", label="到账方式", value_text="即时到账" if quote.data.arrival_mode == "instant" else quote.data.arrival_mode),

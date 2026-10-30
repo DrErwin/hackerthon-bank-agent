@@ -150,12 +150,11 @@ export function NeedsAttentionCard({ facts, message, canQuery, busy, onQuery, id
   );
 }
 
-export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText, canDiscard, busy, onResume, onDiscard, id }: {
+// Shown only while a reloaded task is still waiting for the user's click; once
+// it is continued or discarded the task's own card speaks for itself.
+export function RecoveryCard({ facts, reason, canDiscard, busy, onResume, onDiscard, id }: {
   facts: DisplayField[];
-  statusText: string;
   reason: string | null;
-  resolved: boolean;
-  resolvedText?: string;
   canDiscard: boolean;
   busy: boolean;
   onResume: () => void;
@@ -163,30 +162,18 @@ export function RecoveryCard({ facts, statusText, reason, resolved, resolvedText
   id: string;
 }) {
   return (
-    <Card
-      title={resolved ? "已找回这项办理" : "这项还没办完"}
-      labelledBy={id}
-      readOnly={resolved}
-      highlight={!resolved}
-      badge={resolved ? undefined : <StatusBadge tone="warning" icon="↺" text="待您查看" />}
-    >
-      {resolved ? (
-        <p className="sh-readonly-line">{resolvedText ?? "已找回上次的办理资料，请查看当前进度。"}</p>
-      ) : (
-        <>
-          <p className="sh-lead">办理资料已保留，先查看最新进度。</p>
-          <FieldList fields={[...facts, { name: "status", label: "当时状态", value_text: statusText }]} />
-          {reason && <p className="sh-hint">{reason}</p>}
-          <div className="sh-actions">
-            <Button type="button" disabled={busy} onClick={onResume}>
-              {busy ? "正在恢复…" : "查看原任务"}
-            </Button>
-            {canDiscard && (
-              <Button type="button" variant="outline" disabled={busy} onClick={onDiscard}>放弃这次任务</Button>
-            )}
-          </div>
-        </>
-      )}
+    <Card title="接着上次的办理" labelledBy={id} highlight badge={<StatusBadge tone="warning" icon="↺" text="待您查看" />}>
+      <p className="sh-lead">上次的办理资料都还在，钱没有变动。</p>
+      <FieldList fields={facts} />
+      {reason && <p className="sh-hint">{reason}</p>}
+      <div className="sh-actions">
+        <Button type="button" disabled={busy} onClick={onResume}>
+          {busy ? "正在恢复…" : "继续办理"}
+        </Button>
+        {canDiscard && (
+          <Button type="button" variant="outline" disabled={busy} onClick={onDiscard}>不办了</Button>
+        )}
+      </div>
     </Card>
   );
 }

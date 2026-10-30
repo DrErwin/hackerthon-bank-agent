@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict
-from datetime import datetime
+from datetime import date, datetime
 from uuid import uuid4
 
 from app.contracts.bank import ListProductsInput, OperationResult
@@ -25,10 +25,15 @@ from app.contracts.tasks import InteractionRequest, ModuleResult
 
 from . import plan
 from .birthday_ports import BirthdayPlan, WriteOutcome
-from .plan import item_key, money
+from .pension import parse_amount_fen
+from .plan import BEIJING, item_key, money
 from .personal_budget import PersonalBudget, BudgetPending
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Facts read deterministically from the user's own goal text: an amount only
+# with a 元/块 unit, a date only as "X月X日/号" or YYYY-MM-DD (never "下周六").
+_GOAL_AMOUNT = re.compile(r"(\d+(?:[.．]\d{1,2})?)\s*(?:元|块(?!蛋糕))")
+_GOAL_DATE = re.compile(r"(?:(\d{4})年)?(\d{1,2})月(\d{1,2})[日号]|(\d{4})-(\d{2})-(\d{2})")
 _REF = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 # The edit-wait menu never other than these controlled choices; a client cannot
 # name an item id, quantity or amount from chat (server options only).
@@ -50,6 +55,51 @@ def positive_quantity(text) -> int | None:
     if not value.isdigit() or int(value) < 1:
         return None
     return int(value)
+
+
+def goal_budget_fen(goal: str) -> int | None:
+    """The one amount with a 元/块 unit in the goal; several or none → ask."""
+    found = set(_GOAL_AMOUNT.findall(goal or ""))
+    fen = parse_amount_fen(found.pop()) if len(found) == 1 else None
+    return fen if fen else None
+
+
+def goal_deliver_by(goal: str, now: datetime) -> str | None:
+    """The one explicit date in the goal; a bare "X月X日" is its next occurrence."""
+    found = set(_GOAL_DATE.findall(goal or ""))
+    if len(found) != 1:
+        return None
+    year, month, day, iso_year, iso_month, iso_day = found.pop()
+    today = now.astimezone(BEIJING).date()
+    try:
+        if iso_year:
+            return date(int(iso_year), int(iso_month), int(iso_day)).isoformat()
+        value = date(int(year or today.year), int(month), int(day))
+        if not year and value < today:
+            value = value.replace(year=today.year + 1)
+    except ValueError:
+        return None
+    return value.isoformat()
+
+
+def date_text(value: str) -> str:
+    """'2026-11-07' or an ISO timestamp → '2026年11月7日' (display only)."""
+    moment = datetime.fromisoformat(value)
+    if moment.tzinfo is not None:
+        moment = moment.astimezone(BEIJING)
+    return f"{moment.year}年{moment.month}月{moment.day}日"
+
+
+# One plain sentence for a safety stop; the raw reason code stays in the records.
+_SAFETY_STOPS = {
+    "TASK_TERMINATED": "为了安全，已停止办理（常见原因是验证码过期或输错）。",
+    "VERIFICATION_FAILED": "身份验证没有通过（比如验证码过期或输错），为了安全已停止办理。",
+    "HIGH_RISK": "这次办理看起来有风险，为了安全已停止办理。",
+}
+_STOP_HEADS = {
+    "user_cancelled": "已停止办理。",
+    "business_failure": "生日安排没能办成，已停止办理。",
+}
 
 
 class BirthdayFlow:
@@ -75,9 +125,15 @@ class BirthdayFlow:
         data = state.get("birthday")
         if data is None:
             given = state.get("constraints") or {}
-            data = {"budget_limit_fen": given.get("budget_fen"),
+            # What the model left out is read from the user's own words; the
+            # amount still appears on the freeze confirmation for approval.
+            goal = state.get("goal") or ""
+            budget = given.get("budget_fen")
+            if budget is None:
+                budget = goal_budget_fen(goal)
+            data = {"budget_limit_fen": budget,
                     "payer": given.get("payer_account_id"), "delivery_ref": given.get("delivery_ref"),
-                    "deliver_by": given.get("deliver_by")}
+                    "deliver_by": given.get("deliver_by") or goal_deliver_by(goal, entry.clock())}
             state["birthday"] = data
         for key, default in self.DEFAULTS.items():
             data.setdefault(key, default)
@@ -169,6 +225,21 @@ class BirthdayFlow:
     def _no_room_message(product_name: str) -> str:
         return (f"剩余冻结不足以加入「{product_name}」；"
                 "不能自动追加冻结、换账户或提高上限。")
+
+    def _payer_text(self) -> str:
+        """Card name and tail number from the queried accounts, never the id."""
+        result = plan.step_state(self.state, "accounts").get("result")
+        rows = (result.get("accounts") or []) if isinstance(result, dict) else []
+        row = next((row for row in rows if row.get("account_id") == self.b["payer"]), None)
+        if row is None:
+            return "待定"
+        return f"{row['display_name']}（{row['account_masked']}）"
+
+    def _stop_sentence(self) -> str:
+        reason = self.b.get("stop_reason")
+        if reason == "security_blocked":
+            return _SAFETY_STOPS.get(self.b.get("blocked_reason"), "为了安全，已停止办理。")
+        return _STOP_HEADS.get(reason, "已停止办理。")
 
     @staticmethod
     def _new_item(product: dict, *, quantity: int = 1) -> dict:
@@ -421,7 +492,7 @@ class BirthdayFlow:
 
     def _ask_budget(self, trusted):
         return self._ask(trusted, "这次生日安排的预算上限是多少元？（可输入金额，如“500元”）",
-                         [("设置本月当前账户全部消费的个人预算", {"kind": "personal_begin"}),
+                         [("设置本月总花销上限（这张卡所有花销，不只算生日）", {"kind": "personal_begin"}),
                           ("停止本次安排", {"kind": "b_stop"})])
 
     def _ask_date(self, trusted):
@@ -491,26 +562,25 @@ class BirthdayFlow:
         PersonalBudget(self.entry, self.state).check_freeze_room(trusted)
         items = self._chosen_items()
         total = self._total(items)
-        delivery = (f"受控配送引用 {self.b['delivery_ref'][:8]}…（原文只走专用入口）"
-                    if self.b["delivery_ref"] else "无配送（到店/自取类）")
-        lines = [f"预算上限 {yuan(self.b['budget_limit_fen'])} 元；",
-                 f"送达到 {self.b['deliver_by']} 前；{delivery}；",
-                 "商品方案："]
+        cap = yuan(self.b["budget_limit_fen"])
+        lines = [f"预算：{cap} 元以内",
+                 f"送达：{date_text(self.b['deliver_by'])}前",
+                 "配送资料已填好" if self.b["delivery_ref"] else "不需要配送",
+                 "要买的东西："]
         for item in items:
             lines.append(f"· {item['name']} ×{item['quantity']}：单价 "
                          f"{yuan(item['unit_price_fen'])} 元，小计 "
                          f"{yuan(item['amount_fen'])} 元")
-        lines.append(f"付款账户：{self.b['payer'] or '待定'}。")
-        lines.append(f"商品合计 {yuan(total)} 元，将按预算上限一次性冻结 "
-                     f"{yuan(self.b['budget_limit_fen'])} 元，未消费部分结束时退回。")
+        lines.append(f"合计 {yuan(total)} 元")
+        lines.append(f"付款卡：{self._payer_text()}")
         personal = self.state.get("personal_budget", {})
         if personal.get("view"):
             view = personal["view"]
-            lines.append(f"个人预算限额 {yuan(view['personal_limit_fen'])} 元，账单已用 {yuan(view['used_fen'])} 元，"
-                f"个人剩余 {money(view['remaining_fen'])} 元；另有未结占用 {yuan(personal.get('occupied_fen', 0))} 元、"
-                f"尚未反映到本次账单的已核实消费 {yuan(personal.get('gap_fen', 0))} 元。")
-        lines.append("商品方案采用不等于个人预算采用或资金授权；每一步仍会单独确认，"
-                     "冻结确认里会写明结束时只退未消费部分。")
+            lines.append(f"本月总花销上限 {yuan(view['personal_limit_fen'])} 元，已花 {yuan(view['used_fen'])} 元，"
+                f"还能花 {money(view['remaining_fen'])} 元；另有其他安排先留着的 {yuan(personal.get('occupied_fen', 0))} 元、"
+                f"已付但账单还没显示的 {yuan(personal.get('gap_fen', 0))} 元。")
+        lines.append(f"开始办理后，会先从卡上留出 {cap} 元专款，只用于这次生日；"
+                     "没花完的会退回原卡。每一步付钱前都会再请您确认。")
         return self._ask(trusted, "\n".join(lines),
                          [("调整数量或移除商品", {"kind": "b_edit_basket"}),
                           ("采用并开始办理", {"kind": "b_adopt"}),
@@ -540,7 +610,7 @@ class BirthdayFlow:
             cap = ((self.b.get("freeze") or {}).get("amount_fen")
                    or self.b["budget_limit_fen"])
             lines.append(f"合计 {yuan(self._plan_total(rows))} 元（原上限 {yuan(cap)} 元）；"
-                         f"付款账户 {self.b['payer'] or '待定'}。")
+                         f"付款卡 {self._payer_text()}。")
         else:
             lines.append("当前方案中没有商品。")
         facts = [self._facts(item) for item in rows]
@@ -946,7 +1016,6 @@ class BirthdayFlow:
                                   item.get("order_operation_id") or "")
 
     def apply_text(self, trusted, text: str):
-        from .pension import parse_amount_fen
         personal = PersonalBudget(self.entry, self.state).text(trusted, text)
         if personal is not None:
             return personal
@@ -1432,7 +1501,7 @@ class BirthdayFlow:
         PersonalBudget(self.entry, self.state).close()
         status = TaskStatus.CANCELLED if self.b.get("stop_reason") else TaskStatus.FAILED
         return self.entry._done(trusted, self.state, status,
-            "银行已明确表示原冻结失败，本次没有冻结、下单或付款，已结束办理。")
+            "银行确认专款没有留出成功，没有下单，也没有付款，钱没有动。已结束办理。")
 
     def _requery(self, trusted):
         if self.b.get("session_observation"):
@@ -1610,7 +1679,8 @@ class BirthdayFlow:
             if hold:
                 budget.close()
             return self.entry._done(trusted, self.state, TaskStatus.CANCELLED,
-                                    "已停止办理。本次没有冻结资金，也没有下单或付款。")
+                                    self._stop_sentence()
+                                    + "没有留出专款，也没有下单或付款，钱没有动。")
         if (self.b.get("stop_reason") and self.b.get("session_observation")
                 and freeze.get("status") == "failed"):
             return self._observe_session(trusted)
@@ -1619,15 +1689,15 @@ class BirthdayFlow:
         if unknown:
             return self._ask(
                 trusted,
-                "已停止新增办理，资金仍待核实：原操作编号保留，核实后才能按限定授权收尾；"
-                "不抢先释放、不换号重办。",
+                "已停止新增办理。有一笔钱的结果还在核实，核实清楚后才会退回没花完的钱；"
+                "不会重复办理。",
                 [("核实原操作后收尾", {"kind": "b_retry_query"})])
         outcome = self.ports.finalize(trusted, self._plan(),
                                       self.b.get("stop_reason") or "completed")
         self.b["released"] = asdict(outcome)
         if outcome.status in ("released", "nothing_to_release") and outcome.remaining_fen != 0:
             return self.entry._view(trusted, self.state,
-                "释放已有回复，但尚不能核实剩余冻结为零；占用保留，只继续原收尾核实。")
+                "退回没花完的钱已有回复，但还不能确认专款已经清零，正在继续核实。")
         if outcome.status in ("released", "nothing_to_release"):
             self._close_commitment()
         budget = PersonalBudget(self.entry, self.state)
@@ -1636,39 +1706,56 @@ class BirthdayFlow:
                 budget.refresh(trusted, for_write=False)  # never gates original closure
             except BudgetPending:
                 budget.p["view"] = None
-        lines = []
-        for item in self.b["orders"]:
-            quantity = int(item.get("quantity") or 1)
-            name = item["name"] if quantity == 1 else f"{item['name']} ×{quantity}"
-            amount = item["amount_fen"]
-            if item.get("capture") == "completed":
-                lines.append(f"{name}：订单已创建并已付款 {yuan(amount)} 元"
-                             f"（交易 {str(item.get('transaction_id'))[:8]}…）。")
-            elif item.get("order") == "completed":
-                lines.append(f"{name}：订单已创建，未付款（{yuan(amount)} 元未扣）。")
-            elif item.get("order") == "unknown":
-                lines.append(f"{name}：下单结果此前未知，本次未重复下单。")
-            elif item.get("order") == "failed":
-                lines.append(f"{name}：下单未办成，未付款。")
-        if outcome.status == "released":
-            lines.append(f"冻结未消费部分已按限定授权释放 {yuan(outcome.released_amount_fen)} 元"
-                         f"（原操作 {str(outcome.release_operation_id)[:8]}…）。")
-        elif outcome.status == "nothing_to_release":
-            lines.append("冻结已全部消费，无可释放余额。")
-        elif outcome.status == "needs_attention":
-            lines.append("释放结果待核实（原编号保留），暂不宣称已解冻。")
-        else:
-            reason = self.b.get("blocked_reason") or outcome.message or "blocked"
-            lines.append(f"办理被安全侧阻止（{reason}），冻结保持原状。")
-        lines.append("已付款项不退；以上是订单与资金事实，不代表商品已送达。")
-        paid = any(o.get("capture") == "completed" for o in self.b["orders"])
+        orders = self.b["orders"]
+        paid_rows = [o for o in orders if o.get("capture") == "completed"]
+        spent = sum(int(o["amount_fen"]) for o in paid_rows)
         reason = self.b.get("stop_reason")
+        stopped = bool(reason and reason != "completed")
+        lines = []
+        if not any(o.get("order") in ("completed", "unknown") for o in orders):
+            lines.append("没有下单，也没有付款。")
+        else:
+            for item in orders:
+                quantity = int(item.get("quantity") or 1)
+                name = item["name"] if quantity == 1 else f"{item['name']} ×{quantity}"
+                amount = item["amount_fen"]
+                if item.get("capture") == "completed":
+                    lines.append(f"{name}：订单已创建并已付款 {yuan(amount)} 元。")
+                elif item.get("order") == "completed":
+                    lines.append(f"{name}：订单已创建，未付款（{yuan(amount)} 元未扣）。")
+                elif item.get("order") == "unknown":
+                    lines.append(f"{name}：下单结果此前未知，本次未重复下单。")
+                elif item.get("order") == "failed":
+                    lines.append(f"{name}：下单未办成，未付款。")
+        spent_text = f"共花 {yuan(spent)} 元；" if paid_rows else ""
+        if outcome.status == "released":
+            if paid_rows:
+                lines.append(f"{spent_text}没花完的 {yuan(outcome.released_amount_fen)} 元已退回原卡。")
+            else:
+                lines.append(f"留出的 {yuan(outcome.released_amount_fen)} 元专款已全部退回原卡。")
+        elif outcome.status == "nothing_to_release":
+            lines.append(f"{spent_text}专款已全部花完，没有要退回的钱。")
+        elif outcome.status == "needs_attention":
+            lines.append(f"{spent_text}没花完的钱是否已退回原卡还在核实，核实前不能说已经退回。")
+        else:
+            lines.append(f"{spent_text}为了安全，退回没花完的钱这一步先停下了，专款暂时还留着。")
+        if paid_rows:
+            if stopped:
+                lines.append("已经付掉的钱不退。")
+            lines.append("送达情况请留意商家通知。")
+        paid = bool(paid_rows)
         if outcome.status in ("needs_attention", "blocked"):
             return self.entry._view(trusted, self.state, "\n".join(lines))
-        if reason and reason != "completed":
+        if stopped:
             status = TaskStatus.PARTIALLY_SUCCEEDED if paid else TaskStatus.CANCELLED
-            head = "部分完成，后续已停止：" if paid else "已停止办理。"
+            head = self._stop_sentence()
+            if paid:
+                head = "部分完成，后续已停止。" + (head if reason == "security_blocked" else "")
             return self.entry._done(trusted, self.state, status,
-                                    head + "\n".join(lines))
+                                    head + "\n" + "\n".join(lines))
+        # "办好了" only when every planned item was paid; otherwise say it ended.
+        done_all = all(o.get("capture") == "completed" for o in orders
+                       if o.get("order") != "skipped")
+        head = "生日安排办好了：" if done_all else "生日安排结束了，结果如下："
         return self.entry._done(trusted, self.state, TaskStatus.SUCCEEDED,
-                                "\n".join(lines))
+                                head + "\n" + "\n".join(lines))

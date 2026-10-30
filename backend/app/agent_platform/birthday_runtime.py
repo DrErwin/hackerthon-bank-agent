@@ -16,7 +16,7 @@ continuation as ACTION_RETIRED.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 from uuid import UUID, uuid4
 
@@ -55,9 +55,9 @@ def _yuan(fen) -> str:
 
 
 _ACTION_LABELS = {
-    "bank.freeze_funds": "冻结生日资金",
+    "bank.freeze_funds": "留出生日专款",
     "bank.create_order": "创建生日订单",
-    "bank.capture_frozen": "从冻结资金付款",
+    "bank.capture_frozen": "从生日专款付款",
 }
 
 
@@ -105,10 +105,11 @@ def _display_fields(action_name: str, parameters: dict,
                                    value_text=f"{_yuan(unit_price_fen)} 元"))
     if facts.get("deliver_by"):
         fields.append(DisplayField(name="deliver_by", label="最晚送达",
-                                   value_text=facts["deliver_by"]))
+                                   value_text=_deliver_by_text(facts["deliver_by"])))
     if facts.get("account_id"):
-        fields.append(DisplayField(name="account", label="付款账户",
-                                   value_text=facts["account_id"]))
+        # The card name is frozen with the attempt; an attempt without it shows the id.
+        fields.append(DisplayField(name="account", label="付款卡",
+                                   value_text=facts.get("account_text") or facts["account_id"]))
     return fields
 
 
@@ -154,6 +155,15 @@ def _deliver_by(plan) -> str:
     if len(deliver_by) == 10:  # a bare date means end of that day, Beijing time
         deliver_by += "T23:59:59+08:00"
     return deliver_by
+
+
+def _deliver_by_text(deliver_by: str) -> str:
+    """Display only: "2026年11月7日前" in Beijing time; the stored value is unchanged."""
+    at = datetime.fromisoformat(deliver_by).astimezone(timezone(timedelta(hours=8)))
+    day = f"{at.year}年{at.month}月{at.day}日"
+    # The end of that day is the usual deadline; keep any earlier hour visible.
+    clock = "" if (at.hour, at.minute) == (23, 59) else f" {at.hour:02d}:{at.minute:02d}"
+    return f"{day}{clock}前"
 
 
 class BirthdayRuntime:
@@ -784,6 +794,14 @@ class BirthdayTaskPorts:
             for key, stored in self._actions(context).items()
         )
 
+    def _account_text(self, context, account_id: str) -> str:
+        """"主账户（尾号 0001）" for the confirmation; the account id stays the fact."""
+        account = self.runtime.gateway.get_account(context, account_id)
+        data = getattr(account, "data", None)
+        if data is None:
+            return account_id
+        return f"{data.display_name}（{data.account_masked}）"
+
     def _frozen_order(self, context, identity: tuple[str, str]) -> dict:
         """The create-order attempt's own frozen parameters for this item."""
         stored = self._actions(context).get(_action_key("order", identity)) or {}
@@ -808,7 +826,8 @@ class BirthdayTaskPorts:
         facts = {"quantity": quantity,
                  "unit_price_fen": enriched["amount_fen"],
                  "deliver_by": _deliver_by(plan),
-                 "account_id": plan.payer_account_id}
+                 "account_id": plan.payer_account_id,
+                 "account_text": self._account_text(context, plan.payer_account_id)}
         if identity[0] == "item":
             unit_price_fen = enriched.get("unit_price_fen")
             if not isinstance(unit_price_fen, int) or unit_price_fen <= 0:
@@ -866,7 +885,8 @@ class BirthdayTaskPorts:
                  "unit_price_fen": (amount_fen // frozen_quantity
                                     if frozen_quantity else amount_fen),
                  "deliver_by": _deliver_by(plan),
-                 "account_id": plan.payer_account_id}
+                 "account_id": plan.payer_account_id,
+                 "account_text": self._account_text(context, plan.payer_account_id)}
         if identity[0] == "item":
             parameters["item_id"] = identity[1]
             parameters["product_id"] = frozen.get("product_id",

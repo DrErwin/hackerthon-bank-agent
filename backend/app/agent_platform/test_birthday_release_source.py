@@ -10,7 +10,7 @@ from app.storage.database import connect, transaction
 
 from .test_birthday_harness_publication import drive_to_freeze_confirmation, harness_env
 from .test_birthday_edit_continuation import settle_confirmation
-from .test_birthday_runtime_wiring import _all_freezes
+from .test_birthday_runtime_wiring import DELIVER_DATE, _all_freezes
 from .test_birthday_session_recovery import target_session
 from .test_birthday_session_proof import recover_cached_card
 
@@ -30,7 +30,7 @@ def frozen(env, stage):
 def plan():
     return BirthdayPlan(payer_account_id="A1", budget_id=None, budget_version=None,
         budget_limit_fen=50000, freeze_amount_fen=50000,
-        deliver_by="2026-10-30T18:00:00+08:00", delivery_ref="unused-at-ending")
+        deliver_by=DELIVER_DATE + "T18:00:00+08:00", delivery_ref="unused-at-ending")
 
 
 def operations(env):

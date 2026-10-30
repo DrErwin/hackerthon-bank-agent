@@ -395,9 +395,7 @@ def test_normal_ending_releases_only_the_remainder(tmp_path):
     assert outcome.released_amount_fen == 50000 - 19900
     assert outcome.remaining_fen == 0
     assert outcome.consumed_total_fen == 19900
-    assert "已消费 199.00 元" in outcome.decision.message
-    assert "已释放 301.00 元" in outcome.decision.message
-    assert "仍冻结 0.00 元" in outcome.decision.message
+    assert outcome.decision.message == "没花完的 301.00 元已退回原卡。"
     assert outcome.authorization.status == "completed"
     row = rig.bank.store.get_freeze("U1", freeze_id)
     assert row["original_amount_fen"] - row["captured_total_fen"] - row["released_total_fen"] == 0

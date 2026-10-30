@@ -25,7 +25,7 @@ const CODE_TEXT: Record<VerificationView["code_result"], string> = {
 };
 
 function faceText(view: VerificationView): string {
-  if (view.face_result === "pending") return view.face_started_at ? "等待管理员作答" : "尚未开始";
+  if (view.face_result === "pending") return view.face_started_at ? "等工作人员处理" : "尚未开始";
   return { passed: "已通过", failed: "未通过", expired: "已超时", cancelled: "已取消", not_required: "不需要" }[view.face_result];
 }
 
@@ -55,7 +55,7 @@ function CodeBoxes({ value, onChange, disabled, inputId, errorId }: { value: str
   );
 }
 
-export function VerificationCard({ view, active, canVerify, busy, adminHref, adminLabel = "演示用：在新窗口打开管理员演示入口", options, onSelectOption, onSubmitCode, onResend, onStartFace, onShowDemoCode, id }: {
+export function VerificationCard({ view, active, canVerify, busy, adminHref, adminLabel = "演示用：管理员入口", options, onSelectOption, onSubmitCode, onResend, onStartFace, onShowDemoCode, canCancel = false, id }: {
   view: VerificationView;
   active: boolean;
   canVerify: boolean;
@@ -70,6 +70,8 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
   onResend: () => void;
   onStartFace: () => void;
   onShowDemoCode: () => Promise<DemoCodeView | null>;
+  // Whether this task still shows its own "取消这次办理" button.
+  canCancel?: boolean;
   id: string;
 }) {
   const [code, setCode] = useState("");
@@ -169,10 +171,10 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
             {live && view.face_started_at && view.face_result === "pending" && (
               <div className="sh-face-wait" role="status">
                 <ScanFace className="sh-face-mark" aria-hidden="true" />
-                <p className="sh-lead">请在独立演示端完成模拟验证。</p>
-                <p className="sh-hint">演示由管理员模拟作答，{clockTime(view.face_expires_at)} 前有效。</p>
+                <p className="sh-lead">请稍等，工作人员会帮您完成刷脸验证，完成后这里会自动更新。</p>
+                <p className="sh-hint">{clockTime(view.face_expires_at)} 前有效。</p>
                 {adminHref && (
-                  <a className="sh-link-btn" href={adminHref} target="_blank" rel="noreferrer">{adminLabel}</a>
+                  <a className="sh-demo-note sh-admin-link" href={adminHref} target="_blank" rel="noreferrer">{adminLabel}</a>
                 )}
               </div>
             )}
@@ -190,7 +192,9 @@ export function VerificationCard({ view, active, canVerify, busy, adminHref, adm
           <p className="sh-hint">{EDIT_OPTION_NOTE}</p>
         </>
       )}
-      {!live && <p className="sh-readonly-line">验证记录已保存，供您回看。</p>}
+      {!live && <p className="sh-readonly-line">{view.challenge_status === "expired"
+        ? "验证超时了，钱没有动。" + (canCancel ? "请点「取消这次办理」，再重新办一次。" : "")
+        : "验证记录已保存，供您回看。"}</p>}
     </Card>
   );
 }

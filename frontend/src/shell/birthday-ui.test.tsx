@@ -204,7 +204,7 @@ async function mountCard(source: ShellDataSource, card: ShellTask, View = Harnes
   render(<View source={source} taskId={card.task_id} />);
   // A reloaded unfinished task asks the user to look before continuing; that
   // lookup is not an approval and does not resubmit anything.
-  fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+  fireEvent.click(await screen.findByRole("button", { name: "继续办理" }));
 }
 
 beforeEach(() => localStorage.clear());
@@ -241,7 +241,7 @@ it("answers a server-published confirmation option through F10 and swaps in the 
 
   // The same task's new revision replaces the card as a normal input menu.
   expect(await screen.findByRole("button", { name: "改数量：康乃馨花束（当前 1 件）" })).toBeTruthy();
-  expect(screen.getByText("查看之前的确认内容")).toBeTruthy();
+  expect(screen.getByText("之前的记录（1 条）")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "确认办理" })).toBeNull();
 });
 
@@ -324,24 +324,24 @@ it("shows the server's own reason verbatim and adds a refresh step only when it 
   fireEvent.click(screen.getByRole("button", { name: EDIT_OPTION.label }));
   // No reason in the body: the page keeps the server message and adds the 409
   // tier's next step instead of inventing a new refusal.
-  expect(await screen.findByText("这张卡正在处理另一次修改。请刷新这项任务后重试。")).toBeTruthy();
+  expect(await screen.findByText("这张卡正在处理另一次修改。页面会显示最新进度。")).toBeTruthy();
 });
 
 it("reads orders, payment state and bank amounts from the birthday steps only", () => {
   render(<CrossPlanCard view={birthday} task={task({ data: birthday })} childTask={() => undefined} />);
-  expect(screen.getByText("冻结资金")).toBeTruthy();
+  expect(screen.getByText("留出生日专款")).toBeTruthy();
   expect(screen.getByText("¥500.00")).toBeTruthy();
   expect(screen.getAllByText("创建订单")).toHaveLength(2);
   expect(screen.getByText("付款")).toBeTruthy();
   expect(screen.getAllByText("¥199.00")).toHaveLength(2);
-  expect(screen.getByText("订单号 ORDER-02")).toBeTruthy();
+  expect(screen.queryByText(/ORDER-0/)).toBeNull();
   expect(screen.getByText("未付款")).toBeTruthy();
   expect(screen.getAllByText("已付款")).toHaveLength(2);
-  expect(screen.getByText("已消费")).toBeTruthy();
+  expect(screen.getByText("已花")).toBeTruthy();
   expect(screen.getByText("¥467.00")).toBeTruthy();
-  expect(screen.getByText("释放冻结资金")).toBeTruthy();
+  expect(screen.getByText("退回没花完的钱")).toBeTruthy();
   expect(screen.getByText("¥33.00")).toBeTruthy();
-  expect(screen.getByText("冻结余款")).toBeTruthy();
+  expect(screen.getByText("专款还剩")).toBeTruthy();
   expect(screen.getByText("¥0.00")).toBeTruthy();
   // The read-only freeze query keeps its approved name; the old wording is gone.
   expect(screen.queryByText("核对冻结资金")).toBeNull();
@@ -363,10 +363,10 @@ it("keeps unknown birthday facts as 待核实 without filling zero or 已办结"
   render(<CrossPlanCard view={unknown} task={waiting} childTask={() => undefined} onQueryChild={() => undefined} />);
   expect(screen.getAllByText("结果待核实")).toHaveLength(4);
   expect(screen.getAllByText("金额待核实")).toHaveLength(4);
-  expect(screen.getByText("订单号 ORDER-01")).toBeTruthy();
+  expect(screen.queryByText(/ORDER-0/)).toBeNull();
   // Unknown is never zero-filled and never reported as done.
   expect(screen.queryByText("¥0.00")).toBeNull();
-  expect(screen.queryByText("已消费")).toBeNull();
+  expect(screen.queryByText("已花")).toBeNull();
   expect(screen.queryByText("已办结")).toBeNull();
 });
 
@@ -380,7 +380,7 @@ it("presents a stopped birthday plan as no new work plus the bank receipts", () 
   render(<CrossPlanCard view={stopped.data as CrossTaskView} task={stopped} childTask={() => undefined} />);
   expect(screen.getByText(/部分完成，后续已停止/)).toBeTruthy();
   expect(screen.getByText(PLAN_STOPPED)).toBeTruthy();
-  expect(screen.getByText("订单号 ORDER-02")).toBeTruthy();
+  expect(screen.queryByText(/ORDER-0/)).toBeNull();
   expect(screen.getAllByText("¥199.00")).toHaveLength(2);
   expect(screen.getByText("未付款")).toBeTruthy();
   // Stopping is not a refund, a cancellation or a delivery claim.
@@ -816,7 +816,7 @@ it("does not carry the reference into another session", async () => {
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "重新进入会话" }));
   });
-  fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+  fireEvent.click(await screen.findByRole("button", { name: "继续办理" }));
   expect(await screen.findByLabelText("收件人")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "用这些资料继续" })).toBeNull();
   expect((screen.getByLabelText("收件人") as HTMLInputElement).value).toBe("");

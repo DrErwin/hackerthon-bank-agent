@@ -156,6 +156,7 @@
 .sh-code:focus-within .sh-code-box-current { border: 2.5px solid var(--brand); background: var(--brand-tint); }
 .sh-code:focus-within { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 12px; }
 .sh-face-wait { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.sh-admin-link { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 4px; }
 .sh-face-mark { width: 88px; height: 88px; border: 3px dashed var(--brand); border-radius: 28px; background: var(--brand-tint); animation: sh-pulse 1.8s ease-in-out infinite; }
 @keyframes sh-pulse { 50% { transform: scale(.94); } }
 

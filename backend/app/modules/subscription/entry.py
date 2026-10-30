@@ -191,7 +191,7 @@ class SubscriptionEntry:
         if state.get("result", {}).get("status") in _TERMINAL:
             return self._result(trusted, state)
         if response.get("cancel") is True or response.get("choice") == "cancel":
-            result = self.service.cancelled(trusted)
+            result = self.service.cancelled(trusted, state.get("selected_name"))
         elif state.get("waiting") == "input" and (
                 response.get("selected_option_id")
                 or (response.get("choice") and response.get("choice") not in {"resume", "approve"})):
@@ -290,6 +290,8 @@ class SubscriptionEntry:
     def _decide_cancel(self, trusted: TrustedContext, state: dict, item: SubscriptionItem,
                        plan) -> ModuleResult:
         state["waiting"] = None
+        # Display only: lets a later "先不退了" name what keeps its schedule.
+        state["selected_name"] = f"{item.merchant_name}（{item.service_name}）"
         revision = self._cancel_revision(state, plan)
         answer = self.service.check_cancel(trusted, plan, revision=revision)
         state["operation_id"] = answer.operation_id

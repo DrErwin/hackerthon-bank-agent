@@ -216,7 +216,9 @@ class SecurityGate:
         return InteractionRequest(
             interaction_id=str(uuid4()),
             kind=kind,
-            prompt="请完成当前操作所需的安全步骤。",
+            # Names no button: a subscription card labels it 「确认退订」.
+            prompt=("请在下面的确认单上核对，没问题就点确认按钮。"
+                    if kind == "confirmation" else "请在下面完成身份验证。"),
             required_fields=[],
             options=options,
             record_ref=record_ref,

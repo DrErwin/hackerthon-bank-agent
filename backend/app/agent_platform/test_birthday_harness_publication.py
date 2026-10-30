@@ -29,7 +29,7 @@ from app.contracts.platform import TrustedContext
 from .birthday_edit import BirthdayEditError
 from .test_birthday_edit_handoff import StandInCrossHandoff
 from .test_birthday_runtime_wiring import (
-    DELIVERY_REF, answer_verification, approve_confirmation, composition, option_id,
+    DELIVER_DATE, DELIVERY_REF, answer_verification, approve_confirmation, composition, option_id,
     trusted,
 )
 
@@ -108,7 +108,7 @@ def drive_to_freeze_confirmation(env: HarnessEnvironment, current=None):
     current = env.resume({"text": "500元"})
     assert current.status is TaskStatus.WAITING_INPUT, current.message
     assert "哪一天" in current.message
-    current = env.resume({"text": "2026-10-30"})
+    current = env.resume({"text": DELIVER_DATE})
     current = env.resume({"text": DELIVERY_REF})
     current = env.resume({"selected_option_id": option_id(current, "鲜花")})
     current = env.resume({"selected_option_id": option_id(current, "蛋糕")})

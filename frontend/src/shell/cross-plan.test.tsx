@@ -169,7 +169,7 @@ it("loads children from the API and renders the child's confirmation inside the 
   expect(screen.getByText("视频会员")).toBeTruthy();
   // The answer belongs to the child task: its confirmation goes out under the
   // child's own record, never as a parent-level approval.
-  fireEvent.click(screen.getByRole("button", { name: "确认办理" }));
+  fireEvent.click(screen.getByRole("button", { name: "确认退订" }));
   await waitFor(() => expect(answer).toHaveBeenCalledExactlyOnceWith("conf-1", expect.objectContaining({
     confirmation_version: 1, choice: "approve",
   })));
@@ -219,7 +219,7 @@ it("takes a typed answer on a cross menu and sends it as the module's text answe
   backend.user.provideInput = provideInput;
   render(<Harness source={backend.user} />);
   // A reloaded pending plan asks the user to look before continuing; nothing is resubmitted.
-  fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+  fireEvent.click(await screen.findByRole("button", { name: "继续办理" }));
   // The promise line shows even when the menu has no plan body (adopt screen).
   expect(await screen.findByText(PLAN_PROMISE)).toBeTruthy();
   const label = await screen.findByText(CROSS_ANSWER_LABEL);
@@ -244,7 +244,7 @@ it("does not put a text box on a cross menu that already offers enough choices",
   const backend = createDemoBackend({ replyDelayMs: 0 });
   backend.user.listTasks = async () => [many];
   render(<Harness source={backend.user} />);
-  fireEvent.click(await screen.findByRole("button", { name: "查看原任务" }));
+  fireEvent.click(await screen.findByRole("button", { name: "继续办理" }));
   await screen.findByText("取消视频会员");
   expect(screen.queryByText(CROSS_ANSWER_LABEL)).toBeNull();
 });

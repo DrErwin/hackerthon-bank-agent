@@ -325,7 +325,7 @@ def test_s01_two_cancellations_one_kept_with_real_receipt(tmp_path):
     assert "已退订 优酷 VIP 连续包月：25.00元/每月，自 2026-11-05 起不再自动扣费。" in receipt.message
     assert "已退订 超级会员连续包月：39.00元/每月" in receipt.message
     assert "从下期起每月合计少扣 64.00元" in receipt.message
-    assert "绿洲健身（疑似，银行无签约记录）" in receipt.message
+    assert "绿洲健身" not in receipt.message  # ledger clues stay out of the receipt
     assert "已扣过的费用不退" in receipt.message
     assert not any(phrase in receipt.message for phrase in FORBIDDEN)
     assert bank.cancel_calls == ["sub_001", "sub_002"]
@@ -372,8 +372,7 @@ def test_s03_suspected_only_never_offers_cancellation(tmp_path):
     # no write was ever dispatched (XL-S03).
     assert result.status is TaskStatus.SUCCEEDED
     assert "当前没有可在线退订的签约" in result.message
-    assert "疑似周期扣费线索" in result.message and "绿洲健身" in result.message
-    assert "不能在线退订" in result.message
+    assert "绿洲健身" not in result.message  # only bank mandates are listed
     assert result.interaction is None
     assert bank.cancel_calls == []
 
@@ -431,7 +430,7 @@ def test_s05_unknown_second_item_stays_pending_and_closes_partially(tmp_path):
     assert stopped.status is TaskStatus.PARTIALLY_SUCCEEDED
     assert stopped.message.startswith("部分完成，后续已停止")
     assert "已退订 优酷 VIP 连续包月" in stopped.message
-    assert "云端网盘·超级会员连续包月 的退订结果还待核实" in stopped.message
+    assert "云端网盘·超级会员连续包月 的退订结果还在核实" in stopped.message
     assert "每月合计少扣 25.00元" in stopped.message
     assert "64.00" not in stopped.message  # the unknown one never counts
 

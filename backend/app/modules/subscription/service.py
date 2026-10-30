@@ -436,10 +436,11 @@ class SubscriptionService:
             data=None, message=message, interaction=answer.interaction, error=None,
             allowed_actions=[action, "cancel"], recovery_required=False, recovery_reason=None)
 
-    def cancelled(self, context: TrustedContext) -> ModuleResult:
+    def cancelled(self, context: TrustedContext, name: str | None = None) -> ModuleResult:
+        target = f"「{name}」" if name else "自动扣费"
         return ModuleResult(
             task_id=context.task_id, run_id=context.run_id, status=TaskStatus.CANCELLED, data=None,
-            message="已经停下了，没有提交退订，银行那边没有变化。", interaction=None, error=None,
+            message=f"没有退订，{target}仍会按原计划扣费。", interaction=None, error=None,
             allowed_actions=[], recovery_required=False, recovery_reason=None)
 
     def failed(self, context: TrustedContext, code: str, *, source: str = "subscription",

@@ -242,7 +242,7 @@ class BillsEntry:
             if state["all_accounts"]:
                 state["account_ids"] = [a.account_id for a in accounts]
             else:
-                return self._wait(context, state, "请选择要查询的本人账户，不会替你默认选择。",
+                return self._wait(context, state, "您想查哪张卡？",
                     [(a.display_name + " · " + a.account_masked, {"account_ids": [a.account_id]}) for a in accounts]
                     + [("所有本人账户", {"account_ids": [a.account_id for a in accounts]})], "accounts")
         scope = {"account_ids": state["account_ids"], "start_at": state["period"][0],

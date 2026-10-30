@@ -324,7 +324,7 @@ class TransferWorkflow:
             return {
                 "status": TaskStatus.WAITING_INPUT.value,
                 "interaction": self._interaction(
-                    reason + "。你可以修改金额、账户或取消。",
+                    reason + "。您可以修改金额、账户或取消。",
                     [],
                     [InteractionOption(id="cancel", label="取消")],
                 ),
@@ -406,8 +406,8 @@ class TransferWorkflow:
                 "status": TaskStatus.WAITING_APPROVAL.value,
                 "interaction": decision.interaction.model_dump(mode="json"),
                 "wait_kind": "security", "next": "wait",
-                "message": ("请核对并点击当前确认单的按钮。" if decision.decision ==
-                            SecurityDecisionCode.REQUIRE_CONFIRMATION else "请完成专用身份验证。"),
+                "message": ("请在下面的确认单上核对，没问题就点确认按钮。" if decision.decision ==
+                            SecurityDecisionCode.REQUIRE_CONFIRMATION else "请在下面完成身份验证。"),
             }
         if decision.decision == SecurityDecisionCode.REQUIRE_INPUT:
             return {
@@ -462,7 +462,7 @@ class TransferWorkflow:
             receipt = operation.receipt
             return {
                 "operation": operation.model_dump(mode="json"), "status": TaskStatus.SUCCEEDED.value,
-                "message": f"银行返回转账成功，金额 {receipt.amount_fen / 100:.2f} 元。交易编号 {receipt.transaction_id}。",
+                "message": f"转账成功，{receipt.amount_fen / 100:.2f} 元已转出。",
                 "interaction": None, "error": None, "next": END,
                 "recovery_required": False, "recovery_reason": None,
             }
@@ -512,9 +512,9 @@ class TransferWorkflow:
             "operation": operation,
             "status": TaskStatus.NEEDS_ATTENTION.value,
             "message": (
-                "银行已受理这笔转账，目前还在处理中，尚不能视为到账。你可以稍后查询结果。"
+                "银行已受理这笔转账，目前还在处理中，尚不能视为到账。您可以稍后查询结果。"
                 if processing else
-                "这笔转账的结果暂时还没核实，我没有再次提交。你可以稍后查询结果。"
+                "这笔转账的结果暂时还没核实，我没有再次提交。您可以稍后查询结果。"
             ),
             "interaction": None, "error": None, "recovery_required": True,
             "recovery_reason": "OPERATION_PROCESSING" if processing else "OPERATION_UNKNOWN",

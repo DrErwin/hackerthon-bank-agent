@@ -81,12 +81,11 @@ export function GalleryPage() {
         </Section>
         <Section title="结果待核实与刷新恢复">
           <NeedsAttentionCard id="g-na" facts={facts} message="银行的结果暂时没有返回。" canQuery busy={false} onQuery={noop} />
-          <RecoveryCard id="g-rc1" facts={facts} statusText="等您验证" reason={null} resolved={false} canDiscard busy={false} onResume={noop} onDiscard={noop} />
-          <RecoveryCard id="g-rc2" facts={[]} statusText="" reason={null} resolved canDiscard={false} busy onResume={noop} onDiscard={noop} />
+          <RecoveryCard id="g-rc1" facts={facts} reason={null} canDiscard busy={false} onResume={noop} onDiscard={noop} />
         </Section>
         <Section title="错误与异常">
           <Notice tone="danger" title="原因说明"><p>验证码不正确。按安全规则本次办理已终止，没有提交给银行。</p></Notice>
-          <Notice tone="warning" title="刚才的操作没有完成" action={<button type="button" className="sh-link-btn">刷新这项任务的状态</button>}>这张确认单已经失效，请以最新的确认单为准。</Notice>
+          <Notice tone="warning" title="刚才的操作没有完成" action={<button type="button" className="sh-btn sh-btn-secondary">刷新</button>}>这张确认单已经失效，请以最新的确认单为准。</Notice>
           <Notice tone="info" title="提示">连接有点不稳定，页面会自动补齐最新状态。</Notice>
           <ExpiredBanner onReenter={noop} />
         </Section>

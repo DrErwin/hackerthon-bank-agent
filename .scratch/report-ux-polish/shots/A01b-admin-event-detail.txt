@@ -1,0 +1,20 @@
+脱敏证据详情
+
+bank.observed
+×
+
+证据状态：available
+
+{
+  "payload": {
+    "operation_id": "e03c8047-d744-4803-8087-0939e209c435",
+    "lookup": "found",
+    "operation_status": "succeeded",
+    "transaction_id": "2d871367-6051-4146-919a-83e23ee7d3c0",
+    "receipt_ref": "8423ffe9-cf14-445e-ba70-e81c62cdc6a0",
+    "error": null,
+    "release_authorization_id": null,
+    "freeze_id": null
+  },
+  "evidence": "{\"failure\":null,\"operation_id\":\"e03c8047-d744-4803-8087-0939e209c435\",\"operation_status\":\"succeeded\",\"operation_type\":\"bank.submit_transfer\",\"receipt\":{\"amount_fen\":50100,\"arrival_mode\":\"instant\",\"balance\":{\"account_id\":\"A1\",\"as_of\":\"2026-10-30T04:11:04.663326+08:00\",\"available_balance_fen\":5949900,\"book_balance_fen\":5949900,\"frozen_balance_fen\":0},\"completed_at\":\"2026-10-30T04:11:04.663326+08:00\",\"fee_fen\":0,\"payee\":{\"account_masked\":\"****0002\",\"bank_name\":\"模拟合作银行\",\"name_masked\":\"王**\",\"payee_id\":\"A2\",\"remark\":\"妈妈\"},\"payer_account_id\":\"A1\",\"transaction_id\":\"2d871367-6051-4146-919a-83e23ee7d3c0\"},\"recorded_at\":\"2026-10-30T04:11:04.657641+08:00\",\"updated_at\":\"2026-10-30T04:11:04.663326+08:00\"}"
+}
