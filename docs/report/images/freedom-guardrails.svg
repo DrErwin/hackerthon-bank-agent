@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
+  <!-- "Agent 出主意、程序把关"图源文件。导出：Edge 无头模式截图，窗口 2560x1440，输出 freedom-guardrails.png -->
+  <style>
+    text { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; }
+    .ac { fill: #FCEBDC; stroke: #C8641E; stroke-width: 3; }
+    .pc { fill: #E5EDF8; stroke: #2A5DA8; stroke-width: 3; }
+    .uc { fill: #F3F4F6; stroke: #9AA1AB; stroke-width: 3; }
+    .hd { font-size: 56px; font-weight: 700; fill: #FFFFFF; }
+    .t1 { font-size: 46px; font-weight: 700; }
+    .t2 { font-size: 38px; fill: #4A505A; }
+    .s40 { font-size: 40px; font-weight: 700; }
+    .o  { fill: #8A4312; }
+    .b  { fill: #173F78; }
+    .g  { fill: #2B2F36; }
+    .arr { stroke: #7A818C; stroke-width: 4; fill: none; }
+  </style>
+  <defs>
+    <marker id="ag" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#7A818C"/>
+    </marker>
+    <marker id="ab" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#2A5DA8"/>
+    </marker>
+    <!-- 确认门图标（锁），以 (0,0) 为圆心 -->
+    <g id="gate">
+      <circle r="26" fill="#2A5DA8"/>
+      <path d="M-8,-3 V-9 A8,8 0 0 1 8,-9 V-3" stroke="#FFFFFF" stroke-width="4" fill="none"/>
+      <rect x="-12" y="-4" width="24" height="18" rx="3" fill="#FFFFFF"/>
+    </g>
+  </defs>
+
+  <rect width="2560" height="1440" fill="#FFFFFF"/>
+
+  <!-- 左栏：Agent 的自由 -->
+  <rect x="40" y="30" width="1110" height="90" rx="16" fill="#C8641E"/>
+  <text x="595" y="96" text-anchor="middle" class="hd">Agent 的自由</text>
+
+  <rect x="40" y="140" width="1110" height="159" rx="14" class="ac"/>
+  <text x="80" y="208" class="t1 o">听懂口语，挑对能力</text>
+  <text x="80" y="266" class="t2">“给妈妈转500元” → 转账，收款人和金额带进去</text>
+
+  <rect x="40" y="311" width="1110" height="159" rx="14" class="ac"/>
+  <text x="80" y="379" class="t1 o">说不清时先问清楚</text>
+  <text x="80" y="437" class="t2">几件事同时在办，先问是哪一件，不瞎猜</text>
+
+  <rect x="40" y="482" width="1110" height="159" rx="14" class="ac"/>
+  <text x="80" y="550" class="t1 o">听懂补充和改口</text>
+  <text x="80" y="608" class="t2">“金额改成600元” → 同一任务出新确认单</text>
+
+  <rect x="40" y="653" width="1110" height="159" rx="14" class="ac"/>
+  <text x="80" y="721" class="t1 o">认出整件生活目标</text>
+  <text x="80" y="779" class="t2">生日、养老金交给联动流程统一安排，不缩成单项</text>
+
+  <rect x="40" y="824" width="1110" height="159" rx="14" class="ac"/>
+  <text x="80" y="892" class="t1 o">用白话讲结果和下一步</text>
+  <text x="80" y="950" class="t2">不说术语，不报内部编号</text>
+
+  <!-- 中间边界：提议 → 校验 -->
+  <line x1="1280" y1="30" x2="1280" y2="426" stroke="#9AA1AB" stroke-width="4" stroke-dasharray="14 10"/>
+  <line x1="1280" y1="696" x2="1280" y2="983" stroke="#9AA1AB" stroke-width="4" stroke-dasharray="14 10"/>
+  <rect x="1170" y="436" width="220" height="250" rx="18" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="3"/>
+  <text x="1280" y="516" text-anchor="middle" class="t1 o" style="font-size:50px">提议</text>
+  <line x1="1196" y1="564" x2="1360" y2="564" stroke="#2A5DA8" stroke-width="6" marker-end="url(#ab)"/>
+  <text x="1280" y="646" text-anchor="middle" class="t1 b" style="font-size:50px">校验</text>
+
+  <!-- 右栏：程序的兜底 -->
+  <rect x="1410" y="30" width="1110" height="90" rx="16" fill="#2A5DA8"/>
+  <text x="1965" y="96" text-anchor="middle" class="hd">程序的兜底</text>
+
+  <rect x="1410" y="140" width="1110" height="131" rx="14" class="pc"/>
+  <text x="1450" y="197" class="t1 b">只能从白名单能力里选</text>
+  <text x="1450" y="251" class="t2">银行操作工具不进模型目录</text>
+
+  <rect x="1410" y="282" width="1110" height="131" rx="14" class="pc"/>
+  <text x="1450" y="339" class="t1 b">参数由程序校验</text>
+  <text x="1450" y="393" class="t2">金额、账户、收款人逐项核对</text>
+
+  <rect x="1410" y="424" width="1110" height="131" rx="14" fill="#D3E0F3" stroke="#2A5DA8" stroke-width="5"/>
+  <text x="1450" y="481" class="t1 b">动钱必过确认门</text>
+  <use href="#gate" x="1838" y="465"/>
+  <text x="1450" y="535" class="t2">确认单 + 验证码 + 刷脸；参数一改就重新确认</text>
+
+  <rect x="1410" y="566" width="1110" height="131" rx="14" class="pc"/>
+  <text x="1450" y="623" class="t1 b">银行规则只在银行</text>
+  <text x="1450" y="677" class="t2">余额、限额、风控、去重都由银行判断</text>
+
+  <rect x="1410" y="708" width="1110" height="131" rx="14" class="pc"/>
+  <text x="1450" y="765" class="t1 b">结果只认银行返回</text>
+  <text x="1450" y="819" class="t2">超时不等于没办，按原操作编号去查</text>
+
+  <rect x="1410" y="850" width="1110" height="131" rx="14" class="pc"/>
+  <text x="1450" y="907" class="t1 b">外部文字当数据，不当指令</text>
+  <text x="1450" y="961" class="t2">工具返回、粘贴的资料、记忆都改不了规则</text>
+
+  <!-- 底部：生日例子 -->
+  <rect x="40" y="1008" width="2480" height="396" rx="18" fill="#FAFAFB" stroke="#B3B9C2" stroke-width="3"/>
+
+  <rect x="80" y="1028" width="990" height="80" rx="40" class="uc"/>
+  <text x="575" y="1082" text-anchor="middle" class="g s40">“11月7日给妈妈过生日，500元以内安排花和蛋糕”</text>
+  <line x1="1074" y1="1068" x2="1130" y2="1068" class="arr" marker-end="url(#ag)"/>
+  <rect x="1134" y="1028" width="760" height="80" rx="14" class="ac" stroke-width="4"/>
+  <text x="1514" y="1082" text-anchor="middle" class="o s40">Agent 听懂：这是生日安排，不是转账</text>
+  <line x1="1898" y1="1068" x2="1954" y2="1068" class="arr" marker-end="url(#ag)"/>
+  <rect x="1958" y="1028" width="520" height="80" rx="14" class="pc"/>
+  <text x="2218" y="1082" text-anchor="middle" class="b s40">程序排步骤，动钱处设门</text>
+
+  <!-- 步骤链 -->
+  <rect x="120" y="1132" width="400" height="140" rx="14" class="pc"/>
+  <text x="320" y="1190" text-anchor="middle" class="t1 b" style="font-size:44px">选好花和蛋糕</text>
+  <text x="320" y="1248" text-anchor="middle" class="t2" style="font-size:40px">在卡片上挑</text>
+  <line x1="524" y1="1202" x2="596" y2="1202" class="arr" marker-end="url(#ag)"/>
+
+  <rect x="600" y="1132" width="400" height="140" rx="14" class="pc"/>
+  <text x="800" y="1190" text-anchor="middle" class="t1 b" style="font-size:44px">留出专款</text>
+  <text x="772" y="1248" text-anchor="middle" class="t2" style="font-size:40px">500 元</text>
+  <use href="#gate" x="878" y="1234"/>
+  <line x1="1004" y1="1202" x2="1076" y2="1202" class="arr" marker-end="url(#ag)"/>
+
+  <rect x="1080" y="1132" width="400" height="140" rx="14" class="pc"/>
+  <text x="1280" y="1190" text-anchor="middle" class="t1 b" style="font-size:44px">鲜花 199 元</text>
+  <text x="1118" y="1248" class="t2" style="font-size:40px">下单</text>
+  <use href="#gate" x="1236" y="1234"/>
+  <text x="1298" y="1248" class="t2" style="font-size:40px">付款</text>
+  <use href="#gate" x="1416" y="1234"/>
+  <line x1="1484" y1="1202" x2="1556" y2="1202" class="arr" marker-end="url(#ag)"/>
+
+  <rect x="1560" y="1132" width="400" height="140" rx="14" class="pc"/>
+  <text x="1760" y="1190" text-anchor="middle" class="t1 b" style="font-size:44px">蛋糕 268 元</text>
+  <text x="1598" y="1248" class="t2" style="font-size:40px">下单</text>
+  <use href="#gate" x="1716" y="1234"/>
+  <text x="1778" y="1248" class="t2" style="font-size:40px">付款</text>
+  <use href="#gate" x="1896" y="1234"/>
+  <line x1="1964" y1="1202" x2="2036" y2="1202" class="arr" marker-end="url(#ag)"/>
+
+  <rect x="2040" y="1132" width="400" height="140" rx="14" class="pc"/>
+  <text x="2240" y="1190" text-anchor="middle" class="t1 b" style="font-size:44px">退回 33 元</text>
+  <text x="2240" y="1248" text-anchor="middle" class="t2" style="font-size:40px">没花完的自动退回</text>
+
+  <!-- 结果与图例 -->
+  <text x="120" y="1352" class="g" style="font-size:44px;font-weight:700">结果：共花 467 元，没花完的 33 元退回原卡</text>
+  <use href="#gate" x="1556" y="1337"/>
+  <text x="1600" y="1351" class="t2" style="font-size:40px">= 确认门：确认单 + 验证码 + 刷脸，共 5 次</text>
+</svg>
