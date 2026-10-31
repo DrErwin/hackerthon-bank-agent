@@ -223,17 +223,17 @@ s = content_slide("说一句话，任务一步步办好", (
     "赛题六个场景我们做了四个，其中跨场景联动做了生日和养老金两个例子。"))
 phone_row(s, ["S01", "G01"], ["首页：直接说就能开始", "生日一句话，直接进配送表单"],
           left=Inches(6.4), right=Inches(12.8), height=Inches(4.85))
-text(s, Inches(0.6), TOP + Inches(0.3), Inches(5.6), Inches(3.2), [
+text(s, Inches(0.6), TOP + Inches(0.55), Inches(5.6), Inches(3.2), [
     ("用一句大白话说需求", {"size": 20, "bold": True, "color": NAVY}),
     ("“给妈妈转500元”\n“11月7日是我妈妈生日，500元以内帮她安排花和蛋糕”", {"size": 15, "color": MUTED, "after": 18}),
     ("Agent 听懂并编排成一步步能核对的任务", {"size": 20, "bold": True, "color": NAVY}),
-    ("每一步做到哪里都看得见，动钱必须本人确认，结果只认银行", {"size": 15, "color": MUTED}),
+    ("进度实时可见，动钱前本人确认", {"size": 15, "color": MUTED}),
 ], spacing=6)
-text(s, Inches(0.6), TOP + Inches(3.55), Inches(5.6), Inches(0.4), "覆盖赛题 4 个核心场景", size=15,
+text(s, Inches(0.6), TOP + Inches(3.35), Inches(5.6), Inches(0.4), "覆盖赛题 4 个核心场景", size=15,
      color=MUTED, bold=True)
 for i, name in enumerate(["01 转账", "02 账单", "05 订阅/代扣", "06 跨场景联动"]):
     x = Inches(0.6) + (i % 2) * Inches(2.8)
-    y = TOP + Inches(4.0) + (i // 2) * Inches(0.65)
+    y = TOP + Inches(3.85) + (i // 2) * Inches(0.7)
     card(s, x, y, Inches(2.6), Inches(0.52), fill=TINT)
     text(s, x, y, Inches(2.6), Inches(0.52), name, size=15, color=GUARD, bold=True,
          align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
@@ -244,24 +244,21 @@ s = content_slide("核心设计：Agent 编排，程序兜底", (
     "听懂口语、接住改口、把“给妈妈过生日”编排成九步来办；让死的那部分去守住安全——参数对不对、动钱前要不要确认、"
     "银行结果算不算数，这些全由程序把关。所以我们的创新不是做了多少功能，而是回答了一个问题："
     "在银行这种必须严格的场景里，AI Agent 到底能自由到什么程度？Agent 越灵活，程序的门就越要守住。"))
-picture(s, "freedom-guardrails", Inches(0.5), TOP + Inches(0.1), max_w=Inches(8.6), max_h=Inches(4.85),
+picture(s, "freedom-guardrails", Inches(0.5), TOP + Inches(0.45), max_w=Inches(8.6), max_h=Inches(4.85),
         frame=False, folder=REPORT_IMG)
-text(s, Inches(9.45), TOP + Inches(0.2), Inches(3.4), Inches(0.5), "三条铁律", size=22, color=NAVY, bold=True)
+text(s, Inches(9.45), TOP + Inches(0.75), Inches(3.4), Inches(0.5), "三条铁律", size=22, color=NAVY, bold=True)
 for i, (head, sub) in enumerate([
     ("模型只动嘴不动手", "Agent 只能提议，执行权在程序"),
     ("动钱必过确认门", "确认单 + 验证码 + 刷脸"),
     ("银行规则只在银行", "余额、限额、风控以银行为准"),
 ]):
-    y = TOP + Inches(0.85) + i * Inches(1.25)
+    y = TOP + Inches(1.5) + i * Inches(1.25)
     badge(s, Inches(9.45), y, str(i + 1), fill=GUARD)
     text(s, Inches(10.0), y - Inches(0.02), Inches(2.9), Inches(0.4), head, size=17, color=INK, bold=True)
     text(s, Inches(10.0), y + Inches(0.42), Inches(2.9), Inches(0.6), sub, size=13, color=MUTED)
-text(s, Inches(0.5), TOP + Inches(5.1), Inches(12.3), Inches(0.5),
-     "在银行这种必须严格的场景里，AI Agent 到底能自由到什么程度？", size=18, color=HOT, bold=True,
-     align=PP_ALIGN.CENTER)
 
 # ---------------------------------------------------------------- 6 architecture
-s = content_slide("系统架构：为什么选 LangChain 生态", (
+s = content_slide("系统架构与技术选型", (
     "银行业务步骤多、检查多，所以我们选了 LangChain 生态。Deep Agents 负责听懂用户、提出要办什么。"
     "LangGraph 负责记住每个任务办到哪一步：转账、生日这些多步业务每到动钱的地方就停下来，等用户确认后再沿原任务继续，"
     "中途断了也能接上。银行规则不在 Agent 里写一份，全部以模拟银行返回的结果为准。"))
@@ -277,7 +274,7 @@ for i, (head, sub, color) in enumerate([
     text(s, Inches(9.6), y + Inches(0.15), Inches(3.1), Inches(0.4), head, size=18, color=color, bold=True)
     text(s, Inches(9.6), y + Inches(0.6), Inches(3.1), Inches(0.75), sub, size=13, color=INK)
 text(s, Inches(0.5), TOP + Inches(5.1), Inches(8.6), Inches(0.4),
-     "银行业务步骤多、检查严 → 需要能编排、能暂停、能接着办的框架", size=15, color=MUTED,
+     "转账流程 10 个节点，每个暂停点写检查点，断了从原位继续", size=15, color=MUTED,
      align=PP_ALIGN.CENTER)
 
 # ---------------------------------------------------------------- 7 interaction
@@ -413,18 +410,18 @@ text(s, Inches(8.55), TOP + Inches(3.85), Inches(4.3), Inches(1.2),
 s = content_slide("已知限制与下一步", (
     "没做的和模拟的部分都写在这里。下一步先接真实的身份验证，再把理财和卡片补上。"))
 blocks = [
-    ("未做", ["03 理财、04 卡片管理", "转账里的定时转账、AA 收款"], MUTED),
-    ("模拟", ["模拟银行，不是真实银行", "刷脸由管理员页模拟作答", "部分风险判断用预设演示数据"], MUTED),
-    ("体验", ["模型响应偏慢", "部分步骤要等 1—5 分钟"], MUTED),
+    ("未做", ["03 理财", "04 卡片管理", "定时转账、AA 收款"], MUTED),
+    ("模拟", ["银行为模拟银行", "刷脸为模拟作答", "部分风险用预设数据"], MUTED),
+    ("体验", ["模型响应偏慢", "部分步骤需等待", "约 1 到 5 分钟"], MUTED),
     ("下一步", ["接真实身份验证", "扩展理财和卡片场景", "换更快的模型通道"], GUARD),
 ]
 for i, (head, lines, color) in enumerate(blocks):
     x = Inches(0.5) + i * Inches(3.12)
-    card(s, x, TOP + Inches(0.6), Inches(2.92), Inches(3.4), fill=TINT if head == "下一步" else RGBColor(0xF4, 0xF5, 0xF8))
-    text(s, x + Inches(0.25), TOP + Inches(0.85), Inches(2.4), Inches(0.5), head, size=22,
+    card(s, x, TOP + Inches(1.0), Inches(2.92), Inches(3.4), fill=TINT if head == "下一步" else RGBColor(0xF4, 0xF5, 0xF8))
+    text(s, x + Inches(0.25), TOP + Inches(1.25), Inches(2.4), Inches(0.5), head, size=22,
          color=GUARD if head == "下一步" else NAVY, bold=True)
-    text(s, x + Inches(0.25), TOP + Inches(1.6), Inches(2.45), Inches(2.3), ["• " + l for l in lines],
-         size=15, spacing=12)
+    text(s, x + Inches(0.2), TOP + Inches(2.0), Inches(2.6), Inches(2.3), ["• " + l for l in lines],
+         size=14, spacing=12)
 
 # ---------------------------------------------------------------- 15 thanks
 thanks = prs.slides.add_slide(LAYOUT["节标题"])
