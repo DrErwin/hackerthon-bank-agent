@@ -1,10 +1,10 @@
-# AI Banking Agent
+# SecurityFlex：适老化 AI 银行智能助理
 
 ## 1. 项目简介
 
 - 参赛赛道：FinTechathon 2026 第八届深圳国际金融科技大赛 · 国内赛道·人工智能赛道（AI Banking Agent）
-- 队伍名称：【待填：队伍名】
-- 项目名称：【待填：作品名】
+- 队伍名称：KOSX1
+- 项目名称：SecurityFlex
 - 一句话介绍：给老年人用的银行智能助理。用户像聊天一样说出需求，Agent 听懂口语和改口、选对要办的业务；程序把它排成一步步能核对的任务，在“确认单 + 验证码/刷脸”之后代为办理转账、退订、生日和养老金安排。Agent 负责灵活理解，程序负责兜住安全。
 
 已做的场景：01 转账、02 账单、05 订阅/代扣、06 跨场景联动（生日、养老金、减支）。03 理财、04 卡片，以及转账里的定时转账、AA 收款没有做，见[测试 · 已知限制](#已知限制)。
@@ -122,7 +122,7 @@ Copy-Item backend/app/agent_platform/local_demo.example.json .env.local-demo.jso
 
 1. `api_key` 填自己的智谱密钥。
 2. `api_secret`、`bank_secret`、`admin_key` 各填一个不同的随机串（至少 32 个字符）。可以用 `python -c "import secrets; print(secrets.token_hex(32))"` 生成。以后重启沿用同一组值。
-3. `model_name` 改成 `glm-5.3`，并加一行 `"base_url": "https://open.bigmodel.cn/api/coding/paas/v4/"`。
+3. `model_name` 改成 `glm-5.3`，**并手动加一行 `"base_url": "https://open.bigmodel.cn/api/coding/paas/v4/"`（模板里没有这一项，必须自己加，否则模型调用会失败）**。
 4. `data_directory` 改成本机的绝对路径，例如 `D:/bank-agent-demo-data`。
 
 只想看安装和测试、不调用模型时，`api_key` 填任意非空占位值也能启动，只是聊天会失败。
